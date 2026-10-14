@@ -1,0 +1,421 @@
+import Foundation
+import SwiftUI
+
+enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
+    case live, movies, series, favorites
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .live: return String(localized: "Live TV")
+        case .movies: return String(localized: "Filme")
+        case .series: return String(localized: "Serien")
+        case .favorites: return String(localized: "Favoriten")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .live: return "dot.radiowaves.left.and.right"
+        case .movies: return "film"
+        case .series: return "tv"
+        case .favorites: return "star"
+        }
+    }
+}
+
+/// What the player window should show.
+struct PlayItem: Equatable {
+    enum Kind: Equatable {
+        case live(channelId: Int, categoryId: String?)
+        case movie(id: Int)
+        case episode(id: String, seriesId: Int)
+    }
+
+    let kind: Kind
+    let title: String
+    let subtitle: String?
+    let url: URL
+
+    var isLive: Bool {
+        if case .live = kind { return true }
+        return false
+    }
+
+    var resumeKey: String? {
+        switch kind {
+        case .live: return nil
+        case .movie(let id): return "movie.\(id)"
+        case .episode(let id, _): return "episode.\(id)"
+        }
+    }
+}
+
+@MainActor
+final class AppModel: ObservableObject {
+    @Published private(set) var credentials: XtreamCredentials?
+    @Published private(set) var account: AccountInfo?
+
+    @Published private(set) var liveCategories: [XCategory] = []
+    @Published private(set) var movieCategories: [XCategory] = []
+    @Published private(set) var seriesCategories: [XCategory] = []
+    @Published private(set) var channels: [LiveChannel] = []
+    @Published private(set) var movies: [Movie] = []
+    @Published private(set) var series: [Series] = []
+
+    @Published private(set) var isLoading = false
+    @Published private(set) var loadError: String?
+    @Published private(set) var lastUpdated: Date?
+
+    @Published private(set) var favorites: Set<String>
+    @Published var showAdult: Bool {
+        didSet { UserDefaults.standard.set(showAdult, forKey: "library.showAdult") }
+    }
+
+    @Published var nowPlaying: PlayItem?
+
+    let epg = EPGStore()
+
+    private(set) var channelsByCategory: [String: [LiveChannel]] = [:]
+    private(set) var moviesByCategory: [String: [Movie]] = [:]
+    private(set) var seriesByCategory: [String: [Series]] = [:]
+
+    init() {
+        favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
+        showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
+        // FERNSY_NO_KEYCHAIN: the build script's launch smoke test must not trigger a keychain prompt.
+        let skipKeychain = Self.debugCredentials != nil || ProcessInfo.processInfo.environment["FERNSY_NO_KEYCHAIN"] != nil
+        if !skipKeychain, let saved = CredentialStore.load() {
+            credentials = saved
+            Task { await loadCatalog(forceRefresh: false) }
+        }
+        #if DEBUG
+        debugBootstrap()
+        #endif
+    }
+
+    /// Development login from IPTV_SERVER/IPTV_USER/IPTV_PASS. Takes precedence over the
+    /// keychain, which a freshly built debug binary may not read without a password prompt.
+    private static var debugCredentials: XtreamCredentials? {
+        #if DEBUG
+        let env = ProcessInfo.processInfo.environment
+        guard let server = env["IPTV_SERVER"], let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
+        return XtreamCredentials(server: server, username: user, password: pass)
+        #else
+        return nil
+        #endif
+    }
+
+    #if DEBUG
+    /// Development hook: IPTV_SERVER/IPTV_USER/IPTV_PASS log in without the keychain,
+    /// IPTV_AUTOPLAY=live:<id> | movie:<id> starts playback once the catalog is loaded.
+    private func debugBootstrap() {
+        let env = ProcessInfo.processInfo.environment
+        if let debug = Self.debugCredentials {
+            credentials = debug
+            Task { await loadCatalog(forceRefresh: false) }
+        }
+        if let size = env["IPTV_WINDOW"]?.split(separator: "x").compactMap({ Double($0) }), size.count == 2 {
+            // Screenshot runs: keep every titled window at this size (points, frame incl. title bar).
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) {
+                    guard window.frame.size != CGSize(width: size[0], height: size[1]) else { continue }
+                    window.setFrame(CGRect(origin: CGPoint(x: 80, y: 80), size: CGSize(width: size[0], height: size[1])), display: true)
+                }
+            }
+        }
+        guard let auto = env["IPTV_AUTOPLAY"] else { return }
+        let parts = auto.split(separator: ":")
+        guard parts.count == 2, let id = Int(parts[1]) else { return }
+        Task {
+            while channels.isEmpty && movies.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+            try? await Task.sleep(for: .seconds(1))
+            if parts[0] == "live", let channel = channel(id) { play(channel) }
+            if parts[0] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
+        }
+    }
+    #endif
+
+    var client: XtreamClient? { credentials.map(XtreamClient.init) }
+
+    // MARK: Account
+
+    func login(_ creds: XtreamCredentials) async throws {
+        let info = try await XtreamClient(credentials: creds).account()
+        CredentialStore.save(creds)
+        epg.removeAll()
+        credentials = creds
+        account = info
+        await loadCatalog(forceRefresh: true)
+    }
+
+    func logout() {
+        nowPlaying = nil
+        periodicRefresh?.cancel()
+        periodicRefresh = nil
+        lastRefresh = nil
+        CredentialStore.delete()
+        credentials = nil
+        account = nil
+        liveCategories = []; movieCategories = []; seriesCategories = []
+        channels = []; movies = []; series = []
+        channelsByCategory = [:]; moviesByCategory = [:]; seriesByCategory = [:]
+        epg.removeAll()
+    }
+
+    // MARK: Catalog
+    //
+    // Stale-while-revalidate: the last downloaded catalog is shown straight from disk
+    // (live channels first, they are the smallest and most used), then every section
+    // is re-downloaded in the background and only re-applied if its bytes changed.
+
+    /// Sections of the catalog that are decoded and applied independently.
+    private enum CatalogSection: CaseIterable {
+        case live, movies, series
+
+        var actions: [CatalogAction] {
+            switch self {
+            case .live: return [.liveCategories, .liveStreams]
+            case .movies: return [.vodCategories, .vodStreams]
+            case .series: return [.seriesCategories, .series]
+            }
+        }
+    }
+
+    private enum DecodedSection: Sendable {
+        case live([XCategory], [LiveChannel])
+        case movies([XCategory], [Movie])
+        case series([XCategory], [Series])
+    }
+
+    private static let refreshInterval: TimeInterval = 6 * 3600
+    private var lastRefresh: Date?
+    private var refreshInFlight = false
+    private var periodicRefresh: Task<Void, Never>?
+
+    private var cacheDirectory: URL? {
+        guard let credentials else { return nil }
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let dir = base.appendingPathComponent("Fernsy/\(credentials.accountKey)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Shows the cached catalog immediately (if any) and refreshes it in the background.
+    /// `forceRefresh` bypasses the "refreshed a moment ago" check (manual refresh).
+    func loadCatalog(forceRefresh: Bool) async {
+        guard let client, let dir = cacheDirectory else { return }
+        loadError = nil
+
+        if channels.isEmpty && movies.isEmpty && series.isEmpty {
+            await loadFromCache(dir)
+        }
+        if account == nil {
+            Task { account = try? await client.account() }
+        }
+        startPeriodicRefresh()
+
+        if !forceRefresh, let lastRefresh, Date().timeIntervalSince(lastRefresh) < 300 { return }
+        await refresh(client: client, dir: dir)
+    }
+
+    private func loadFromCache(_ dir: URL) async {
+        let stamp = dir.appendingPathComponent("updated")
+        guard let cachedAt = (try? FileManager.default.attributesOfItem(atPath: stamp.path)[.modificationDate]) as? Date else { return }
+        lastUpdated = cachedAt
+
+        let started = Date()
+        if let live = await Self.decode(.live, from: dir) { apply(live) }
+        #if DEBUG
+        debugLog("[catalog] live from cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(channels.count) channels)")
+        #endif
+
+        await withTaskGroup(of: DecodedSection?.self) { group in
+            group.addTask { await Self.decode(.movies, from: dir) }
+            group.addTask { await Self.decode(.series, from: dir) }
+            for await section in group {
+                if let section { apply(section) }
+            }
+        }
+        #if DEBUG
+        debugLog("[catalog] full cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(movies.count) movies, \(series.count) series)")
+        #endif
+    }
+
+    private func refresh(client: XtreamClient, dir: URL) async {
+        guard !refreshInFlight else { return }
+        refreshInFlight = true
+        isLoading = true
+        defer {
+            refreshInFlight = false
+            isLoading = false
+        }
+
+        let started = Date()
+        do {
+            // Download everything, keep only actions whose payload changed.
+            let changed: Set<CatalogAction> = try await withThrowingTaskGroup(of: CatalogAction?.self) { group in
+                for action in CatalogAction.allCases {
+                    group.addTask {
+                        let data = try await client.catalog(action)
+                        let file = dir.appendingPathComponent(action.rawValue + ".json")
+                        if let old = try? Data(contentsOf: file), old == data { return nil }
+                        try data.write(to: file, options: .atomic)
+                        return action
+                    }
+                }
+                var result = Set<CatalogAction>()
+                for try await action in group { if let action { result.insert(action) } }
+                return result
+            }
+            FileManager.default.createFile(atPath: dir.appendingPathComponent("updated").path, contents: Data())
+            lastRefresh = Date()
+            lastUpdated = lastRefresh
+
+            for section in CatalogSection.allCases where !changed.isDisjoint(with: section.actions) || isEmpty(section) {
+                if let decoded = await Self.decode(section, from: dir) { apply(decoded) }
+            }
+            #if DEBUG
+            debugLog("[catalog] refresh in \(Int(Date().timeIntervalSince(started) * 1000)) ms, changed: \(changed.map(\.rawValue).sorted())")
+            #endif
+        } catch {
+            // A failed background refresh is silent as long as cached data is shown.
+            if channels.isEmpty && movies.isEmpty && series.isEmpty {
+                loadError = error.localizedDescription
+            }
+            #if DEBUG
+            debugLog("[catalog] refresh failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func startPeriodicRefresh() {
+        guard periodicRefresh == nil else { return }
+        periodicRefresh = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.refreshInterval))
+                guard let self, !Task.isCancelled else { return }
+                await self.loadCatalog(forceRefresh: true)
+            }
+        }
+    }
+
+    private func isEmpty(_ section: CatalogSection) -> Bool {
+        switch section {
+        case .live: return channels.isEmpty
+        case .movies: return movies.isEmpty
+        case .series: return series.isEmpty
+        }
+    }
+
+    private nonisolated static func decode(_ section: CatalogSection, from dir: URL) async -> DecodedSection? {
+        await Task.detached(priority: .userInitiated) { () -> DecodedSection? in
+            func load<T: Decodable>(_ action: CatalogAction, _ type: T.Type) -> T? {
+                guard let data = try? Data(contentsOf: dir.appendingPathComponent(action.rawValue + ".json")) else { return nil }
+                return try? JSONDecoder().decode(T.self, from: data)
+            }
+            switch section {
+            case .live:
+                guard let streams = load(.liveStreams, [LiveChannel].self) else { return nil }
+                return .live(load(.liveCategories, [XCategory].self) ?? [], streams)
+            case .movies:
+                guard let streams = load(.vodStreams, [Movie].self) else { return nil }
+                return .movies(load(.vodCategories, [XCategory].self) ?? [], streams)
+            case .series:
+                guard let streams = load(.series, [Series].self) else { return nil }
+                return .series(load(.seriesCategories, [XCategory].self) ?? [], streams)
+            }
+        }.value
+    }
+
+    private func apply(_ section: DecodedSection) {
+        switch section {
+        case .live(let categories, let list):
+            channelsByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
+            liveCategories = categories
+            channels = list
+        case .movies(let categories, let list):
+            moviesByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
+            movieCategories = categories
+            movies = list
+        case .series(let categories, let list):
+            seriesByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
+            seriesCategories = categories
+            series = list
+        }
+    }
+
+    // MARK: Adult filter
+
+    private static let adultMarkers = ["xxx", "adult", "+18", "18+", "for adults", "erotik"]
+
+    func isAdultCategory(_ category: XCategory) -> Bool {
+        let name = category.name.lowercased()
+        return Self.adultMarkers.contains { name.contains($0) }
+    }
+
+    func visibleCategories(_ list: [XCategory]) -> [XCategory] {
+        showAdult ? list : list.filter { !isAdultCategory($0) }
+    }
+
+    // MARK: Favorites
+
+    func isFavorite(_ key: String) -> Bool { favorites.contains(key) }
+
+    func toggleFavorite(_ key: String) {
+        if favorites.contains(key) { favorites.remove(key) } else { favorites.insert(key) }
+        UserDefaults.standard.set(Array(favorites), forKey: "library.favorites")
+    }
+
+    // MARK: Playback
+
+    func play(_ channel: LiveChannel) {
+        guard let url = client?.liveURL(channel.id) else { return }
+        nowPlaying = PlayItem(kind: .live(channelId: channel.id, categoryId: channel.categoryId),
+                              title: channel.name, subtitle: nil, url: url)
+    }
+
+    func play(_ movie: Movie) {
+        guard let url = client?.movieURL(movie) else { return }
+        nowPlaying = PlayItem(kind: .movie(id: movie.id), title: movie.name, subtitle: nil, url: url)
+    }
+
+    func play(_ episode: Episode, of show: Series) {
+        guard let url = client?.episodeURL(episode) else { return }
+        nowPlaying = PlayItem(kind: .episode(id: episode.id, seriesId: show.id), title: show.name,
+                              subtitle: "S\(episode.season) E\(episode.number) · \(episode.title)", url: url)
+    }
+
+    /// Channels the player zaps through: the category the channel was started from.
+    func zapList(categoryId: String?) -> [LiveChannel] {
+        let list = categoryId.flatMap { channelsByCategory[$0] } ?? channels
+        return list.isEmpty ? channels : list
+    }
+
+    /// The channel `offset` steps away from `channelId` (wrapping), with its 1-based number.
+    func neighbor(of channelId: Int, categoryId: String?, offset: Int) -> (channel: LiveChannel, number: Int)? {
+        let list = zapList(categoryId: categoryId)
+        guard !list.isEmpty, let index = list.firstIndex(where: { $0.id == channelId }) else { return nil }
+        let next = ((index + offset) % list.count + list.count) % list.count
+        return (list[next], next + 1)
+    }
+
+    func channel(_ id: Int) -> LiveChannel? {
+        channels.first { $0.id == id }
+    }
+
+    // MARK: Resume positions
+
+    func resumePosition(_ key: String) -> Double {
+        UserDefaults.standard.double(forKey: "resume." + key)
+    }
+
+    func saveResume(_ key: String, position: Double, duration: Double) {
+        let finished = duration > 0 && position > duration - 90
+        if position < 30 || finished {
+            UserDefaults.standard.removeObject(forKey: "resume." + key)
+        } else {
+            UserDefaults.standard.set(position, forKey: "resume." + key)
+        }
+    }
+}
