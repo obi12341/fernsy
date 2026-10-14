@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fernsy – Support</title>
+<meta name="description" content="Help with Fernsy: signing in, program data, playback and contact.">
+<link rel="icon" href="../assets/icon.png">
+<link rel="alternate" hreflang="de" href="../support.html">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="../assets/icon.png" alt="">Fernsy</a>
+  <nav class="top">
+    <a href="./">Home</a>
+    <a href="support.html" aria-current="page">Support</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="imprint.html">Imprint</a>
+    <a href="../support.html" hreflang="de" lang="de">Deutsch</a>
+  </nav>
+</div></header>
+
+<main class="text">
+  <h1>Support</h1>
+  <p>Have a question or a problem with Fernsy? Email us at <a href="mailto:info@mobilistics.de?subject=Fernsy%20Support">info@mobilistics.de</a> – in English or German. You can also report bugs as an <a href="https://github.com/obi12341/fernsy/issues">issue on GitHub</a>.</p>
+  <p>It helps if you include your macOS version, the Fernsy version (menu “Fernsy” → “About Fernsy”) and a short description of what you did. Please never send us your password.</p>
+
+  <h2>Frequently asked questions</h2>
+  <details><summary>Does Fernsy include channels or a subscription?</summary>
+    <p>No. Fernsy is a player. Channels, movies and series come from your IPTV provider; you need an account there with Xtream Codes credentials. We do not sell subscriptions or recommend providers.</p></details>
+  <details><summary>Which credentials do I need?</summary>
+    <p>The server address (for example <code>http://server.example:8080</code>), username and password of your Xtream Codes account. Your provider gives you these. M3U playlists are not supported at the moment.</p></details>
+  <details><summary>Signing in fails.</summary>
+    <p>Check the server address including the port, your username and password. Many providers only allow a limited number of simultaneous connections – if your account is in use on another device, playback may stop.</p></details>
+  <details><summary>Shows are missing from the program guide.</summary>
+    <p>Program data comes from your provider. If a channel has no program information there, Fernsy shows “No program information”. Fernsy caches the data and reloads it automatically when it is out of date.</p></details>
+  <details><summary>A channel stutters or drops out.</summary>
+    <p>Fernsy reconnects automatically and seamlessly when the network drops out. If the problem persists, it is often the connection to your provider. “Technical info” (key <kbd>I</kbd> in the player) shows the buffer, bit rate and reconnects.</p></details>
+  <details><summary>Which keyboard shortcuts are there?</summary>
+    <p><kbd>↑</kbd> <kbd>↓</kbd> switch channel · <kbd>Space</kbd> pause · <kbd>←</kbd> <kbd>→</kbd> jump 10 seconds · <kbd>F</kbd> full screen · <kbd>M</kbd> mute · <kbd>I</kbd> technical info</p></details>
+  <details><summary>How do I delete my data?</summary>
+    <p>Signing out in the settings removes your credentials. Deleting the app also removes favorites, playback positions and cached data. We do not hold any of your data.</p></details>
+</main>
+
+<footer><div class="wrap">
+  <span>© 2026 mobilistics GmbH</span>
+  <nav><a href="./">Home</a><a href="privacy.html">Privacy</a><a href="imprint.html">Imprint</a><a href="https://github.com/obi12341/fernsy">GitHub</a></nav>
+</div></footer>
+</body>
+</html>

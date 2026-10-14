@@ -12,9 +12,9 @@ Längen prüft `python3 scripts/check-store-texts.py`.
 | Sekundäre Kategorie | Foto und Video / Photo & Video |
 | Copyright | 2026 mobilistics GmbH |
 | Preis | (festlegen) |
-| Support-URL | (Pflicht – z. B. https://mobilistics.de/fernsy/support) |
-| Marketing-URL | (optional) |
-| Datenschutz-URL | (Pflicht – Text siehe unten, z. B. https://mobilistics.de/fernsy/datenschutz) |
+| Support-URL | DE: https://obi12341.github.io/fernsy/support.html · EN: https://obi12341.github.io/fernsy/en/support.html |
+| Marketing-URL | DE: https://obi12341.github.io/fernsy/ · EN: https://obi12341.github.io/fernsy/en/ |
+| Datenschutz-URL | DE: https://obi12341.github.io/fernsy/datenschutz.html · EN: https://obi12341.github.io/fernsy/en/privacy.html |
 | App-Datenschutz | „Keine Daten erfasst“ / “Data Not Collected” |
 | Altersfreigabe | Empfehlung 18+: Fernsy zeigt ungefiltert, was der Anbieter liefert; Erwachsenen-Kategorien sind nur ausgeblendet, nicht gesperrt. |
 | Verschlüsselung | Keine eigene (ITSAppUsesNonExemptEncryption = NO ist im Build gesetzt) |
@@ -129,34 +129,7 @@ The screenshots use fictional demo content (channels, programs, posters) rendere
 
 ---
 
-## Datenschutzerklärung (Entwurf für die Datenschutz-URL)
+## Datenschutzerklärung, Support und Impressum
 
-> Entwurf – bitte vor der Veröffentlichung rechtlich prüfen und mit Anschrift/Kontakt ergänzen.
-
-### Deutsch
-
-**Datenschutzerklärung für Fernsy**
-
-Verantwortlich: mobilistics GmbH, [Anschrift], [E-Mail]
-
-Fernsy erhebt, speichert und überträgt keine personenbezogenen Daten an uns oder an Dritte. Es gibt keine Analyse-, Tracking- oder Werbedienste.
-
-Die von dir eingegebenen Zugangsdaten (Server-Adresse, Benutzername, Passwort) werden ausschließlich lokal im Schlüsselbund deines Macs gespeichert. Fernsy verbindet sich nur mit dem Server deines IPTV-Anbieters, um Senderlisten, Programmdaten und Streams abzurufen. Für die dabei verarbeiteten Daten ist dein Anbieter verantwortlich; es gilt dessen Datenschutzerklärung.
-
-Favoriten, Wiedergabepositionen, Einstellungen sowie zwischengespeicherte Katalog- und Programmdaten liegen nur lokal auf deinem Mac und werden beim Löschen der App entfernt.
-
-Bei Fragen erreichst du uns unter [E-Mail].
-
-### English
-
-**Privacy Policy for Fernsy**
-
-Controller: mobilistics GmbH, [address], [email]
-
-Fernsy does not collect, store or transmit any personal data to us or to third parties. There are no analytics, tracking or advertising services.
-
-The credentials you enter (server address, username, password) are stored only locally in your Mac’s keychain. Fernsy connects only to your IPTV provider’s server to load channel lists, program data and streams. Your provider is responsible for the data processed there; its privacy policy applies.
-
-Favorites, playback positions, settings and cached catalog and program data are stored only locally on your Mac and are removed when you delete the app.
-
-If you have any questions, contact us at [email].
+Liegen als Website unter `website/` und werden per GitHub Pages veröffentlicht
+(`.github/workflows/pages.yml`), Adressen siehe Tabelle oben.

@@ -24,9 +24,12 @@ VERSION=1.1 UPLOAD=1 scripts/build-appstore.sh
 scripts/build-dmg.sh                        # ad-hoc signed DMG in dist/ (outside the App Store)
 ```
 
-App Store texts, review notes and the privacy policy draft are in `docs/app-store.md`
+App Store texts and review notes are in `docs/app-store.md`
 (`scripts/check-store-texts.py` checks the length limits). `scripts/make-icon.swift`
 renders the app icon.
+
+The product, support, privacy and imprint pages (German and English) live in `website/` and
+are published to https://obi12341.github.io/fernsy/ by `.github/workflows/pages.yml`.
 
 ## Development
 
