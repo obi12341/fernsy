@@ -12,9 +12,9 @@ Längen prüft `python3 scripts/check-store-texts.py`.
 | Sekundäre Kategorie | Foto und Video / Photo & Video |
 | Copyright | 2026 mobilistics GmbH |
 | Preis | (festlegen) |
-| Support-URL | DE: https://obi12341.github.io/fernsy/support.html · EN: https://obi12341.github.io/fernsy/en/support.html |
-| Marketing-URL | DE: https://obi12341.github.io/fernsy/ · EN: https://obi12341.github.io/fernsy/en/ |
-| Datenschutz-URL | DE: https://obi12341.github.io/fernsy/datenschutz.html · EN: https://obi12341.github.io/fernsy/en/privacy.html |
+| Support-URL | DE: https://www.fernsy.app/support.html · EN: https://www.fernsy.app/en/support.html |
+| Marketing-URL | DE: https://www.fernsy.app/ · EN: https://www.fernsy.app/en/ |
+| Datenschutz-URL | DE: https://www.fernsy.app/datenschutz.html · EN: https://www.fernsy.app/en/privacy.html |
 | App-Datenschutz | „Keine Daten erfasst“ / “Data Not Collected” |
 | Altersfreigabe | Empfehlung 18+: Fernsy zeigt ungefiltert, was der Anbieter liefert; Erwachsenen-Kategorien sind nur ausgeblendet, nicht gesperrt. |
 | Verschlüsselung | Keine eigene (ITSAppUsesNonExemptEncryption = NO ist im Build gesetzt) |

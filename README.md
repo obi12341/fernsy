@@ -29,7 +29,7 @@ App Store texts and review notes are in `docs/app-store.md`
 renders the app icon.
 
 The product, support, privacy and imprint pages (German and English) live in `website/` and
-are published to https://obi12341.github.io/fernsy/ by `.github/workflows/pages.yml`.
+are published to https://www.fernsy.app/ by `.github/workflows/pages.yml`.
 
 ## Development
 
