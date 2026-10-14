@@ -118,14 +118,18 @@ The first release of Fernsy.
 ## App Review – Hinweise für die Prüfung (englisch einreichen)
 
 ### Sign-in information
-Server / username / password of a working test account. (Fill in before submitting – App Review rejects apps it cannot sign in to.)
+- Server: `https://fernsy-demo.mobilistics.workers.dev`
+- Username: `demo`
+- Password: `demo`
 
 ### Notes
-Fernsy is a player for the user’s own IPTV subscription (Xtream Codes API). It does not include, sell, link to or recommend any channels or content, and it has no in-app purchases. All content shown comes from the server the user signs in to; the provided test account is supplied by us for review only.
+Fernsy is a player for the user’s own IPTV subscription (Xtream Codes API). It does not include, sell, link to or recommend any channels or content, and it has no in-app purchases. All content shown comes from the server the user signs in to.
+
+The sign-in above points to our own demo server (source: `demo-server/` in https://github.com/obi12341/fernsy). It serves fictional channels, a program guide, movies and series; the videos are the Blender Foundation open movies “Big Buck Bunny” and “Sintel” (CC BY 3.0). Live channels, the program guide grid, movies with seeking and series episodes can all be tried with it.
 
 Network: Most Xtream Codes servers only offer plain HTTP and redirect streams to changing hosts, so the app uses an App Transport Security exception (NSAllowsArbitraryLoads). Credentials are stored in the keychain; the app collects no data.
 
-The screenshots use fictional demo content (channels, programs, posters) rendered by us; the video still is “Big Buck Bunny” (© Blender Foundation, CC BY 3.0).
+The screenshots use the same fictional demo content.
 
 ---
 

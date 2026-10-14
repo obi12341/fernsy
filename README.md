@@ -31,6 +31,14 @@ renders the app icon.
 The product, support, privacy and imprint pages (German and English) live in `website/` and
 are published to https://www.fernsy.app/ by `.github/workflows/pages.yml`.
 
+## Demo server
+
+`demo-server/` is a Cloudflare Worker that speaks the Xtream Codes API with fictional,
+freely licensed content (sign in with `demo` / `demo` at
+https://fernsy-demo.mobilistics.workers.dev). App Review uses it; media files are assets of
+the `demo-media` release. Deploy with `demo-server/deploy.sh` (needs `CLOUDFLARE_ACCOUNT_ID`
+and `CLOUDFLARE_API_TOKEN`).
+
 ## Development
 
 Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environment and then
