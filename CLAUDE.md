@@ -13,4 +13,9 @@ This repo uses OpenSpec (`openspec/`) to keep behavior and decisions traceable.
   `openspec/specs/` stays the current truth. Bug fixes that do not change specified
   behavior need no change, but notable pitfalls belong in the related design.md.
 - Validate with `openspec validate --all --strict`.
+- Git: one branch per change (`change/<change-name>`). Apply, verify (including any manual
+  checks the user has to do) and archive on that branch, so the archive commit lands with the
+  code. Only then merge into `main` and push – `main` always has code and
+  `openspec/specs/` in sync. Releases (App Store builds, DMGs) are built from `main`.
+  Commit, merge and push only when the user agrees.
 - Build, release and debug switches: see README.md.
