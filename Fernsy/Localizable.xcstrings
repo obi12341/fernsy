@@ -1458,6 +1458,16 @@
         }
       }
     },
+    "Gilt beim Start jeder Wiedergabe, wenn die Spur vorhanden ist. „Nur erzwungene“ zeigt Untertitel nur für fremdsprachige Stellen. Wählst du im Player andere Spuren für eine Serienfolge, merkt sich Fernsy das für die weiteren Folgen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies when playback starts, if the track exists. “Forced only” shows subtitles only for foreign-language passages. If you pick other tracks in the player during a series episode, Fernsy keeps them for the following episodes."
+          }
+        }
+      }
+    },
     "Gültig bis": {
       "localizations": {
         "en": {
@@ -1994,6 +2004,16 @@
         }
       }
     },
+    "Nur erzwungene": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forced Only"
+          }
+        }
+      }
+    },
     "Nächste Folge": {
       "localizations": {
         "en": {
@@ -2390,6 +2410,16 @@
         }
       }
     },
+    "Sprache & Untertitel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language & Subtitles"
+          }
+        }
+      }
+    },
     "Spur %lld": {
       "localizations": {
         "en": {
@@ -2510,6 +2540,16 @@
         }
       }
     },
+    "Systemsprache (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System Language (%@)"
+          }
+        }
+      }
+    },
     "Technische Infos (I)": {
       "localizations": {
         "en": {
@@ -2536,6 +2576,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Audio Track"
+          }
+        }
+      }
+    },
+    "Tonspur: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio: %@"
           }
         }
       }
@@ -2626,6 +2676,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Subtitles could not be loaded: %@"
+          }
+        }
+      }
+    },
+    "Untertitel: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subtitles: %@"
+          }
+        }
+      }
+    },
+    "Untertitel: Aus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subtitles: Off"
           }
         }
       }

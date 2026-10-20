@@ -48,7 +48,7 @@ struct PlayItem: Equatable {
         case episode(id: String, seriesId: Int)
         case recording(id: UUID)
         /// A Jellyfin film or episode, started at `startAt` seconds.
-        case jellyfin(itemId: String, startAt: Double)
+        case jellyfin(itemId: String, startAt: Double, seriesId: String? = nil)
     }
 
     let kind: Kind
@@ -256,6 +256,7 @@ final class AppModel: ObservableObject {
                 if spec[0] == "iptv" { logout() } else { jellyfin.signOut() }
             }
         }
+        if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
         if let spec = env["JF_AUTOPLAY"] {
             // JF_AUTOPLAY=<item id>[:<start s>]: play a Jellyfin film or episode once signed in.
             let parts = spec.split(separator: ":").map(String.init)
@@ -272,13 +273,19 @@ final class AppModel: ObservableObject {
         }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }
         let parts = auto.split(separator: ":")
-        guard parts.count == 2, let id = Int(parts[1]) else { return }
+        guard parts.count >= 2, let id = Int(parts[1]) else { return }
         Task {
             while channels.isEmpty && movies.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
             try? await Task.sleep(for: .seconds(1))
             if parts[0] == "live", let channel = channel(id) { play(channel) }
             if parts[0] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
             if parts[0] == "recording", recorder.recordings.indices.contains(id) { play(recorder.recordings[id]) }
+            // episode:<series id>:<n> – the n-th episode over all seasons (1-based).
+            if parts[0] == "episode", parts.count == 3, let n = Int(parts[2]), let show = series.first(where: { $0.id == id }),
+               let info = try? await client?.seriesInfo(id) {
+                let all = info.seasons.keys.sorted().flatMap { info.seasons[$0] ?? [] }
+                if all.indices.contains(n - 1) { play(all[n - 1], of: show) }
+            }
         }
     }
     #endif
@@ -624,6 +631,47 @@ final class AppModel: ObservableObject {
     }
 
     /// Plays a Jellyfin film or episode; series start with their Next Up episode.
+    /// Language rules for a playback: the series' remembered choice, else the settings.
+    func trackPreferences(for item: PlayItem) -> TrackPreferences {
+        guard let key = Self.seriesTrackKey(item), let data = seriesTracks[key],
+              let stored = try? JSONDecoder().decode(TrackPreferences.self, from: data) else { return TrackPreferences.settings }
+        return stored
+    }
+
+    /// The user picked tracks in the player: series episodes keep that choice for the next ones.
+    func rememberTracks(_ preferences: TrackPreferences, for item: PlayItem) {
+        guard let key = Self.seriesTrackKey(item), let data = try? JSONEncoder().encode(preferences) else { return }
+        var all = seriesTracks
+        all[key] = data
+        var order = (UserDefaults.standard.stringArray(forKey: Self.seriesTracksStore + ".order") ?? []).filter { $0 != key } + [key]
+        while order.count > 200 { all[order.removeFirst()] = nil }
+        UserDefaults.standard.set(all, forKey: Self.seriesTracksStore)
+        UserDefaults.standard.set(order, forKey: Self.seriesTracksStore + ".order")
+        #if DEBUG
+        debugLog("[tracks] remembered for \(key): audio \(preferences.audioLanguage ?? "system"), subtitles \(preferences.subtitles.stored)")
+        #endif
+    }
+
+    private var seriesTracks: [String: Data] {
+        UserDefaults.standard.dictionary(forKey: Self.seriesTracksStore) as? [String: Data] ?? [:]
+    }
+
+    /// Debug runs can keep their memory apart from the user's (IPTV_TRACKSTORE=test).
+    static var seriesTracksStore: String {
+        #if DEBUG
+        if let suffix = ProcessInfo.processInfo.environment["IPTV_TRACKSTORE"] { return "tracks.series.\(suffix)" }
+        #endif
+        return "tracks.series"
+    }
+
+    private static func seriesTrackKey(_ item: PlayItem) -> String? {
+        switch item.kind {
+        case .episode(_, let seriesId): return "iptv.\(seriesId)"
+        case .jellyfin(_, _, let seriesId?): return "jellyfin.\(seriesId)"
+        default: return nil
+        }
+    }
+
     func play(jellyfin item: JFItem, resume: Bool = true) {
         Task {
             var target = item
@@ -638,7 +686,7 @@ final class AppModel: ObservableObject {
                 let code = [target.parentIndexNumber.map { "S\($0)" }, target.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
                 subtitle = code.isEmpty ? target.name : "\(code) · \(target.name)"
             }
-            nowPlaying = PlayItem(kind: .jellyfin(itemId: target.id, startAt: start), title: target.seriesName ?? target.name,
+            nowPlaying = PlayItem(kind: .jellyfin(itemId: target.id, startAt: start, seriesId: target.seriesId), title: target.seriesName ?? target.name,
                                   subtitle: subtitle, url: base)
         }
     }

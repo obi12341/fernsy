@@ -89,6 +89,7 @@ final class PlaybackSession {
     private var fmt: UnsafeMutablePointer<AVFormatContext>?
     private var pb: UnsafeMutablePointer<AVIOContext>?
     private var subCtx: UnsafeMutablePointer<AVCodecContext>?
+    private let trackRequest: TrackRequest
 
     private let videoQ = PacketQueue()
     private let audioQ = PacketQueue()
@@ -180,10 +181,11 @@ final class PlaybackSession {
     private let debugClockSkew = ProcessInfo.processInfo.environment["IPTV_TESTCLOCK"].flatMap(Double.init) ?? 0
     #endif
 
-    init(url: URL, mode: Mode, startPosition: Double,
+    init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
          videoRenderer: AVSampleBufferVideoRenderer, audioRenderer: AVSampleBufferAudioRenderer,
          synchronizer: AVSampleBufferRenderSynchronizer, onEvent: @escaping (Event) -> Void) {
         self.url = url
+        self.trackRequest = tracks
         self.mode = mode
         self.startPosition = startPosition
         self.videoRenderer = videoRenderer
@@ -722,7 +724,6 @@ final class PlaybackSession {
 
         var audioTracks: [MediaTrack] = []
         var subtitleTracks: [MediaTrack] = []
-        var preferredAudio: Int32?
         for i in 0..<Int32(ctx.pointee.nb_streams) {
             guard let st = ctx.pointee.streams[Int(i)] else { continue }
             let par = st.pointee.codecpar.pointee
@@ -735,16 +736,27 @@ final class PlaybackSession {
                 if let title, !title.isEmpty, title != lang { parts.append(title) }
                 parts.append(MediaNames.audioCodec(par.codec_id))
                 parts.append(MediaNames.channels(par.ch_layout.nb_channels))
-                audioTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · ")))
-                if preferredAudio == nil && MediaNames.isPreferred(lang) { preferredAudio = i }
+                audioTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · "), language: MediaNames.languageCode(lang),
+                                              isDefault: st.pointee.disposition & AV_DISPOSITION_DEFAULT != 0))
             } else if par.codec_type == AVMEDIA_TYPE_SUBTITLE && (ffs_is_text_subtitle(par.codec_id) != 0 || Self.isBitmapSubtitle(par.codec_id)) {
                 var parts = [MediaNames.language(lang) ?? String(localized: "Untertitel \(subtitleTracks.count + 1)")]
                 if let title, !title.isEmpty, title != lang { parts.append(title) }
-                subtitleTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · ")))
+                subtitleTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · "), language: MediaNames.languageCode(lang),
+                                                 isForced: st.pointee.disposition & AV_DISPOSITION_FORCED != 0 || MediaNames.titleSaysForced(title),
+                                                 isDefault: st.pointee.disposition & AV_DISPOSITION_DEFAULT != 0))
             }
         }
-        if let preferredAudio { a = preferredAudio }
+        let choice: (audio: Int32?, subtitle: Int32?)
+        switch trackRequest {
+        case .preferences(let preferences): choice = TrackChooser.choose(audio: audioTracks, subtitles: subtitleTracks, preferences: preferences)
+        case .explicit(let audio, let subtitle): choice = (audio, subtitle)
+        }
+        if let chosen = choice.audio, audioTracks.contains(where: { $0.id == chosen }) { a = chosen }
         if a < 0, let first = audioTracks.first { a = first.id }
+        let chosenSubtitle = choice.subtitle.flatMap { id in subtitleTracks.contains { $0.id == id } ? id : nil }
+        if let chosenSubtitle, let st = ctx.pointee.streams[Int(chosenSubtitle)] {
+            subCtx = ffs_open_decoder(st, 0)
+        }
         if isTuner {
             var kept = Set<Int32>()
             if v >= 0 { kept.insert(v) }
@@ -764,6 +776,7 @@ final class PlaybackSession {
         lock.lock()
         videoIndex = v
         audioIndex = a
+        subtitleIndex = subCtx != nil ? (chosenSubtitle ?? -1) : -1
         hasVideo = v >= 0
         hasAudio = a >= 0 || a == Self.tappedAudioIndex
         if timeshift != nil {
@@ -822,7 +835,7 @@ final class PlaybackSession {
         let audioUsable = a >= 0 || a == Self.tappedAudioIndex
         emit(.opened(MediaInfo(duration: duration, isLive: liveTimeline, hasVideo: v >= 0, hasAudio: audioUsable,
                                audioTracks: audioTracks, subtitleTracks: subtitleTracks,
-                               selectedAudio: audioUsable ? a : nil, selectedSubtitle: nil)))
+                               selectedAudio: audioUsable ? a : nil, selectedSubtitle: subCtx != nil ? chosenSubtitle : nil)))
     }
 
     private static func dynamicRange(_ par: AVCodecParameters, ignoringDolbyVision: Bool = false) -> String {

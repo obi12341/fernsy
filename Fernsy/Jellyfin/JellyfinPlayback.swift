@@ -80,12 +80,30 @@ final class JellyfinPlayback: ObservableObject {
 
     // MARK: Start and stop
 
+    /// The language rules over all of the item's streams, external files included (the player
+    /// only sees the file's own streams). Sets the Jellyfin indices the playback starts with.
+    private func chooseTracks() {
+        let audio = streams.filter { $0.type == "Audio" }.compactMap { s in s.index.map { s.track(id: Int32($0)) } }
+        let subtitles = streams.filter { $0.type == "Subtitle" }.compactMap { s in s.index.map { s.track(id: Int32($0)) } }
+        let choice = TrackChooser.choose(audio: audio, subtitles: subtitles, preferences: engine.trackPreferences)
+        audioIndex = choice.audio.map(Int.init)
+        subtitleIndex = choice.subtitle.map(Int.init)
+        #if DEBUG
+        debugLog("[jellyfin] tracks: audio \(audioIndex.map(String.init) ?? "-"), subtitle \(subtitleIndex.map(String.init) ?? "-")")
+        #endif
+    }
+
     func start(at position: Double) {
         observeEngine()
+        chooseTracks()
         if let reason = transcodeReason {
             #if DEBUG
             debugLog("[jellyfin] transcode: \(reason)")
             #endif
+            startTranscode(at: position)
+        } else if let subtitleIndex, let stream = streams.first(where: { $0.index == subtitleIndex }),
+                  stream.isExternal == true, stream.isTextSubtitleStream != true {
+            // An external bitmap file only reaches the picture as a burn-in.
             startTranscode(at: position)
         } else {
             startDirect(at: position)
@@ -138,6 +156,9 @@ final class JellyfinPlayback: ObservableObject {
         }
         external.selectSubtitle = { [weak self] track in self?.selectSubtitle(track) ?? false }
         external.onOpened = { [weak self] in self?.tracksOpened() }
+        let embeddedSubtitle = subtitleIndex.flatMap { index in streams.first { $0.index == index && $0.isExternal != true } }
+        external.tracks = .explicit(audio: audioIndex.flatMap(streamId(ofJellyfin:)),
+                                    subtitle: embeddedSubtitle?.index.flatMap(streamId(ofJellyfin:)))
         external.selectAudio = { [weak self] track in
             guard let self else { return false }
             self.audioIndex = self.jellyfinIndex(ofStream: track.id)
@@ -173,6 +194,7 @@ final class JellyfinPlayback: ObservableObject {
                 }
                 external.selectSubtitle = { [weak self] track in self?.selectSubtitle(track) ?? true }
                 external.onOpened = { [weak self] in self?.tracksOpened() }
+                external.tracks = .explicit(audio: nil, subtitle: nil)
                 engine.load(url: result.url, isLive: false, startAt: 0, external: external)
             } catch {
                 #if DEBUG
@@ -192,25 +214,28 @@ final class JellyfinPlayback: ObservableObject {
         let externalTracks: [MediaTrack] = streams.filter { $0.type == "Subtitle" && $0.isExternal == true }.compactMap { s in
             guard let index = s.index else { return nil }
             let base = s.isTextSubtitleStream == true ? Self.externalTextBase : Self.externalBitmapBase
-            return MediaTrack(id: base + Int32(index), title: (s.displayTitle ?? s.language ?? "") + " · " + String(localized: "extern"))
+            return s.track(id: base + Int32(index), suffix: " · " + String(localized: "extern"))
         }
         if method == .direct {
             engine.addSubtitleTracks(externalTracks)
             if audioIndex == nil, let selected = engine.media?.selectedAudio { audioIndex = jellyfinIndex(ofStream: selected) }
         } else {
             let audio = streams.filter { $0.type == "Audio" }.compactMap { s in
-                s.index.map { MediaTrack(id: Int32($0), title: s.displayTitle ?? s.language ?? "") }
+                s.index.map { s.track(id: Int32($0)) }
             }
             let subs = streams.filter { $0.type == "Subtitle" && $0.isExternal != true }.compactMap { s in
-                s.index.map { MediaTrack(id: Int32($0), title: s.displayTitle ?? s.language ?? "") }
+                s.index.map { s.track(id: Int32($0)) }
             } + externalTracks
             let defaultAudio = streams.first { $0.type == "Audio" && $0.isDefault == true }?.index ?? audio.first.map { Int($0.id) }
             engine.setTracks(audio: audio, subtitles: subs, selectedAudio: (audioIndex ?? defaultAudio).map(Int32.init),
                              selectedSubtitle: currentSubtitleTrackId)
         }
-        // A new stream starts without the player's own subtitles: show the fetched ones again.
-        if let loadedCues, loadedCues.index == subtitleIndex, let trackId = currentSubtitleTrackId {
-            engine.showExternalSubtitles(loadedCues.cues, trackId: trackId)
+        // A new stream starts without the player's own subtitles: show the fetched ones again,
+        // or fetch the chosen text track the stream does not carry (external file, transcode).
+        if let subtitleIndex, let trackId = currentSubtitleTrackId,
+           let stream = streams.first(where: { $0.index == subtitleIndex }), stream.isTextSubtitleStream == true,
+           stream.isExternal == true || method == .transcode {
+            loadTextSubtitles(index: subtitleIndex, trackId: trackId)
         }
     }
 

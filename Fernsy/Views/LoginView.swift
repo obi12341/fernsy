@@ -167,6 +167,8 @@ struct SettingsView: View {
     @AppStorage(Recorder.padBeforeKey) private var padBefore = 10
     @AppStorage(Recorder.padAfterKey) private var padAfter = 10
     @AppStorage(MenuBarSupport.enabledKey) private var showsMenuBarItem = true
+    @AppStorage(TrackPreferences.audioKey) private var audioLanguage = ""
+    @AppStorage(TrackPreferences.subtitlesKey) private var subtitleMode = "off"
 
     @EnvironmentObject private var jellyfin: JellyfinStore
     @State private var addingAccount: AccountKind?
@@ -225,6 +227,25 @@ struct SettingsView: View {
                 Toggle("Erwachsenen-Kategorien anzeigen", isOn: $app.showAdult)
             }
             Section {
+                Picker("Tonspur", selection: $audioLanguage) {
+                    Text("Systemsprache (\(Self.languageName(Self.systemLanguage)))").tag("")
+                    Divider()
+                    ForEach(Self.languages, id: \.self) { code in Text(Self.languageName(code)).tag(code) }
+                }
+                Picker("Untertitel", selection: $subtitleMode) {
+                    Text("Aus").tag("off")
+                    Text("Nur erzwungene").tag("forced")
+                    Divider()
+                    ForEach(Self.languages, id: \.self) { code in Text(Self.languageName(code)).tag(code) }
+                }
+            } header: {
+                Text("Sprache & Untertitel")
+            } footer: {
+                Text("Gilt beim Start jeder Wiedergabe, wenn die Spur vorhanden ist. „Nur erzwungene“ zeigt Untertitel nur für fremdsprachige Stellen. Wählst du im Player andere Spuren für eine Serienfolge, merkt sich Fernsy das für die weiteren Folgen.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("Zurückspulen bis", selection: $timeshiftMinutes) {
                     Text("2 Minuten").tag(2)
                     Text("15 Minuten").tag(15)
@@ -267,6 +288,21 @@ struct SettingsView: View {
         .onChange(of: timeshiftMinutes) { _, _ in app.applyTimeshiftSetting() }
         .frame(width: 480)
         .padding(.vertical)
+    }
+}
+
+extension SettingsView {
+    /// Languages offered for audio and subtitles, sorted by their name in the UI language.
+    static let languages: [String] = ["ar", "cs", "da", "de", "el", "en", "es", "fi", "fr", "he", "hu", "it", "ja",
+                                      "ko", "nb", "nl", "pl", "pt", "ro", "ru", "sv", "tr", "uk", "zh"]
+        .sorted { languageName($0).localizedCompare(languageName($1)) == .orderedAscending }
+
+    static var systemLanguage: String {
+        Locale.preferredLanguages.first.flatMap { Locale(identifier: $0).language.languageCode?.identifier(.alpha2) } ?? "de"
+    }
+
+    static func languageName(_ code: String) -> String {
+        Locale.current.localizedString(forLanguageCode: code)?.localizedCapitalized ?? code
     }
 }
 

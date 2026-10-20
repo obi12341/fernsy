@@ -82,7 +82,7 @@ struct PlayerScreen: View {
                                showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil, onZap: zap, onFullScreen: toggleFullScreen,
                                onActivity: showControls,
                                isRecording: liveChannelID.map { recorder.active(on: $0) != nil },
-                               onRecord: toggleRecording)
+                               onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) })
                     .transition(.opacity)
             }
 
@@ -136,7 +136,7 @@ struct PlayerScreen: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
                     let track = engine.media?.subtitleTracks.first { $0.id == id }
                     debugLog("[test] subtitle \(id): \(track?.title ?? "not listed")")
-                    if let track { engine.selectSubtitle(track) }
+                    if let track { pick(subtitle: track) }
                 }
             }
             if let spec = ProcessInfo.processInfo.environment["IPTV_TESTAUDIO"] {
@@ -147,7 +147,7 @@ struct PlayerScreen: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + p[0]) {
                         let track = engine.media?.audioTracks.first { $0.id == Int32(p[1]) }
                         debugLog("[test] audio \(Int(p[1])): \(track?.title ?? "not listed")")
-                        if let track { engine.selectAudio(track) }
+                        if let track { pick(audio: track) }
                     }
                 }
             }
@@ -224,9 +224,10 @@ struct PlayerScreen: View {
     }
 
     private func play(_ item: PlayItem) {
+        engine.trackPreferences = app.trackPreferences(for: item)
         if item.isLive, let tuner = app.playerTuner {
             engine.load(tuner: tuner)
-        } else if case .jellyfin(let itemId, let startAt) = item.kind {
+        } else if case .jellyfin(let itemId, let startAt, _) = item.kind {
             stopJellyfin()
             Task { @MainActor in
                 guard let playback = await JellyfinPlayback.make(itemId: itemId, store: jellyfin, engine: engine),
@@ -241,6 +242,38 @@ struct PlayerScreen: View {
             let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
             engine.load(url: item.url, isLive: item.isLive, startAt: start)
         }
+    }
+
+    // MARK: Track choice
+
+    private func pick(audio track: MediaTrack) {
+        let subtitle = engine.media.flatMap { m in m.subtitleTracks.first { $0.id == m.selectedSubtitle } }
+        engine.selectAudio(track)
+        remember(audio: track, subtitle: subtitle)
+    }
+
+    private func pick(subtitle track: MediaTrack?) {
+        let audio = engine.media.flatMap { m in m.audioTracks.first { $0.id == m.selectedAudio } }
+        engine.selectSubtitle(track)
+        remember(audio: audio, subtitle: track)
+    }
+
+    /// The pick as language rules, so the next episode finds the same languages.
+    private func remember(audio: MediaTrack?, subtitle: MediaTrack?) {
+        guard let item = loadedItem else { return }
+        var preferences = engine.trackPreferences
+        if let language = audio?.language { preferences.audioLanguage = language }
+        if let subtitle, let language = subtitle.language {
+            if subtitle.isForced {
+                preferences.subtitles = language == audio?.language ? .forcedOnly : .language(language)
+            } else {
+                preferences.subtitles = .full(language)
+            }
+        } else if subtitle == nil {
+            preferences.subtitles = .off
+        }
+        engine.trackPreferences = preferences
+        app.rememberTracks(preferences, for: item)
     }
 
     /// Reports the stop to Jellyfin (before the engine forgets the position).
@@ -467,6 +500,9 @@ struct PlayerControls: View {
     /// Live: the current show is being recorded; nil when recording is not possible.
     var isRecording: Bool? = nil
     var onRecord: () -> Void = {}
+    /// Menu picks go through the screen, which remembers them for the series.
+    var onPickAudio: (MediaTrack) -> Void = { _ in }
+    var onPickSubtitle: (MediaTrack?) -> Void = { _ in }
 
     @State private var scrubbing = false
     @State private var scrubValue: Double = 0
@@ -647,44 +683,44 @@ struct PlayerControls: View {
 
                 if let media = engine.media {
                     if media.audioTracks.count > 1 {
+                        let current = media.audioTracks.first { $0.id == media.selectedAudio }
                         Menu {
-                            ForEach(media.audioTracks) { track in
-                                Button {
-                                    engine.selectAudio(track)
-                                } label: {
-                                    if media.selectedAudio == track.id { Label(track.title, systemImage: "checkmark") } else { Text(track.title) }
-                                }
+                            // An inline picker: real menu checkmarks for the selected track.
+                            Picker("Tonspur", selection: Binding(
+                                get: { media.selectedAudio },
+                                set: { id in if let track = media.audioTracks.first(where: { $0.id == id }) { onPickAudio(track) } }
+                            )) {
+                                ForEach(media.audioTracks) { track in Text(track.title).tag(Optional(track.id)) }
                             }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
                         } label: {
                             Image(systemName: "waveform.circle")
                         }
                         .menuStyle(.borderlessButton)
                         .menuIndicator(.hidden)
                         .fixedSize()
-                        .help("Tonspur")
+                        .help("Tonspur: \(current?.title ?? "–")")
                     }
                     if !media.subtitleTracks.isEmpty {
+                        let current = media.subtitleTracks.first { $0.id == media.selectedSubtitle }
                         Menu {
-                            Button {
-                                engine.selectSubtitle(nil)
-                            } label: {
-                                if media.selectedSubtitle == nil { Label("Aus", systemImage: "checkmark") } else { Text("Aus") }
+                            Picker("Untertitel", selection: Binding(
+                                get: { media.selectedSubtitle },
+                                set: { id in onPickSubtitle(media.subtitleTracks.first { $0.id == id }) }
+                            )) {
+                                Text("Aus").tag(Int32?.none)
+                                ForEach(media.subtitleTracks) { track in Text(track.title).tag(Optional(track.id)) }
                             }
-                            Divider()
-                            ForEach(media.subtitleTracks) { track in
-                                Button {
-                                    engine.selectSubtitle(track)
-                                } label: {
-                                    if media.selectedSubtitle == track.id { Label(track.title, systemImage: "checkmark") } else { Text(track.title) }
-                                }
-                            }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
                         } label: {
-                            Image(systemName: "captions.bubble")
+                            Image(systemName: current != nil ? "captions.bubble.fill" : "captions.bubble")
                         }
                         .menuStyle(.borderlessButton)
                         .menuIndicator(.hidden)
                         .fixedSize()
-                        .help("Untertitel")
+                        .help(current.map { String(localized: "Untertitel: \($0.title)") } ?? String(localized: "Untertitel: Aus"))
                     }
                 }
 

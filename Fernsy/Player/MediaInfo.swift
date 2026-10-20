@@ -4,6 +4,11 @@ import Foundation
 struct MediaTrack: Identifiable, Hashable {
     let id: Int32
     let title: String
+    /// ISO 639-1 code ("de"), nil when the stream has none.
+    var language: String? = nil
+    /// Forced subtitles: only the foreign-language parts of a dub.
+    var isForced = false
+    var isDefault = false
 }
 
 struct MediaInfo: Equatable {
@@ -127,18 +132,22 @@ enum MediaNames {
         "ice": "is", "mac": "mk", "mao": "mi", "may": "ms", "tib": "bo", "wel": "cy",
     ]
 
+    /// Two-letter code for a stream's language tag ("deu", "ger", "de" → "de"), nil for none/"und".
+    static func languageCode(_ code: String?) -> String? {
+        guard let code = code?.lowercased(), !code.isEmpty, code != "und" else { return nil }
+        let normalized = bibliographic[code] ?? code
+        return Locale.LanguageCode(normalized).identifier(.alpha2) ?? normalized
+    }
+
+    /// Many files mark forced subtitles only in the title ("German Forced", "FORCED SRT").
+    static func titleSaysForced(_ title: String?) -> Bool {
+        guard let title = title?.lowercased() else { return false }
+        return title.contains("forced") || title.contains("erzwungen")
+    }
+
     static func language(_ code: String?) -> String? {
         guard let code, !code.isEmpty, code != "und" else { return nil }
         let normalized = bibliographic[code.lowercased()] ?? code.lowercased()
         return Locale.current.localizedString(forLanguageCode: normalized) ?? code
-    }
-
-    /// Whether an audio track is in the user's language (first preferred language).
-    static func isPreferred(_ code: String?) -> Bool {
-        guard let code = code?.lowercased(), !code.isEmpty, code != "und" else { return false }
-        let preferred = Locale(identifier: Locale.preferredLanguages.first ?? "de").language.languageCode
-        let track = Locale.LanguageCode(bibliographic[code] ?? code)
-        // Two- and three-letter codes of the same language (de / deu) compare equal by identifier.
-        return preferred?.identifier(.alpha2) == track.identifier(.alpha2) && preferred != nil
     }
 }

@@ -70,6 +70,13 @@ DV mapping. Profile 7, MPEG-TS streams and Macs without a DV decoder keep FFmpeg
 (HDR10 base layer; profile 5 is then not playable locally). `JF_NODV=1` disables the DV path in
 debug builds.
 
+Track preselection (`Fernsy/Player/TrackChooser.swift`) follows Settings › Language &
+Subtitles for every source; a pick in the player during a series episode is remembered per
+series (`tracks.series`). Debug: `IPTV_AUDIOLANG=<code|system>` and
+`IPTV_SUBTITLES=<off|forced|code>` override the settings for one run, `IPTV_TRACKSTORE=test`
+keeps the series memory apart, `IPTV_TRACKSELFTEST=1` checks the chooser rules,
+`IPTV_AUTOPLAY=episode:<series>:<n>` plays an IPTV episode.
+
 Audio reaches `AVSampleBufferAudioRenderer` in blocks of at least 20 ms: TrueHD frames are
 0.83 ms long, and one sample buffer per frame leaves the renderer silent. `IPTV_AUDIOLEVEL=1`
 logs peak levels and the renderer state per second, `IPTV_TESTAUDIO=<at s>:<track>,…` switches

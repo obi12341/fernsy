@@ -94,6 +94,8 @@ struct ExternalPlayback {
     /// return false to let the engine switch the stream's own track.
     var selectAudio: ((MediaTrack) -> Bool)?
     var selectSubtitle: ((MediaTrack?) -> Bool)?
+    /// Tracks the controller already chose (stream ids); nil = the engine's language rules.
+    var tracks: TrackRequest?
     /// A stream opened (each restart opens its own); the controller adjusts the track menus.
     var onOpened: (() -> Void)?
     /// "Direct play" / "Transcode", shown in the info overlay.
@@ -191,7 +193,13 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: Control
 
+    /// Language rules for the next load (settings, or the series' remembered choice).
+    var trackPreferences = TrackPreferences.settings
+    /// Tracks for the current stream; the user's pick replaces it so restarts keep it.
+    private var trackRequest: TrackRequest = .preferences(TrackPreferences())
+
     func load(url: URL, isLive: Bool, startAt: Double = 0, external: ExternalPlayback? = nil) {
+        trackRequest = external?.tracks ?? .preferences(trackPreferences)
         detachTuner()
         self.external = external
         externalCues = nil
@@ -203,6 +211,7 @@ final class PlayerEngine: ObservableObject {
 
     /// A recording file; `isGrowing` while it is still being written.
     func load(file url: URL, isGrowing: @escaping () -> Bool, startAt: Double = 0) {
+        trackRequest = .preferences(trackPreferences)
         detachTuner()
         external = nil
         externalCues = nil
@@ -214,6 +223,7 @@ final class PlayerEngine: ObservableObject {
 
     /// Live TV through the channel's tuner: starts at the live edge of its timeshift buffer.
     func load(tuner: LiveTuner) {
+        trackRequest = .preferences(trackPreferences)
         detachTuner()
         external = nil
         externalCues = nil
@@ -292,6 +302,7 @@ final class PlayerEngine: ObservableObject {
 
         let videoRenderer = displayLayer.sampleBufferRenderer
         let audioRenderer = audioRenderer
+        let tracks = trackRequest
         let synchronizer = synchronizer
         controlQueue.async { [weak self] in
             guard let self else { return }
@@ -302,7 +313,7 @@ final class PlayerEngine: ObservableObject {
             videoRenderer.flush()
             audioRenderer.flush()
             let session = PlaybackSession(
-                url: url, mode: mode, startPosition: startAt,
+                url: url, mode: mode, startPosition: startAt, tracks: tracks,
                 videoRenderer: videoRenderer, audioRenderer: audioRenderer, synchronizer: synchronizer
             ) { [weak self] event in
                 self?.handle(event, generation: gen)
@@ -418,12 +429,14 @@ final class PlayerEngine: ObservableObject {
     func selectAudio(_ track: MediaTrack) {
         if let handler = external?.selectAudio, handler(track) { return }
         media?.selectedAudio = track.id
+        trackRequest = .explicit(audio: track.id, subtitle: media?.selectedSubtitle)
         controlQueue.async { [weak self] in self?.session?.selectAudio(track.id) }
     }
 
     func selectSubtitle(_ track: MediaTrack?) {
         if let handler = external?.selectSubtitle, handler(track) { return }
         media?.selectedSubtitle = track?.id
+        trackRequest = .explicit(audio: media?.selectedAudio, subtitle: track?.id)
         externalCues = nil
         cues = []
         subtitleText = nil

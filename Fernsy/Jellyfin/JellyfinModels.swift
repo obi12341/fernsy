@@ -65,7 +65,15 @@ struct JFMediaStream: Codable, Hashable {
     var videoRangeType: String?
     var isTextSubtitleStream: Bool?
     var isDefault: Bool?
+    var isForced: Bool?
     var title: String?
+
+    /// The stream as a player track with Fernsy's id for it.
+    func track(id: Int32, suffix: String = "") -> MediaTrack {
+        MediaTrack(id: id, title: (displayTitle ?? language ?? "") + suffix, language: MediaNames.languageCode(language),
+                   isForced: isForced == true || MediaNames.titleSaysForced(title) || MediaNames.titleSaysForced(displayTitle),
+                   isDefault: isDefault == true)
+    }
 }
 
 struct JFMediaSource: Codable, Hashable {
