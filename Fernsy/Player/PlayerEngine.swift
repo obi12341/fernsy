@@ -90,6 +90,9 @@ struct ExternalPlayback {
     var restartAt: ((Double) -> Void)?
     /// The stream failed before playing; return true when the controller takes over.
     var onFailedBeforeStart: ((String) -> Bool)?
+    /// The stream failed while playing (e.g. the server rejected the token); return true when
+    /// the controller recovers by loading again.
+    var onFailedAfterStart: ((String) -> Bool)?
     /// Track choices the controller handles itself (external files, transcode restarts);
     /// return false to let the engine switch the stream's own track.
     var selectAudio: ((MediaTrack) -> Bool)?
@@ -565,6 +568,9 @@ final class PlayerEngine: ObservableObject {
             if !hasStarted, let fallback = external?.onFailedBeforeStart, fallback(message) {
                 return
             }
+            if hasStarted, let recover = external?.onFailedAfterStart, recover(message) {
+                return
+            }
             if isTimeshift, let tuner {
                 // The buffer session broke (e.g. paused past the buffer's end): the tuner itself
                 // reports its own failures. Pick up again where it can.
@@ -587,6 +593,13 @@ final class PlayerEngine: ObservableObject {
                 endActivity()
             }
         }
+    }
+
+    /// A controller gave up recovering (e.g. the Jellyfin session could not be renewed).
+    func reportFailure(_ message: String) {
+        status = .failed(message)
+        isReconnecting = false
+        endActivity()
     }
 
     private func reconnect(reason: String) {

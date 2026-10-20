@@ -108,8 +108,17 @@ final class JellyfinPlayback: ObservableObject {
         } else {
             startDirect(at: position)
         }
-        if item.type == "Episode", let seriesId = item.seriesId, let client = store.client, let userId = store.session?.userId {
-            Task { nextEpisode = try? await client.nextEpisode(userId: userId, seriesId: seriesId, after: item.id) }
+        #if DEBUG
+        if let delay = ProcessInfo.processInfo.environment["JF_TESTRECOVER"].flatMap(Double.init) {
+            // JF_TESTRECOVER=<s>: the stream "fails" with HTTP 401 after <s> seconds (recovery path).
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                debugLog("[test] simulated HTTP 401, recovering: \(self?.recover(from: "Server responded with HTTP 401") ?? false)")
+            }
+        }
+        #endif
+        if item.type == "Episode", let seriesId = item.seriesId {
+            let store = store, itemId = item.id
+            Task { nextEpisode = try? await store.call { client, userId in try await client.nextEpisode(userId: userId, seriesId: seriesId, after: itemId) } }
         }
     }
 
@@ -121,9 +130,9 @@ final class JellyfinPlayback: ObservableObject {
         let ended = engine.status == .ended
         let position = ended ? (duration ?? engine.progress.position) : engine.progress.position
         report(.stopped, position: position)
-        if method == .transcode, let client = store.client {
-            let session = playSessionId
-            Task { await client.stopTranscode(playSessionId: session) }
+        if method == .transcode {
+            let session = playSessionId, store = store
+            Task { try? await store.call { client, _ in try await client.stopTranscode(playSessionId: session) } }
         }
         let store = store, id = item.id
         Task {
@@ -156,6 +165,7 @@ final class JellyfinPlayback: ObservableObject {
         }
         external.selectSubtitle = { [weak self] track in self?.selectSubtitle(track) ?? false }
         external.onOpened = { [weak self] in self?.tracksOpened() }
+        external.onFailedAfterStart = { [weak self] message in self?.recover(from: message) ?? false }
         let embeddedSubtitle = subtitleIndex.flatMap { index in streams.first { $0.index == index && $0.isExternal != true } }
         external.tracks = .explicit(audio: audioIndex.flatMap(streamId(ofJellyfin:)),
                                     subtitle: embeddedSubtitle?.index.flatMap(streamId(ofJellyfin:)))
@@ -169,19 +179,24 @@ final class JellyfinPlayback: ObservableObject {
     }
 
     private func startTranscode(at position: Double) {
-        guard let client = store.client, let userId = store.session?.userId else { return }
+        guard store.session != nil else { return }
+        let store = store
         method = .transcode
         let previous = playSessionId
         // Text subtitles are shown by the player (from the server's SRT); only bitmap ones are burnt in.
         let burnIn = subtitleIndex.flatMap { index in streams.first { $0.index == index } }.map { $0.isTextSubtitleStream != true } ?? false
         Task {
-            if previous != nil { await client.stopTranscode(playSessionId: previous) }
+            if previous != nil { try? await store.call { client, _ in try await client.stopTranscode(playSessionId: previous) } }
             do {
-                let result = try await client.transcode(userId: userId, itemId: item.id, mediaSourceId: mediaSourceId,
-                                                        startSeconds: position, audioIndex: audioIndex,
-                                                        subtitleIndex: burnIn ? subtitleIndex : nil,
-                                                        container: Self.transcodeContainer)
-                guard !stopped else { await client.stopTranscode(playSessionId: result.playSessionId); return }
+                let itemId = item.id, sourceId = mediaSourceId, audio = audioIndex, subtitle = burnIn ? subtitleIndex : nil
+                let result = try await store.call { client, userId in
+                    try await client.transcode(userId: userId, itemId: itemId, mediaSourceId: sourceId, startSeconds: position,
+                                               audioIndex: audio, subtitleIndex: subtitle, container: Self.transcodeContainer)
+                }
+                guard !stopped else {
+                    try? await store.call { client, _ in try await client.stopTranscode(playSessionId: result.playSessionId) }
+                    return
+                }
                 playSessionId = result.playSessionId
                 var external = ExternalPlayback(timelineOffset: position, duration: duration)
                 external.methodLabel = String(localized: "Transcoding (Jellyfin)")
@@ -194,6 +209,7 @@ final class JellyfinPlayback: ObservableObject {
                 }
                 external.selectSubtitle = { [weak self] track in self?.selectSubtitle(track) ?? true }
                 external.onOpened = { [weak self] in self?.tracksOpened() }
+                external.onFailedAfterStart = { [weak self] message in self?.recover(from: message) ?? false }
                 external.tracks = .explicit(audio: nil, subtitle: nil)
                 engine.load(url: result.url, isLive: false, startAt: 0, external: external)
             } catch {
@@ -295,11 +311,10 @@ final class JellyfinPlayback: ObservableObject {
             engine.showExternalSubtitles(loadedCues.cues, trackId: trackId)
             return
         }
-        guard let client = store.client else { return }
-        let itemId = item.id, sourceId = mediaSourceId
+        let itemId = item.id, sourceId = mediaSourceId, store = store
         Task {
             do {
-                let srt = try await client.subtitleSRT(itemId: itemId, mediaSourceId: sourceId, index: index)
+                let srt = try await store.call { client, _ in try await client.subtitleSRT(itemId: itemId, mediaSourceId: sourceId, index: index) }
                 let cues = SRTParser.parse(srt)
                 #if DEBUG
                 debugLog("[jellyfin] subtitles \(index): \(cues.count) cues")
@@ -335,8 +350,9 @@ final class JellyfinPlayback: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self, !self.stopped else { return }
                 self.report(.progress)
-                if self.method == .transcode, let id = self.playSessionId, let client = self.store.client {
-                    Task { await client.pingTranscode(playSessionId: id) }
+                if self.method == .transcode, let id = self.playSessionId {
+                    let store = self.store
+                    Task { try? await store.call { client, _ in try await client.pingTranscode(playSessionId: id) } }
                 }
             }
         }
@@ -345,14 +361,39 @@ final class JellyfinPlayback: ObservableObject {
     }
 
     private func report(_ event: JellyfinClient.ProgressEvent, position: Double? = nil) {
-        guard let client = store.client, reportedStart || event == .start else { return }
+        guard store.session != nil, reportedStart || event == .start else { return }
         let position = position ?? engine.progress.position
         let item = item.id, source = mediaSourceId, paused = engine.isPaused, transcoding = method == .transcode
-        let session = playSessionId, audio = audioIndex, subtitle = subtitleIndex
+        let session = playSessionId, audio = audioIndex, subtitle = subtitleIndex, store = store
+        // Through the store: a rejected token is renewed and the report sent again.
         Task {
-            await client.report(event, itemId: item, mediaSourceId: source, positionSeconds: position, isPaused: paused,
-                                transcoding: transcoding, playSessionId: session, audioIndex: audio, subtitleIndex: subtitle)
+            try? await store.call { client, _ in
+                try await client.report(event, itemId: item, mediaSourceId: source, positionSeconds: position, isPaused: paused,
+                                        transcoding: transcoding, playSessionId: session, audioIndex: audio, subtitleIndex: subtitle)
+            }
         }
+    }
+
+    private var lastRecovery: Date?
+
+    /// The stream broke while playing because the server rejected the token: renew the session
+    /// and load again at the same position (at most once per 30 s, so a real outage still fails).
+    private func recover(from message: String) -> Bool {
+        guard !stopped, message.contains("HTTP 401") || message.contains("HTTP 403"),
+              lastRecovery.map({ Date().timeIntervalSince($0) > 30 }) ?? true else { return false }
+        lastRecovery = Date()
+        let position = engine.progress.position
+        Task {
+            guard await store.renewSession(), !stopped else {
+                engine.reportFailure(String(localized: "Die Jellyfin-Sitzung ist abgelaufen."))
+                return
+            }
+            #if DEBUG
+            debugLog("[jellyfin] reloading at \(Int(position)) s after renewing the session")
+            #endif
+            if method == .transcode { startTranscode(at: position) } else { startDirect(at: position) }
+        }
+        return true
     }
 }
 

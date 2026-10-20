@@ -3,8 +3,9 @@ import Foundation
 /// The Jellyfin account and its film and series library.
 ///
 /// Independent of the IPTV account: both can be signed in at the same time. The session
-/// (server, user, token – never the password) is kept in the keychain; the library is
-/// cached on disk and shown before the background refresh, like the IPTV catalog.
+/// (server, user, token) and the password are kept in the keychain, so a rejected token is
+/// renewed without asking; the library is cached on disk and shown before the background
+/// refresh, like the IPTV catalog.
 @MainActor
 final class JellyfinStore: ObservableObject {
     @Published private(set) var session: JFSession?
@@ -35,12 +36,24 @@ final class JellyfinStore: ObservableObject {
     private let skipKeychain: Bool
     private var refreshTask: Task<Void, Never>?
 
-    private static let keychainAccount = "jellyfin"
+    /// Kept for renewing the session; nil for sessions signed in before it was stored.
+    private var password: String?
+    private var renewal: Task<Bool, Never>?
+
+    /// Keychain accounts; debug runs can use their own (JF_KEYCHAIN_SUFFIX=test).
+    private static var keychainAccount: String {
+        #if DEBUG
+        if let suffix = ProcessInfo.processInfo.environment["JF_KEYCHAIN_SUFFIX"] { return "jellyfin.\(suffix)" }
+        #endif
+        return "jellyfin"
+    }
+    private static var passwordAccount: String { keychainAccount + ".password" }
 
     init(skipKeychain: Bool) {
         self.skipKeychain = skipKeychain
         if !skipKeychain, let saved = Keychain.load(JFSession.self, account: Self.keychainAccount) {
             session = saved
+            password = Keychain.load(String.self, account: Self.passwordAccount)
             Task { await loadLibrary(forceRefresh: false) }
         }
         #if DEBUG
@@ -62,7 +75,11 @@ final class JellyfinStore: ObservableObject {
         let auth = try await anonymous.authenticate(username: username, password: password)
         let newSession = JFSession(server: base.absoluteString, serverId: info.id ?? "", serverName: info.serverName ?? base.host() ?? "",
                                    version: info.version ?? "", userId: auth.user.id, userName: auth.user.name, token: auth.accessToken)
-        if !skipKeychain { Keychain.save(newSession, account: Self.keychainAccount) }
+        if !skipKeychain {
+            Keychain.save(newSession, account: Self.keychainAccount)
+            Keychain.save(password, account: Self.passwordAccount)
+        }
+        self.password = password
         reset()
         session = newSession
         isExpired = false
@@ -71,7 +88,11 @@ final class JellyfinStore: ObservableObject {
 
     func signOut() {
         if let client { Task { await client.logout() } }
-        if !skipKeychain { Keychain.delete(account: Self.keychainAccount) }
+        if !skipKeychain {
+            Keychain.delete(account: Self.keychainAccount)
+            Keychain.delete(account: Self.passwordAccount)
+        }
+        password = nil
         session = nil
         isExpired = false
         reset()
@@ -86,21 +107,58 @@ final class JellyfinStore: ObservableObject {
         lastError = nil
     }
 
-    /// Every request goes through here: a rejected token marks the session expired, an
+    /// Every request goes through here: a rejected token is renewed with the stored password and
+    /// the request repeated once; only when that fails is the session marked expired. An
     /// unreachable server marks it offline.
-    private func call<T>(_ body: (JellyfinClient, String) async throws -> T) async throws -> T {
+    func call<T>(_ body: (JellyfinClient, String) async throws -> T) async throws -> T {
         guard let client, let userId = session?.userId else { throw JellyfinError.unauthorized }
         do {
             let result = try await body(client, userId)
             isOffline = false
             return result
         } catch JellyfinError.unauthorized {
+            if await renewSession(), let renewed = self.client {
+                do {
+                    let result = try await body(renewed, userId)
+                    isOffline = false
+                    return result
+                } catch JellyfinError.unauthorized {}
+            }
             isExpired = true
             throw JellyfinError.unauthorized
         } catch let error as URLError where error.code != .cancelled {
             isOffline = true
             throw error
         }
+    }
+
+    /// Signs in again with the stored password after the server rejected the token. Callers
+    /// that arrive while a renewal runs wait for the same one. True when there is a new token.
+    func renewSession() async -> Bool {
+        if let renewal { return await renewal.value }
+        guard let session, let password, let base = session.baseURL else { return false }
+        let task = Task { @MainActor () -> Bool in
+            do {
+                let auth = try await JellyfinClient(base: base, token: nil).authenticate(username: session.userName, password: password)
+                guard auth.user.id == session.userId else { return false }
+                self.session?.token = auth.accessToken
+                if !skipKeychain, let renewed = self.session { Keychain.save(renewed, account: Self.keychainAccount) }
+                isExpired = false
+                #if DEBUG
+                debugLog("[jellyfin] session renewed")
+                #endif
+                return true
+            } catch {
+                #if DEBUG
+                debugLog("[jellyfin] session renewal failed: \(error.localizedDescription)")
+                #endif
+                return false
+            }
+        }
+        renewal = task
+        let renewed = await task.value
+        renewal = nil
+        return renewed
     }
 
     // MARK: Library
@@ -404,6 +462,8 @@ final class JellyfinStore: ObservableObject {
                     }
                 }
                 if let fake = env["JF_TOKEN"] {
+                    // With JF_BADPASS=1 the renewal fails too (password changed on the server).
+                    if env["JF_BADPASS"] == "1" { password = "wrong" }
                     session?.token = fake
                     await refreshUserData()
                     debugLog("[jellyfin] fake token, expired=\(isExpired)")

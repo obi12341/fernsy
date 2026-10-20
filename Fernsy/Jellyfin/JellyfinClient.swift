@@ -9,16 +9,26 @@ struct JellyfinClient {
 
     static let clientName = "Fernsy"
 
-    /// Created once per installation; the server lists Fernsy as this device.
+    /// Created once per installation; the server lists Fernsy as this device. Debug builds
+    /// share UserDefaults with the installed app but must be another device: signing in ends
+    /// the other sessions of the same device on the server.
     static var deviceId: String {
+        #if DEBUG
+        let key = "jellyfin.deviceId.debug"
+        #else
         let key = "jellyfin.deviceId"
+        #endif
         if let id = UserDefaults.standard.string(forKey: key) { return id }
         let id = UUID().uuidString
         UserDefaults.standard.set(id, forKey: key)
         return id
     }
 
+    #if DEBUG
+    static let deviceName: String = (Host.current().localizedName ?? "Mac") + " (Debug)"
+    #else
     static let deviceName: String = Host.current().localizedName ?? "Mac"
+    #endif
 
     static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
@@ -244,16 +254,16 @@ struct JellyfinClient {
     }
 
     /// Ends the server's transcode for this device and play session.
-    func stopTranscode(playSessionId: String?) async {
+    func stopTranscode(playSessionId: String?) async throws {
         var query = ["deviceId": Self.deviceId]
         if let playSessionId { query["playSessionId"] = playSessionId }
-        _ = try? await request("DELETE", "Videos/ActiveEncodings", query: query)
+        _ = try await request("DELETE", "Videos/ActiveEncodings", query: query)
     }
 
     enum ProgressEvent: String { case start = "Sessions/Playing", progress = "Sessions/Playing/Progress", stopped = "Sessions/Playing/Stopped" }
 
     func report(_ event: ProgressEvent, itemId: String, mediaSourceId: String, positionSeconds: Double, isPaused: Bool,
-                transcoding: Bool, playSessionId: String?, audioIndex: Int?, subtitleIndex: Int?) async {
+                transcoding: Bool, playSessionId: String?, audioIndex: Int?, subtitleIndex: Int?) async throws {
         var body: [String: Any] = [
             "ItemId": itemId, "MediaSourceId": mediaSourceId, "PositionTicks": Int64(max(0, positionSeconds) * 10_000_000),
             "IsPaused": isPaused, "PlayMethod": transcoding ? "Transcode" : "DirectPlay", "CanSeek": true,
@@ -262,11 +272,11 @@ struct JellyfinClient {
         if let playSessionId { body["PlaySessionId"] = playSessionId }
         if let audioIndex { body["AudioStreamIndex"] = audioIndex }
         guard let data = try? JSONSerialization.data(withJSONObject: body) else { return }
-        _ = try? await request("POST", event.rawValue, body: data)
+        _ = try await request("POST", event.rawValue, body: data)
     }
 
-    func pingTranscode(playSessionId: String) async {
-        _ = try? await request("POST", "Sessions/Playing/Ping", query: ["playSessionId": playSessionId])
+    func pingTranscode(playSessionId: String) async throws {
+        _ = try await request("POST", "Sessions/Playing/Ping", query: ["playSessionId": playSessionId])
     }
 
     /// A text subtitle stream converted to SRT by the server (embedded or external).

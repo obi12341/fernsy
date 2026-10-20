@@ -118,7 +118,11 @@ final class AppModel: ObservableObject {
     let tuners = TunerPool()
     let recorder = Recorder()
     /// The Jellyfin account, independent of the IPTV one.
-    let jellyfin = JellyfinStore(skipKeychain: AppModel.skipKeychain || ProcessInfo.processInfo.environment["JF_SERVER"] != nil)
+    /// Debug sign-ins (JF_SERVER) leave the keychain alone unless they use their own items
+    /// (JF_KEYCHAIN_SUFFIX) – then only those, even with FERNSY_NO_KEYCHAIN, so a debug build
+    /// never reads the installed app's items (which would ask for keychain access).
+    let jellyfin = JellyfinStore(skipKeychain: ProcessInfo.processInfo.environment["JF_KEYCHAIN_SUFFIX"] == nil
+        && (AppModel.skipKeychain || ProcessInfo.processInfo.environment["JF_SERVER"] != nil))
     /// Mirrors `jellyfin.session != nil`, so views observing AppModel follow it.
     @Published private(set) var hasJellyfin = false
 

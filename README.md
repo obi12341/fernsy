@@ -44,10 +44,15 @@ and `CLOUDFLARE_API_TOKEN`).
 ## Jellyfin
 
 A Jellyfin account can be added next to the IPTV account (login screen or Settings). Fernsy
-stores only the access token in the keychain, never the password. Tested with Jellyfin
+keeps the session and the password in the keychain and signs in again by itself when the server
+rejects the token (`JellyfinStore.renewSession`); sign-out removes both. Tested with Jellyfin
 12.2.0; the routes live in `Fernsy/Jellyfin/JellyfinClient.swift`. Debug builds sign in
 without the keychain with `JF_SERVER`, `JF_USER` and `JF_PASS` (`JF_SELFTEST`, `JF_TOKEN`,
-`JF_OFFLINE`, `JF_TESTMARK` are documented where they are read). Write tests against a real
+`JF_OFFLINE`, `JF_TESTMARK`, `JF_BADPASS`, `JF_TESTRECOVER` are documented where they are read).
+Debug builds are a separate Jellyfin device (`jellyfin.deviceId.debug`, name "… (Debug)"):
+signing in with the installed app's device id would end its session on the server. Test
+clean-ups delete only the debug device. Debug builds should not touch the keychain while the
+user is at the Mac – every build has a new signature and macOS asks for access. Write tests against a real
 server must back up the user data first and only touch fetched films, series, seasons and
 episodes – a played mark on a folder marks everything below it.
 
