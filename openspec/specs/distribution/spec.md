@@ -35,7 +35,8 @@ the exact source archive.
 
 ### Requirement: Store texts within limits
 Store texts (name, subtitle, promotional text, description, keywords, what's new) SHALL be
-kept in `docs/app-store.md` in German and English and stay within App Store Connect limits.
+kept locally in `docs/app-store.md` (git-ignored, not published) in German and English and
+stay within App Store Connect limits.
 
 #### Scenario: Checking texts
 - **WHEN** `python3 scripts/check-store-texts.py` runs

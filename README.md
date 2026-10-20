@@ -24,8 +24,9 @@ VERSION=1.1 UPLOAD=1 scripts/build-appstore.sh
 scripts/build-dmg.sh                        # ad-hoc signed DMG in dist/ (outside the App Store)
 ```
 
-App Store texts and review notes are in `docs/app-store.md`
-(`scripts/check-store-texts.py` checks the length limits). `scripts/make-icon.swift`
+App Store texts and review notes are kept locally in `docs/app-store.md`, which is not
+part of the repository (`docs/` is git-ignored); `scripts/check-store-texts.py` checks
+their length limits. `scripts/make-icon.swift`
 renders the app icon.
 
 The product, support, privacy and imprint pages (German and English) live in `website/` and
