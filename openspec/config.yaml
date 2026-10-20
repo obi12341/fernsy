@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  Fernsy is a native macOS IPTV player (Xtream Codes API) by mobilistics GmbH, sold in the
+  Mac App Store (bundle id de.mobilistics.fernsy, team B8YT7FNB66), Apple Silicon only,
+  macOS 27+. Source is public on GitHub (obi12341/fernsy) under GPLv3.
+
+  Constraints an agent cannot infer from the code:
+  - Write all OpenSpec artifacts in English (the repo is public). The user talks German.
+  - The developer's own IPTV account allows exactly ONE stream. Never start a stream test
+    with it while the user's Fernsy is running (check `pgrep -fl "MacOS/Fernsy"`): a second
+    stream kicks the user's playback. Catalog/EPG API calls are fine.
+  - Test playback, timeshift and recordings against the demo server
+    (https://fernsy-demo.mobilistics.workers.dev, demo/demo; `demo-server/`), which has no
+    stream limit. `IPTV_MAXCONN=1` simulates a single-stream account.
+  - Every design must work for single-connection accounts: anything that needs a second
+    stream has to share the existing one or ask the user.
+  - FFmpeg must stay LGPL-only (no --enable-gpl, no nonfree, no encoders); it is built from
+    source into Vendor/ffmpeg. GPL components would block App Store distribution.
+  - The app runs in the App Sandbox; new file or system access needs an entitlement and
+    may need an App Review explanation.
+  - UI source language is German, every string also needs an English translation in
+    Fernsy/Localizable.xcstrings.
+  - Recordings and background work only happen while the app is running (no helper or
+    daemon); the app keeps running in the menu bar when windows are closed.
+
+rules:
+  proposal:
+    - State what is out of scope.
+  design:
+    - Record rejected alternatives with the reason, so later sessions do not reopen them.
+  tasks:
+    - Verification tasks name the demo-server run or debug switch used (IPTV_* env).
