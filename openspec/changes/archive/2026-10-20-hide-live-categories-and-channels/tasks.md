@@ -12,7 +12,7 @@
 
 ## 3. UI
 
-- [ ] 3.1 Context menu "Hide" in category column, channel list and guide channel column; verify each in the demo catalog
+- [x] 3.1 Context menu "Hide" in category column, channel list and guide channel column; verify each in the demo catalog
 - [x] 3.2 Edit mode (toolbar Edit/Done, dimmed hidden rows with eye toggle, switch from guide to list); verify by screenshot of Edit mode with one hidden category and channel
 - [x] 3.3 Translate new strings (xcstringstool sync, no untranslated keys)
 
