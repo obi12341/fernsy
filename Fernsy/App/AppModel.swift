@@ -219,6 +219,14 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+        if let raw = env["IPTV_PLAYURL"], let url = URL(string: raw) {
+            // IPTV_PLAYURL=<url>: play any URL as a movie (VOD path, range requests), e.g. a
+            // media server's direct stream for format tests. Resume key: movie.-1.
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                nowPlaying = PlayItem(kind: .movie(id: -1), title: url.lastPathComponent, subtitle: nil, url: url)
+            }
+        }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }
         let parts = auto.split(separator: ":")
         guard parts.count == 2, let id = Int(parts[1]) else { return }
