@@ -220,6 +220,23 @@ final class JellyfinStore: ObservableObject {
         if let list = try? await call({ try await $0.episodes(userId: $1, seriesId: seriesId, seasonId: seasonId) }) { episodes[seasonId] = list }
     }
 
+    /// After playback: the item's (and its series') new watched state and position.
+    func refreshAfterPlayback(_ id: String) async {
+        guard let item = try? await call({ try await $0.item(userId: $1, id: id) }) else { return }
+        details[id] = item
+        if let data = item.userData { apply([id: data]) }
+        await reloadAround(item)
+    }
+
+    /// The episode to start for "Play" on a series: Next Up, else the first episode.
+    func episodeToPlay(seriesId: String) async -> JFItem? {
+        if let next = nextUp.first(where: { $0.seriesId == seriesId }) { return next }
+        await loadSeasons(seriesId)
+        guard let first = seasons[seriesId]?.first else { return nil }
+        await loadEpisodes(seriesId: seriesId, seasonId: first.id)
+        return episodes[first.id]?.first
+    }
+
     // MARK: Watched and favorites
 
     /// Only these may be marked: marking a library folder (or the user's root folder, which an

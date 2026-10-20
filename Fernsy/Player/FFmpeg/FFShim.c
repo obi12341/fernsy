@@ -300,6 +300,52 @@ int ffs_decode_text_subtitle(AVCodecContext *ctx, AVPacket *pkt, char **text, do
     return 1;
 }
 
+int ffs_decode_bitmap_subtitle(AVCodecContext *ctx, AVPacket *pkt, FFSBitmapRect **rects,
+                               double *start, double *end, int *canvas_w, int *canvas_h) {
+    AVSubtitle sub;
+    int got = 0;
+    *rects = NULL;
+    if (avcodec_decode_subtitle2(ctx, &sub, &got, pkt) < 0 || !got) return -1;
+
+    int count = 0;
+    FFSBitmapRect *out = sub.num_rects ? calloc(sub.num_rects, sizeof(FFSBitmapRect)) : NULL;
+    for (unsigned i = 0; i < sub.num_rects; i++) {
+        AVSubtitleRect *r = sub.rects[i];
+        if (r->type != SUBTITLE_BITMAP || r->w <= 0 || r->h <= 0 || !r->data[0] || !r->data[1]) continue;
+        uint8_t *pixels = malloc((size_t)r->w * r->h * 4);
+        if (!pixels) continue;
+        // data[0]: palette indices, data[1]: up to 256 ARGB colours (native endian, straight alpha).
+        const uint32_t *palette = (const uint32_t *)r->data[1];
+        for (int y = 0; y < r->h; y++) {
+            const uint8_t *src = r->data[0] + (size_t)y * r->linesize[0];
+            uint8_t *dst = pixels + (size_t)y * r->w * 4;
+            for (int x = 0; x < r->w; x++) {
+                uint32_t c = palette[src[x]];
+                uint32_t a = c >> 24, red = (c >> 16) & 0xff, green = (c >> 8) & 0xff, blue = c & 0xff;
+                dst[x * 4 + 0] = (uint8_t)(blue * a / 255);
+                dst[x * 4 + 1] = (uint8_t)(green * a / 255);
+                dst[x * 4 + 2] = (uint8_t)(red * a / 255);
+                dst[x * 4 + 3] = (uint8_t)a;
+            }
+        }
+        out[count++] = (FFSBitmapRect){ r->x, r->y, r->w, r->h, pixels };
+    }
+    *start = sub.start_display_time / 1000.0;
+    *end = (sub.end_display_time > 0 && sub.end_display_time != UINT32_MAX) ? sub.end_display_time / 1000.0 : -1;
+    *canvas_w = ctx->width;
+    *canvas_h = ctx->height;
+    avsubtitle_free(&sub);
+    if (count == 0) { free(out); out = NULL; }
+    *rects = out;
+    return count;
+}
+
+void ffs_free_bitmap_rects(FFSBitmapRect *rects, int count) {
+    if (!rects) return;
+    for (int i = 0; i < count; i++) free(rects[i].pixels);
+    free(rects);
+}
+
 // MARK: - Frame -> CVPixelBuffer
 
 struct FFSPixConv {

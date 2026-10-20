@@ -79,6 +79,27 @@ final class BufferHistory: ObservableObject {
     }
 }
 
+/// Hooks for a controller that plays something other than a plain URL (Jellyfin): a transcode
+/// started mid-item, seeking by restarting, falling back when the source cannot be opened.
+struct ExternalPlayback {
+    /// Item position at which the current stream starts (transcodes started with an offset).
+    var timelineOffset: Double = 0
+    /// The whole item's length when the stream does not know it (progressive transcodes).
+    var duration: Double?
+    /// Non-seekable stream: the controller restarts at the requested item position.
+    var restartAt: ((Double) -> Void)?
+    /// The stream failed before playing; return true when the controller takes over.
+    var onFailedBeforeStart: ((String) -> Bool)?
+    /// Track choices the controller handles itself (external files, transcode restarts);
+    /// return false to let the engine switch the stream's own track.
+    var selectAudio: ((MediaTrack) -> Bool)?
+    var selectSubtitle: ((MediaTrack?) -> Bool)?
+    /// A stream opened (each restart opens its own); the controller adjusts the track menus.
+    var onOpened: (() -> Void)?
+    /// "Direct play" / "Transcode", shown in the info overlay.
+    var methodLabel: String?
+}
+
 /// Owns the renderers and the current PlaybackSession; main-thread API for the UI.
 final class PlayerEngine: ObservableObject {
     enum Status: Equatable {
@@ -91,6 +112,14 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var videoSize: CGSize = .zero
     @Published private(set) var stats = PlaybackStats()
     @Published private(set) var subtitleText: String?
+    /// The bitmap subtitle (PGS, VobSub, DVB) to draw now.
+    @Published private(set) var subtitleBitmap: BitmapCue?
+    /// Set by a controller (Jellyfin) for the current item.
+    private(set) var external: ExternalPlayback?
+    /// Cues supplied by a controller (external subtitle file); the stream's own are ignored.
+    private var externalCues: [SubtitleCue]?
+    private var bitmapCues: [BitmapCue] = []
+    private var hasStarted = false
     @Published private(set) var isPaused = false
     @Published private(set) var isReconnecting = false
     /// The source is currently not delivering audio for the selected track.
@@ -162,8 +191,10 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: Control
 
-    func load(url: URL, isLive: Bool, startAt: Double = 0) {
+    func load(url: URL, isLive: Bool, startAt: Double = 0, external: ExternalPlayback? = nil) {
         detachTuner()
+        self.external = external
+        externalCues = nil
         reconnectAttempts = 0
         restarts = 0
         bufferHistory.reset()
@@ -173,6 +204,8 @@ final class PlayerEngine: ObservableObject {
     /// A recording file; `isGrowing` while it is still being written.
     func load(file url: URL, isGrowing: @escaping () -> Bool, startAt: Double = 0) {
         detachTuner()
+        external = nil
+        externalCues = nil
         reconnectAttempts = 0
         restarts = 0
         bufferHistory.reset()
@@ -182,6 +215,8 @@ final class PlayerEngine: ObservableObject {
     /// Live TV through the channel's tuner: starts at the live edge of its timeshift buffer.
     func load(tuner: LiveTuner) {
         detachTuner()
+        external = nil
+        externalCues = nil
         reconnectAttempts = 0
         restarts = 0
         bufferHistory.reset()
@@ -247,8 +282,11 @@ final class PlayerEngine: ObservableObject {
         isPaused = false
         isAudioMissing = false
         startedAt = nil
-        progress.position = max(0, startAt)
-        progress.duration = 0
+        progress.position = max(0, startAt) + (external?.timelineOffset ?? 0)
+        progress.duration = external?.duration ?? 0
+        hasStarted = false
+        bitmapCues = []
+        subtitleBitmap = nil
         progress.buffered = 0
         beginActivity()
 
@@ -276,6 +314,8 @@ final class PlayerEngine: ObservableObject {
 
     func stop() {
         detachTuner()
+        external = nil
+        externalCues = nil
         generation += 1
         status = .idle
         isAudioMissing = false
@@ -323,13 +363,24 @@ final class PlayerEngine: ObservableObject {
             let duration = progress.duration
             target = duration > 0 ? min(max(0, position), duration - 1) : max(0, position)
         }
+        if let restart = external?.restartAt {
+            // Not seekable (progressive transcode): the controller starts a new stream there.
+            progress.position = target
+            bitmapCues = []
+            subtitleBitmap = nil
+            restart(target)
+            return
+        }
         progress.position = target
         cues = []
         subtitleText = nil
         if status == .ended { status = .buffering }
+        bitmapCues = []
+        subtitleBitmap = nil
         let paused = isPaused
+        let offset = external?.timelineOffset ?? 0
         controlQueue.async { [weak self] in
-            self?.session?.seek(to: target)
+            self?.session?.seek(to: target - offset)
             self?.session?.setPaused(paused)
         }
     }
@@ -365,15 +416,57 @@ final class PlayerEngine: ObservableObject {
     }
 
     func selectAudio(_ track: MediaTrack) {
+        if let handler = external?.selectAudio, handler(track) { return }
         media?.selectedAudio = track.id
         controlQueue.async { [weak self] in self?.session?.selectAudio(track.id) }
     }
 
     func selectSubtitle(_ track: MediaTrack?) {
+        if let handler = external?.selectSubtitle, handler(track) { return }
         media?.selectedSubtitle = track?.id
+        externalCues = nil
         cues = []
         subtitleText = nil
+        bitmapCues = []
+        subtitleBitmap = nil
         controlQueue.async { [weak self] in self?.session?.selectSubtitle(track?.id) }
+    }
+
+    /// A controller shows subtitles from a file (track id chosen by the controller); the stream's
+    /// own subtitle track is switched off.
+    func showExternalSubtitles(_ cues: [SubtitleCue], trackId: Int32) {
+        media?.selectedSubtitle = trackId
+        externalCues = cues.sorted { $0.start < $1.start }
+        self.cues = []
+        subtitleText = nil
+        bitmapCues = []
+        subtitleBitmap = nil
+        controlQueue.async { [weak self] in self?.session?.selectSubtitle(nil) }
+    }
+
+    /// Subtitles off, without touching the stream (a controller's own subtitles).
+    func clearSubtitleSelection() {
+        media?.selectedSubtitle = nil
+        externalCues = nil
+        cues = []
+        subtitleText = nil
+    }
+
+    /// A controller adds tracks the stream does not contain (external files) to the menus.
+    func addSubtitleTracks(_ tracks: [MediaTrack]) {
+        guard var info = media else { return }
+        info.subtitleTracks += tracks.filter { t in !info.subtitleTracks.contains { $0.id == t.id } }
+        media = info
+    }
+
+    /// A controller replaces the track menus (transcodes offer the source's tracks).
+    func setTracks(audio: [MediaTrack], subtitles: [MediaTrack], selectedAudio: Int32?, selectedSubtitle: Int32?) {
+        guard var info = media else { return }
+        info.audioTracks = audio
+        info.subtitleTracks = subtitles
+        info.selectedAudio = selectedAudio
+        info.selectedSubtitle = selectedSubtitle
+        media = info
     }
 
     // MARK: Events
@@ -383,6 +476,7 @@ final class PlayerEngine: ObservableObject {
         #if DEBUG
         switch event {
         case .position, .subtitle: break
+        case .bitmapSubtitle(let cue): debugLog("[player] bitmap subtitle \(cue.pieces.count) pictures at \(String(format: "%.1f", cue.start)) s")
         case .stats(let s):
             debugLog("[player] stats \(s.videoCodec) \(s.resolution) \(String(format: "%.2f", s.frameRate))fps decoder=\(s.decoder) fmt=\(s.pixelFormat) deint=\(s.deinterlace) \(s.dynamicRange) audio=\(s.audio) buffer=\(String(format: "%.1f", s.bufferSeconds))s rate=\(String(format: "%.1f", s.bitrateMbps))Mbit drops=\(s.droppedFrames) audioAhead=\(String(format: "%.2f", s.audioAhead))s net=\(s.networkBufferBytes / 1024)KB reconnects=\(s.seamlessReconnects) dups=\(s.duplicatesDropped) rebuffers=\(s.rebuffers) pos=\(String(format: "%.1f", progress.position))")
         default:
@@ -392,18 +486,22 @@ final class PlayerEngine: ObservableObject {
         switch event {
         case .opened(let info):
             media = info
-            progress.duration = info.duration ?? 0
+            progress.duration = external?.duration ?? info.duration ?? 0
+            external?.onOpened?()
         case .videoSize(let size):
             videoSize = size
         case .started:
+            hasStarted = true
             status = isPaused ? .paused : .playing
             isReconnecting = false
             startedAt = Date()
         case .buffering(let flag):
             if flag { status = .buffering } else { status = isPaused ? .paused : .playing }
-        case .position(let position, let buffered):
+        case .position(let streamPosition, let streamBuffered):
+            let offset = external?.timelineOffset ?? 0
+            let position = streamPosition + offset
             progress.position = position
-            progress.buffered = buffered
+            progress.buffered = streamBuffered + offset
             if isTimeshift, let tuner {
                 let buffer = tuner.buffer
                 progress.liveStart = buffer.oldest?.time ?? 0
@@ -416,18 +514,31 @@ final class PlayerEngine: ObservableObject {
             if let startedAt, Date().timeIntervalSince(startedAt) > 20 { reconnectAttempts = 0 }
         case .stats(var s):
             s.restarts = restarts
+            s.playMethod = external?.methodLabel
             if isTimeshift {
                 s.timeshiftStored = max(0, progress.liveEnd - progress.liveStart)
                 s.timeshiftAhead = max(0, progress.liveEnd - progress.position - s.bufferSeconds)
             }
             stats = s
             bufferHistory.record(s, disk: s.timeshiftAhead)
-        case .subtitle(let cue):
+        case .subtitle(var cue):
+            let offset = external?.timelineOffset ?? 0
+            cue = SubtitleCue(start: cue.start + offset, end: cue.end + offset, text: cue.text)
             cues.append(cue)
             if cues.count > 400 { cues.removeFirst(cues.count - 400) }
+        case .bitmapSubtitle(var cue):
+            let offset = external?.timelineOffset ?? 0
+            cue.start += offset
+            cue.end += offset
+            // A cue without an end lasts until the next one (PGS display sets).
+            if let last = bitmapCues.indices.last, bitmapCues[last].end > cue.start { bitmapCues[last].end = cue.start }
+            if !cue.images.isEmpty { bitmapCues.append(cue) }
+            if bitmapCues.count > 200 { bitmapCues.removeFirst(bitmapCues.count - 200) }
         case .clearSubtitles:
             cues = []
             subtitleText = nil
+            bitmapCues = []
+            subtitleBitmap = nil
         case .audioGap(let missing):
             isAudioMissing = missing
         case .ended:
@@ -438,6 +549,9 @@ final class PlayerEngine: ObservableObject {
                 endActivity()
             }
         case .failed(let message, let retry):
+            if !hasStarted, let fallback = external?.onFailedBeforeStart, fallback(message) {
+                return
+            }
             if isTimeshift, let tuner {
                 // The buffer session broke (e.g. paused past the buffer's end): the tuner itself
                 // reports its own failures. Pick up again where it can.
@@ -485,10 +599,19 @@ final class PlayerEngine: ObservableObject {
     private func updateSubtitle(at position: Double) {
         guard media?.selectedSubtitle != nil else {
             if subtitleText != nil { subtitleText = nil }
+            if subtitleBitmap != nil { subtitleBitmap = nil }
             return
         }
-        let active = cues.last { $0.start <= position && position < $0.end && !$0.text.isEmpty }
-        if active?.text != subtitleText { subtitleText = active?.text }
+        // Every cue active now (two speakers at once), in order of appearance.
+        let source = externalCues ?? cues
+        let active = source.filter { $0.start <= position && position < $0.end && !$0.text.isEmpty }
+            .sorted { $0.start < $1.start }
+        var seen = Set<String>()
+        let text = active.map(\.text).filter { seen.insert($0).inserted }.joined(separator: "\n")
+        let shown = text.isEmpty ? nil : text
+        if shown != subtitleText { subtitleText = shown }
+        let bitmap = bitmapCues.last { $0.start <= position && position < $0.end }
+        if bitmap?.id != subtitleBitmap?.id { subtitleBitmap = bitmap }
     }
 
     // Keep the process out of App Nap / timer coalescing while playing.

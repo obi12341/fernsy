@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 struct MediaTrack: Identifiable, Hashable {
@@ -47,6 +48,8 @@ struct PlaybackStats: Equatable {
     var duplicatesDropped = 0
     /// Full player restarts (set by PlayerEngine).
     var restarts = 0
+    /// Jellyfin: "Direct play" or "Transcode" (set by PlayerEngine).
+    var playMethod: String?
     /// Timeshift (set by PlayerEngine): seconds kept on disk, and stored ahead of the player.
     var timeshiftStored: Double?
     var timeshiftAhead: Double?
@@ -56,6 +59,25 @@ struct SubtitleCue {
     let start: Double
     let end: Double
     let text: String
+}
+
+/// A bitmap subtitle (PGS, VobSub, DVB): pictures placed on a canvas of the subtitle's own size.
+struct BitmapCue {
+    struct Piece {
+        let image: CGImage
+        /// In canvas pixels.
+        let rect: CGRect
+    }
+
+    let id = UUID()
+    var start: Double
+    /// `.infinity` until the next cue ends it.
+    var end: Double
+    let pieces: [Piece]
+    /// Size the rects refer to; zero = use the video size.
+    let canvas: CGSize
+
+    var images: [Piece] { pieces }
 }
 
 enum MediaNames {

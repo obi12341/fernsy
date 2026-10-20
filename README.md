@@ -2,7 +2,7 @@
 
 Native IPTV player for macOS (SwiftUI, FFmpeg, AVSampleBuffer rendering) for Xtream Codes
 accounts: live TV with a program guide grid, timeshift and recordings, movies and series –
-plus a Jellyfin account for browsing films and series (playback follows). Bundle ID
+plus a Jellyfin account for browsing and playing films and series. Bundle ID
 `de.mobilistics.fernsy`, Apple Silicon only, macOS 27+.
 
 ## Build
@@ -50,6 +50,17 @@ without the keychain with `JF_SERVER`, `JF_USER` and `JF_PASS` (`JF_SELFTEST`, `
 `JF_OFFLINE`, `JF_TESTMARK` are documented where they are read). Write tests against a real
 server must back up the user data first and only touch fetched films, series, seasons and
 episodes – a played mark on a folder marks everything below it.
+
+Playback (`Fernsy/Jellyfin/JellyfinPlayback.swift`) plays the original file through Fernsy's
+own player (direct play, range requests) and reports start, progress and stop to the server,
+so resume points and played marks are Jellyfin's. Only Dolby Vision profile 5, codecs the
+bundled FFmpeg cannot decode, AV1 without a hardware decoder, a failed direct-play open and
+external bitmap subtitles use a progressive mkv transcode by the server; seeking in it
+restarts the transcode at the new position. Tone-mapping DV profile 5 needs a server decoder
+that reads the DV metadata: on Intel QSV servers enable "Prefer OS native DXVA or VA-API
+hardware decoders", otherwise the picture is green/pink in every client. Debug:
+`JF_AUTOPLAY=<item id>[:<start s>]`, `JF_BREAKDIRECT=1` (forces the transcode fallback),
+`IPTV_TESTSUB=<track id>`, `IPTV_TESTCUES=<srt in the app container>`.
 
 ## Development
 

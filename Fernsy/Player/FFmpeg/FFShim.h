@@ -83,6 +83,19 @@ AVPacket *ffs_packet_from_bytes(const uint8_t *data, int size, int64_t pts, int6
 /// start/end are offsets in seconds relative to the packet PTS (end < 0 = unknown).
 int ffs_decode_text_subtitle(AVCodecContext *ctx, AVPacket *pkt, char **text, double *start, double *end);
 
+/// One picture of a bitmap subtitle (PGS, VobSub, DVB): premultiplied BGRA, `stride` = w * 4.
+typedef struct {
+    int x, y, w, h;
+    uint8_t *pixels;
+} FFSBitmapRect;
+
+/// Decodes one bitmap subtitle packet. Returns the number of pictures (0 = the subtitle is
+/// cleared), or -1 when nothing was produced. start/end are seconds relative to the packet
+/// time (end < 0 = until the next subtitle); canvas is the codec's display size (0 = unknown).
+int ffs_decode_bitmap_subtitle(AVCodecContext *ctx, AVPacket *pkt, FFSBitmapRect **rects,
+                               double *start, double *end, int *canvas_w, int *canvas_h);
+void ffs_free_bitmap_rects(FFSBitmapRect *rects, int count);
+
 // MARK: - Frame -> CVPixelBuffer
 
 typedef struct FFSPixConv FFSPixConv;

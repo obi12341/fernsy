@@ -85,14 +85,6 @@ so no horizontal scroll wheel is needed. Without the server, the rows come from 
 - **WHEN** the user watched episode 4 of a series on another client
 - **THEN** episode 5 appears under Next Up
 
-### Requirement: Playback is announced but not available yet
-Play buttons for Jellyfin items SHALL be visible but disabled, with a hint that playback
-follows in a later version.
-
-#### Scenario: Pressing Play
-- **WHEN** the user looks at the Play button of a Jellyfin film
-- **THEN** it is disabled and its help text says playback is not available yet
-
 ### Requirement: Cached library, refreshed in the background
 The film and series lists SHALL be shown from a local cache at launch and refreshed in the
 background; watched status and favorites SHALL be refreshed when a Jellyfin section opens.

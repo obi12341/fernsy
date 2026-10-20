@@ -1110,16 +1110,6 @@
         }
       }
     },
-    "Die Wiedergabe von Jellyfin-Titeln folgt in einer späteren Version.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Playing Jellyfin titles will come in a later version."
-          }
-        }
-      }
-    },
     "Diese Sendung aufnehmen (Fernsy muss dafür geöffnet sein)": {
       "localizations": {
         "en": {
@@ -1136,6 +1126,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "This channel has no audio track."
+          }
+        }
+      }
+    },
+    "Direkt (Originaldatei)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct (original file)"
           }
         }
       }
@@ -1538,6 +1538,16 @@
         }
       }
     },
+    "Jellyfin konnte den Titel nicht umwandeln: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin could not transcode the title: %@"
+          }
+        }
+      }
+    },
     "Jellyfin-Server hinzufügen …": {
       "localizations": {
         "en": {
@@ -1554,6 +1564,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Now"
+          }
+        }
+      }
+    },
+    "Jetzt abspielen (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play Now (%lld)"
           }
         }
       }
@@ -2240,6 +2260,16 @@
         }
       }
     },
+    "Serie öffnen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Series"
+          }
+        }
+      }
+    },
     "Serien": {
       "localizations": {
         "en": {
@@ -2490,6 +2520,16 @@
         }
       }
     },
+    "Transcoding (Jellyfin)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcoding (Jellyfin)"
+          }
+        }
+      }
+    },
     "Umschalten und aufnehmen": {
       "localizations": {
         "en": {
@@ -2546,6 +2586,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Subtitles %lld"
+          }
+        }
+      }
+    },
+    "Untertitel konnten nicht geladen werden: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subtitles could not be loaded: %@"
           }
         }
       }
@@ -2856,6 +2906,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "skipped"
+          }
+        }
+      }
+    },
+    "extern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "external"
           }
         }
       }

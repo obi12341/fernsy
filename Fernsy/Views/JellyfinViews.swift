@@ -120,24 +120,38 @@ struct JellyfinStatusBanner: View {
     }
 }
 
-/// Playback comes in a later change.
+/// Play / Resume (at the server's position) and From the Beginning.
 struct JellyfinPlayButton: View {
+    @EnvironmentObject private var app: AppModel
+    let item: JFItem
+
     var body: some View {
-        Button {} label: {
-            Label("Abspielen", systemImage: "play.fill").padding(.horizontal, 8)
+        let resume = item.isSeries ? 0 : Double(item.userData?.playbackPositionTicks ?? 0) / 10_000_000
+        Button {
+            app.play(jellyfin: item)
+        } label: {
+            Label(resume > 0 ? "Fortsetzen (\(formatTime(resume)))" : "Abspielen", systemImage: "play.fill")
+                .padding(.horizontal, 8)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .disabled(true)
-        .help("Die Wiedergabe von Jellyfin-Titeln folgt in einer späteren Version.")
+        if resume > 0 {
+            Button("Von vorne") { app.play(jellyfin: item, resume: false) }
+                .controlSize(.large)
+        }
     }
 }
 
 struct JellyfinItemMenu: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
+    @EnvironmentObject private var app: AppModel
     let item: JFItem
 
     var body: some View {
+        if item.type != "Season" {
+            Button("Abspielen") { app.play(jellyfin: item) }
+            Divider()
+        }
         Button(item.isPlayed ? "Als ungesehen markieren" : "Als gesehen markieren") {
             Task { await jellyfin.setPlayed(item, !item.isPlayed) }
         }
@@ -317,7 +331,7 @@ struct JellyfinFilmDetailView: View {
             JellyfinDetailHeader(item: item) {
                 MetaLine(item: item)
                 HStack(spacing: 12) {
-                    JellyfinPlayButton()
+                    JellyfinPlayButton(item: item)
                     WatchedFavoriteButtons(item: item)
                 }
                 if let progress = item.progress {
@@ -370,6 +384,7 @@ private struct PeopleAndStreams: View {
 
 struct JellyfinSeriesDetailView: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
+    @EnvironmentObject private var app: AppModel
     let seriesId: String
     let fallback: JFItem
     @State private var seasonId: String?
@@ -383,7 +398,7 @@ struct JellyfinSeriesDetailView: View {
             JellyfinDetailHeader(item: item) {
                 MetaLine(item: item)
                 HStack(spacing: 12) {
-                    JellyfinPlayButton()
+                    JellyfinPlayButton(item: item)
                     WatchedFavoriteButtons(item: item)
                 }
                 if let overview = item.overview {
@@ -435,6 +450,8 @@ struct JellyfinSeriesDetailView: View {
                 LazyVStack(spacing: 10) {
                     ForEach(jellyfin.episodes[seasonId] ?? []) { episode in
                         JellyfinEpisodeRow(episode: episode)
+                            .contentShape(Rectangle())
+                            .onTapGesture { app.play(jellyfin: episode) }
                             .contextMenu { JellyfinItemMenu(item: episode) }
                     }
                 }
@@ -501,6 +518,7 @@ struct JellyfinEpisodeRow: View {
 
 struct JellyfinHomeView: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
+    @EnvironmentObject private var app: AppModel
 
     var body: some View {
         ScrollView {
@@ -533,15 +551,24 @@ struct JellyfinHomeView: View {
     private func row(_ title: LocalizedStringKey, items: [JFItem], landscape: Bool) -> some View {
         // Room for two title lines, year and rating under a poster; title and episode under a still.
         JellyfinCarousel(title: title, items: items, itemWidth: landscape ? 280 : 160, height: landscape ? 210 : 320) { item in
-            // Episodes open their series.
-            let target = item.type == "Episode" ? jellyfin.seriesItem(for: item) : item
-            NavigationLink(value: target ?? item) {
-                // Natural height: with the row's height the 2:3 poster would shrink for two-line titles.
-                if landscape { landscapeCard(item) } else { JellyfinPoster(item: item).frame(width: 160).fixedSize(horizontal: false, vertical: true) }
+            if landscape {
+                // Continue Watching / Next Up: a click plays.
+                Button { app.play(jellyfin: item) } label: { landscapeCard(item) }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        JellyfinItemMenu(item: item)
+                        if let series = jellyfin.seriesItem(for: item), item.type == "Episode" {
+                            NavigationLink("Serie öffnen", value: series)
+                        }
+                    }
+            } else {
+                NavigationLink(value: item) {
+                    // Natural height: with the row's height the 2:3 poster would shrink for two-line titles.
+                    JellyfinPoster(item: item).frame(width: 160).fixedSize(horizontal: false, vertical: true)
+                }
+                .buttonStyle(.plain)
+                .contextMenu { JellyfinItemMenu(item: item) }
             }
-            .buttonStyle(.plain)
-            .disabled(target == nil)
-            .contextMenu { JellyfinItemMenu(item: item) }
         }
     }
 

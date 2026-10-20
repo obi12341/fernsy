@@ -61,6 +61,11 @@ struct JFMediaStream: Codable, Hashable {
     let language: String?
     let displayTitle: String?
     let isExternal: Bool?
+    var index: Int?
+    var videoRangeType: String?
+    var isTextSubtitleStream: Bool?
+    var isDefault: Bool?
+    var title: String?
 }
 
 struct JFMediaSource: Codable, Hashable {
@@ -68,6 +73,13 @@ struct JFMediaSource: Codable, Hashable {
     let name: String?
     let container: String?
     let mediaStreams: [JFMediaStream]?
+    var runTimeTicks: Int64?
+    var transcodingUrl: String?
+}
+
+struct JFPlaybackInfo: Decodable {
+    let mediaSources: [JFMediaSource]
+    let playSessionId: String?
 }
 
 /// Films, series, seasons and episodes as Jellyfin returns them (only the fields we ask for).

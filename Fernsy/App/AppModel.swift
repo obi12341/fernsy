@@ -47,6 +47,8 @@ struct PlayItem: Equatable {
         case movie(id: Int)
         case episode(id: String, seriesId: Int)
         case recording(id: UUID)
+        /// A Jellyfin film or episode, started at `startAt` seconds.
+        case jellyfin(itemId: String, startAt: Double)
     }
 
     let kind: Kind
@@ -65,6 +67,7 @@ struct PlayItem: Equatable {
         case .movie(let id): return "movie.\(id)"
         case .episode(let id, _): return "episode.\(id)"
         case .recording(let id): return "recording.\(id.uuidString)"
+        case .jellyfin: return nil // resume positions live on the server
         }
     }
 }
@@ -251,6 +254,20 @@ final class AppModel: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
                 debugLog("[test] signing out of \(spec[0])")
                 if spec[0] == "iptv" { logout() } else { jellyfin.signOut() }
+            }
+        }
+        if let spec = env["JF_AUTOPLAY"] {
+            // JF_AUTOPLAY=<item id>[:<start s>]: play a Jellyfin film or episode once signed in.
+            let parts = spec.split(separator: ":").map(String.init)
+            Task {
+                while jellyfin.films.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+                await jellyfin.loadDetail(parts[0])
+                guard var item = jellyfin.details[parts[0]] else { debugLog("[jellyfin] autoplay: unknown item"); return }
+                if parts.count > 1, let start = Double(parts[1]) {
+                    item.userData = (item.userData ?? JFUserData())
+                    item.userData?.playbackPositionTicks = Int64(start * 10_000_000)
+                }
+                play(jellyfin: item)
             }
         }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }
@@ -603,6 +620,26 @@ final class AppModel: ObservableObject {
         let blockers = tuners.blockers(for: channelId, as: .player)
         return recorder.recordings.filter { r in
             r.status == .recording && blockers.contains { $0.owners.contains(.recording(r.id)) }
+        }
+    }
+
+    /// Plays a Jellyfin film or episode; series start with their Next Up episode.
+    func play(jellyfin item: JFItem, resume: Bool = true) {
+        Task {
+            var target = item
+            if item.isSeries {
+                guard let episode = await jellyfin.episodeToPlay(seriesId: item.id) else { return }
+                target = episode
+            }
+            guard let base = jellyfin.session?.baseURL else { return }
+            let start = resume ? Double(target.userData?.playbackPositionTicks ?? 0) / 10_000_000 : 0
+            var subtitle: String?
+            if target.type == "Episode" {
+                let code = [target.parentIndexNumber.map { "S\($0)" }, target.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
+                subtitle = code.isEmpty ? target.name : "\(code) · \(target.name)"
+            }
+            nowPlaying = PlayItem(kind: .jellyfin(itemId: target.id, startAt: start), title: target.seriesName ?? target.name,
+                                  subtitle: subtitle, url: base)
         }
     }
 

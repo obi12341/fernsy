@@ -115,7 +115,7 @@ struct JellyfinClient {
     // MARK: Library
 
     static let gridFields = "Genres,DateCreated,PremiereDate,ProductionYear,CommunityRating,OfficialRating,SortName,RecursiveItemCount,ChildCount"
-    static let detailFields = "Genres,DateCreated,PremiereDate,ProductionYear,CommunityRating,OfficialRating,Overview,People,MediaSources,ChildCount,RecursiveItemCount"
+    static let detailFields = "Genres,DateCreated,PremiereDate,ProductionYear,CommunityRating,OfficialRating,Overview,People,MediaSources,MediaStreams,ChildCount,RecursiveItemCount"
 
     /// Libraries of the user (films, series, music, …).
     func views(userId: String) async throws -> [JFItem] {
@@ -188,6 +188,97 @@ struct JellyfinClient {
     func setFavorite(userId: String, itemId: String, favorite: Bool) async throws -> JFUserData {
         let data = try await request(favorite ? "POST" : "DELETE", "UserFavoriteItems/\(itemId)", query: ["userId": userId])
         return try Self.decoder.decode(JFUserData.self, from: data)
+    }
+
+    // MARK: Playback
+
+    /// The original file (direct play, range requests). The token goes into the query because
+    /// the player's byte source sends no auth header; never log this URL.
+    func directStreamURL(itemId: String, mediaSourceId: String) -> URL? {
+        var c = URLComponents(url: base.appendingPathComponent("Videos/\(itemId)/stream"), resolvingAgainstBaseURL: false)
+        c?.queryItems = [URLQueryItem(name: "static", value: "true"), URLQueryItem(name: "mediaSourceId", value: mediaSourceId),
+                         URLQueryItem(name: "api_key", value: token)]
+        return c?.url
+    }
+
+    /// Progressive transcode (no HLS: the player cannot read it). Every stream index is explicit
+    /// – without a subtitle index the server picks its default track, and a bitmap one means a
+    /// burn-in transcode. Dolby Vision is excluded so the server tone-maps it.
+    func transcode(userId: String, itemId: String, mediaSourceId: String, startSeconds: Double,
+                   audioIndex: Int?, subtitleIndex: Int?, container: String) async throws -> (url: URL, playSessionId: String?) {
+        let profile: [String: Any] = [
+            "Name": "Fernsy",
+            "MaxStreamingBitrate": 120_000_000,
+            "DirectPlayProfiles": [] as [Any],
+            "TranscodingProfiles": [[
+                "Container": container, "Type": "Video", "VideoCodec": "h264,hevc", "AudioCodec": "aac,ac3,eac3",
+                "Protocol": "http", "Context": "Streaming", "MaxAudioChannels": "6", "CopyTimestamps": false,
+            ]],
+            "CodecProfiles": [[
+                "Type": "Video",
+                "Conditions": [["Condition": "EqualsAny", "Property": "VideoRangeType", "Value": "SDR|HDR10|HLG", "IsRequired": true]],
+            ]],
+            "SubtitleProfiles": [["Format": "srt", "Method": "External"], ["Format": "subrip", "Method": "External"],
+                                 ["Format": "pgssub", "Method": "Encode"], ["Format": "dvdsub", "Method": "Encode"]],
+        ]
+        var body: [String: Any] = [
+            "UserId": userId, "MediaSourceId": mediaSourceId, "DeviceProfile": profile,
+            "StartTimeTicks": Int64(startSeconds * 10_000_000), "EnableDirectPlay": false, "EnableDirectStream": false,
+            "EnableTranscoding": true, "AllowVideoStreamCopy": false, "AllowAudioStreamCopy": true, "AutoOpenLiveStream": false,
+            "SubtitleStreamIndex": subtitleIndex ?? -1,
+        ]
+        if let audioIndex { body["AudioStreamIndex"] = audioIndex }
+        let data = try await request("POST", "Items/\(itemId)/PlaybackInfo", query: ["userId": userId],
+                                     body: try JSONSerialization.data(withJSONObject: body))
+        let info = try Self.decoder.decode(JFPlaybackInfo.self, from: data)
+        guard let path = info.mediaSources.first?.transcodingUrl,
+              let url = URL(string: path, relativeTo: base.appendingPathComponent("/"))?.absoluteURL else {
+            throw JellyfinError.http(422)
+        }
+        var c = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let items = c?.queryItems ?? []
+        if !items.contains(where: { $0.name.lowercased() == "api_key" }) {
+            c?.queryItems = items + [URLQueryItem(name: "api_key", value: token)]
+        }
+        return (c?.url ?? url, info.playSessionId)
+    }
+
+    /// Ends the server's transcode for this device and play session.
+    func stopTranscode(playSessionId: String?) async {
+        var query = ["deviceId": Self.deviceId]
+        if let playSessionId { query["playSessionId"] = playSessionId }
+        _ = try? await request("DELETE", "Videos/ActiveEncodings", query: query)
+    }
+
+    enum ProgressEvent: String { case start = "Sessions/Playing", progress = "Sessions/Playing/Progress", stopped = "Sessions/Playing/Stopped" }
+
+    func report(_ event: ProgressEvent, itemId: String, mediaSourceId: String, positionSeconds: Double, isPaused: Bool,
+                transcoding: Bool, playSessionId: String?, audioIndex: Int?, subtitleIndex: Int?) async {
+        var body: [String: Any] = [
+            "ItemId": itemId, "MediaSourceId": mediaSourceId, "PositionTicks": Int64(max(0, positionSeconds) * 10_000_000),
+            "IsPaused": isPaused, "PlayMethod": transcoding ? "Transcode" : "DirectPlay", "CanSeek": true,
+            "SubtitleStreamIndex": subtitleIndex ?? -1,
+        ]
+        if let playSessionId { body["PlaySessionId"] = playSessionId }
+        if let audioIndex { body["AudioStreamIndex"] = audioIndex }
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+        _ = try? await request("POST", event.rawValue, body: data)
+    }
+
+    func pingTranscode(playSessionId: String) async {
+        _ = try? await request("POST", "Sessions/Playing/Ping", query: ["playSessionId": playSessionId])
+    }
+
+    /// A text subtitle stream converted to SRT by the server (embedded or external).
+    func subtitleSRT(itemId: String, mediaSourceId: String, index: Int) async throws -> String {
+        let data = try await request("GET", "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(index)/0/Stream.srt")
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The episode after `episodeId` in the series' order, if any.
+    func nextEpisode(userId: String, seriesId: String, after episodeId: String) async throws -> JFItem? {
+        let page: JFItemsPage = try await get("Shows/\(seriesId)/Episodes", ["userId": userId, "startItemId": episodeId, "limit": "2"])
+        return page.items.count > 1 ? page.items[1] : nil
     }
 
     // MARK: Images

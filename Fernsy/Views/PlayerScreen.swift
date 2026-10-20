@@ -12,6 +12,9 @@ struct PlayerScreen: View {
     @State private var showInfo = false
     @State private var epg: [EPGEntry] = []
     @State private var loadedItem: PlayItem?
+    @EnvironmentObject private var jellyfin: JellyfinStore
+    /// The Jellyfin item playing (direct/transcode, progress reports, next episode).
+    @State private var jellyfinPlayback: JellyfinPlayback?
     @State private var isFullScreen = false
 
     // Zapping: the OSD follows key presses immediately, tuning waits until they stop,
@@ -45,6 +48,15 @@ struct PlayerScreen: View {
             }
 
             statusOverlay
+
+            if engine.status == .ended, let playback = jellyfinPlayback {
+                NextEpisodeOverlay(playback: playback, bottomInset: controlsVisible ? 120 : 32) { next in app.play(jellyfin: next) }
+            }
+
+            if let bitmap = engine.subtitleBitmap {
+                BitmapSubtitleView(cue: bitmap, videoSize: engine.videoSize)
+                    .allowsHitTesting(false)
+            }
 
             if let osd {
                 ChannelOSD(channel: osd.channel, number: osd.number, isPending: zapTarget != nil)
@@ -119,6 +131,18 @@ struct PlayerScreen: View {
             if let target = ProcessInfo.processInfo.environment["IPTV_TESTSEEK"].flatMap(Double.init) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 12) { engine.seek(to: target) }
             }
+            if let id = ProcessInfo.processInfo.environment["IPTV_TESTSUB"].flatMap(Int32.init) {
+                // IPTV_TESTSUB=<track id>: choose that subtitle track after 6 s.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                    let track = engine.media?.subtitleTracks.first { $0.id == id }
+                    debugLog("[test] subtitle \(id): \(track?.title ?? "not listed")")
+                    if let track { engine.selectSubtitle(track) }
+                }
+            }
+            if let path = ProcessInfo.processInfo.environment["IPTV_TESTCUES"], let srt = try? String(contentsOfFile: path, encoding: .utf8) {
+                // IPTV_TESTCUES=<srt file>: show these cues after 4 s (overlapping cues).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { engine.showExternalSubtitles(SRTParser.parse(srt), trackId: 9_999) }
+            }
             #endif
         }
         .onChange(of: app.nowPlaying) { _, item in load(item) }
@@ -127,6 +151,7 @@ struct PlayerScreen: View {
             zapTarget = nil
             osd = nil
             saveResume()
+            stopJellyfin()
             engine.stop()
             loadedItem = nil
             app.nowPlaying = nil
@@ -175,6 +200,7 @@ struct PlayerScreen: View {
     private func load(_ item: PlayItem?) {
         guard item != loadedItem else { return }
         saveResume()
+        stopJellyfin()
         loadedItem = item
         guard let item else {
             engine.stop()
@@ -188,6 +214,14 @@ struct PlayerScreen: View {
     private func play(_ item: PlayItem) {
         if item.isLive, let tuner = app.playerTuner {
             engine.load(tuner: tuner)
+        } else if case .jellyfin(let itemId, let startAt) = item.kind {
+            stopJellyfin()
+            Task { @MainActor in
+                guard let playback = await JellyfinPlayback.make(itemId: itemId, store: jellyfin, engine: engine),
+                      loadedItem == item else { return }
+                jellyfinPlayback = playback
+                playback.start(at: startAt)
+            }
         } else if case .recording(let id) = item.kind {
             let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
             engine.load(file: item.url, isGrowing: { Recorder.isGrowing(id) }, startAt: start)
@@ -195,6 +229,12 @@ struct PlayerScreen: View {
             let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
             engine.load(url: item.url, isLive: item.isLive, startAt: start)
         }
+    }
+
+    /// Reports the stop to Jellyfin (before the engine forgets the position).
+    private func stopJellyfin() {
+        jellyfinPlayback?.stop()
+        jellyfinPlayback = nil
     }
 
     private func saveResume() {
@@ -791,6 +831,7 @@ struct StatsOverlay: View {
 
     private var grid: some View {
         Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+            if let method = stats.playMethod { row("Wiedergabe", method) }
             row("Container", stats.container)
             row("Video", stats.videoCodec)
             row("Auflösung", stats.resolution)
@@ -952,5 +993,82 @@ private extension NSView {
             if let match = child.firstDescendant(of: type) { return match }
         }
         return nil
+    }
+}
+
+/// After an episode: the next one with a countdown.
+private struct NextEpisodeOverlay: View {
+    @ObservedObject var playback: JellyfinPlayback
+    let bottomInset: CGFloat
+    let play: (JFItem) -> Void
+    @State private var remaining = 10
+    @State private var cancelled = false
+
+    var body: some View {
+        if let next = playback.nextEpisode, !cancelled {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Nächste Folge").font(.headline).foregroundStyle(.secondary)
+                Text(label(next)).font(.title2.weight(.semibold)).lineLimit(2)
+                HStack {
+                    Button("Jetzt abspielen (\(remaining))") { play(next) }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                    Button("Abbrechen") { cancelled = true }
+                        .keyboardShortcut(.cancelAction)
+                }
+            }
+            .padding(22)
+            .frame(maxWidth: 420, alignment: .leading)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .environment(\.colorScheme, .dark)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .padding(.trailing, 32)
+            .padding(.bottom, bottomInset)
+            .animation(.easeOut(duration: 0.2), value: bottomInset)
+            .task(id: next.id) {
+                remaining = 10
+                while remaining > 0 && !cancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    if !cancelled { remaining -= 1 }
+                }
+                if !cancelled { play(next) }
+            }
+        }
+    }
+
+    private func label(_ item: JFItem) -> String {
+        let code = [item.parentIndexNumber.map { "S\($0)" }, item.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
+        return code.isEmpty ? item.name : "\(code) · \(item.name)"
+    }
+}
+
+/// Draws a bitmap subtitle (PGS, VobSub, DVB) over the picture, placed on the subtitle's canvas
+/// scaled to where the video is shown (letterboxing included).
+struct BitmapSubtitleView: View {
+    let cue: BitmapCue
+    let videoSize: CGSize
+
+    var body: some View {
+        GeometryReader { geo in
+            let video = fitted(videoSize, in: geo.size)
+            let canvas = cue.canvas.width > 0 && cue.canvas.height > 0 ? cue.canvas : videoSize
+            let scale = canvas.width > 0 ? video.width / canvas.width : 1
+            let scaleY = canvas.height > 0 ? video.height / canvas.height : scale
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(cue.pieces.enumerated()), id: \.offset) { _, piece in
+                    Image(decorative: piece.image, scale: 1)
+                        .resizable()
+                        .frame(width: piece.rect.width * scale, height: piece.rect.height * scaleY)
+                        .offset(x: video.minX + piece.rect.minX * scale, y: video.minY + piece.rect.minY * scaleY)
+                }
+            }
+        }
+    }
+
+    private func fitted(_ content: CGSize, in container: CGSize) -> CGRect {
+        guard content.width > 0, content.height > 0 else { return CGRect(origin: .zero, size: container) }
+        let scale = min(container.width / content.width, container.height / content.height)
+        let size = CGSize(width: content.width * scale, height: content.height * scale)
+        return CGRect(x: (container.width - size.width) / 2, y: (container.height - size.height) / 2, width: size.width, height: size.height)
     }
 }
