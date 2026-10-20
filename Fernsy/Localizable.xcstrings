@@ -1140,6 +1140,16 @@
         }
       }
     },
+    "Dolby Vision %@ wird auf diesem Mac nicht unterstützt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolby Vision %@ is not supported on this Mac"
+          }
+        }
+      }
+    },
     "Dynamik": {
       "localizations": {
         "en": {
@@ -1848,6 +1858,16 @@
         }
       }
     },
+    "NV12 (8 Bit, komprimiert)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NV12 (8-bit, compressed)"
+          }
+        }
+      }
+    },
     "Nachlauf": {
       "localizations": {
         "en": {
@@ -2036,6 +2056,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "P010 (10-bit)"
+          }
+        }
+      }
+    },
+    "P010 (10 Bit, komprimiert)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "P010 (10-bit, compressed)"
           }
         }
       }
@@ -2666,6 +2696,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Video"
+          }
+        }
+      }
+    },
+    "VideoToolbox (Dolby Vision)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VideoToolbox (Dolby Vision)"
           }
         }
       }

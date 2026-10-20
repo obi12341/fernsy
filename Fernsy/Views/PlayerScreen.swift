@@ -139,6 +139,18 @@ struct PlayerScreen: View {
                     if let track { engine.selectSubtitle(track) }
                 }
             }
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTAUDIO"] {
+                // IPTV_TESTAUDIO=<at s>:<track id>,…: switch audio tracks at those times.
+                for step in spec.split(separator: ",") {
+                    let p = step.split(separator: ":").compactMap { Double($0) }
+                    guard p.count == 2 else { continue }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + p[0]) {
+                        let track = engine.media?.audioTracks.first { $0.id == Int32(p[1]) }
+                        debugLog("[test] audio \(Int(p[1])): \(track?.title ?? "not listed")")
+                        if let track { engine.selectAudio(track) }
+                    }
+                }
+            }
             if let path = ProcessInfo.processInfo.environment["IPTV_TESTCUES"], let srt = try? String(contentsOfFile: path, encoding: .utf8) {
                 // IPTV_TESTCUES=<srt file>: show these cues after 4 s (overlapping cues).
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4) { engine.showExternalSubtitles(SRTParser.parse(srt), trackId: 9_999) }

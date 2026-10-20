@@ -53,14 +53,27 @@ episodes – a played mark on a folder marks everything below it.
 
 Playback (`Fernsy/Jellyfin/JellyfinPlayback.swift`) plays the original file through Fernsy's
 own player (direct play, range requests) and reports start, progress and stop to the server,
-so resume points and played marks are Jellyfin's. Only Dolby Vision profile 5, codecs the
-bundled FFmpeg cannot decode, AV1 without a hardware decoder, a failed direct-play open and
-external bitmap subtitles use a progressive mkv transcode by the server; seeking in it
+so resume points and played marks are Jellyfin's. Only codecs the bundled FFmpeg cannot decode
+(and Dolby Vision profile 5 on a Mac without a DV decoder), AV1 without a hardware decoder, a
+failed direct-play open and external bitmap subtitles use a progressive mkv transcode by the
+server; seeking in it
 restarts the transcode at the new position. Tone-mapping DV profile 5 needs a server decoder
 that reads the DV metadata: on Intel QSV servers enable "Prefer OS native DXVA or VA-API
 hardware decoders", otherwise the picture is green/pink in every client. Debug:
 `JF_AUTOPLAY=<item id>[:<start s>]`, `JF_BREAKDIRECT=1` (forces the transcode fallback),
 `IPTV_TESTSUB=<track id>`, `IPTV_TESTCUES=<srt in the app container>`.
+
+Dolby Vision profile 5 and 8 in MKV/MP4 (any source) is decoded by `Fernsy/Player/DVDecoder.swift`:
+a VideoToolbox session created as `dvh1` from the stream's `hvcC` and DV configuration. Only
+such a session gives pixel buffers that the display layer shows as Dolby Vision; macOS does the
+DV mapping. Profile 7, MPEG-TS streams and Macs without a DV decoder keep FFmpeg's decoder
+(HDR10 base layer; profile 5 is then not playable locally). `JF_NODV=1` disables the DV path in
+debug builds.
+
+Audio reaches `AVSampleBufferAudioRenderer` in blocks of at least 20 ms: TrueHD frames are
+0.83 ms long, and one sample buffer per frame leaves the renderer silent. `IPTV_AUDIOLEVEL=1`
+logs peak levels and the renderer state per second, `IPTV_TESTAUDIO=<at s>:<track>,…` switches
+audio tracks in a debug run.
 
 ## Development
 

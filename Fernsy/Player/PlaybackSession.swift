@@ -791,10 +791,21 @@ final class PlaybackSession {
         // Static stats
         lock.lock()
         stats.container = String(cString: ctx.pointee.iformat.pointee.name).components(separatedBy: ",").first ?? ""
+        var unsupportedDolbyVision: String?
         if v >= 0, let st = ctx.pointee.streams[Int(v)] {
             let par = st.pointee.codecpar.pointee
             stats.videoCodec = MediaNames.videoCodec(par.codec_id)
             stats.dynamicRange = Self.dynamicRange(par)
+            if let dv = DVDecoder.Config(st.pointee.codecpar) {
+                if DVDecoder.supports(st.pointee.codecpar, config: dv) {
+                    stats.dynamicRange = "Dolby Vision \(dv.name)"
+                } else if dv.profile == 5 {
+                    // No base layer to fall back to: the colours would be wrong.
+                    unsupportedDolbyVision = dv.name
+                } else {
+                    stats.dynamicRange = "Dolby Vision \(dv.name) → \(Self.dynamicRange(par, ignoringDolbyVision: true))"
+                }
+            }
         }
         if a == Self.tappedAudioIndex {
             stats.audio = String(localized: "AAC (TS-Reparatur)")
@@ -804,6 +815,9 @@ final class PlaybackSession {
             stats.audio = "\(MediaNames.audioCodec(par.codec_id)) \(MediaNames.channels(par.ch_layout.nb_channels)) · \(par.sample_rate / 1000) kHz"
         }
         lock.unlock()
+        if let unsupportedDolbyVision {
+            throw PlayerError.message(String(localized: "Dolby Vision \(unsupportedDolbyVision) wird auf diesem Mac nicht unterstützt"))
+        }
 
         let audioUsable = a >= 0 || a == Self.tappedAudioIndex
         emit(.opened(MediaInfo(duration: duration, isLive: liveTimeline, hasVideo: v >= 0, hasAudio: audioUsable,
@@ -811,8 +825,8 @@ final class PlaybackSession {
                                selectedAudio: audioUsable ? a : nil, selectedSubtitle: nil)))
     }
 
-    private static func dynamicRange(_ par: AVCodecParameters) -> String {
-        if av_packet_side_data_get(par.coded_side_data, par.nb_coded_side_data, AV_PKT_DATA_DOVI_CONF) != nil {
+    private static func dynamicRange(_ par: AVCodecParameters, ignoringDolbyVision: Bool = false) -> String {
+        if !ignoringDolbyVision, av_packet_side_data_get(par.coded_side_data, par.nb_coded_side_data, AV_PKT_DATA_DOVI_CONF) != nil {
             return "Dolby Vision"
         }
         switch par.color_trc {
@@ -1068,7 +1082,17 @@ final class PlaybackSession {
         lock.lock()
         let index = videoIndex
         lock.unlock()
-        guard let fmt, let st = fmt.pointee.streams[Int(index)], let ctx = ffs_open_decoder(st, 1) else {
+        var dv: DVDecoder?
+        if let fmt, let st = fmt.pointee.streams[Int(index)], let config = DVDecoder.Config(st.pointee.codecpar),
+           DVDecoder.supports(st.pointee.codecpar, config: config) {
+            dv = DVDecoder(stream: st, config: config)
+            if dv == nil && config.profile == 5 {
+                emit(.failed(String(localized: "Dolby Vision \(config.name) wird auf diesem Mac nicht unterstützt"), retry: false))
+            }
+        }
+        var ctx: UnsafeMutablePointer<AVCodecContext>?
+        if dv == nil, let fmt, let st = fmt.pointee.streams[Int(index)] { ctx = ffs_open_decoder(st, 1) }
+        guard let fmt, let st = fmt.pointee.streams[Int(index)], dv != nil || ctx != nil else {
             lock.lock()
             hasVideo = false
             videoDrained = true
@@ -1094,8 +1118,7 @@ final class PlaybackSession {
             av_frame_free(&g)
             ffs_deint_free(&deint)
             ffs_pixconv_free(&pixconv)
-            var c: UnsafeMutablePointer<AVCodecContext>? = ctx
-            avcodec_free_context(&c)
+            avcodec_free_context(&ctx)
         }
 
         /// `filtered`: frames from the filter graph carry their timestamp in `pts` (rescaled to the
@@ -1114,7 +1137,8 @@ final class PlaybackSession {
                 var fd: CMVideoFormatDescription?
                 CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: pixelBuffer, formatDescriptionOut: &fd)
                 formatDescription = fd
-                updateVideoStats(frame: f, pixelBuffer: pixelBuffer)
+                updateVideoStats(pixelBuffer: pixelBuffer, sar: f.pointee.sample_aspect_ratio,
+                                 decoder: f.pointee.format == AV_PIX_FMT_VIDEOTOOLBOX.rawValue ? "VideoToolbox (Hardware)" : "Software")
             }
             guard let formatDescription else { return }
 
@@ -1125,6 +1149,32 @@ final class PlaybackSession {
                                                      sampleTiming: &timing, sampleBufferOut: &sample)
             guard let sample else { return }
             enqueueVideo(sample, sec: sec, duration: duration, serial: mySerial)
+        }
+
+        /// Dolby Vision frames: the decoder's own buffers, untouched (their DV attachments are what
+        /// the display layer needs).
+        func presentDolbyVision(_ frame: DVDecoder.Frame) {
+            let pixelBuffer = frame.pixelBuffer
+            let duration = nominalDuration
+            #if DEBUG
+            if let lastPTS, frame.time <= lastPTS { debugLog("[player] DV frame out of order: \(frame.time) after \(lastPTS)") }
+            #endif
+            lastPTS = frame.time
+            if formatDescription == nil || !CMVideoFormatDescriptionMatchesImageBuffer(formatDescription!, imageBuffer: pixelBuffer) {
+                var fd: CMVideoFormatDescription?
+                CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: pixelBuffer, formatDescriptionOut: &fd)
+                formatDescription = fd
+                updateVideoStats(pixelBuffer: pixelBuffer, sar: st.pointee.codecpar.pointee.sample_aspect_ratio,
+                                 decoder: String(localized: "VideoToolbox (Dolby Vision)"))
+            }
+            guard let formatDescription else { return }
+            var timing = CMSampleTimingInfo(duration: CMTime(sec: duration), presentationTimeStamp: CMTime(sec: frame.time),
+                                            decodeTimeStamp: .invalid)
+            var sample: CMSampleBuffer?
+            CMSampleBufferCreateReadyWithImageBuffer(allocator: nil, imageBuffer: pixelBuffer, formatDescription: formatDescription,
+                                                     sampleTiming: &timing, sampleBufferOut: &sample)
+            guard let sample else { return }
+            enqueueVideo(sample, sec: frame.time, duration: duration, serial: mySerial)
         }
 
         func handle(_ f: UnsafeMutablePointer<AVFrame>) {
@@ -1155,6 +1205,29 @@ final class PlaybackSession {
         }
 
         func decode(_ pkt: UnsafeMutablePointer<AVPacket>?) {
+            if let decoder = dv {
+                guard let pkt else {
+                    decoder.drain(output: presentDolbyVision)
+                    return
+                }
+                let status = decoder.decode(pkt, output: presentDolbyVision)
+                guard status != noErr, decoder.decodedFrames == 0 else { return }
+                // Not a single frame: this Mac (or file) does not take the DV session after all.
+                #if DEBUG
+                debugLog("[player] Dolby Vision decode failed (\(status))")
+                #endif
+                dv = nil
+                if decoder.config.profile == 5 {
+                    emit(.failed(String(localized: "Dolby Vision \(decoder.config.name) wird auf diesem Mac nicht unterstützt"), retry: false))
+                    return
+                }
+                ctx = ffs_open_decoder(st, 1)
+                lock.lock()
+                stats.dynamicRange = "Dolby Vision \(decoder.config.name) → \(Self.dynamicRange(st.pointee.codecpar.pointee, ignoringDolbyVision: true))"
+                lock.unlock()
+                formatDescription = nil
+            }
+            guard let ctx else { return }
             var sent = avcodec_send_packet(ctx, pkt)
             while true {
                 while avcodec_receive_frame(ctx, frame) >= 0 {
@@ -1171,7 +1244,8 @@ final class PlaybackSession {
             switch item {
             case .flush(let s):
                 mySerial = s
-                avcodec_flush_buffers(ctx)
+                dv?.flush()
+                if let ctx { avcodec_flush_buffers(ctx) }
                 ffs_deint_free(&deint)
                 lastPTS = nil
                 videoRenderer.flush()
@@ -1186,7 +1260,7 @@ final class PlaybackSession {
                     }
                     ffs_deint_free(&deint)
                 }
-                avcodec_flush_buffers(ctx)
+                if let ctx { avcodec_flush_buffers(ctx) }
                 lock.lock()
                 videoDrained = true
                 lock.unlock()
@@ -1198,10 +1272,9 @@ final class PlaybackSession {
         }
     }
 
-    private func updateVideoStats(frame f: UnsafeMutablePointer<AVFrame>, pixelBuffer: CVPixelBuffer) {
+    private func updateVideoStats(pixelBuffer: CVPixelBuffer, sar: AVRational, decoder: String) {
         let w = CVPixelBufferGetWidth(pixelBuffer)
         let h = CVPixelBufferGetHeight(pixelBuffer)
-        let sar = f.pointee.sample_aspect_ratio
         let aspect = (sar.num > 0 && sar.den > 0) ? Double(sar.num) / Double(sar.den) : 1
         let display = CGSize(width: (Double(w) * aspect).rounded(), height: Double(h))
 
@@ -1210,13 +1283,16 @@ final class PlaybackSession {
         switch cvFormat {
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8 Bit)")
         case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange: formatName = String(localized: "P010 (10 Bit)")
+        // The Dolby Vision decoder hands out Apple's lossless-compressed layouts.
+        case kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8 Bit, komprimiert)")
+        case kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarFullRange: formatName = String(localized: "P010 (10 Bit, komprimiert)")
         default: formatName = String(format: "%c%c%c%c", (cvFormat >> 24) & 0xff, (cvFormat >> 16) & 0xff, (cvFormat >> 8) & 0xff, cvFormat & 0xff)
         }
 
         lock.lock()
         stats.resolution = "\(w)×\(h)" + (aspect != 1 ? " → \(Int(display.width))×\(h)" : "")
         stats.pixelFormat = formatName
-        stats.decoder = f.pointee.format == AV_PIX_FMT_VIDEOTOOLBOX.rawValue ? "VideoToolbox (Hardware)" : "Software"
+        stats.decoder = decoder
         let changed = display != lastDisplaySize
         lastDisplaySize = display
         lock.unlock()
@@ -1279,6 +1355,9 @@ final class PlaybackSession {
         var fdKey = (rate: Int32(0), channels: Int32(0))
         var nextPTS: Double?
         var mySerial = 0
+        #if DEBUG
+        let meter = AudioLevelMeter()
+        #endif
         guard let frame = av_frame_alloc() else { return }
 
         defer {
@@ -1302,29 +1381,63 @@ final class PlaybackSession {
             }
         }
 
+        // Decoded audio collected into blocks of at least ~20 ms: TrueHD frames hold 40 samples
+        // (0.83 ms), and a renderer fed over a thousand such buffers per second stays silent.
+        var block = Data()
+        var blockStart = 0.0
+        var blockFrames = 0
+        var blockKey = (rate: Int32(0), channels: Int32(0))
+
+        func sendBlock() {
+            guard blockFrames > 0 else { return }
+            defer {
+                block.removeAll(keepingCapacity: true)
+                blockFrames = 0
+            }
+            if formatDescription == nil || fdKey != blockKey {
+                formatDescription = Self.makeAudioFormat(rate: blockKey.rate, channels: blockKey.channels)
+                fdKey = blockKey
+            }
+            let frames = blockFrames, start = blockStart, rate = blockKey.rate, channels = blockKey.channels
+            guard let formatDescription,
+                  let sample = block.withUnsafeBytes({ raw in
+                      Self.makeAudioSample(data: raw.bindMemory(to: UInt8.self).baseAddress!, frames: frames, channels: Int(channels),
+                                           rate: rate, pts: start, format: formatDescription)
+                  }) else { return }
+            enqueueAudio(sample, sec: start, duration: Double(frames) / Double(rate), serial: mySerial)
+        }
+
         func present(_ f: UnsafeMutablePointer<AVFrame>) {
             guard let ctx, f.pointee.sample_rate > 0 else { return }
             let outChannels = ffs_output_channels(f.pointee.ch_layout.nb_channels)
             var data: UnsafePointer<UInt8>?
             let count = ffs_resample(resampler, f, outChannels, &data)
             guard count > 0, let data else { return }
+            #if DEBUG
+            if Self.logAudioLevel { meter.add(data, frames: Int(count), channels: Int(outChannels), rate: f.pointee.sample_rate, renderer: audioRenderer) }
+            #endif
 
             let rate = f.pointee.sample_rate
             let tb = ctx.pointee.pkt_timebase.num > 0 ? ctx.pointee.pkt_timebase : AVRational(num: 1, den: rate)
             var pts = f.pointee.best_effort_timestamp
             if pts == ffs_nopts() { pts = f.pointee.pts }
-            let sec = pts != ffs_nopts() ? Double(pts) * av_q2d(tb) : (nextPTS ?? 0)
+            var sec = pts != ffs_nopts() ? Double(pts) * av_q2d(tb) : (nextPTS ?? 0)
+            // Containers with millisecond timestamps (MKV) round short frames – TrueHD's 40-sample
+            // frames last 0.83 ms – so consecutive buffers would overlap and the renderer drops the
+            // audio. Small deviations follow the sample count; only real jumps resync.
+            if let expected = nextPTS, abs(sec - expected) < 0.05 { sec = expected }
             let duration = Double(count) / Double(rate)
-            nextPTS = sec + duration
-
-            if formatDescription == nil || fdKey != (rate, outChannels) {
-                formatDescription = Self.makeAudioFormat(rate: rate, channels: outChannels)
-                fdKey = (rate, outChannels)
+            let continues = blockFrames > 0 && blockKey == (rate, outChannels)
+                && abs(sec - (blockStart + Double(blockFrames) / Double(rate))) < 0.001
+            if !continues {
+                sendBlock()
+                blockStart = sec
+                blockKey = (rate, outChannels)
             }
-            guard let formatDescription,
-                  let sample = Self.makeAudioSample(data: data, frames: Int(count), channels: Int(outChannels), rate: rate,
-                                                    pts: sec, format: formatDescription) else { return }
-            enqueueAudio(sample, sec: sec, duration: duration, serial: mySerial)
+            nextPTS = sec + duration
+            block.append(data, count: Int(count) * Int(outChannels) * 4)
+            blockFrames += Int(count)
+            if blockFrames >= Int(rate) / 50 { sendBlock() }
         }
 
         func decode(_ pkt: UnsafeMutablePointer<AVPacket>?) {
@@ -1349,10 +1462,13 @@ final class PlaybackSession {
                 ensureDecoder()
                 if let ctx { avcodec_flush_buffers(ctx) }
                 nextPTS = nil
+                block.removeAll(keepingCapacity: true)
+                blockFrames = 0
                 audioRenderer.flush()
             case .eof(let s):
                 guard s == mySerial else { continue }
                 decode(nil)
+                sendBlock()
                 if let ctx { avcodec_flush_buffers(ctx) }
                 lock.lock()
                 audioDrained = true
@@ -1364,6 +1480,29 @@ final class PlaybackSession {
             }
         }
     }
+
+    #if DEBUG
+    /// IPTV_AUDIOLEVEL=1: logs the peak level per channel once per second ("no sound" reports).
+    private static let logAudioLevel = ProcessInfo.processInfo.environment["IPTV_AUDIOLEVEL"] == "1"
+
+    private final class AudioLevelMeter {
+        private var peaks: [Float] = []
+        private var frames = 0
+
+        func add(_ data: UnsafePointer<UInt8>, frames count: Int, channels: Int, rate: Int32, renderer: AVSampleBufferAudioRenderer) {
+            if peaks.count != channels { peaks = Array(repeating: 0, count: channels) }
+            data.withMemoryRebound(to: Float.self, capacity: count * channels) { samples in
+                for i in 0..<(count * channels) { peaks[i % channels] = max(peaks[i % channels], abs(samples[i])) }
+            }
+            frames += count
+            guard frames >= Int(rate) else { return }
+            let db = peaks.map { $0 > 0 ? String(format: "%.0f", 20 * log10($0)) : "-inf" }.joined(separator: " ")
+            debugLog("[audio] peak dB [\(db)] renderer status=\(renderer.status.rawValue) volume=\(renderer.volume) muted=\(renderer.isMuted)")
+            peaks = Array(repeating: 0, count: channels)
+            frames = 0
+        }
+    }
+    #endif
 
     private func enqueueAudio(_ sample: CMSampleBuffer, sec: Double, duration: Double, serial s: Int) {
         while true {

@@ -3,6 +3,7 @@
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/opt.h>
+#include <libavutil/dovi_meta.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -344,6 +345,30 @@ void ffs_free_bitmap_rects(FFSBitmapRect *rects, int count) {
     if (!rects) return;
     for (int i = 0; i < count; i++) free(rects[i].pixels);
     free(rects);
+}
+
+// MARK: - Dolby Vision
+
+int ffs_dovi_config(const AVCodecParameters *par, int *level, int *compat_id, uint8_t dvcc[24]) {
+    const AVPacketSideData *sd = av_packet_side_data_get(par->coded_side_data, par->nb_coded_side_data, AV_PKT_DATA_DOVI_CONF);
+    if (!sd || sd->size < (int)sizeof(AVDOVIDecoderConfigurationRecord)) return 0;
+    const AVDOVIDecoderConfigurationRecord *c = (const AVDOVIDecoderConfigurationRecord *)sd->data;
+    memset(dvcc, 0, 24);
+    dvcc[0] = c->dv_version_major;
+    dvcc[1] = c->dv_version_minor;
+    // profile(7) level(6) rpu(1) el(1) bl(1), then compatibility id(4) md_compression(2) reserved(2)
+    uint16_t bits = (uint16_t)((c->dv_profile & 0x7f) << 9 | (c->dv_level & 0x3f) << 3 |
+                               (c->rpu_present_flag & 1) << 2 | (c->el_present_flag & 1) << 1 | (c->bl_present_flag & 1));
+    dvcc[2] = bits >> 8;
+    dvcc[3] = bits & 0xff;
+    dvcc[4] = (uint8_t)((c->dv_bl_signal_compatibility_id & 0x0f) << 4 | (c->dv_md_compression & 0x03) << 2);
+    *level = c->dv_level;
+    *compat_id = c->dv_bl_signal_compatibility_id;
+    return c->dv_profile;
+}
+
+int ffs_extradata_is_hvcc(const AVCodecParameters *par) {
+    return par->extradata && par->extradata_size >= 23 && par->extradata[0] == 1;
 }
 
 // MARK: - Frame -> CVPixelBuffer

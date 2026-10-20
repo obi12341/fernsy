@@ -96,6 +96,14 @@ int ffs_decode_bitmap_subtitle(AVCodecContext *ctx, AVPacket *pkt, FFSBitmapRect
                                double *start, double *end, int *canvas_w, int *canvas_h);
 void ffs_free_bitmap_rects(FFSBitmapRect *rects, int count);
 
+// MARK: - Dolby Vision
+
+/// The stream's Dolby Vision configuration: returns the profile (0 when the stream has none),
+/// fills `level` and `compat_id`, and writes the record as the 24-byte `dvcC` box payload.
+int ffs_dovi_config(const AVCodecParameters *par, int *level, int *compat_id, uint8_t dvcc[24]);
+/// 1 when the extradata is an `hvcC` record (MKV/MP4), 0 for Annex B parameter sets or none.
+int ffs_extradata_is_hvcc(const AVCodecParameters *par);
+
 // MARK: - Frame -> CVPixelBuffer
 
 typedef struct FFSPixConv FFSPixConv;

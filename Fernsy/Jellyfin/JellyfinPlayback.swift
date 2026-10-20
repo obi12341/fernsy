@@ -70,8 +70,8 @@ final class JellyfinPlayback: ObservableObject {
     /// Why Fernsy cannot play the original itself, or nil.
     var transcodeReason: String? {
         guard let video = streams.first(where: { $0.type == "Video" }) else { return nil }
-        // Profile 5 has no HDR10/SDR base layer: without Dolby Vision processing the colours are wrong.
-        if video.videoRangeType == "DOVI" { return "Dolby Vision Profil 5" }
+        // Profile 5 has no HDR10/SDR base layer: without a Dolby Vision decoder the colours are wrong.
+        if video.videoRangeType == "DOVI" && !DVDecoder.isAvailable { return "Dolby Vision Profil 5" }
         let codec = (video.codec ?? "").lowercased()
         if codec == "av1" && !VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1) { return "AV1 ohne Hardware-Decoder" }
         if !codec.isEmpty && avcodec_find_decoder_by_name(codec) == nil { return "Codec \(codec)" }
