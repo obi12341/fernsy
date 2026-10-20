@@ -3,19 +3,25 @@ import CoreMedia
 import CoreVideo
 
 // FFmpeg custom-I/O trampolines (must be plain C function pointers).
+/// Gives the C callbacks a concrete class to point at.
+private final class SourceBox {
+    let source: ByteSource
+    init(_ source: ByteSource) { self.source = source }
+}
+
 private func ioRead(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafeMutablePointer<UInt8>?, _ size: Int32) -> Int32 {
     guard let opaque, let buf else { return Int32(ffs_error_eio()) }
-    return Unmanaged<HTTPByteSource>.fromOpaque(opaque).takeUnretainedValue().read(into: buf, size: Int(size))
+    return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.read(into: buf, size: Int(size))
 }
 
 private func ioSeek(_ opaque: UnsafeMutableRawPointer?, _ offset: Int64, _ whence: Int32) -> Int64 {
     guard let opaque else { return -1 }
-    return Unmanaged<HTTPByteSource>.fromOpaque(opaque).takeUnretainedValue().seek(offset: offset, whence: whence)
+    return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.seek(offset: offset, whence: whence)
 }
 
 private func ioInterrupt(_ opaque: UnsafeMutableRawPointer?) -> Int32 {
     guard let opaque else { return 0 }
-    return Unmanaged<HTTPByteSource>.fromOpaque(opaque).takeUnretainedValue().isCancelled ? 1 : 0
+    return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.isCancelled ? 1 : 0
 }
 
 private extension CMTime {
@@ -29,7 +35,22 @@ private extension CMTime {
 ///   HTTPByteSource → libavformat → PacketQueue
 ///   video: libavcodec (VideoToolbox) → [yadif_videotoolbox] → CVPixelBuffer → AVSampleBufferVideoRenderer
 ///   audio: libavcodec → swresample (float32) → AVSampleBufferAudioRenderer
+///
+/// Live channels normally run as two sessions: a headless `.tuner` session receives the
+/// network stream and hands cleaned packets to a TimeshiftWriter, and a `.buffer` session
+/// plays the resulting timeshift buffer (seekable).
 final class PlaybackSession {
+    enum Mode {
+        /// Straight from HTTP: VOD, or live without timeshift.
+        case network(isLive: Bool)
+        /// Live ingest without decoding; packets go to the output.
+        case tuner(TunerOutput)
+        /// A tuned channel's timeshift buffer. Start position -1 = live edge.
+        case buffer(TimeshiftBuffer)
+        /// A recording on disk.
+        case file(FileByteSource)
+    }
+
     enum Event {
         case opened(MediaInfo)
         case videoSize(CGSize)
@@ -47,14 +68,23 @@ final class PlaybackSession {
     }
 
     private let url: URL
+    private let mode: Mode
+    /// Network live stream (reconnect junctions, duplicate removal, audio rescue).
     private let isLive: Bool
+    /// Plays a live timeline (live buffering rules), from the network or the buffer.
+    private let liveTimeline: Bool
+    private let tunerOutput: TunerOutput?
+    private let timeshift: TimeshiftBuffer?
+    /// Tuner: streams handed to the output (video, every audio track, DVB subtitles).
+    private var keptStreams: Set<Int32> = []
     private let startPosition: Double
     private let videoRenderer: AVSampleBufferVideoRenderer
     private let audioRenderer: AVSampleBufferAudioRenderer
     private let sync: AVSampleBufferRenderSynchronizer
     private let onEvent: (Event) -> Void
 
-    private let source: HTTPByteSource
+    private let source: ByteSource
+    private let sourceBox: SourceBox
     private var fmt: UnsafeMutablePointer<AVFormatContext>?
     private var pb: UnsafeMutablePointer<AVIOContext>?
     private var subCtx: UnsafeMutablePointer<AVCodecContext>?
@@ -149,17 +179,62 @@ final class PlaybackSession {
     private let debugClockSkew = ProcessInfo.processInfo.environment["IPTV_TESTCLOCK"].flatMap(Double.init) ?? 0
     #endif
 
-    init(url: URL, isLive: Bool, startPosition: Double,
+    init(url: URL, mode: Mode, startPosition: Double,
          videoRenderer: AVSampleBufferVideoRenderer, audioRenderer: AVSampleBufferAudioRenderer,
          synchronizer: AVSampleBufferRenderSynchronizer, onEvent: @escaping (Event) -> Void) {
         self.url = url
-        self.isLive = isLive
+        self.mode = mode
         self.startPosition = startPosition
         self.videoRenderer = videoRenderer
         self.audioRenderer = audioRenderer
         self.sync = synchronizer
         self.onEvent = onEvent
-        self.source = HTTPByteSource(url: url, isLive: isLive)
+        switch mode {
+        case .network(let live):
+            isLive = live
+            liveTimeline = live
+            tunerOutput = nil
+            timeshift = nil
+            source = HTTPByteSource(url: url, isLive: live)
+        case .tuner(let output):
+            isLive = true
+            liveTimeline = true
+            tunerOutput = output
+            timeshift = nil
+            source = HTTPByteSource(url: url, isLive: true)
+        case .buffer(let buffer):
+            isLive = false
+            liveTimeline = true
+            tunerOutput = nil
+            timeshift = buffer
+            source = BufferByteSource(buffer: buffer)
+        case .file(let file):
+            isLive = false
+            liveTimeline = false
+            tunerOutput = nil
+            timeshift = nil
+            source = file
+        }
+        sourceBox = SourceBox(source)
+    }
+
+    /// Headless live ingest for a tuner: no renderers are ever used.
+    convenience init(tunerURL: URL, output: TunerOutput, onEvent: @escaping (Event) -> Void) {
+        self.init(url: tunerURL, mode: .tuner(output), startPosition: 0,
+                  videoRenderer: AVSampleBufferVideoRenderer(), audioRenderer: AVSampleBufferAudioRenderer(),
+                  synchronizer: AVSampleBufferRenderSynchronizer(), onEvent: onEvent)
+    }
+
+    private var isTuner: Bool { tunerOutput != nil }
+
+    /// Network counters of the source (for a tuner: its connection).
+    var networkStats: (HTTPByteSource.NetStats, Int64) {
+        (source.netStats, source.totalBytesReceived)
+    }
+
+    /// Tuner: how much the slowest consumer still has ahead (stall detection).
+    func reportPlaybackAhead(_ seconds: Double) {
+        source.reportPlaybackAhead(seconds)
     }
 
     deinit {
@@ -231,13 +306,20 @@ final class PlaybackSession {
 
     private func demuxMain() {
         defer { group.leave() }
+        if let timeshift, !timeshift.waitForContent(seconds: 0, timeout: 25, cancelled: { isStopped }) {
+            if !isStopped { emit(.failed(String(localized: "Keine Daten vom Sender"), retry: true)) }
+            return
+        }
         do {
             try openInput()
             try selectStreams()
         } catch {
             if !isStopped {
                 let retry: Bool
-                if case PlayerError.offline = error { retry = false } else { retry = true }
+                switch error {
+                case PlayerError.offline, PlayerError.unsupported: retry = false
+                default: retry = true
+                }
                 emit(.failed(error.localizedDescription, retry: retry))
             }
             return
@@ -251,11 +333,18 @@ final class PlaybackSession {
             #endif
         }
 
-        if hasVideo { spawn("player.video", qos: .userInteractive) { [self] in videoMain() } }
-        if hasAudio { spawn("player.audio", qos: .userInteractive) { [self] in audioMain() } }
-        startMonitor()
+        if !isTuner {
+            if hasVideo { spawn("player.video", qos: .userInteractive) { [self] in videoMain() } }
+            if hasAudio { spawn("player.audio", qos: .userInteractive) { [self] in audioMain() } }
+            startMonitor()
+        }
 
-        if startPosition > 1 && !isLive {
+        if let timeshift {
+            // Live edge: a few seconds back, so the decoders have data to work with.
+            let oldest = timeshift.oldest?.time ?? 0
+            let target = startPosition >= 0 ? startPosition : max(oldest, (timeshift.newest?.time ?? 0) - Self.liveLead)
+            performSeek(to: max(oldest, target) + timeOffset)
+        } else if startPosition > 1 && !isLive {
             performSeek(to: startPosition + timeOffset)
         } else {
             lock.lock()
@@ -269,8 +358,8 @@ final class PlaybackSession {
             av_packet_free(&p)
         }
 
-        let maxBytes = isLive ? 48 << 20 : 160 << 20
-        let targetAhead = isLive ? 8.0 : 20.0
+        let maxBytes = liveTimeline ? 48 << 20 : 160 << 20
+        let targetAhead = liveTimeline ? 8.0 : 20.0
 
         while !isStopped {
             lock.lock()
@@ -297,6 +386,16 @@ final class PlaybackSession {
             }
 
             // Back-pressure: enough buffered for every active stream, or too many bytes.
+            // A tuner reads whatever the network delivers.
+            if isTuner {
+                let ret = av_read_frame(fmt, pkt)
+                if ret < 0 {
+                    if !isStopped { emit(.failed(String(localized: "Stream unterbrochen"), retry: true)) }
+                    break
+                }
+                route(pkt, fmt: fmt)
+                continue
+            }
             let now = sync.currentTime().seconds
             lock.lock()
             let videoAhead = hasVideo ? videoDemuxedUntil - now : .infinity
@@ -312,7 +411,7 @@ final class PlaybackSession {
             let ret = av_read_frame(fmt, pkt)
             if ret < 0 {
                 if isStopped { break }
-                if isLive {
+                if liveTimeline {
                     emit(.failed(String(localized: "Stream unterbrochen"), retry: true))
                     break
                 }
@@ -340,7 +439,11 @@ final class PlaybackSession {
     }
 
     /// Pseudo stream index for audio demuxed by TSAudioTap instead of FFmpeg.
-    private static let tappedAudioIndex: Int32 = -2
+    static let tappedAudioIndex: Int32 = -2
+
+    /// Timeshift: playback "at the live edge" stays this far behind the newest data, so
+    /// channels that deliver in bursts do not run dry between them.
+    static let liveLead = 5.0
 
     /// TS PIDs (per stream URL path) whose audio has to be pulled out by TSAudioTap.
     /// Remembered so the next open of such a channel skips the failed probe.
@@ -530,6 +633,12 @@ final class PlaybackSession {
             ffs_packet_from_bytes(raw.bindMemory(to: UInt8.self).baseAddress, Int32(frame.data.count), pts, frame.duration)
         }
         guard let packet else { return }
+        if let tunerOutput {
+            tunerOutput.packet(packet, input: Self.tappedAudioIndex, timeBase: AVRational(num: 1, den: 90_000))
+            var p: UnsafeMutablePointer<AVPacket>? = packet
+            av_packet_free(&p)
+            return
+        }
         lock.lock()
         let itemSerial = serial
         audioDemuxedUntil = max(audioDemuxedUntil, out)
@@ -552,7 +661,7 @@ final class PlaybackSession {
 
     /// `ignoring`: PIDs handled by the tap; discarded so probing does not wait for them.
     private func openFormat(ignoring: Set<Int32>) throws -> UnsafeMutablePointer<AVFormatContext> {
-        let opaque = Unmanaged.passUnretained(source).toOpaque()
+        let opaque = Unmanaged.passUnretained(sourceBox).toOpaque()
         let seekable: Int32 = (!isLive && source.supportsRanges) ? 1 : 0
         guard let pb = ffs_avio_alloc(opaque, 256 * 1024, seekable, ioRead, ioSeek) else {
             throw PlayerError.message(String(localized: "Speicherfehler"))
@@ -563,11 +672,15 @@ final class PlaybackSession {
         guard let allocated = ctx else { throw PlayerError.message(String(localized: "Speicherfehler")) }
         allocated.pointee.pb = pb
         allocated.pointee.flags |= AVFMT_FLAG_CUSTOM_IO | AVFMT_FLAG_GENPTS
-        if isLive { allocated.pointee.flags |= AVFMT_FLAG_DISCARD_CORRUPT }
+        if liveTimeline { allocated.pointee.flags |= AVFMT_FLAG_DISCARD_CORRUPT }
         ffs_set_interrupt(allocated, ioInterrupt, opaque)
 
         var opts: OpaquePointer?
-        if isLive {
+        if timeshift != nil {
+            // Our own muxer wrote it: every stream is declared up front.
+            av_dict_set(&opts, "probesize", "5000000", 0)
+            av_dict_set(&opts, "analyzeduration", "2000000", 0)
+        } else if isLive {
             // Upper bounds only: probing stops as soon as every stream has parameters.
             // UHD feeds run at ~50 Mbit/s, where a few MB hold no audio packet yet.
             av_dict_set(&opts, "probesize", "15000000", 0)
@@ -631,6 +744,17 @@ final class PlaybackSession {
         }
         if let preferredAudio { a = preferredAudio }
         if a < 0, let first = audioTracks.first { a = first.id }
+        if isTuner {
+            var kept = Set<Int32>()
+            if v >= 0 { kept.insert(v) }
+            if audioTap == nil { kept.formUnion(audioTracks.map(\.id)) }
+            for i in 0..<Int32(ctx.pointee.nb_streams) {
+                guard let st = ctx.pointee.streams[Int(i)] else { continue }
+                let codec = st.pointee.codecpar.pointee.codec_id
+                if codec == AV_CODEC_ID_DVB_SUBTITLE || codec == AV_CODEC_ID_DVB_TELETEXT { kept.insert(i) }
+            }
+            keptStreams = kept
+        }
         if a < 0, audioTap != nil {
             a = Self.tappedAudioIndex
             audioTracks.append(MediaTrack(id: a, title: String(localized: "Audio · AAC (aus TS-Strom repariert)")))
@@ -641,16 +765,25 @@ final class PlaybackSession {
         audioIndex = a
         hasVideo = v >= 0
         hasAudio = a >= 0 || a == Self.tappedAudioIndex
-        if ctx.pointee.start_time != ffs_nopts() {
+        if timeshift != nil {
+            // Buffer time = stream time minus the muxer's fixed delay.
+            timeOffset = ffs_mux_delay()
+        } else if ctx.pointee.start_time != ffs_nopts() {
             timeOffset = Double(ctx.pointee.start_time) / Double(ffs_time_base())
         }
         lock.unlock()
         updateDiscardFlags()
 
+        if let tunerOutput {
+            let clock = v >= 0 ? v : (a == Self.tappedAudioIndex ? Self.tappedAudioIndex : a)
+            let usable = tunerOutput.streamsOpened(ctx, kept: keptStreams.sorted(), clock: clock, tappedAudio: audioTap != nil && a == Self.tappedAudioIndex)
+            guard usable else { throw PlayerError.unsupported }
+        }
+
         guard v >= 0 || a >= 0 || a == Self.tappedAudioIndex else { throw PlayerError.message(String(localized: "Keine abspielbaren Spuren gefunden")) }
 
         var duration: Double?
-        if !isLive && ctx.pointee.duration != ffs_nopts() && ctx.pointee.duration > 0 {
+        if !liveTimeline && ctx.pointee.duration != ffs_nopts() && ctx.pointee.duration > 0 {
             duration = Double(ctx.pointee.duration) / Double(ffs_time_base())
         }
 
@@ -672,7 +805,7 @@ final class PlaybackSession {
         lock.unlock()
 
         let audioUsable = a >= 0 || a == Self.tappedAudioIndex
-        emit(.opened(MediaInfo(duration: duration, isLive: isLive, hasVideo: v >= 0, hasAudio: audioUsable,
+        emit(.opened(MediaInfo(duration: duration, isLive: liveTimeline, hasVideo: v >= 0, hasAudio: audioUsable,
                                audioTracks: audioTracks, subtitleTracks: subtitleTracks,
                                selectedAudio: audioUsable ? a : nil, selectedSubtitle: nil)))
     }
@@ -691,7 +824,7 @@ final class PlaybackSession {
     private func updateDiscardFlags() {
         guard let fmt else { return }
         lock.lock()
-        let keep: Set<Int32> = [videoIndex, audioIndex, subtitleIndex]
+        let keep: Set<Int32> = isTuner ? keptStreams : [videoIndex, audioIndex, subtitleIndex]
         lock.unlock()
         for i in 0..<Int32(fmt.pointee.nb_streams) {
             fmt.pointee.streams[Int(i)]?.pointee.discard = keep.contains(i) ? AVDISCARD_DEFAULT : AVDISCARD_ALL
@@ -711,6 +844,20 @@ final class PlaybackSession {
         lock.lock()
         let v = videoIndex, a = audioIndex, s = subtitleIndex
         lock.unlock()
+
+        if let tunerOutput {
+            if keptStreams.contains(index), admitLive(pkt, index: index, isVideo: index == v, tb: tb) {
+                let cut = connections[packetConnection[index] ?? 0].cut
+                if cut != 0 {
+                    let delta = Int64((cut / tb).rounded())
+                    if pkt.pointee.pts != ffs_nopts() { pkt.pointee.pts -= delta }
+                    if pkt.pointee.dts != ffs_nopts() { pkt.pointee.dts -= delta }
+                }
+                tunerOutput.packet(pkt, input: index, timeBase: st.pointee.time_base)
+            }
+            av_packet_unref(pkt)
+            return
+        }
 
         if index == v || index == a {
             if isLive && !admitLive(pkt, index: index, isVideo: index == v, tb: tb) {
@@ -825,9 +972,18 @@ final class PlaybackSession {
         audioQ.clear()
         sync.setRate(0, time: CMTime(sec: target))
 
-        let ts = Int64(target * Double(ffs_time_base()))
-        if avformat_seek_file(fmt, -1, Int64.min, ts, ts, 0) < 0 {
-            av_seek_frame(fmt, -1, ts, AVSEEK_FLAG_BACKWARD)
+        if let timeshift, let buffered = source as? BufferByteSource {
+            // Our index knows where every keyframe is; seek by byte.
+            // (av_seek_frame's byte mode clamps to a file size, which a growing buffer has none of.)
+            if let entry = timeshift.entry(atOrBefore: target - timeOffset) {
+                avformat_flush(fmt)
+                avio_seek(fmt.pointee.pb, buffered.position(ofBufferOffset: entry.offset), SEEK_SET)
+            }
+        } else {
+            let ts = Int64(target * Double(ffs_time_base()))
+            if avformat_seek_file(fmt, -1, Int64.min, ts, ts, 0) < 0 {
+                av_seek_frame(fmt, -1, ts, AVSEEK_FLAG_BACKWARD)
+            }
         }
         if let subCtx { avcodec_flush_buffers(subCtx) }
         emit(.clearSubtitles)
@@ -1310,7 +1466,7 @@ final class PlaybackSession {
                 // going and let audio rejoin on its timestamps (some restreams burst audio).
                 let videoHasData = hasVideo && videoDemuxedUntil - now > 0.5
                 let audioLow = hasAudio && !audioDrained && audioEnqueuedUntil.isFinite && audioEnqueuedUntil < now + 0.04
-                    && !(isLive && videoHasData)
+                    && !(liveTimeline && videoHasData)
                 let videoLow = !hasAudio && hasVideo && !videoDrained && videoEnqueuedUntil < now
                 if (audioLow || videoLow) && !eof {
                     buffering = true
@@ -1322,8 +1478,8 @@ final class PlaybackSession {
                 var ahead = min(hasVideo ? videoDemuxedUntil : .infinity, hasAudio ? audioDemuxedUntil : .infinity) - now
                 // Live: audio that delivers nothing must not hold the picture; it rejoins on its
                 // timestamps (same rule as the underrun check above).
-                if isLive && hasVideo && hasAudio && audioDemuxedUntil <= now { ahead = videoDemuxedUntil - now }
-                if ahead >= (isLive ? 1.5 : 2.5) || eof {
+                if liveTimeline && hasVideo && hasAudio && audioDemuxedUntil <= now { ahead = videoDemuxedUntil - now }
+                if ahead >= (liveTimeline ? 1.5 : 2.5) || eof {
                     buffering = false
                     sync.rate = 1
                     events.append(.buffering(false))
@@ -1408,7 +1564,8 @@ final class PlaybackSession {
             DispatchQueue.global().asyncAfter(deadline: .now() + at) { [weak self] in
                 guard let self, !self.isStopped else { return }
                 debugLog("[test] simulating network \(kind)")
-                if kind == "drop" { self.source.debugDropConnection() } else { self.source.debugStallConnection() }
+                guard let http = self.source as? HTTPByteSource else { return }
+                if kind == "drop" { http.debugDropConnection() } else { http.debugStallConnection() }
             }
         }
     }
@@ -1434,11 +1591,14 @@ final class PlaybackSession {
 enum PlayerError: LocalizedError {
     case message(String)
     case offline
+    /// The tuner cannot remux these streams (timeshift unavailable).
+    case unsupported
 
     var errorDescription: String? {
         switch self {
         case .message(let m): return m
         case .offline: return String(localized: "Der Sender ist beim Anbieter derzeit offline.")
+        case .unsupported: return String(localized: "Zeitversetztes Fernsehen ist für diesen Sender nicht möglich.")
         }
     }
 }

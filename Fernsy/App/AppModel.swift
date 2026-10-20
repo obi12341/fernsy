@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
-    case live, movies, series, favorites
+    case live, movies, series, favorites, recordings
     var id: String { rawValue }
 
     var title: String {
@@ -11,6 +11,7 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
         case .movies: return String(localized: "Filme")
         case .series: return String(localized: "Serien")
         case .favorites: return String(localized: "Favoriten")
+        case .recordings: return String(localized: "Aufnahmen")
         }
     }
 
@@ -20,6 +21,7 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
         case .movies: return "film"
         case .series: return "tv"
         case .favorites: return "star"
+        case .recordings: return "record.circle"
         }
     }
 }
@@ -30,6 +32,7 @@ struct PlayItem: Equatable {
         case live(channelId: Int, categoryId: String?)
         case movie(id: Int)
         case episode(id: String, seriesId: Int)
+        case recording(id: UUID)
     }
 
     let kind: Kind
@@ -47,14 +50,21 @@ struct PlayItem: Equatable {
         case .live: return nil
         case .movie(let id): return "movie.\(id)"
         case .episode(let id, _): return "episode.\(id)"
+        case .recording(let id): return "recording.\(id.uuidString)"
         }
     }
 }
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published private(set) var credentials: XtreamCredentials?
-    @Published private(set) var account: AccountInfo?
+    @Published private(set) var credentials: XtreamCredentials? {
+        didSet {
+            if credentials?.accountKey != oldValue?.accountKey { recorder.activate(accountKey: credentials?.accountKey) }
+        }
+    }
+    @Published private(set) var account: AccountInfo? {
+        didSet { updateConnectionLimit() }
+    }
 
     @Published private(set) var liveCategories: [XCategory] = []
     @Published private(set) var movieCategories: [XCategory] = []
@@ -72,9 +82,19 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(showAdult, forKey: "library.showAdult") }
     }
 
-    @Published var nowPlaying: PlayItem?
+    @Published var nowPlaying: PlayItem? {
+        didSet { updatePlayerTuner() }
+    }
+    /// Set from outside the library window (menu bar): the section it should show.
+    @Published var requestedSection: LibrarySection?
+    /// The tuner the player watches live TV through (shared with recordings of that channel).
+    @Published private(set) var playerTuner: LiveTuner?
 
     let epg = EPGStore()
+    let tuners = TunerPool()
+    let recorder = Recorder()
+
+    static let timeshiftMinutesKey = "timeshift.minutes"
 
     private(set) var channelsByCategory: [String: [LiveChannel]] = [:]
     private(set) var moviesByCategory: [String: [Movie]] = [:]
@@ -83,15 +103,31 @@ final class AppModel: ObservableObject {
     init() {
         favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
-        // FERNSY_NO_KEYCHAIN: the build script's launch smoke test must not trigger a keychain prompt.
-        let skipKeychain = Self.debugCredentials != nil || ProcessInfo.processInfo.environment["FERNSY_NO_KEYCHAIN"] != nil
-        if !skipKeychain, let saved = CredentialStore.load() {
+        UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
+        recorder.app = self
+        AppDelegate.app = self
+        applyTimeshiftSetting()
+        updateConnectionLimit()
+        if !Self.skipKeychain, let saved = CredentialStore.load() {
             credentials = saved
             Task { await loadCatalog(forceRefresh: false) }
         }
         #if DEBUG
         debugBootstrap()
         #endif
+        recorder.activate(accountKey: credentials?.accountKey)
+    }
+
+    func applyTimeshiftSetting() {
+        tuners.keepSeconds = Double(UserDefaults.standard.integer(forKey: Self.timeshiftMinutesKey)) * 60
+    }
+
+    private func updateConnectionLimit() {
+        var limit = max(1, account?.maxConnections ?? 1)
+        #if DEBUG
+        if let forced = ProcessInfo.processInfo.environment["IPTV_MAXCONN"].flatMap(Int.init) { limit = forced }
+        #endif
+        tuners.limit = limit
     }
 
     /// Development login from IPTV_SERVER/IPTV_USER/IPTV_PASS. Takes precedence over the
@@ -124,6 +160,24 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+        if let spec = env["IPTV_TESTRECORD"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 3 || spec.count == 5 {
+            // IPTV_TESTRECORD=<channel>:<starts in s>:<seconds>[:<before min>:<after min>]: a show
+            // recorded without padding, or with the given padding.
+            Task {
+                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+                guard let channel = channel(Int(spec[0])) else { return }
+                let start = Date().addingTimeInterval(spec[1])
+                let entry = EPGEntry(id: "test", title: "Test \(Int(spec[0]))", description: "", start: start, end: start.addingTimeInterval(spec[2]))
+                recorder.schedule(entry, on: channel, padding: spec.count == 5 ? (spec[3] * 60, spec[4] * 60) : (0, 0))
+            }
+        }
+        if let spec = env["IPTV_TESTPADDING"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 3 {
+            // IPTV_TESTPADDING=<after s>:<before min>:<after min>: as if Settings changed (without
+            // touching the shared defaults of an installed Fernsy).
+            DispatchQueue.main.asyncAfter(deadline: .now() + spec[0]) { [recorder] in
+                recorder.applyPadding(before: spec[1] * 60, after: spec[2] * 60)
+            }
+        }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }
         let parts = auto.split(separator: ":")
         guard parts.count == 2, let id = Int(parts[1]) else { return }
@@ -132,6 +186,7 @@ final class AppModel: ObservableObject {
             try? await Task.sleep(for: .seconds(1))
             if parts[0] == "live", let channel = channel(id) { play(channel) }
             if parts[0] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
+            if parts[0] == "recording", recorder.recordings.indices.contains(id) { play(recorder.recordings[id]) }
         }
     }
     #endif
@@ -140,9 +195,15 @@ final class AppModel: ObservableObject {
 
     // MARK: Account
 
+    /// FERNSY_NO_KEYCHAIN: neither read, write nor delete the stored login – for the build
+    /// script's launch smoke test and for demo recordings next to a real installation.
+    private static var skipKeychain: Bool {
+        debugCredentials != nil || ProcessInfo.processInfo.environment["FERNSY_NO_KEYCHAIN"] != nil
+    }
+
     func login(_ creds: XtreamCredentials) async throws {
         let info = try await XtreamClient(credentials: creds).account()
-        CredentialStore.save(creds)
+        if !Self.skipKeychain { CredentialStore.save(creds) }
         epg.removeAll()
         credentials = creds
         account = info
@@ -151,10 +212,11 @@ final class AppModel: ObservableObject {
 
     func logout() {
         nowPlaying = nil
+        tuners.stopAll()
         periodicRefresh?.cancel()
         periodicRefresh = nil
         lastRefresh = nil
-        CredentialStore.delete()
+        if !Self.skipKeychain { CredentialStore.delete() }
         credentials = nil
         account = nil
         liveCategories = []; movieCategories = []; seriesCategories = []
@@ -369,10 +431,59 @@ final class AppModel: ObservableObject {
 
     // MARK: Playback
 
-    func play(_ channel: LiveChannel) {
+    private func updatePlayerTuner() {
+        guard case .live(let id, _)? = nowPlaying?.kind, let url = nowPlaying?.url else {
+            if let old = playerTuner?.channelId { tuners.release(old, owner: .player) }
+            playerTuner = nil
+            return
+        }
+        guard playerTuner?.channelId != id || playerTuner?.isActive == false else { return }
+        // Release first: on single-connection accounts the old stream has to go.
+        if let old = playerTuner?.channelId { tuners.release(old, owner: .player) }
+        playerTuner = tuners.acquire(id, url: url, owner: .player)
+    }
+
+    /// "Try again" after the player's tuner gave up.
+    func retuneForPlayer() {
+        guard let tuner = playerTuner, !tuner.isActive else { return }
+        tuners.release(tuner.channelId, owner: .player)
+        playerTuner = nil
+        updatePlayerTuner()
+    }
+
+    /// Asks first when the account has no free connection because recordings hold it.
+    func play(_ channel: LiveChannel, force: Bool = false) {
         guard let url = client?.liveURL(channel.id) else { return }
-        nowPlaying = PlayItem(kind: .live(channelId: channel.id, categoryId: channel.categoryId),
-                              title: channel.name, subtitle: nil, url: url)
+        let item = PlayItem(kind: .live(channelId: channel.id, categoryId: channel.categoryId),
+                            title: channel.name, subtitle: nil, url: url)
+        let blocking = recordingsBlocking(channel.id)
+        guard !force, let first = blocking.first else {
+            nowPlaying = item
+            return
+        }
+        Task {
+            let accepted = await Prompt.ask(
+                title: String(localized: "Aufnahme läuft"),
+                message: String(localized: "Gerade wird „\(first.title)“ auf \(first.channelName) aufgenommen. Dein Zugang erlaubt nur \(tuners.limit) Stream(s) gleichzeitig. Aufnahme beenden und auf \(channel.name) umschalten?"),
+                confirm: String(localized: "Aufnahme beenden und umschalten"), cancel: String(localized: "Abbrechen"))
+            guard accepted else { return }
+            for recording in blocking { recorder.stop(recording.id) }
+            nowPlaying = item
+        }
+    }
+
+    /// Running recordings that hold the connections the player would need for `channelId`.
+    private func recordingsBlocking(_ channelId: Int) -> [Recording] {
+        let blockers = tuners.blockers(for: channelId, as: .player)
+        return recorder.recordings.filter { r in
+            r.status == .recording && blockers.contains { $0.owners.contains(.recording(r.id)) }
+        }
+    }
+
+    func play(_ recording: Recording) {
+        guard let url = recorder.fileURL(recording) else { return }
+        nowPlaying = PlayItem(kind: .recording(id: recording.id), title: recording.title,
+                              subtitle: "\(recording.channelName) · \(recording.start.formatted(date: .abbreviated, time: .shortened))", url: url)
     }
 
     func play(_ movie: Movie) {

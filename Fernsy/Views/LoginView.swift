@@ -69,6 +69,10 @@ struct LoginView: View {
 
 struct SettingsView: View {
     @EnvironmentObject private var app: AppModel
+    @AppStorage(AppModel.timeshiftMinutesKey) private var timeshiftMinutes = 60
+    @AppStorage(Recorder.padBeforeKey) private var padBefore = 10
+    @AppStorage(Recorder.padAfterKey) private var padAfter = 10
+    @AppStorage(MenuBarSupport.enabledKey) private var showsMenuBarItem = true
 
     var body: some View {
         Form {
@@ -96,9 +100,64 @@ struct SettingsView: View {
             Section("Inhalte") {
                 Toggle("Erwachsenen-Kategorien anzeigen", isOn: $app.showAdult)
             }
+            Section {
+                Picker("Zurückspulen bis", selection: $timeshiftMinutes) {
+                    Text("2 Minuten").tag(2)
+                    Text("15 Minuten").tag(15)
+                    Text("30 Minuten").tag(30)
+                    Text("1 Stunde").tag(60)
+                    Text("2 Stunden").tag(120)
+                }
+                MinutesField("Vorlauf", value: $padBefore)
+                MinutesField("Nachlauf", value: $padAfter)
+                Toggle("Symbol in der Menüleiste", isOn: $showsMenuBarItem)
+                LabeledContent("Speicherort") {
+                    HStack {
+                        Text("Filme › Fernsy").foregroundStyle(.secondary)
+                        Button("Im Finder zeigen") {
+                            try? FileManager.default.createDirectory(at: Recorder.folder, withIntermediateDirectories: true)
+                            NSWorkspace.shared.open(Recorder.folder)
+                        }
+                    }
+                }
+            } header: {
+                Text("Zeitversetzt & Aufnahmen")
+            } footer: {
+                Text("Der Zwischenspeicher fürs Zurückspulen belegt bei HD-Sendern etwa 2–4 GB pro Stunde. Aufnahmen laufen nur, solange Fernsy geöffnet ist. Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter; der Mac bleibt während Aufnahmen wach.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+        .onChange(of: timeshiftMinutes) { _, _ in app.applyTimeshiftSetting() }
         .frame(width: 480)
         .padding(.vertical)
+    }
+}
+
+/// Whole minutes 0…60 as a number field with a stepper; values outside are clamped.
+private struct MinutesField: View {
+    let label: LocalizedStringKey
+    @Binding var value: Int
+
+    init(_ label: LocalizedStringKey, value: Binding<Int>) {
+        self.label = label
+        _value = value
+    }
+
+    static func clamp(_ minutes: Int) -> Int { min(60, max(0, minutes)) }
+
+    var body: some View {
+        let clamped = Binding(get: { value }, set: { value = Self.clamp($0) })
+        LabeledContent(label) {
+            HStack(spacing: 6) {
+                TextField("", value: clamped, format: .number)
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 48)
+                Text("min").foregroundStyle(.secondary)
+                Stepper("", value: clamped, in: 0...60).labelsHidden()
+            }
+        }
     }
 }

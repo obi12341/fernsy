@@ -47,6 +47,9 @@ struct PlaybackStats: Equatable {
     var duplicatesDropped = 0
     /// Full player restarts (set by PlayerEngine).
     var restarts = 0
+    /// Timeshift (set by PlayerEngine): seconds kept on disk, and stored ahead of the player.
+    var timeshiftStored: Double?
+    var timeshiftAhead: Double?
 }
 
 struct SubtitleCue {

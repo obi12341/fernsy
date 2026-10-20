@@ -1,7 +1,8 @@
 #!/bin/bash
 # Builds the FFmpeg libraries Fernsy links against: LGPL only (no --enable-gpl, no
-# nonfree), decoding only (no encoders, muxers, network, devices, programs), arm64,
-# shared libraries with @rpath install names so they can be embedded in the app.
+# nonfree), decoding plus the MPEG-TS muxer for timeshift and recordings (no encoders,
+# network, devices, programs), arm64, shared
+# libraries with @rpath install names so they can be embedded in the app.
 #
 #   scripts/build-ffmpeg.sh            # → Vendor/ffmpeg/{include,lib}
 #   FFMPEG_VERSION=9.0.2 scripts/build-ffmpeg.sh
@@ -31,7 +32,7 @@ CONFIGURE=(
     --enable-shared --disable-static --install-name-dir=@rpath
     --disable-gpl --disable-nonfree
     --disable-programs --disable-doc --disable-avdevice --disable-network
-    --disable-encoders --disable-muxers --disable-devices --disable-protocols --disable-indevs --disable-outdevs
+    --disable-encoders --disable-muxers --enable-muxer=mpegts --disable-devices --disable-protocols --disable-indevs --disable-outdevs
     --disable-autodetect --enable-videotoolbox --enable-metal --enable-zlib
     --disable-debug
 )

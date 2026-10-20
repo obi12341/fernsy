@@ -4,6 +4,7 @@ import SwiftUI
 
 struct PlayerScreen: View {
     @EnvironmentObject private var app: AppModel
+    @EnvironmentObject private var recorder: Recorder
     @StateObject private var engine = PlayerEngine()
 
     @State private var controlsVisible = true
@@ -67,7 +68,9 @@ struct PlayerScreen: View {
             if controlsVisible, let item = app.nowPlaying {
                 PlayerControls(engine: engine, progress: engine.progress, item: item, epg: currentEPG,
                                showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil, onZap: zap, onFullScreen: toggleFullScreen,
-                               onActivity: showControls)
+                               onActivity: showControls,
+                               isRecording: liveChannelID.map { recorder.active(on: $0) != nil },
+                               onRecord: toggleRecording)
                     .transition(.opacity)
             }
 
@@ -103,6 +106,14 @@ struct PlayerScreen: View {
                         debugLog("[fs] after \(label): fullscreen=\(playerWindow?.styleMask.contains(.fullScreen) ?? false) iconState=\(isFullScreen)")
                     }
                 }
+            }
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTPAUSE"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 2 {
+                // IPTV_TESTPAUSE=<at>:<seconds>: pause, then resume (timeshift).
+                DispatchQueue.main.asyncAfter(deadline: .now() + spec[0]) { debugLog("[test] pause"); engine.setPaused(true) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + spec[0] + spec[1]) { debugLog("[test] resume, \(String(format: "%.1f", engine.progress.behindLive)) s behind"); engine.setPaused(false) }
+            }
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTGOLIVE"].flatMap(Double.init) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + spec) { debugLog("[test] go live"); engine.goLive() }
             }
             if let target = ProcessInfo.processInfo.environment["IPTV_TESTSEEK"].flatMap(Double.init) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 12) { engine.seek(to: target) }
@@ -168,10 +179,21 @@ struct PlayerScreen: View {
             engine.stop()
             return
         }
-        let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
-        engine.load(url: item.url, isLive: item.isLive, startAt: start)
+        play(item)
         showControls()
         if item.isLive { announceCurrentChannel() } else { osd = nil }
+    }
+
+    private func play(_ item: PlayItem) {
+        if item.isLive, let tuner = app.playerTuner {
+            engine.load(tuner: tuner)
+        } else if case .recording(let id) = item.kind {
+            let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
+            engine.load(file: item.url, isGrowing: { Recorder.isGrowing(id) }, startAt: start)
+        } else {
+            let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
+            engine.load(url: item.url, isLive: item.isLive, startAt: start)
+        }
     }
 
     private func saveResume() {
@@ -199,6 +221,18 @@ struct PlayerScreen: View {
         while !Task.isCancelled {
             epg = (try? await app.client?.shortEPG(id, limit: 3)) ?? epg
             try? await Task.sleep(for: .seconds(60))
+        }
+    }
+
+    // MARK: Recording
+
+    /// Records the show on now (from its start, as far as the buffer reaches), or stops.
+    private func toggleRecording() {
+        guard let id = liveChannelID, let channel = app.channel(id) else { return }
+        if let running = recorder.active(on: id) {
+            recorder.stop(running.id)
+        } else {
+            recorder.recordNow(channel, entry: currentEPG)
         }
     }
 
@@ -285,10 +319,10 @@ struct PlayerScreen: View {
         case 49: // space
             engine.togglePause()
         case 123: // left
-            guard !live else { return false }
+            guard !live || engine.isTimeshift else { return false }
             engine.seek(by: shift ? -60 : -10)
         case 124: // right
-            guard !live else { return false }
+            guard !live || engine.isTimeshift else { return false }
             engine.seek(by: shift ? 60 : 10)
         case 126: // up
             if live { zap(-1) } else { engine.volume = min(1, engine.volume + 0.05) }
@@ -305,6 +339,7 @@ struct PlayerScreen: View {
             switch event.charactersIgnoringModifiers?.lowercased() {
             case "f": toggleFullScreen()
             case "i": showInfo.toggle()
+            case "r" where live: toggleRecording()
             case "m": engine.isMuted.toggle()
             case "+": engine.volume = min(1, engine.volume + 0.05)
             case "-": engine.volume = max(0, engine.volume - 0.05)
@@ -338,8 +373,8 @@ struct PlayerScreen: View {
                 Text(message).foregroundStyle(.white).multilineTextAlignment(.center)
                 Button("Erneut versuchen") {
                     if let item = loadedItem {
-                        let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
-                        engine.load(url: item.url, isLive: item.isLive, startAt: start)
+                        if item.isLive { app.retuneForPlayer() }
+                        play(item)
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -376,6 +411,9 @@ struct PlayerControls: View {
     let onZap: (Int) -> Void
     let onFullScreen: () -> Void
     let onActivity: () -> Void
+    /// Live: the current show is being recorded; nil when recording is not possible.
+    var isRecording: Bool? = nil
+    var onRecord: () -> Void = {}
 
     @State private var scrubbing = false
     @State private var scrubValue: Double = 0
@@ -394,10 +432,19 @@ struct PlayerControls: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 10) {
                     if item.isLive {
-                        Text("LIVE")
+                        let live = progress.followsLive
+                        Text(live ? "LIVE" : "ZEITVERSETZT")
                             .font(.caption.weight(.heavy))
                             .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(.red, in: RoundedRectangle(cornerRadius: 4))
+                            .background(live ? Color.red : Color.gray, in: RoundedRectangle(cornerRadius: 4))
+                    }
+                    if isRecording == true {
+                        Label("REC", systemImage: "record.circle.fill")
+                            .font(.caption.weight(.heavy))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(.red.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
+                            .fixedSize()
                     }
                     Text(item.title).font(.title2.weight(.semibold)).lineLimit(1)
                 }
@@ -427,8 +474,58 @@ struct PlayerControls: View {
         .allowsHitTesting(false)
     }
 
+    /// Timeshift: what can be played, from the oldest buffered second to the live edge.
+    private var liveRange: ClosedRange<Double>? {
+        guard engine.isTimeshift else { return nil }
+        let end = progress.liveEnd - PlayerEngine.liveLead
+        guard end - progress.liveStart > 10 else { return nil }
+        return progress.liveStart...end
+    }
+
+    private var timeshiftBar: some View {
+        HStack(spacing: 12) {
+            Text((progress.wallClock ?? Date()).formatted(date: .omitted, time: .standard))
+                .monospacedDigit()
+                .frame(minWidth: 70, alignment: .trailing)
+            Slider(value: Binding(
+                // Following live sits at the end; the real position wobbles with bursty delivery.
+                get: { scrubbing ? scrubValue : (progress.followsLive ? (liveRange?.upperBound ?? progress.position) : progress.position) },
+                set: { scrubValue = $0 }
+            ), in: liveRange ?? 0...1) { editing in
+                if editing {
+                    scrubValue = progress.followsLive ? (liveRange?.upperBound ?? progress.position) : progress.position
+                    scrubbing = true
+                } else {
+                    // Let go at the end: back to live, not to a fixed point just before it.
+                    if let range = liveRange, scrubValue >= range.upperBound - 1 { engine.goLive() } else { engine.seek(to: scrubValue) }
+                    scrubbing = false
+                }
+                onActivity()
+            }
+            .controlSize(.small)
+            Button {
+                engine.goLive()
+                onActivity()
+            } label: {
+                let behind = scrubbing ? max(0, (liveRange?.upperBound ?? 0) - scrubValue) : progress.behindLive
+                let live = scrubbing ? behind < 1 : progress.followsLive
+                Text(live ? String(localized: "LIVE") : "−" + formatTime(behind))
+                    .monospacedDigit()
+                    .font(.callout.weight(live ? .bold : .regular))
+                    .foregroundStyle(live ? Color.red : Color.white)
+                    .frame(minWidth: 64, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .help("Zurück zu Live")
+        }
+        .font(.callout)
+    }
+
     private var bottomBar: some View {
         VStack(spacing: 10) {
+            if liveRange != nil {
+                timeshiftBar
+            }
             if !item.isLive && progress.duration > 0 {
                 HStack(spacing: 12) {
                     Text(formatTime(scrubbing ? scrubValue : progress.position))
@@ -459,7 +556,8 @@ struct PlayerControls: View {
                 if item.isLive {
                     iconButton("chevron.up", help: "Vorheriger Sender (↑)") { onZap(-1) }
                     iconButton("chevron.down", help: "Nächster Sender (↓)") { onZap(1) }
-                } else {
+                }
+                if !item.isLive || engine.isTimeshift {
                     iconButton("gobackward.10", help: "10 s zurück (←)") { engine.seek(by: -10) }
                 }
 
@@ -474,8 +572,22 @@ struct PlayerControls: View {
                 .buttonStyle(.plain)
                 .help("Wiedergabe/Pause (Leertaste)")
 
-                if !item.isLive {
+                if !item.isLive || engine.isTimeshift {
                     iconButton("goforward.10", help: "10 s vor (→)") { engine.seek(by: 10) }
+                        .disabled(item.isLive && progress.followsLive)
+                }
+
+                if let isRecording {
+                    Button {
+                        onRecord()
+                        onActivity()
+                    } label: {
+                        Image(systemName: isRecording ? "stop.circle.fill" : "record.circle")
+                            .foregroundStyle(isRecording ? Color.red : Color.white)
+                            .frame(width: 26, height: 26)
+                    }
+                    .buttonStyle(.plain)
+                    .help(isRecording ? "Aufnahme beenden (R)" : "Laufende Sendung aufnehmen (R)")
                 }
 
                 Spacer()
@@ -666,7 +778,7 @@ struct StatsOverlay: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             grid
-            BufferChart(history: history)
+            BufferChart(history: history, isTimeshift: stats.timeshiftAhead != nil)
         }
         // Size to the content instead of stretching (the divider would take the full width).
         .fixedSize()
@@ -690,6 +802,9 @@ struct StatsOverlay: View {
             row("Datenrate", String(format: "%.1f Mbit/s", stats.bitrateMbps))
             Divider().overlay(.white.opacity(0.25)).gridCellColumns(2)
             row("Puffer", bufferText)
+            if let stored = stats.timeshiftStored {
+                row("Zeitpuffer", String(localized: "\(formatTime(stored)) gespeichert"))
+            }
             row("Verbindung", stats.connectTime > 0 ? String(format: String(localized: "%.0f ms bis Antwort"), stats.connectTime * 1000) : "")
             row("Startzeit", stats.startupTime > 0 ? String(format: String(localized: "%.1f s bis zum Bild"), stats.startupTime) : "")
             row("Reconnects", reconnectText)
@@ -699,6 +814,10 @@ struct StatsOverlay: View {
     }
 
     private var bufferText: String {
+        if let ahead = stats.timeshiftAhead {
+            let disk = ahead >= 60 ? formatTime(ahead) : String(format: "%.1f s", ahead)
+            return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "Platte \(disk)")
+        }
         let network = Double(stats.networkBufferBytes)
         let networkText = network >= 1_000_000 ? String(format: "%.1f MB", network / 1_000_000) : String(format: "%.0f KB", network / 1000)
         // Network bytes in seconds at the average data rate, when it is known.
@@ -733,6 +852,10 @@ struct StatsOverlay: View {
 /// threshold dashed, and reconnects, restarts and stalls marked.
 struct BufferChart: View {
     @ObservedObject var history: BufferHistory
+    /// The second share is what the timeshift buffer holds ahead, not network bytes.
+    var isTimeshift = false
+    /// Timeshifted playback can have hours ahead; the chart is about the last seconds.
+    private static let cap = 60.0
 
     private static let playerColor = Color(red: 0.35, green: 0.62, blue: 1.0)
     private static let networkColor = Color(red: 0.55, green: 0.85, blue: 0.75)
@@ -743,7 +866,7 @@ struct BufferChart: View {
                 Text("Puffer, letzte 2 min").foregroundStyle(.white.opacity(0.6))
                 Spacer()
                 legend(Self.playerColor, "Player")
-                legend(Self.networkColor, "Netz")
+                legend(Self.networkColor, isTimeshift ? "Platte" : "Netz")
             }
             chart.frame(width: 300, height: 90)
             HStack(spacing: 10) {
@@ -760,13 +883,13 @@ struct BufferChart: View {
     private var chart: some View {
         let now = history.samples.last?.time ?? Date()
         let samples = history.samples
-        let peak = samples.map { $0.player + $0.network }.max() ?? 0
+        let peak = min(Self.cap, samples.map { $0.player + $0.network }.max() ?? 0)
         return Chart {
             ForEach(samples) { sample in
                 let x = sample.time.timeIntervalSince(now)
                 AreaMark(x: .value("Zeit", x), y: .value("Sekunden", sample.player), stacking: .standard)
                     .foregroundStyle(by: .value("Anteil", "Player"))
-                AreaMark(x: .value("Zeit", x), y: .value("Sekunden", sample.network), stacking: .standard)
+                AreaMark(x: .value("Zeit", x), y: .value("Sekunden", min(sample.network, max(0, Self.cap - sample.player))), stacking: .standard)
                     .foregroundStyle(by: .value("Anteil", "Netz"))
                 ForEach(Array(sample.events.enumerated()), id: \.offset) { _, event in
                     RuleMark(x: .value("Zeit", x))

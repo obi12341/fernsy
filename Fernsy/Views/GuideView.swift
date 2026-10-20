@@ -222,6 +222,7 @@ private struct NowMarker: View {
 
 private struct GuideRow: View {
     @EnvironmentObject private var app: AppModel
+    @EnvironmentObject private var recorder: Recorder
     let channel: LiveChannel
     @ObservedObject var guide: ChannelGuide
     let origin: Date
@@ -244,9 +245,14 @@ private struct GuideRow: View {
                         let x0 = GuideLayout.x(of: max(entry.start, origin), origin: origin)
                         let x1 = GuideLayout.x(of: min(entry.end, end), origin: origin)
                         GuideCell(entry: entry, now: now, width: x1 - x0,
-                                  selected: selection == GuideView.Selection(channelId: channel.id, entry: entry))
+                                  selected: selection == GuideView.Selection(channelId: channel.id, entry: entry),
+                                  recording: recorder.recording(channelId: channel.id, entry: entry)?.status)
                             .onTapGesture(count: 2) { app.play(channel) }
                             .onTapGesture { selection = GuideView.Selection(channelId: channel.id, entry: entry) }
+                            .contextMenu {
+                                Button("Abspielen") { app.play(channel) }
+                                RecordButton(channel: channel, entry: entry)
+                            }
                             .padding(.leading, GuideLayout.channelWidth + x0)
                     }
                 }
@@ -315,16 +321,25 @@ private struct GuideCell: View {
     let now: Date
     let width: CGFloat
     let selected: Bool
+    let recording: Recording.Status?
 
     var body: some View {
         let running = entry.start <= now && entry.end > now
         let past = entry.end <= now
         VStack(alignment: .leading, spacing: 2) {
             if width > 28 {
-                Text(entry.title)
-                    .font(.callout)
-                    .fontWeight(running ? .semibold : .regular)
-                    .foregroundStyle(past ? .secondary : .primary)
+                HStack(spacing: 4) {
+                    if let recording, recording != .skipped && recording != .missed {
+                        Image(systemName: recording == .scheduled ? "record.circle" : "record.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .accessibilityLabel(recording == .scheduled ? "Aufnahme geplant" : "Aufgenommen")
+                    }
+                    Text(entry.title)
+                        .font(.callout)
+                        .fontWeight(running ? .semibold : .regular)
+                        .foregroundStyle(past ? .secondary : .primary)
+                }
                 Text(entry.start.formatted(date: .omitted, time: .shortened))
                     .font(.caption)
                     .monospacedDigit()
@@ -370,6 +385,8 @@ private struct GuideDetail: View {
                 Text(channel.name).font(.headline).lineLimit(1)
                 Text(timeText).foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
+                RecordButton(channel: channel, entry: entry)
+                    .controlSize(.small)
                 Button("Abspielen", systemImage: "play.fill") { app.play(channel) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)

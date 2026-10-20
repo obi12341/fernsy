@@ -31,6 +31,102 @@ void ffs_set_interrupt(AVFormatContext *fmt, ffs_interrupt_cb cb, void *opaque) 
     fmt->interrupt_callback.opaque = opaque;
 }
 
+// MARK: - MPEG-TS muxing
+
+struct FFSMuxer {
+    AVFormatContext *fmt;
+    AVIOContext *pb;
+    int started;
+};
+
+// max_delay; the mpegts muxer offsets every timestamp by twice this.
+static const int64_t ffs_max_delay = 350000;
+
+double ffs_mux_delay(void) { return 2.0 * ffs_max_delay / AV_TIME_BASE; }
+
+FFSMuxer *ffs_mux_alloc(void *opaque, ffs_write_cb write) {
+    FFSMuxer *m = av_mallocz(sizeof(*m));
+    if (!m) return NULL;
+    if (avformat_alloc_output_context2(&m->fmt, NULL, "mpegts", NULL) < 0 || !m->fmt) {
+        av_free(m);
+        return NULL;
+    }
+    const int size = 64 * 1024;
+    unsigned char *buffer = av_malloc(size);
+    m->pb = buffer ? avio_alloc_context(buffer, size, 1, opaque, NULL, write, NULL) : NULL;
+    if (!m->pb) {
+        av_free(buffer);
+        avformat_free_context(m->fmt);
+        av_free(m);
+        return NULL;
+    }
+    m->fmt->pb = m->pb;
+    m->fmt->flags |= AVFMT_FLAG_CUSTOM_IO;
+    m->fmt->max_delay = ffs_max_delay;
+    return m;
+}
+
+int ffs_mux_add_stream(FFSMuxer *m, const AVCodecParameters *par, const char *language) {
+    AVStream *st = avformat_new_stream(m->fmt, NULL);
+    if (!st) return AVERROR(ENOMEM);
+    int ret = avcodec_parameters_copy(st->codecpar, par);
+    if (ret < 0) return ret;
+    st->codecpar->codec_tag = 0;
+    st->time_base = (AVRational){ 1, 90000 };
+    if (language && *language) av_dict_set(&st->metadata, "language", language, 0);
+    return st->index;
+}
+
+int ffs_mux_add_aac(FFSMuxer *m, int sample_rate, int channels) {
+    AVStream *st = avformat_new_stream(m->fmt, NULL);
+    if (!st) return AVERROR(ENOMEM);
+    st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+    st->codecpar->codec_id = AV_CODEC_ID_AAC;
+    st->codecpar->sample_rate = sample_rate > 0 ? sample_rate : 48000;
+    av_channel_layout_default(&st->codecpar->ch_layout, channels > 0 ? channels : 2);
+    st->time_base = (AVRational){ 1, 90000 };
+    return st->index;
+}
+
+int ffs_mux_begin(FFSMuxer *m) {
+    AVDictionary *opts = NULL;
+    // Frequent PAT/PMT so recordings cut out of the stream start quickly.
+    av_dict_set(&opts, "pat_period", "0.2", 0);
+    int ret = avformat_write_header(m->fmt, &opts);
+    av_dict_free(&opts);
+    if (ret >= 0) m->started = 1;
+    return ret;
+}
+
+int ffs_mux_write(FFSMuxer *m, AVPacket *pkt, int out_index, AVRational tb, int resync_point) {
+    if (out_index < 0 || out_index >= (int)m->fmt->nb_streams) return AVERROR(EINVAL);
+    if (resync_point) {
+        avio_flush(m->pb);
+        av_opt_set(m->fmt->priv_data, "mpegts_flags", "+resend_headers", 0);
+    }
+    pkt->stream_index = out_index;
+    pkt->pos = -1;
+    av_packet_rescale_ts(pkt, tb, m->fmt->streams[out_index]->time_base);
+    return av_write_frame(m->fmt, pkt);
+}
+
+void ffs_mux_flush(FFSMuxer *m) {
+    if (m && m->pb) avio_flush(m->pb);
+}
+
+void ffs_mux_free(FFSMuxer **pm) {
+    if (!pm || !*pm) return;
+    FFSMuxer *m = *pm;
+    if (m->started) av_write_trailer(m->fmt);
+    if (m->pb) {
+        avio_flush(m->pb);
+        av_freep(&m->pb->buffer);
+        avio_context_free(&m->pb);
+    }
+    avformat_free_context(m->fmt);
+    av_freep(pm);
+}
+
 // MARK: - Stream helpers
 
 const char *ffs_metadata(AVDictionary *dict, const char *key) {

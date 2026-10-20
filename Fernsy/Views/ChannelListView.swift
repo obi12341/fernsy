@@ -120,13 +120,21 @@ struct EPGPanel: View {
             HStack {
                 Text(channel.name).font(.headline).lineLimit(1)
                 Spacer()
+                if let now = entries.first(where: { $0.start <= Date() && $0.end > Date() }) {
+                    RecordButton(channel: channel, entry: now)
+                        .controlSize(.small)
+                }
                 Button("Abspielen", systemImage: "play.fill") { app.play(channel) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
             if let now = entries.first(where: { $0.start <= Date() && $0.end > Date() }) ?? entries.first {
                 EPGLine(entry: now, highlight: true)
-                ForEach(entries.filter { $0.start >= now.end }.prefix(2)) { EPGLine(entry: $0, highlight: false) }
+                    .contextMenu { RecordButton(channel: channel, entry: now) }
+                ForEach(entries.filter { $0.start >= now.end }.prefix(2)) { entry in
+                    EPGLine(entry: entry, highlight: false)
+                        .contextMenu { RecordButton(channel: channel, entry: entry) }
+                }
             } else if loaded {
                 Text("Keine Programminformationen").foregroundStyle(.secondary).font(.callout)
             } else {

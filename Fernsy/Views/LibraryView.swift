@@ -76,6 +76,12 @@ struct LibraryView: View {
         #if DEBUG
         .task { await debugScene() }
         #endif
+        .onChange(of: app.requestedSection, initial: true) { _, requested in
+            guard let requested else { return }
+            section = requested
+            path = NavigationPath()
+            app.requestedSection = nil
+        }
         .onChange(of: app.nowPlaying) { _, item in
             if item != nil { openWindow(id: "player") }
         }
@@ -120,6 +126,7 @@ struct LibraryView: View {
         case .movies: return "Filme suchen"
         case .series: return "Serien suchen"
         case .favorites: return "Favoriten durchsuchen"
+        case .recordings: return "Aufnahmen durchsuchen"
         }
     }
 
@@ -138,6 +145,8 @@ struct LibraryView: View {
             SeriesGridView(categoryID: category, query: query)
         case .favorites:
             FavoritesView(kind: category, query: query)
+        case .recordings:
+            RecordingsView(filter: category, query: query)
         }
     }
 
@@ -161,6 +170,7 @@ struct LibraryView: View {
 
 struct CategoryColumn: View {
     @EnvironmentObject private var app: AppModel
+    @EnvironmentObject private var recorder: Recorder
     let section: LibrarySection
     @Binding var selection: String?
     @Binding var filter: String
@@ -180,7 +190,7 @@ struct CategoryColumn: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            if section != .favorites {
+            if section != .favorites && section != .recordings {
                 TextField("Kategorien filtern", text: $filter)
                     .textFieldStyle(.roundedBorder)
                     .padding(.horizontal, 10)
@@ -218,6 +228,13 @@ struct CategoryColumn: View {
                 Row(category: XCategory(id: "live", name: String(localized: "Sender")), count: app.favorites.filter { $0.hasPrefix("live:") }.count),
                 Row(category: XCategory(id: "movie", name: String(localized: "Filme")), count: app.favorites.filter { $0.hasPrefix("movie:") }.count),
                 Row(category: XCategory(id: "series", name: String(localized: "Serien")), count: app.favorites.filter { $0.hasPrefix("series:") }.count),
+            ]
+        case .recordings:
+            let upcoming = recorder.recordings.filter(\.isUpcomingOrRunning).count
+            return [
+                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Aufnahmen")), count: recorder.recordings.count),
+                Row(category: XCategory(id: "upcoming", name: String(localized: "Geplant")), count: upcoming),
+                Row(category: XCategory(id: "done", name: String(localized: "Aufgenommen")), count: recorder.recordings.count - upcoming),
             ]
         }
         let needle = makeSearchKey(filter)

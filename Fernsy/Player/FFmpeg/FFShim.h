@@ -39,6 +39,27 @@ AVIOContext *ffs_avio_alloc(void *opaque, int buffer_size, int seekable, ffs_rea
 void ffs_avio_free(AVIOContext **pb);
 void ffs_set_interrupt(AVFormatContext *fmt, ffs_interrupt_cb cb, void *opaque);
 
+// MARK: - MPEG-TS muxing (timeshift buffer and recordings)
+
+typedef int (*ffs_write_cb)(void *opaque, const uint8_t *buf, int size);
+typedef struct FFSMuxer FFSMuxer;
+
+/// MPEG-TS muxer writing through `write`. Timestamps come out shifted by ffs_mux_delay().
+FFSMuxer *ffs_mux_alloc(void *opaque, ffs_write_cb write);
+/// Adds a stream copying `par`; returns its index or a negative error.
+int ffs_mux_add_stream(FFSMuxer *m, const AVCodecParameters *par, const char *language);
+/// Adds an ADTS AAC stream (audio we demux ourselves).
+int ffs_mux_add_aac(FFSMuxer *m, int sample_rate, int channels);
+int ffs_mux_begin(FFSMuxer *m);
+/// Writes the packet (timestamps in `tb`; the caller still owns and unrefs it). With
+/// `resync_point`, buffered bytes are written out first and PAT/PMT are repeated, so a
+/// reader starting at the byte offset reached before this call can decode from there.
+int ffs_mux_write(FFSMuxer *m, AVPacket *pkt, int out_index, AVRational tb, int resync_point);
+void ffs_mux_flush(FFSMuxer *m);
+/// Writes the trailer (when started) and frees everything.
+void ffs_mux_free(FFSMuxer **m);
+double ffs_mux_delay(void);
+
 // MARK: - Stream helpers
 
 const char *ffs_metadata(AVDictionary *dict, const char *key);

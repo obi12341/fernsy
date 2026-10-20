@@ -1,7 +1,7 @@
 # Fernsy
 
 Native IPTV player for macOS (SwiftUI, FFmpeg, AVSampleBuffer rendering) for Xtream Codes
-accounts: live TV with a program guide grid, movies and series. Bundle ID
+accounts: live TV with a program guide grid, timeshift and recordings, movies and series. Bundle ID
 `de.mobilistics.fernsy`, Apple Silicon only, macOS 27+.
 
 ## Build
@@ -44,6 +44,14 @@ and `CLOUDFLARE_API_TOKEN`).
 Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environment and then
 skip the keychain. Further debug-only switches (`IPTV_AUTOPLAY`, `IPTV_SCENE`, `IPTV_WINDOW`,
 `IPTV_TESTNET`, …) are documented where they are read.
+
+Live TV runs through a tuner (`Fernsy/Player/LiveTuner.swift`): a headless session receives
+the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-disk
+`TimeshiftBuffer`, and the player plays that buffer, so pausing, rewinding and recordings of
+the same channel share one connection. Recordings (`Fernsy/Recording/`) copy the buffer into
+`~/Movies/Fernsy` and only run while the app is open. For tests use the demo server
+(`IPTV_MAXCONN=1` simulates a single-stream account; `IPTV_TESTRECORD=<channel>:<in s>:<s>`
+schedules a recording, `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift).
 
 ## License
 
