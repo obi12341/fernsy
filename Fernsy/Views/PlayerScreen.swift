@@ -95,6 +95,7 @@ struct PlayerScreen: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 6 + Double(i) * 0.15) {
                         debugLog("[zap] key down #\(i + 1)")
                         zap(1)
+                        debugLog("[zap] target \(zapTarget.map { "\($0.channel.id) (#\($0.number))" } ?? "-")")
                     }
                 }
             }

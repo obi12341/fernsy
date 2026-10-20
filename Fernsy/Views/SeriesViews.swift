@@ -188,7 +188,7 @@ struct FavoritesView: View {
     var body: some View {
         let needle = makeSearchKey(query)
         let channels = (kind == allCategoryID || kind == "live")
-            ? app.channels.filter { app.isFavorite("live:\($0.id)") && (needle.isEmpty || $0.searchKey.contains(needle)) } : []
+            ? app.channels.filter { app.isFavorite("live:\($0.id)") && !app.isHidden($0) && (needle.isEmpty || $0.searchKey.contains(needle)) } : []
         let movies = (kind == allCategoryID || kind == "movie")
             ? app.movies.filter { app.isFavorite("movie:\($0.id)") && (needle.isEmpty || $0.searchKey.contains(needle)) } : []
         let shows = (kind == allCategoryID || kind == "series")

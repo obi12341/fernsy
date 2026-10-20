@@ -59,7 +59,10 @@ struct PlayItem: Equatable {
 final class AppModel: ObservableObject {
     @Published private(set) var credentials: XtreamCredentials? {
         didSet {
-            if credentials?.accountKey != oldValue?.accountKey { recorder.activate(accountKey: credentials?.accountKey) }
+            if credentials?.accountKey != oldValue?.accountKey {
+                recorder.activate(accountKey: credentials?.accountKey)
+                loadVisibility()
+            }
         }
     }
     @Published private(set) var account: AccountInfo? {
@@ -78,6 +81,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastUpdated: Date?
 
     @Published private(set) var favorites: Set<String>
+    /// Hidden live categories and channels of the signed-in account.
+    @Published private(set) var visibility = ChannelVisibility() {
+        didSet { updateVisibleCounts() }
+    }
     @Published var showAdult: Bool {
         didSet { UserDefaults.standard.set(showAdult, forKey: "library.showAdult") }
     }
@@ -99,6 +106,9 @@ final class AppModel: ObservableObject {
     private(set) var channelsByCategory: [String: [LiveChannel]] = [:]
     private(set) var moviesByCategory: [String: [Movie]] = [:]
     private(set) var seriesByCategory: [String: [Series]] = [:]
+    /// Live channels per category and in total, without hidden ones.
+    private(set) var visibleChannelCounts: [String: Int] = [:]
+    private(set) var visibleChannelTotal = 0
 
     init() {
         favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
@@ -116,6 +126,7 @@ final class AppModel: ObservableObject {
         debugBootstrap()
         #endif
         recorder.activate(accountKey: credentials?.accountKey)
+        loadVisibility()
     }
 
     func applyTimeshiftSetting() {
@@ -143,8 +154,11 @@ final class AppModel: ObservableObject {
     }
 
     #if DEBUG
+    private var debugFavoritesInMemory = false
+
     /// Development hook: IPTV_SERVER/IPTV_USER/IPTV_PASS log in without the keychain,
-    /// IPTV_AUTOPLAY=live:<id> | movie:<id> starts playback once the catalog is loaded.
+    /// IPTV_AUTOPLAY=live:<id> | movie:<id> starts playback once the catalog is loaded,
+    /// IPTV_TESTHIDE hides channels and categories (see below).
     private func debugBootstrap() {
         let env = ProcessInfo.processInfo.environment
         if let debug = Self.debugCredentials {
@@ -176,6 +190,33 @@ final class AppModel: ObservableObject {
             // touching the shared defaults of an installed Fernsy).
             DispatchQueue.main.asyncAfter(deadline: .now() + spec[0]) { [recorder] in
                 recorder.applyPadding(before: spec[1] * 60, after: spec[2] * 60)
+            }
+        }
+        if let list = env["IPTV_FAVORITES"] {
+            // IPTV_FAVORITES=live:101,movie:5: these favorites, in memory only (the shared
+            // defaults of an installed Fernsy stay untouched, also when toggling).
+            favorites = Set(list.split(separator: ",").map(String.init))
+            debugFavoritesInMemory = true
+        }
+        if let spec = env["IPTV_TESTHIDE"] {
+            // IPTV_TESTHIDE=channel:102,category:3,wait:20,show:channel:102: hides (or with
+            // "show:" shows) live channels and categories in order once the catalog is loaded,
+            // "wait:<s>" pauses in between.
+            Task {
+                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+                for item in spec.split(separator: ",") {
+                    var parts = item.split(separator: ":").map(String.init)
+                    let hidden = parts.first != "show"
+                    if !hidden { parts.removeFirst() }
+                    guard parts.count == 2 else { continue }
+                    switch parts[0] {
+                    case "wait": try? await Task.sleep(for: .seconds(Double(parts[1]) ?? 0))
+                    case "channel": if let id = Int(parts[1]) { setChannel(id, hidden: hidden) }
+                    case "category": setCategory(parts[1], hidden: hidden)
+                    default: continue
+                    }
+                    debugLog("[visibility] test \(item): \(visibleChannelTotal) of \(channels.count) channels visible")
+                }
             }
         }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }
@@ -222,6 +263,7 @@ final class AppModel: ObservableObject {
         liveCategories = []; movieCategories = []; seriesCategories = []
         channels = []; movies = []; series = []
         channelsByCategory = [:]; moviesByCategory = [:]; seriesByCategory = [:]
+        updateVisibleCounts()
         epg.removeAll()
     }
 
@@ -396,6 +438,7 @@ final class AppModel: ObservableObject {
             channelsByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
             liveCategories = categories
             channels = list
+            updateVisibleCounts()
         case .movies(let categories, let list):
             moviesByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
             movieCategories = categories
@@ -420,12 +463,61 @@ final class AppModel: ObservableObject {
         showAdult ? list : list.filter { !isAdultCategory($0) }
     }
 
+    // MARK: Hidden categories and channels
+
+    func isHidden(_ channel: LiveChannel) -> Bool {
+        visibility.hiddenChannels.contains(channel.id) || visibility.hiddenCategories.contains(channel.categoryId ?? "")
+    }
+
+    func isCategoryHidden(_ id: String) -> Bool { visibility.hiddenCategories.contains(id) }
+
+    func isChannelHidden(_ id: Int) -> Bool { visibility.hiddenChannels.contains(id) }
+
+    func setCategory(_ id: String, hidden: Bool) {
+        guard isCategoryHidden(id) != hidden else { return }
+        var value = visibility
+        if hidden { value.hiddenCategories.insert(id) } else { value.hiddenCategories.remove(id) }
+        storeVisibility(value)
+    }
+
+    func setChannel(_ id: Int, hidden: Bool) {
+        guard isChannelHidden(id) != hidden else { return }
+        var value = visibility
+        if hidden { value.hiddenChannels.insert(id) } else { value.hiddenChannels.remove(id) }
+        storeVisibility(value)
+    }
+
+    private func storeVisibility(_ value: ChannelVisibility) {
+        var value = value
+        value.modifiedAt = Date()
+        visibility = value
+        if let dir = cacheDirectory { value.save(to: dir) }
+    }
+
+    /// The signed-in account's choice; signed out, nothing is hidden (the file stays).
+    private func loadVisibility() {
+        visibility = cacheDirectory.map(ChannelVisibility.load) ?? ChannelVisibility()
+        #if DEBUG
+        debugLog("[visibility] \(credentials?.accountKey ?? "-"): \(visibility.hiddenCategories.count) categories, \(visibility.hiddenChannels.count) channels hidden")
+        #endif
+    }
+
+    private func updateVisibleCounts() {
+        var counts: [String: Int] = [:]
+        for channel in channels where !isHidden(channel) { counts[channel.categoryId ?? "", default: 0] += 1 }
+        visibleChannelCounts = counts
+        visibleChannelTotal = counts.values.reduce(0, +)
+    }
+
     // MARK: Favorites
 
     func isFavorite(_ key: String) -> Bool { favorites.contains(key) }
 
     func toggleFavorite(_ key: String) {
         if favorites.contains(key) { favorites.remove(key) } else { favorites.insert(key) }
+        #if DEBUG
+        if debugFavoritesInMemory { return }
+        #endif
         UserDefaults.standard.set(Array(favorites), forKey: "library.favorites")
     }
 
@@ -497,17 +589,34 @@ final class AppModel: ObservableObject {
                               subtitle: "S\(episode.season) E\(episode.number) · \(episode.title)", url: url)
     }
 
-    /// Channels the player zaps through: the category the channel was started from.
-    func zapList(categoryId: String?) -> [LiveChannel] {
-        let list = categoryId.flatMap { channelsByCategory[$0] } ?? channels
-        return list.isEmpty ? channels : list
+    /// Channels the player zaps through, hidden ones included: the category the channel was
+    /// started from, or everything if that category has no visible channel.
+    private func zapOrder(categoryId: String?) -> [LiveChannel] {
+        let list = categoryId.flatMap { channelsByCategory[$0] } ?? []
+        return list.contains { !isHidden($0) } ? list : channels
     }
 
-    /// The channel `offset` steps away from `channelId` (wrapping), with its 1-based number.
+    /// The visible channels the player zaps through.
+    func zapList(categoryId: String?) -> [LiveChannel] {
+        zapOrder(categoryId: categoryId).filter { !isHidden($0) }
+    }
+
+    /// The visible channel `offset` steps away from `channelId` (wrapping), with its 1-based
+    /// number. From a hidden channel it steps to the visible ones around its place.
     func neighbor(of channelId: Int, categoryId: String?, offset: Int) -> (channel: LiveChannel, number: Int)? {
-        let list = zapList(categoryId: categoryId)
-        guard !list.isEmpty, let index = list.firstIndex(where: { $0.id == channelId }) else { return nil }
-        let next = ((index + offset) % list.count + list.count) % list.count
+        let order = zapOrder(categoryId: categoryId)
+        let list = order.filter { !isHidden($0) }
+        guard !list.isEmpty else { return nil }
+        let index: Int
+        if let current = list.firstIndex(where: { $0.id == channelId }) {
+            index = current + offset
+        } else {
+            guard offset != 0, let position = order.firstIndex(where: { $0.id == channelId }) else { return nil }
+            // Visible channels before the hidden one: the next one down has this index.
+            let before = order[..<position].filter { !isHidden($0) }.count
+            index = offset > 0 ? before + offset - 1 : before + offset
+        }
+        let next = (index % list.count + list.count) % list.count
         return (list[next], next + 1)
     }
 

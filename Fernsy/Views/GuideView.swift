@@ -55,6 +55,10 @@ struct GuideView: View {
         }
         #endif
         .onChange(of: categoryID) { _, _ in selection = nil }
+        .onChange(of: app.visibility) { _, _ in
+            // A hidden channel leaves the guide, and with it its programme details.
+            if let id = selection?.channelId, let channel = app.channel(id), app.isHidden(channel) { selection = nil }
+        }
         .safeAreaInset(edge: .bottom) {
             if let selection, let channel = app.channel(selection.channelId) {
                 GuideDetail(channel: channel, entry: selection.entry) { self.selection = nil }
@@ -297,6 +301,10 @@ private struct GuideRow: View {
         .overlay(alignment: .trailing) { Rectangle().fill(.separator).frame(width: 1) }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { app.play(channel) }
+        .contextMenu {
+            Button("Abspielen") { app.play(channel) }
+            ChannelVisibilityButton(channel: channel)
+        }
     }
 
     /// Full-width bar while loading or without data; the text stays in view.

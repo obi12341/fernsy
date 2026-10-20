@@ -810,6 +810,26 @@
         }
       }
     },
+    "Ausblenden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        }
+      }
+    },
+    "Bearbeiten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        }
+      }
+    },
     "Beenden": {
       "localizations": {
         "en": {
@@ -950,6 +970,16 @@
         }
       }
     },
+    "Die Kategorie ist ausgeblendet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The category is hidden"
+          }
+        }
+      }
+    },
     "Diese Sendung aufnehmen (Fernsy muss dafür geöffnet sein)": {
       "localizations": {
         "en": {
@@ -976,6 +1006,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dynamic range"
+          }
+        }
+      }
+    },
+    "Einblenden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show"
           }
         }
       }
@@ -1096,6 +1136,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open Fernsy"
+          }
+        }
+      }
+    },
+    "Fertig": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         }
       }
@@ -1364,6 +1414,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Filter categories"
+          }
+        }
+      }
+    },
+    "Kategorien und Sender aus- oder wieder einblenden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide categories and channels or show them again"
           }
         }
       }

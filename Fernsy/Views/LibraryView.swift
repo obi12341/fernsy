@@ -17,6 +17,8 @@ struct LibraryView: View {
     @State private var query = ""
     @State private var path = NavigationPath()
     @AppStorage("liveMode") private var liveMode = LiveMode.list
+    /// Edit mode of Live TV: hidden categories and channels are listed to show them again.
+    @State private var editingLive = false
 
     private var categoryID: Binding<String?> {
         Binding(
@@ -37,7 +39,7 @@ struct LibraryView: View {
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 240)
             .safeAreaInset(edge: .bottom) { accountFooter }
         } content: {
-            CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter)
+            CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter, editing: section == .live && editingLive)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 380)
         } detail: {
             NavigationStack(path: $path) {
@@ -48,6 +50,7 @@ struct LibraryView: View {
         }
         .searchable(text: $query, placement: .toolbar, prompt: searchPrompt)
         .onChange(of: query) { _, _ in path = NavigationPath() }
+        .onChange(of: section) { _, new in if new != .live { editingLive = false } }
         .toolbar {
             if section == .live {
                 ToolbarItem {
@@ -57,6 +60,11 @@ struct LibraryView: View {
                     }
                     .pickerStyle(.segmented)
                     .help("Senderliste oder Programmraster")
+                    .disabled(editingLive)
+                }
+                ToolbarItem {
+                    Button(editingLive ? "Fertig" : "Bearbeiten") { setEditingLive(!editingLive) }
+                        .help("Kategorien und Sender aus- oder wieder einblenden")
                 }
             }
             ToolbarItem {
@@ -104,8 +112,15 @@ struct LibraryView: View {
         }
     }
 
+    /// Edit mode only lists, the guide stays read-only.
+    private func setEditingLive(_ editing: Bool) {
+        if editing && liveMode == .guide { liveMode = .list }
+        editingLive = editing
+    }
+
     #if DEBUG
-    /// Screenshot runs: IPTV_SCENE=<live|movies|series|favorites>[:<category id>[:movie|series:<id>]].
+    /// Screenshot runs: IPTV_SCENE=<live|movies|series|favorites>[:<category id>[:movie|series:<id>]],
+    /// IPTV_SCENE=live:<category id>:edit[:<s>] enters Live TV's Edit mode (after <s> seconds).
     private func debugScene() async {
         guard let scene = ProcessInfo.processInfo.environment["IPTV_SCENE"] else { return }
         let parts = scene.split(separator: ":").map(String.init)
@@ -113,6 +128,11 @@ struct LibraryView: View {
         section = target
         if parts.count > 1 { categoryBySection[target] = parts[1] }
         while app.channels.isEmpty && app.movies.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+        if target == .live, parts.count > 2, parts[2] == "edit" {
+            try? await Task.sleep(for: .seconds(parts.count > 3 ? Double(parts[3]) ?? 0 : 0))
+            setEditingLive(true)
+            return
+        }
         guard parts.count > 3, let id = Int(parts[3]) else { return }
         try? await Task.sleep(for: .milliseconds(500))
         if parts[2] == "movie", let movie = app.movies.first(where: { $0.id == id }) { path.append(movie) }
@@ -136,7 +156,7 @@ struct LibraryView: View {
         switch section {
         case .live:
             switch liveMode {
-            case .list: ChannelListView(categoryID: category, query: query)
+            case .list: ChannelListView(categoryID: category, query: query, editing: editingLive)
             case .guide: GuideView(categoryID: category, query: query)
             }
         case .movies:
@@ -174,20 +194,37 @@ struct CategoryColumn: View {
     let section: LibrarySection
     @Binding var selection: String?
     @Binding var filter: String
+    /// Live TV's Edit mode: hidden categories are listed dimmed, every row has a show/hide toggle.
+    var editing = false
 
     var body: some View {
         let rows = categories
         List(selection: $selection) {
             ForEach(rows, id: \.category.id) { row in
+                let hideable = section == .live && row.category.id != allCategoryID
                 HStack {
                     Text(row.category.name).lineLimit(1)
+                        .opacity(row.hidden ? 0.4 : 1)
                     Spacer()
                     if let count = row.count {
                         Text("\(count)").foregroundStyle(.tertiary).monospacedDigit()
+                            .opacity(row.hidden ? 0.4 : 1)
+                    }
+                    if editing && hideable {
+                        VisibilityToggle(hidden: row.hidden) { app.setCategory(row.category.id, hidden: !row.hidden) }
                     }
                 }
                 .tag(row.category.id)
+                .contextMenu {
+                    if hideable {
+                        Button(row.hidden ? "Einblenden" : "Ausblenden") { app.setCategory(row.category.id, hidden: !row.hidden) }
+                    }
+                }
             }
+        }
+        .onChange(of: selectionHidden, initial: true) { _, hidden in
+            // A hidden category leaves the column outside Edit mode; "All" takes its place.
+            if hidden { selection = allCategoryID }
         }
         .safeAreaInset(edge: .top) {
             if section != .favorites && section != .recordings {
@@ -203,6 +240,11 @@ struct CategoryColumn: View {
     private struct Row {
         let category: XCategory
         let count: Int?
+        var hidden = false
+    }
+
+    private var selectionHidden: Bool {
+        section == .live && !editing && app.isCategoryHidden(selection ?? allCategoryID)
     }
 
     private var categories: [Row] {
@@ -211,9 +253,11 @@ struct CategoryColumn: View {
         let total: Int
         switch section {
         case .live:
-            source = app.visibleCategories(app.liveCategories)
-            counts = { app.channelsByCategory[$0]?.count }
-            total = app.channels.count
+            // Outside Edit mode without hidden categories, and counting visible channels only.
+            let categories = app.visibleCategories(app.liveCategories)
+            source = editing ? categories : categories.filter { !app.isCategoryHidden($0.id) }
+            counts = editing ? { app.channelsByCategory[$0]?.count } : { app.visibleChannelCounts[$0] }
+            total = editing ? app.channels.count : app.visibleChannelTotal
         case .movies:
             source = app.visibleCategories(app.movieCategories)
             counts = { app.moviesByCategory[$0]?.count }
@@ -223,9 +267,13 @@ struct CategoryColumn: View {
             counts = { app.seriesByCategory[$0]?.count }
             total = app.series.count
         case .favorites:
+            // Hidden channels are not listed under Favorites, so they are not counted either.
+            let hiddenLive = app.favorites.filter { key in
+                key.hasPrefix("live:") && Int(key.dropFirst(5)).flatMap(app.channel).map(app.isHidden) == true
+            }.count
             return [
-                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Favoriten")), count: app.favorites.count),
-                Row(category: XCategory(id: "live", name: String(localized: "Sender")), count: app.favorites.filter { $0.hasPrefix("live:") }.count),
+                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Favoriten")), count: app.favorites.count - hiddenLive),
+                Row(category: XCategory(id: "live", name: String(localized: "Sender")), count: app.favorites.filter { $0.hasPrefix("live:") }.count - hiddenLive),
                 Row(category: XCategory(id: "movie", name: String(localized: "Filme")), count: app.favorites.filter { $0.hasPrefix("movie:") }.count),
                 Row(category: XCategory(id: "series", name: String(localized: "Serien")), count: app.favorites.filter { $0.hasPrefix("series:") }.count),
             ]
@@ -240,6 +288,6 @@ struct CategoryColumn: View {
         let needle = makeSearchKey(filter)
         let filtered = needle.isEmpty ? source : source.filter { makeSearchKey($0.name).contains(needle) }
         let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle")), count: total)
-        return [all] + filtered.map { Row(category: $0, count: counts($0.id)) }
+        return [all] + filtered.map { Row(category: $0, count: counts($0.id), hidden: section == .live && app.isCategoryHidden($0.id)) }
     }
 }
