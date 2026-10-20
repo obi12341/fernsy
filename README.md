@@ -1,7 +1,8 @@
 # Fernsy
 
 Native IPTV player for macOS (SwiftUI, FFmpeg, AVSampleBuffer rendering) for Xtream Codes
-accounts: live TV with a program guide grid, timeshift and recordings, movies and series. Bundle ID
+accounts: live TV with a program guide grid, timeshift and recordings, movies and series –
+plus a Jellyfin account for browsing films and series (playback follows). Bundle ID
 `de.mobilistics.fernsy`, Apple Silicon only, macOS 27+.
 
 ## Build
@@ -39,6 +40,16 @@ freely licensed content (sign in with `demo` / `demo` at
 https://fernsy-demo.mobilistics.workers.dev). App Review uses it; media files are assets of
 the `demo-media` release. Deploy with `demo-server/deploy.sh` (needs `CLOUDFLARE_ACCOUNT_ID`
 and `CLOUDFLARE_API_TOKEN`).
+
+## Jellyfin
+
+A Jellyfin account can be added next to the IPTV account (login screen or Settings). Fernsy
+stores only the access token in the keychain, never the password. Tested with Jellyfin
+12.2.0; the routes live in `Fernsy/Jellyfin/JellyfinClient.swift`. Debug builds sign in
+without the keychain with `JF_SERVER`, `JF_USER` and `JF_PASS` (`JF_SELFTEST`, `JF_TOKEN`,
+`JF_OFFLINE`, `JF_TESTMARK` are documented where they are read). Write tests against a real
+server must back up the user data first and only touch fetched films, series, seasons and
+episodes – a played mark on a folder marks everything below it.
 
 ## Development
 

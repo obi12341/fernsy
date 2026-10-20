@@ -1,0 +1,22 @@
+{
+  "sourceLanguage": "de",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy verbindet sich mit deinem Jellyfin-Server oder IPTV-Anbieter im lokalen Netzwerk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy connects to your Jellyfin server or IPTV provider on your local network."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

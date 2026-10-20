@@ -1,9 +1,17 @@
+import Combine
 import Foundation
 import SwiftUI
 
 enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
     case live, movies, series, favorites, recordings
+    case jellyfinHome, jellyfinFilms, jellyfinSeries
     var id: String { rawValue }
+
+    /// Sections of the IPTV account and of the Jellyfin account (sidebar groups).
+    static let iptv: [LibrarySection] = [.live, .movies, .series, .favorites, .recordings]
+    static let jellyfin: [LibrarySection] = [.jellyfinHome, .jellyfinFilms, .jellyfinSeries]
+
+    var isJellyfin: Bool { Self.jellyfin.contains(self) }
 
     var title: String {
         switch self {
@@ -12,6 +20,9 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
         case .series: return String(localized: "Serien")
         case .favorites: return String(localized: "Favoriten")
         case .recordings: return String(localized: "Aufnahmen")
+        case .jellyfinHome: return String(localized: "Start")
+        case .jellyfinFilms: return String(localized: "Filme")
+        case .jellyfinSeries: return String(localized: "Serien")
         }
     }
 
@@ -22,6 +33,9 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
         case .series: return "tv"
         case .favorites: return "star"
         case .recordings: return "record.circle"
+        case .jellyfinHome: return "house"
+        case .jellyfinFilms: return "film"
+        case .jellyfinSeries: return "tv"
         }
     }
 }
@@ -100,6 +114,10 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
+    /// The Jellyfin account, independent of the IPTV one.
+    let jellyfin = JellyfinStore(skipKeychain: AppModel.skipKeychain || ProcessInfo.processInfo.environment["JF_SERVER"] != nil)
+    /// Mirrors `jellyfin.session != nil`, so views observing AppModel follow it.
+    @Published private(set) var hasJellyfin = false
 
     static let timeshiftMinutesKey = "timeshift.minutes"
 
@@ -115,6 +133,7 @@ final class AppModel: ObservableObject {
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
+        jellyfin.$session.map { $0 != nil }.removeDuplicates().assign(to: &$hasJellyfin)
         AppDelegate.app = self
         applyTimeshiftSetting()
         updateConnectionLimit()
@@ -227,6 +246,13 @@ final class AppModel: ObservableObject {
                 nowPlaying = PlayItem(kind: .movie(id: -1), title: url.lastPathComponent, subtitle: nil, url: url)
             }
         }
+        if let spec = env["IPTV_TESTSIGNOUT"]?.split(separator: ":"), spec.count == 2, let delay = Double(spec[1]) {
+            // IPTV_TESTSIGNOUT=<iptv|jellyfin>:<s>: sign out of that account after <s> seconds.
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
+                debugLog("[test] signing out of \(spec[0])")
+                if spec[0] == "iptv" { logout() } else { jellyfin.signOut() }
+            }
+        }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }
         let parts = auto.split(separator: ":")
         guard parts.count == 2, let id = Int(parts[1]) else { return }
@@ -246,7 +272,7 @@ final class AppModel: ObservableObject {
 
     /// FERNSY_NO_KEYCHAIN: neither read, write nor delete the stored login – for the build
     /// script's launch smoke test and for demo recordings next to a real installation.
-    private static var skipKeychain: Bool {
+    static var skipKeychain: Bool {
         debugCredentials != nil || ProcessInfo.processInfo.environment["FERNSY_NO_KEYCHAIN"] != nil
     }
 

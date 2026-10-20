@@ -9,6 +9,7 @@ enum LiveMode: String {
 
 struct LibraryView: View {
     @EnvironmentObject private var app: AppModel
+    @EnvironmentObject private var jellyfin: JellyfinStore
     @Environment(\.openWindow) private var openWindow
 
     @State private var section: LibrarySection = .live
@@ -30,27 +31,46 @@ struct LibraryView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: Binding(get: { section }, set: { if let s = $0 { section = s; path = NavigationPath() } })) {
-                Section("Mediathek") {
-                    ForEach(LibrarySection.allCases) { s in
-                        Label(s.title, systemImage: s.icon).tag(s)
+                if app.credentials != nil {
+                    Section("IPTV") {
+                        ForEach(LibrarySection.iptv) { s in
+                            Label(s.title, systemImage: s.icon).tag(s)
+                        }
+                    }
+                }
+                if app.hasJellyfin {
+                    Section("Jellyfin") {
+                        ForEach(LibrarySection.jellyfin) { s in
+                            Label(s.title, systemImage: s.icon).tag(s)
+                        }
                     }
                 }
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 240)
-            .safeAreaInset(edge: .bottom) { accountFooter }
+            .safeAreaInset(edge: .bottom) { if app.credentials != nil { accountFooter } }
         } content: {
-            CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter, editing: section == .live && editingLive)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 380)
+            // Jellyfin Home has no categories: the column collapses.
+            if section == .jellyfinHome {
+                Color.clear.navigationSplitViewColumnWidth(0)
+            } else {
+                CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter, editing: section == .live && editingLive)
+                    .navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 380)
+            }
         } detail: {
             NavigationStack(path: $path) {
                 detail
                     .navigationDestination(for: Movie.self) { MovieDetailView(movie: $0) }
                     .navigationDestination(for: Series.self) { SeriesDetailView(series: $0) }
+                    .navigationDestination(for: JFItem.self) { JellyfinItemDetailView(item: $0) }
             }
         }
         .searchable(text: $query, placement: .toolbar, prompt: searchPrompt)
         .onChange(of: query) { _, _ in path = NavigationPath() }
         .onChange(of: section) { _, new in if new != .live { editingLive = false } }
+        // Signing in or out of one account: stay on a section that still exists.
+        .onChange(of: availableSections, initial: true) { _, available in
+            if !available.contains(section), let first = available.first { section = first; path = NavigationPath() }
+        }
         .toolbar {
             if section == .live {
                 ToolbarItem {
@@ -69,16 +89,20 @@ struct LibraryView: View {
             }
             ToolbarItem {
                 Button {
-                    Task { await app.loadCatalog(forceRefresh: true) }
+                    if section.isJellyfin {
+                        Task { await jellyfin.loadLibrary(forceRefresh: true) }
+                    } else {
+                        Task { await app.loadCatalog(forceRefresh: true) }
+                    }
                 } label: {
-                    if app.isLoading {
+                    if section.isJellyfin ? jellyfin.isLoading : app.isLoading {
                         ProgressView().controlSize(.small)
                     } else {
                         Label("Aktualisieren", systemImage: "arrow.clockwise")
                     }
                 }
-                .help("Katalog vom Server neu laden")
-                .disabled(app.isLoading)
+                .help(section.isJellyfin ? "Bibliothek vom Jellyfin-Server neu laden" : "Katalog vom Server neu laden")
+                .disabled(section.isJellyfin ? jellyfin.isLoading : app.isLoading)
             }
         }
         #if DEBUG
@@ -94,7 +118,7 @@ struct LibraryView: View {
             if item != nil { openWindow(id: "player") }
         }
         .overlay {
-            if app.channels.isEmpty && app.movies.isEmpty {
+            if !section.isJellyfin && app.channels.isEmpty && app.movies.isEmpty {
                 if app.isLoading {
                     ProgressView("Katalog wird geladen …")
                         .padding(32)
@@ -127,6 +151,17 @@ struct LibraryView: View {
         guard let target = LibrarySection(rawValue: parts[0]) else { return }
         section = target
         if parts.count > 1 { categoryBySection[target] = parts[1] }
+        if target.isJellyfin {
+            // IPTV_SCENE=jellyfinFilms[:<category>[:item:<id>]] opens a Jellyfin item's detail.
+            while jellyfin.films.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+            if parts.count > 3, parts[2] == "item",
+               let item = (jellyfin.films + jellyfin.series).first(where: { $0.id == parts[3] }) {
+                // After the category list has settled its selection (which resets the path).
+                try? await Task.sleep(for: .seconds(2))
+                path.append(item)
+            }
+            return
+        }
         while app.channels.isEmpty && app.movies.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
         if target == .live, parts.count > 2, parts[2] == "edit" {
             try? await Task.sleep(for: .seconds(parts.count > 3 ? Double(parts[3]) ?? 0 : 0))
@@ -147,6 +182,8 @@ struct LibraryView: View {
         case .series: return "Serien suchen"
         case .favorites: return "Favoriten durchsuchen"
         case .recordings: return "Aufnahmen durchsuchen"
+        case .jellyfinHome, .jellyfinFilms: return "Filme suchen"
+        case .jellyfinSeries: return "Serien suchen"
         }
     }
 
@@ -167,7 +204,21 @@ struct LibraryView: View {
             FavoritesView(kind: category, query: query)
         case .recordings:
             RecordingsView(filter: category, query: query)
+        case .jellyfinHome:
+            if query.isEmpty {
+                JellyfinHomeView()
+            } else {
+                JellyfinGridView(kind: .films, categoryID: allCategoryID, query: query)
+            }
+        case .jellyfinFilms:
+            JellyfinGridView(kind: .films, categoryID: category, query: query)
+        case .jellyfinSeries:
+            JellyfinGridView(kind: .series, categoryID: category, query: query)
         }
+    }
+
+    private var availableSections: [LibrarySection] {
+        (app.credentials != nil ? LibrarySection.iptv : []) + (app.hasJellyfin ? LibrarySection.jellyfin : [])
     }
 
     private var accountFooter: some View {
@@ -191,6 +242,7 @@ struct LibraryView: View {
 struct CategoryColumn: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var recorder: Recorder
+    @EnvironmentObject private var jellyfin: JellyfinStore
     let section: LibrarySection
     @Binding var selection: String?
     @Binding var filter: String
@@ -227,7 +279,7 @@ struct CategoryColumn: View {
             if hidden { selection = allCategoryID }
         }
         .safeAreaInset(edge: .top) {
-            if section != .favorites && section != .recordings {
+            if section != .favorites && section != .recordings && section != .jellyfinHome {
                 TextField("Kategorien filtern", text: $filter)
                     .textFieldStyle(.roundedBorder)
                     .padding(.horizontal, 10)
@@ -277,6 +329,14 @@ struct CategoryColumn: View {
                 Row(category: XCategory(id: "movie", name: String(localized: "Filme")), count: app.favorites.filter { $0.hasPrefix("movie:") }.count),
                 Row(category: XCategory(id: "series", name: String(localized: "Serien")), count: app.favorites.filter { $0.hasPrefix("series:") }.count),
             ]
+        case .jellyfinHome:
+            return [Row(category: XCategory(id: allCategoryID, name: String(localized: "Übersicht")), count: nil)]
+        case .jellyfinFilms, .jellyfinSeries:
+            let kind: JFKind = section == .jellyfinFilms ? .films : .series
+            let needle = makeSearchKey(filter)
+            let rows = jellyfin.categoryRows(kind).filter { needle.isEmpty || makeSearchKey($0.name).contains(needle) }
+            let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle")), count: jellyfin.items(kind).count)
+            return [all] + rows.map { Row(category: XCategory(id: $0.id, name: $0.name), count: $0.count) }
         case .recordings:
             let upcoming = recorder.recordings.filter(\.isUpcomingOrRunning).count
             return [

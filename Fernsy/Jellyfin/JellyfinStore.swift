@@ -1,0 +1,433 @@
+import Foundation
+
+/// The Jellyfin account and its film and series library.
+///
+/// Independent of the IPTV account: both can be signed in at the same time. The session
+/// (server, user, token – never the password) is kept in the keychain; the library is
+/// cached on disk and shown before the background refresh, like the IPTV catalog.
+@MainActor
+final class JellyfinStore: ObservableObject {
+    @Published private(set) var session: JFSession?
+    /// The server rejected the token (session ended in the dashboard, password changed).
+    @Published private(set) var isExpired = false
+    /// The last refresh could not reach the server; the cached library is shown.
+    @Published private(set) var isOffline = false
+    @Published private(set) var isLoading = false
+    @Published var lastError: String?
+
+    /// Film and series libraries, in the server's order.
+    @Published private(set) var libraries: [JFItem] = []
+    @Published private(set) var films: [JFItem] = []
+    @Published private(set) var series: [JFItem] = []
+    /// Item id → ids of the libraries it is in.
+    private(set) var membership: [String: Set<String>] = [:]
+
+    @Published private(set) var resume: [JFItem] = []
+    @Published private(set) var nextUp: [JFItem] = []
+    @Published private(set) var latestFilms: [JFItem] = []
+    @Published private(set) var latestSeries: [JFItem] = []
+
+    /// Detail data loaded on demand, updated together with the lists when marks change.
+    @Published private(set) var details: [String: JFItem] = [:]
+    @Published private(set) var seasons: [String: [JFItem]] = [:]
+    @Published private(set) var episodes: [String: [JFItem]] = [:]
+
+    private let skipKeychain: Bool
+    private var refreshTask: Task<Void, Never>?
+
+    private static let keychainAccount = "jellyfin"
+
+    init(skipKeychain: Bool) {
+        self.skipKeychain = skipKeychain
+        if !skipKeychain, let saved = Keychain.load(JFSession.self, account: Self.keychainAccount) {
+            session = saved
+            Task { await loadLibrary(forceRefresh: false) }
+        }
+        #if DEBUG
+        debugSignIn()
+        #endif
+    }
+
+    var client: JellyfinClient? {
+        guard let session, let base = session.baseURL else { return nil }
+        return JellyfinClient(base: base, token: session.token)
+    }
+
+    // MARK: Session
+
+    func signIn(server: String, username: String, password: String) async throws {
+        guard let base = JFSession.normalize(server) else { throw JellyfinError.invalidURL }
+        let anonymous = JellyfinClient(base: base, token: nil)
+        let info = try await anonymous.publicInfo()
+        let auth = try await anonymous.authenticate(username: username, password: password)
+        let newSession = JFSession(server: base.absoluteString, serverId: info.id ?? "", serverName: info.serverName ?? base.host() ?? "",
+                                   version: info.version ?? "", userId: auth.user.id, userName: auth.user.name, token: auth.accessToken)
+        if !skipKeychain { Keychain.save(newSession, account: Self.keychainAccount) }
+        reset()
+        session = newSession
+        isExpired = false
+        await loadLibrary(forceRefresh: true)
+    }
+
+    func signOut() {
+        if let client { Task { await client.logout() } }
+        if !skipKeychain { Keychain.delete(account: Self.keychainAccount) }
+        session = nil
+        isExpired = false
+        reset()
+    }
+
+    private func reset() {
+        refreshTask?.cancel()
+        libraries = []; films = []; series = []; membership = [:]
+        resume = []; nextUp = []; latestFilms = []; latestSeries = []
+        details = [:]; seasons = [:]; episodes = [:]
+        isOffline = false
+        lastError = nil
+    }
+
+    /// Every request goes through here: a rejected token marks the session expired, an
+    /// unreachable server marks it offline.
+    private func call<T>(_ body: (JellyfinClient, String) async throws -> T) async throws -> T {
+        guard let client, let userId = session?.userId else { throw JellyfinError.unauthorized }
+        do {
+            let result = try await body(client, userId)
+            isOffline = false
+            return result
+        } catch JellyfinError.unauthorized {
+            isExpired = true
+            throw JellyfinError.unauthorized
+        } catch let error as URLError where error.code != .cancelled {
+            isOffline = true
+            throw error
+        }
+    }
+
+    // MARK: Library
+
+    /// Shows the cached library first, then refreshes it from the server.
+    func loadLibrary(forceRefresh: Bool) async {
+        guard session != nil else { return }
+        if films.isEmpty && series.isEmpty { loadCache() }
+        // One refresh at a time; a forced one replaces a running one.
+        if let running = refreshTask, !forceRefresh {
+            await running.value
+            return
+        }
+        refreshTask?.cancel()
+        let task = Task { await refresh() }
+        refreshTask = task
+        await task.value
+        if refreshTask == task { refreshTask = nil }
+    }
+
+    private func refresh() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let views = try await call { try await $0.views(userId: $1) }
+            let libs = views.filter { $0.collectionType == "movies" || $0.collectionType == "tvshows" }
+            var newFilms: [String: JFItem] = [:], newSeries: [String: JFItem] = [:], newMembership: [String: Set<String>] = [:]
+            for lib in libs {
+                let type = lib.collectionType == "movies" ? "Movie" : "Series"
+                var start = 0
+                while true {
+                    let page = try await call { try await $0.items(userId: $1, parentId: lib.id, type: type, start: start, limit: 500) }
+                    for item in page.items {
+                        if type == "Movie" { newFilms[item.id] = item } else { newSeries[item.id] = item }
+                        newMembership[item.id, default: []].insert(lib.id)
+                    }
+                    start += page.items.count
+                    if page.items.isEmpty || start >= (page.totalRecordCount ?? start) { break }
+                }
+                try Task.checkCancellation()
+            }
+            libraries = libs
+            films = newFilms.values.sorted(by: Self.byName)
+            series = newSeries.values.sorted(by: Self.byName)
+            membership = newMembership
+            saveCache()
+            #if DEBUG
+            debugLog("[jellyfin] \(libs.count) libraries, \(films.count) films, \(series.count) series")
+            #endif
+            await refreshHome()
+        } catch {
+            // Offline and expired have their own notices.
+            if !(error is CancellationError || error is URLError || (error as? JellyfinError) == .unauthorized) {
+                lastError = error.localizedDescription
+            }
+            #if DEBUG
+            debugLog("[jellyfin] refresh failed: \(error)")
+            #endif
+        }
+    }
+
+    private static func byName(_ a: JFItem, _ b: JFItem) -> Bool {
+        (a.sortName ?? a.name).localizedStandardCompare(b.sortName ?? b.name) == .orderedAscending
+    }
+
+    /// Watched state and favorites of everything, e.g. after watching on another client.
+    func refreshUserData() async {
+        guard !libraries.isEmpty else { return }
+        do {
+            var updates: [String: JFUserData] = [:]
+            for lib in libraries {
+                let type = lib.collectionType == "movies" ? "Movie" : "Series"
+                for item in try await call({ try await $0.userData(userId: $1, parentId: lib.id, type: type) }) {
+                    if let data = item.userData { updates[item.id] = data }
+                }
+            }
+            apply(updates)
+            await refreshHome()
+        } catch {}
+    }
+
+    func refreshHome() async {
+        guard session != nil else { return }
+        resume = (try? await call { try await $0.resume(userId: $1) }) ?? resume
+        nextUp = (try? await call { try await $0.nextUp(userId: $1) }) ?? nextUp
+        var films: [JFItem] = [], shows: [JFItem] = []
+        for lib in libraries {
+            let latest = (try? await call { try await $0.latest(userId: $1, parentId: lib.id) }) ?? []
+            if lib.collectionType == "movies" { films += latest } else { shows += latest }
+        }
+        latestFilms = Array(films.sorted { $0.addedKey > $1.addedKey }.prefix(24))
+        latestSeries = Array(shows.sorted { $0.addedKey > $1.addedKey }.prefix(24))
+        fillHomeFromLibrary()
+    }
+
+    /// Without the server (offline, before the first answer) Home still shows what the cached
+    /// library knows: newest films and series, and films with a resume position.
+    private func fillHomeFromLibrary() {
+        if latestFilms.isEmpty { latestFilms = Array(films.sorted { $0.addedKey > $1.addedKey }.prefix(24)) }
+        if latestSeries.isEmpty { latestSeries = Array(series.sorted { $0.addedKey > $1.addedKey }.prefix(24)) }
+        if resume.isEmpty { resume = films.filter { $0.progress != nil } }
+    }
+
+    func libraries(of item: JFItem) -> Set<String> { membership[item.id] ?? [] }
+
+    // MARK: Details
+
+    func loadDetail(_ id: String) async {
+        if let item = try? await call({ try await $0.item(userId: $1, id: id) }) { details[id] = item }
+    }
+
+    func loadSeasons(_ seriesId: String) async {
+        if let list = try? await call({ try await $0.seasons(userId: $1, seriesId: seriesId) }) { seasons[seriesId] = list }
+    }
+
+    func loadEpisodes(seriesId: String, seasonId: String) async {
+        if let list = try? await call({ try await $0.episodes(userId: $1, seriesId: seriesId, seasonId: seasonId) }) { episodes[seasonId] = list }
+    }
+
+    // MARK: Watched and favorites
+
+    /// Only these may be marked: marking a library folder (or the user's root folder, which an
+    /// unknown id can resolve to) as played marks everything below it.
+    static let markableTypes: Set<String> = ["Movie", "Episode", "Season", "Series"]
+
+    func setPlayed(_ item: JFItem, _ played: Bool) async {
+        guard Self.markableTypes.contains(item.type) else { return }
+        var optimistic = item.userData ?? JFUserData()
+        optimistic.played = played
+        optimistic.playbackPositionTicks = 0
+        if item.isFolder { optimistic.unplayedItemCount = played ? 0 : nil }
+        let previous = item.userData
+        apply([item.id: optimistic])
+        do {
+            let data = try await call { try await $0.setPlayed(userId: $1, itemId: item.id, played: played) }
+            apply([item.id: data])
+            // Children and parents changed on the server too: reload what is on screen.
+            await reloadAround(item)
+        } catch {
+            if let previous { apply([item.id: previous]) }
+            lastError = String(localized: "„\(item.name)“ konnte nicht markiert werden: \(error.localizedDescription)")
+        }
+    }
+
+    func setFavorite(_ item: JFItem, _ favorite: Bool) async {
+        guard Self.markableTypes.contains(item.type) else { return }
+        var optimistic = item.userData ?? JFUserData()
+        optimistic.isFavorite = favorite
+        let previous = item.userData
+        apply([item.id: optimistic])
+        do {
+            let data = try await call { try await $0.setFavorite(userId: $1, itemId: item.id, favorite: favorite) }
+            apply([item.id: data])
+        } catch {
+            if let previous { apply([item.id: previous]) }
+            lastError = String(localized: "„\(item.name)“ konnte nicht geändert werden: \(error.localizedDescription)")
+        }
+    }
+
+    private func reloadAround(_ item: JFItem) async {
+        let seriesId = item.isSeries ? item.id : item.seriesId
+        if let seriesId {
+            if let show = try? await call({ try await $0.item(userId: $1, id: seriesId) }), let data = show.userData {
+                apply([seriesId: data])
+            }
+            if seasons[seriesId] != nil { await loadSeasons(seriesId) }
+            for season in seasons[seriesId] ?? [] where episodes[season.id] != nil {
+                await loadEpisodes(seriesId: seriesId, seasonId: season.id)
+            }
+        }
+        await refreshHome()
+    }
+
+    /// Puts new user data into every list holding the item.
+    private func apply(_ updates: [String: JFUserData]) {
+        guard !updates.isEmpty else { return }
+        func patch(_ list: inout [JFItem]) {
+            for i in list.indices { if let data = updates[list[i].id] { list[i].userData = data } }
+        }
+        patch(&films); patch(&series); patch(&resume); patch(&nextUp); patch(&latestFilms); patch(&latestSeries)
+        for (id, data) in updates where details[id] != nil { details[id]?.userData = data }
+        for key in seasons.keys { patch(&seasons[key]!) }
+        for key in episodes.keys { patch(&episodes[key]!) }
+        saveCache()
+    }
+
+    // MARK: Artwork
+
+    func posterURL(_ item: JFItem, height: Int = 450) -> String? {
+        if let tag = item.imageTags?["Primary"] { return client?.imageURL(itemId: item.id, type: "Primary", tag: tag, maxHeight: height) }
+        if let seriesId = item.seriesId, let tag = item.seriesPrimaryImageTag {
+            return client?.imageURL(itemId: seriesId, type: "Primary", tag: tag, maxHeight: height)
+        }
+        return nil
+    }
+
+    func backdropURL(_ item: JFItem, height: Int = 900) -> String? {
+        if let tag = item.backdropImageTags?.first { return client?.imageURL(itemId: item.id, type: "Backdrop", tag: tag, maxHeight: height) }
+        if let parent = item.parentBackdropItemId, let tag = item.parentBackdropImageTags?.first {
+            return client?.imageURL(itemId: parent, type: "Backdrop", tag: tag, maxHeight: height)
+        }
+        return nil
+    }
+
+    /// Landscape still for episodes and home rows; falls back to the series' artwork.
+    func thumbURL(_ item: JFItem, height: Int = 360) -> String? {
+        if let tag = item.imageTags?["Primary"], item.type == "Episode" {
+            return client?.imageURL(itemId: item.id, type: "Primary", tag: tag, maxHeight: height)
+        }
+        if let tag = item.imageTags?["Thumb"] { return client?.imageURL(itemId: item.id, type: "Thumb", tag: tag, maxHeight: height) }
+        if let parent = item.parentThumbItemId, let tag = item.parentThumbImageTag {
+            return client?.imageURL(itemId: parent, type: "Thumb", tag: tag, maxHeight: height)
+        }
+        return backdropURL(item, height: height)
+    }
+
+    // MARK: Cache
+
+    private struct Cache: Codable {
+        var libraries: [JFItem]
+        var films: [JFItem]
+        var series: [JFItem]
+        var membership: [String: Set<String>]
+    }
+
+    private var cacheURL: URL? {
+        guard let session else { return nil }
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Fernsy/\(session.cacheKey)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("library.json")
+    }
+
+    private func loadCache() {
+        guard let url = cacheURL, let data = try? Data(contentsOf: url),
+              let cache = try? JSONDecoder().decode(Cache.self, from: data) else { return }
+        libraries = cache.libraries
+        films = cache.films
+        series = cache.series
+        membership = cache.membership
+        fillHomeFromLibrary()
+        #if DEBUG
+        debugLog("[jellyfin] cache: \(films.count) films, \(series.count) series")
+        #endif
+    }
+
+    private func saveCache() {
+        guard let url = cacheURL, !libraries.isEmpty else { return }
+        let cache = Cache(libraries: libraries, films: films, series: series, membership: membership)
+        guard let data = try? JSONEncoder().encode(cache) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    // MARK: Debug
+
+    #if DEBUG
+    /// JF_SERVER/JF_USER/JF_PASS: sign in without the keychain (like IPTV_SERVER for Xtream).
+    /// JF_TOKEN=<anything> with them replaces the token afterwards (tests the expired state).
+    private func debugSignIn() {
+        let env = ProcessInfo.processInfo.environment
+        if let spec = env["JF_CACHEONLY"]?.split(separator: "|").map(String.init), spec.count == 3 {
+            // JF_CACHEONLY=<server>|<serverId>|<userId>: show the cached library without signing in
+            // (artwork is public); every request fails, so nothing is written. For UI profiling.
+            session = JFSession(server: spec[0], serverId: spec[1], serverName: "Cache", version: "", userId: spec[2], userName: "", token: "none")
+            loadCache()
+            return
+        }
+        guard let server = env["JF_SERVER"], let user = env["JF_USER"], let pass = env["JF_PASS"] else { return }
+        Task {
+            do {
+                try await signIn(server: server, username: user, password: pass)
+                if env["JF_SELFTEST"] != nil { await debugSelfTest() }
+                if let spec = env["JF_TESTMARK"] { await debugMark(spec) }
+                if env["JF_OFFLINE"] != nil {
+                    // JF_OFFLINE=1: point the session at an unreachable address (nothing reaches
+                    // the server), then refresh and try to mark an unwatched film.
+                    session?.server = "https://127.0.0.1:9"
+                    await loadLibrary(forceRefresh: true)
+                    debugLog("[jellyfin] offline=\(isOffline), films still shown: \(films.count)")
+                    if let film = films.first(where: { !$0.isPlayed }) {
+                        await setPlayed(film, true)
+                        let shown = films.first { $0.id == film.id }
+                        debugLog("[jellyfin] offline mark reverted: \(shown?.isPlayed == false), error: \(lastError ?? "none")")
+                    }
+                }
+                if let fake = env["JF_TOKEN"] {
+                    session?.token = fake
+                    await refreshUserData()
+                    debugLog("[jellyfin] fake token, expired=\(isExpired)")
+                }
+            } catch {
+                debugLog("[jellyfin] debug sign-in failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// JF_TESTMARK=played:<id>:1,fav:<id>:0,…: marks items like the buttons do and logs the
+    /// state the lists show afterwards (optimistic update plus server answer).
+    private func debugMark(_ spec: String) async {
+        for step in spec.split(separator: ",") {
+            let parts = step.split(separator: ":").map(String.init)
+            guard parts.count == 3 else { continue }
+            await loadDetail(parts[1])
+            guard let item = details[parts[1]] else { continue }
+            let on = parts[2] == "1"
+            if parts[0] == "played" { await setPlayed(item, on) } else { await setFavorite(item, on) }
+            let shown = (films + series).first { $0.id == item.id } ?? details[item.id]
+            debugLog("[jellyfin] mark \(step) (\(item.type)): played=\(shown?.isPlayed ?? false) favorite=\(shown?.isFavorite ?? false) unplayed=\(shown?.userData?.unplayedItemCount ?? -1) error=\(lastError ?? "none")")
+            lastError = nil
+        }
+    }
+
+    /// JF_SELFTEST=1: every read route once, results to the log.
+    private func debugSelfTest() async {
+        guard let film = films.first, let show = series.first else { return }
+        await loadDetail(film.id)
+        let detail = details[film.id]
+        debugLog("[jellyfin] detail \(detail?.name ?? "–"): people \(detail?.people?.count ?? -1), sources \(detail?.mediaSources?.count ?? -1), streams \(detail?.mediaSources?.first?.mediaStreams?.count ?? -1)")
+        await loadSeasons(show.id)
+        let seasonList = seasons[show.id] ?? []
+        debugLog("[jellyfin] seasons of a series: \(seasonList.count)")
+        if let first = seasonList.first {
+            await loadEpisodes(seriesId: show.id, seasonId: first.id)
+            debugLog("[jellyfin] episodes of season 1: \(episodes[first.id]?.count ?? -1)")
+        }
+        debugLog("[jellyfin] home: resume \(resume.count), next up \(nextUp.count), latest films \(latestFilms.count), latest series \(latestSeries.count)")
+        debugLog("[jellyfin] poster url ok: \(posterURL(film) != nil), backdrop url ok: \(backdropURL(film) != nil)")
+    }
+    #endif
+}

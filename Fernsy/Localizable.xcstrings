@@ -98,6 +98,16 @@
         }
       }
     },
+    "%lld Filme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld movies"
+          }
+        }
+      }
+    },
     "%lld Frames": {
       "localizations": {
         "de": {
@@ -474,6 +484,16 @@
         }
       }
     },
+    "Adresse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address"
+          }
+        }
+      }
+    },
     "Aktualisieren": {
       "localizations": {
         "en": {
@@ -510,6 +530,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "All Favorites"
+          }
+        }
+      }
+    },
+    "Als gesehen markieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark as Watched"
+          }
+        }
+      }
+    },
+    "Als ungesehen markieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark as Unwatched"
           }
         }
       }
@@ -860,6 +900,16 @@
         }
       }
     },
+    "Benutzername oder Passwort ist falsch.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Username or password is wrong."
+          }
+        }
+      }
+    },
     "Besetzung": {
       "localizations": {
         "en": {
@@ -876,6 +926,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rating"
+          }
+        }
+      }
+    },
+    "Bibliothek aktualisieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Library"
+          }
+        }
+      }
+    },
+    "Bibliothek vom Jellyfin-Server neu laden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload the library from the Jellyfin server"
+          }
+        }
+      }
+    },
+    "Bibliothek wird geladen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading library …"
           }
         }
       }
@@ -940,6 +1020,26 @@
         }
       }
     },
+    "Der Jellyfin-Server antwortet mit HTTP %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Jellyfin server answers with HTTP %lld."
+          }
+        }
+      }
+    },
+    "Der Jellyfin-Server ist nicht erreichbar – gespeicherte Bibliothek.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Jellyfin server cannot be reached – showing the saved library."
+          }
+        }
+      }
+    },
     "Der Sender ist beim Anbieter derzeit offline.": {
       "localizations": {
         "en": {
@@ -970,12 +1070,52 @@
         }
       }
     },
+    "Die Jellyfin-Sitzung ist abgelaufen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Jellyfin session has expired."
+          }
+        }
+      }
+    },
     "Die Kategorie ist ausgeblendet": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The category is hidden"
+          }
+        }
+      }
+    },
+    "Die Serveradresse ist ungültig.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server address is not valid."
+          }
+        }
+      }
+    },
+    "Die Sitzung ist abgelaufen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session has expired."
+          }
+        }
+      }
+    },
+    "Die Wiedergabe von Jellyfin-Titeln folgt in einer späteren Version.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playing Jellyfin titles will come in a later version."
           }
         }
       }
@@ -1066,6 +1206,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Try Again"
+          }
+        }
+      }
+    },
+    "Erscheinungsdatum": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Release Date"
           }
         }
       }
@@ -1278,6 +1428,16 @@
         }
       }
     },
+    "Gesehen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watched"
+          }
+        }
+      }
+    },
     "Gestern": {
       "localizations": {
         "en": {
@@ -1318,6 +1478,26 @@
         }
       }
     },
+    "IPTV": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV"
+          }
+        }
+      }
+    },
+    "IPTV-Konto hinzufügen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add IPTV Account …"
+          }
+        }
+      }
+    },
     "Im Finder zeigen": {
       "localizations": {
         "en": {
@@ -1344,6 +1524,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Content"
+          }
+        }
+      }
+    },
+    "Jellyfin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin"
+          }
+        }
+      }
+    },
+    "Jellyfin-Server hinzufügen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Jellyfin Server …"
           }
         }
       }
@@ -1588,12 +1788,12 @@
         }
       }
     },
-    "Mediathek": {
+    "Mit deinem Jellyfin-Server verbinden": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Library"
+            "value": "Connect to your Jellyfin server"
           }
         }
       }
@@ -1674,6 +1874,46 @@
         }
       }
     },
+    "Neu anmelden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In Again"
+          }
+        }
+      }
+    },
+    "Neu anmelden …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In Again …"
+          }
+        }
+      }
+    },
+    "Neue Filme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Movies"
+          }
+        }
+      }
+    },
+    "Neue Serien": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Series"
+          }
+        }
+      }
+    },
     "Neueste zuerst": {
       "localizations": {
         "en": {
@@ -1704,6 +1944,26 @@
         }
       }
     },
+    "Noch nichts zu sehen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing to Watch Yet"
+          }
+        }
+      }
+    },
+    "Nächste Folge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Up"
+          }
+        }
+      }
+    },
     "Nächste: %@ – %@": {
       "localizations": {
         "de": {
@@ -1726,6 +1986,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Next channel (↓)"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -2090,12 +2360,42 @@
         }
       }
     },
+    "Staffel als gesehen markieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark Season as Watched"
+          }
+        }
+      }
+    },
+    "Staffel als ungesehen markieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark Season as Unwatched"
+          }
+        }
+      }
+    },
     "Stand %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Updated %@"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
           }
         }
       }
@@ -2180,6 +2480,16 @@
         }
       }
     },
+    "Tonspuren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio Tracks"
+          }
+        }
+      }
+    },
     "Umschalten und aufnehmen": {
       "localizations": {
         "en": {
@@ -2206,6 +2516,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Invalid server address"
+          }
+        }
+      }
+    },
+    "Unter dieser Adresse wurde kein Jellyfin-Server gefunden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Jellyfin server was found at this address."
           }
         }
       }
@@ -2266,6 +2586,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reconnecting…"
+          }
+        }
+      }
+    },
+    "Version %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %lld"
           }
         }
       }
@@ -2336,6 +2666,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Record before"
+          }
+        }
+      }
+    },
+    "Weiter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        }
+      }
+    },
+    "Weiterschauen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue Watching"
           }
         }
       }
@@ -2450,12 +2800,32 @@
         }
       }
     },
+    "Zuletzt hinzugefügt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently Added"
+          }
+        }
+      }
+    },
     "Zur aktuellen Uhrzeit springen": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Jump to the current time"
+          }
+        }
+      }
+    },
+    "Zurück": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
           }
         }
       }
@@ -2506,6 +2876,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "http://server:8080"
+          }
+        }
+      }
+    },
+    "https://jellyfin.example.com": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "https://jellyfin.example.com"
           }
         }
       }
@@ -2622,12 +3002,54 @@
         }
       }
     },
+    "Übersicht": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overview"
+          }
+        }
+      }
+    },
     "„%@“ beenden und aufnehmen": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Stop “%@” and Record"
+          }
+        }
+      }
+    },
+    "„%@“ konnte nicht geändert werden: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "„%1$@“ konnte nicht geändert werden: %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not change “%@”: %@"
+          }
+        }
+      }
+    },
+    "„%@“ konnte nicht markiert werden: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "„%1$@“ konnte nicht markiert werden: %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not mark “%@”: %@"
           }
         }
       }

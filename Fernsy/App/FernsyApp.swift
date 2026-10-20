@@ -9,7 +9,7 @@ struct FernsyApp: App {
     var body: some Scene {
         WindowGroup("Fernsy", id: "library") {
             Group {
-                if app.credentials == nil {
+                if app.credentials == nil && !app.hasJellyfin {
                     LoginView()
                 } else {
                     LibraryView()
@@ -17,6 +17,7 @@ struct FernsyApp: App {
             }
             .environmentObject(app)
             .environmentObject(app.recorder)
+            .environmentObject(app.jellyfin)
         }
         .defaultSize(width: 1280, height: 820)
         .commands {
@@ -34,6 +35,7 @@ struct FernsyApp: App {
             PlayerScreen()
                 .environmentObject(app)
                 .environmentObject(app.recorder)
+                .environmentObject(app.jellyfin)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1280, height: 720)
@@ -45,6 +47,7 @@ struct FernsyApp: App {
             SettingsView()
                 .environmentObject(app)
                 .environmentObject(app.recorder)
+                .environmentObject(app.jellyfin)
         }
 
         // Read-only: MenuBarExtra writes the binding back on every update, which with

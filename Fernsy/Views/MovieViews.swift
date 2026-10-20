@@ -106,20 +106,33 @@ struct PosterCard: View {
     var isFavorite = false
     /// Seconds watched (shown as a "resume" badge).
     var progress: Double?
+    /// Below the title, e.g. the year.
+    var subtitle: String? = nil
+    /// Watched completely (check mark).
+    var watched = false
+    /// 0…1 when partly watched (progress bar).
+    var fraction: Double? = nil
+    /// Series: episodes not watched yet.
+    var unwatchedCount: Int? = nil
 
     @State private var hovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            RemoteImage(url: imageURL, maxPixel: 420) {
-                ZStack {
-                    Rectangle().fill(.quaternary)
-                    Image(systemName: "film").font(.largeTitle).foregroundStyle(.tertiary)
+            // A fixed 2:3 frame decides the size; artwork of other proportions fills it and is
+            // clipped, instead of growing the card (and spilling over its neighbours).
+            Color.clear
+                .aspectRatio(2 / 3, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .overlay {
+                    RemoteImage(url: imageURL, maxPixel: 420) {
+                        ZStack {
+                            Rectangle().fill(.quaternary)
+                            Image(systemName: "film").font(.largeTitle).foregroundStyle(.tertiary)
+                        }
+                    }
                 }
-            }
-            .aspectRatio(2 / 3, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(alignment: .topTrailing) {
                 if isFavorite {
                     Image(systemName: "star.fill")
@@ -127,6 +140,35 @@ struct PosterCard: View {
                         .padding(6)
                         .background(.black.opacity(0.5), in: Circle())
                         .padding(6)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let unwatchedCount, unwatchedCount > 0 {
+                    Text("\(unwatchedCount)")
+                        .font(.caption.weight(.bold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Color.accentColor, in: Capsule())
+                        .foregroundStyle(.white)
+                        .padding(6)
+                } else if watched {
+                    Image(systemName: "checkmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.accentColor)
+                        .font(.title3)
+                        .padding(6)
+                        .accessibilityLabel("Gesehen")
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if let fraction {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle().fill(.black.opacity(0.55))
+                            Rectangle().fill(Color.accentColor).frame(width: geo.size.width * fraction)
+                        }
+                    }
+                    .frame(height: 4)
                 }
             }
             .overlay(alignment: .bottomLeading) {
@@ -147,6 +189,9 @@ struct PosterCard: View {
                 .font(.callout.weight(.medium))
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
+            if let subtitle {
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            }
             if let rating {
                 Label(String(format: "%.1f", rating), systemImage: "star.fill")
                     .font(.caption)

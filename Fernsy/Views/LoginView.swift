@@ -1,7 +1,41 @@
 import SwiftUI
 
+enum AccountKind: String, CaseIterable, Identifiable {
+    case iptv, jellyfin
+    var id: String { rawValue }
+}
+
 struct LoginView: View {
+    @State private var kind: AccountKind = .iptv
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "play.tv.fill")
+                .font(.system(size: 56, weight: .light))
+                .foregroundStyle(.tint)
+            Text("Fernsy").font(.largeTitle.weight(.semibold))
+            Picker("Konto", selection: $kind) {
+                Text("IPTV").tag(AccountKind.iptv)
+                Text("Jellyfin").tag(AccountKind.jellyfin)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 260)
+
+            switch kind {
+            case .iptv: IPTVSignInForm()
+            case .jellyfin: JellyfinSignInForm()
+            }
+        }
+        .padding(48)
+        .frame(minWidth: 600, minHeight: 600)
+    }
+}
+
+/// Xtream Codes sign-in (login screen and Settings).
+struct IPTVSignInForm: View {
     @EnvironmentObject private var app: AppModel
+    var onDone: () -> Void = {}
     @State private var server = ""
     @State private var username = ""
     @State private var password = ""
@@ -9,22 +43,16 @@ struct LoginView: View {
     @State private var error: String?
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "play.tv.fill")
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(.tint)
-            VStack(spacing: 6) {
-                Text("Fernsy").font(.largeTitle.weight(.semibold))
-                Text("Mit deinem Xtream-Codes-Zugang anmelden").foregroundStyle(.secondary)
-            }
-
+        VStack(spacing: 20) {
+            Text("Mit deinem Xtream-Codes-Zugang anmelden").foregroundStyle(.secondary)
             Form {
                 TextField("Server", text: $server, prompt: Text("http://server:8080"))
                 TextField("Benutzername", text: $username)
                 SecureField("Passwort", text: $password)
             }
             .formStyle(.grouped)
-            .frame(width: 420)
+            .scrollDisabled(true)
+            .frame(width: 420, height: 150)
             .disabled(isWorking)
             .onSubmit(login)
 
@@ -47,8 +75,6 @@ struct LoginView: View {
             .keyboardShortcut(.defaultAction)
             .disabled(isWorking || server.isEmpty || username.isEmpty || password.isEmpty)
         }
-        .padding(48)
-        .frame(minWidth: 600, minHeight: 560)
     }
 
     private func login() {
@@ -59,6 +85,74 @@ struct LoginView: View {
         Task {
             do {
                 try await app.login(creds)
+                onDone()
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isWorking = false
+        }
+    }
+}
+
+/// Jellyfin sign-in (login screen, Settings and "sign in again").
+struct JellyfinSignInForm: View {
+    @EnvironmentObject private var jellyfin: JellyfinStore
+    var prefillServer: String? = nil
+    var prefillUser: String? = nil
+    var onDone: () -> Void = {}
+    @State private var server = ""
+    @State private var username = ""
+    @State private var password = ""
+    @State private var isWorking = false
+    @State private var error: String?
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Mit deinem Jellyfin-Server verbinden").foregroundStyle(.secondary)
+            Form {
+                TextField("Server", text: $server, prompt: Text("https://jellyfin.example.com"))
+                TextField("Benutzername", text: $username)
+                SecureField("Passwort", text: $password)
+            }
+            .formStyle(.grouped)
+            .scrollDisabled(true)
+            .frame(width: 420, height: 150)
+            .disabled(isWorking)
+            .onSubmit(signIn)
+
+            if let error {
+                Text(error)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 400)
+            }
+
+            Button(action: signIn) {
+                if isWorking {
+                    ProgressView().controlSize(.small).frame(width: 120)
+                } else {
+                    Text("Anmelden").frame(width: 120)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            .disabled(isWorking || server.isEmpty || username.isEmpty)
+        }
+        .onAppear {
+            if server.isEmpty, let prefillServer { server = prefillServer }
+            if username.isEmpty, let prefillUser { username = prefillUser }
+        }
+    }
+
+    private func signIn() {
+        guard !server.isEmpty, !username.isEmpty, !isWorking else { return }
+        isWorking = true
+        error = nil
+        Task {
+            do {
+                try await jellyfin.signIn(server: server, username: username, password: password)
+                onDone()
             } catch {
                 self.error = error.localizedDescription
             }
@@ -74,9 +168,17 @@ struct SettingsView: View {
     @AppStorage(Recorder.padAfterKey) private var padAfter = 10
     @AppStorage(MenuBarSupport.enabledKey) private var showsMenuBarItem = true
 
+    @EnvironmentObject private var jellyfin: JellyfinStore
+    @State private var addingAccount: AccountKind?
+
     var body: some View {
         Form {
-            Section("Konto") {
+            if app.credentials == nil {
+                Section("IPTV") {
+                    Button("IPTV-Konto hinzufügen …") { addingAccount = .iptv }
+                }
+            } else {
+            Section("IPTV") {
                 if let creds = app.credentials {
                     LabeledContent("Server", value: creds.server)
                     LabeledContent("Benutzer", value: creds.username)
@@ -95,6 +197,28 @@ struct SettingsView: View {
                         .disabled(app.isLoading)
                     Spacer()
                     Button("Abmelden", role: .destructive) { app.logout() }
+                }
+            }
+            }
+            Section("Jellyfin") {
+                if let session = jellyfin.session {
+                    LabeledContent("Server", value: "\(session.serverName) (Jellyfin \(session.version))")
+                    LabeledContent("Adresse", value: session.server)
+                    LabeledContent("Benutzer", value: session.userName)
+                    if jellyfin.isExpired {
+                        Text("Die Sitzung ist abgelaufen.").foregroundStyle(.orange)
+                    }
+                    HStack {
+                        Button("Bibliothek aktualisieren") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }
+                            .disabled(jellyfin.isLoading)
+                        if jellyfin.isExpired {
+                            Button("Neu anmelden …") { addingAccount = .jellyfin }
+                        }
+                        Spacer()
+                        Button("Abmelden", role: .destructive) { jellyfin.signOut() }
+                    }
+                } else {
+                    Button("Jellyfin-Server hinzufügen …") { addingAccount = .jellyfin }
                 }
             }
             Section("Inhalte") {
@@ -129,6 +253,17 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(item: $addingAccount) { kind in
+            VStack {
+                switch kind {
+                case .iptv: IPTVSignInForm { addingAccount = nil }
+                case .jellyfin:
+                    JellyfinSignInForm(prefillServer: jellyfin.session?.server, prefillUser: jellyfin.session?.userName) { addingAccount = nil }
+                }
+                Button("Abbrechen") { addingAccount = nil }.keyboardShortcut(.cancelAction)
+            }
+            .padding(28)
+        }
         .onChange(of: timeshiftMinutes) { _, _ in app.applyTimeshiftSetting() }
         .frame(width: 480)
         .padding(.vertical)

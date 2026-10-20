@@ -7,6 +7,8 @@
 	<!-- Only standard HTTPS/TLS from the system: exempt from export documentation. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Fernsy verbindet sich mit deinem Jellyfin-Server oder IPTV-Anbieter im lokalen Netzwerk.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

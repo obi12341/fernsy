@@ -1,11 +1,11 @@
 import Foundation
 import Security
 
-enum CredentialStore {
+/// Codable values as generic passwords in the keychain, one item per account name.
+enum Keychain {
     private static let service = "de.mobilistics.fernsy"
-    private static let account = "xtream"
 
-    static func load() -> XtreamCredentials? {
+    static func load<T: Decodable>(_ type: T.Type, account: String) -> T? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -15,12 +15,12 @@ enum CredentialStore {
         ]
         var item: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
-        return try? JSONDecoder().decode(XtreamCredentials.self, from: data)
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 
-    static func save(_ credentials: XtreamCredentials) {
-        guard let data = try? JSONEncoder().encode(credentials) else { return }
-        delete()
+    static func save<T: Encodable>(_ value: T, account: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        delete(account: account)
         let attrs: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -31,7 +31,7 @@ enum CredentialStore {
         SecItemAdd(attrs as CFDictionary, nil)
     }
 
-    static func delete() {
+    static func delete(account: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -39,4 +39,11 @@ enum CredentialStore {
         ]
         SecItemDelete(query as CFDictionary)
     }
+}
+
+/// The Xtream login.
+enum CredentialStore {
+    static func load() -> XtreamCredentials? { Keychain.load(XtreamCredentials.self, account: "xtream") }
+    static func save(_ credentials: XtreamCredentials) { Keychain.save(credentials, account: "xtream") }
+    static func delete() { Keychain.delete(account: "xtream") }
 }
