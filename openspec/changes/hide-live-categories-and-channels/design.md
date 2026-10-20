@@ -46,6 +46,15 @@ passed to `CategoryColumn` and `ChannelListView`. Entering it switches `liveMode
 (the guide stays read-only; hiding from its channel column via context menu still works).
 Hidden rows are drawn at reduced opacity with an `eye.slash`/`eye` toggle.
 
+### Decisions made during implementation (accepted by the user)
+- No per-channel override inside a hidden category: the model has no "show anyway", so the
+  channel's toggle is disabled and points to the category.
+- Edit mode ends when leaving Live TV; the List/Guide picker is disabled while editing;
+  counts include hidden channels while editing.
+- A hidden selected category falls back to "All" outside Edit mode; hiding the selected
+  channel closes its detail panel.
+- Zapping from a channel whose whole category is hidden zaps through "All".
+
 ### Adult filter stays separate
 Adult categories remain controlled by "Show adult categories"; with that off they stay
 invisible in Edit mode too. Hiding is a personal list, not a content lock.

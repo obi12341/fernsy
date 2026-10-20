@@ -30,6 +30,27 @@ listed dimmed in their usual place with an eye toggle; every visible item has th
 - **WHEN** the guide is shown and the user clicks Edit
 - **THEN** Live TV switches to the list with hidden items visible and dimmed
 
+### Requirement: Edit mode scope
+Edit mode SHALL end when the user leaves the Live TV section. While it is active, category
+counts SHALL include hidden channels, and the List/Guide switch is unavailable.
+
+#### Scenario: Leaving Live TV
+- **WHEN** the user is in Edit mode and opens Movies
+- **THEN** Edit mode ends; returning to Live TV shows the normal lists
+
+#### Scenario: Counts while editing
+- **WHEN** a category with 4 channels has 1 hidden channel and Edit mode is active
+- **THEN** its count shows 4; after Done it shows 3
+
+### Requirement: Channels hidden through their category
+A channel that is hidden only because its category is hidden SHALL show a disabled eye
+toggle in Edit mode with the hint that its category is hidden; it becomes visible again by
+showing the category.
+
+#### Scenario: Channel in a hidden category
+- **WHEN** the category "Sports" is hidden and the user looks at its channels in Edit mode
+- **THEN** each channel's toggle is disabled with "The category is hidden"
+
 ### Requirement: Hidden categories hide their channels
 Channels of a hidden category SHALL be treated as hidden everywhere this capability excludes
 hidden channels, including the "All" category.

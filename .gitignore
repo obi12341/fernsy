@@ -5,3 +5,4 @@ xcuserdata/
 *.xcuserstate
 dist/
 Vendor/
+.claude/worktrees/
