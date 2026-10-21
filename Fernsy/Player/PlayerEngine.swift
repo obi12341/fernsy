@@ -236,6 +236,9 @@ final class PlayerEngine: ObservableObject {
         self.tuner = tuner
         isTimeshift = true
         progress.followsLive = true
+        lagBaseline = nil
+        lagWindowStart = nil
+        recentLag.removeAll()
         let (publisher, state) = MainActor.assumeIsolated { (tuner.$state, tuner.state) }
         tunerState = publisher.sink { [weak self] state in
             self?.tunerChanged(state)
@@ -373,6 +376,7 @@ final class PlayerEngine: ObservableObject {
             let live = (buffer.newest?.time ?? 0) - Self.liveLead
             target = min(max(oldest, position), max(oldest, live))
             progress.followsLive = position >= live - 1
+            if progress.followsLive { resetLagBaseline() }
         } else {
             let duration = progress.duration
             target = duration > 0 ? min(max(0, position), duration - 1) : max(0, position)
@@ -403,23 +407,76 @@ final class PlayerEngine: ObservableObject {
         seek(to: progress.position + delta)
     }
 
-    /// Following live but far behind it (started while the server was still sending its
-    /// backlog, or after stalls): jump to the live edge, as live TV would.
-    private var lagSince: Date?
+    /// Distance to the newest data that following live settled at: providers send a backlog
+    /// burst on connect, which is played rather than skipped (no jump on channel switch).
+    private var lagBaseline: Double?
+    /// First start of the current tune; the baseline is measured during the 15 s after it.
+    private var lagWindowStart: Date?
+    /// Recent distances to the newest data. Providers deliver in segments, so the distance
+    /// swings by seconds; the lowest value of the last 6 s is the steady one.
+    private var recentLag: [(time: Date, lag: Double)] = []
+    #if DEBUG
+    private var loggedBaseline = true
+    #endif
 
-    private func catchUpIfLagging(_ position: Double) {
-        guard progress.followsLive, !isPaused, status == .playing,
-              progress.liveEnd - position > Self.liveLead + 12 else {
-            lagSince = nil
+    /// Never jumps: playback that falls clearly further behind than it settled (stalls) leaves
+    /// the live state, so the badge shows the time behind; "Live" is the user's choice.
+    private func leaveLiveIfLagging(_ position: Double) {
+        guard progress.followsLive, !isPaused, status == .playing, let windowStart = lagWindowStart else {
+            recentLag.removeAll()
             return
         }
-        if lagSince == nil { lagSince = Date() }
-        guard let since = lagSince, Date().timeIntervalSince(since) > 4 else { return }
-        lagSince = nil
+        let now = Date()
+        recentLag.append((now, progress.liveEnd - position))
+        recentLag.removeAll { now.timeIntervalSince($0.time) > 6 }
+        guard let first = recentLag.first, now.timeIntervalSince(first.time) > 5,
+              let steady = recentLag.map(\.lag).min() else { return }
+        if now.timeIntervalSince(windowStart) < 15 {
+            lagBaseline = max(lagBaseline ?? Self.liveLead, steady)
+            #if DEBUG
+            loggedBaseline = false
+            #endif
+            return
+        }
         #if DEBUG
-        debugLog("[player] \(String(format: "%.1f", progress.liveEnd - position)) s behind live, catching up")
+        if !loggedBaseline {
+            loggedBaseline = true
+            debugLog("[player] live start settled \(String(format: "%.1f", lagBaseline ?? Self.liveLead)) s behind the newest data")
+        }
         #endif
-        goLive()
+        guard steady > max(lagBaseline ?? Self.liveLead, Self.liveLead) + 12 else { return }
+        #if DEBUG
+        debugLog("[player] \(String(format: "%.1f", steady)) s behind live (settled at \(String(format: "%.1f", lagBaseline ?? Self.liveLead)) s), leaving live")
+        #endif
+        progress.followsLive = false
+        recentLag.removeAll()
+    }
+
+    #if DEBUG
+    /// IPTV_TESTSTALL=<at s>:<s>,…: the playback clock stands still for <s> seconds, <at>
+    /// seconds after the live start – like a stall, without touching the live state.
+    private func scheduleStallTest() {
+        guard let spec = ProcessInfo.processInfo.environment["IPTV_TESTSTALL"] else { return }
+        for item in spec.split(separator: ",") {
+            let p = item.split(separator: ":").compactMap { Double($0) }
+            guard p.count == 2 else { continue }
+            DispatchQueue.main.asyncAfter(deadline: .now() + p[0]) { [weak self] in
+                guard let self else { return }
+                debugLog("[test] stall \(Int(p[1])) s at \(String(format: "%.1f", self.progress.liveEnd - self.progress.position)) s behind")
+                self.synchronizer.setRate(0, time: self.synchronizer.currentTime())
+                DispatchQueue.main.asyncAfter(deadline: .now() + p[1]) {
+                    self.synchronizer.setRate(1, time: self.synchronizer.currentTime())
+                }
+            }
+        }
+    }
+    #endif
+
+    /// At the live edge again (the user's "Live" or a seek to the edge): measure from there.
+    private func resetLagBaseline() {
+        lagBaseline = Self.liveLead
+        lagWindowStart = .distantPast
+        recentLag.removeAll()
     }
 
     /// Timeshift: back to the live edge.
@@ -511,6 +568,12 @@ final class PlayerEngine: ObservableObject {
             status = isPaused ? .paused : .playing
             isReconnecting = false
             startedAt = Date()
+            if isTimeshift && lagWindowStart == nil {
+                lagWindowStart = Date()
+                #if DEBUG
+                scheduleStallTest()
+                #endif
+            }
         case .buffering(let flag):
             if flag { status = .buffering } else { status = isPaused ? .paused : .playing }
         case .position(let streamPosition, let streamBuffered):
@@ -524,7 +587,7 @@ final class PlayerEngine: ObservableObject {
                 progress.liveEnd = buffer.newest?.time ?? position
                 progress.wallClock = buffer.wallTime(of: position)
                 tuner.reportPlaybackAhead(max(0, progress.liveEnd - position))
-                catchUpIfLagging(position)
+                leaveLiveIfLagging(position)
             }
             updateSubtitle(at: position)
             if let startedAt, Date().timeIntervalSince(startedAt) > 20 { reconnectAttempts = 0 }

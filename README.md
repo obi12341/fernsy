@@ -99,7 +99,10 @@ the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-dis
 the same channel share one connection. Recordings (`Fernsy/Recording/`) copy the buffer into
 `~/Movies/Fernsy` and only run while the app is open. For tests use the demo server
 (`IPTV_MAXCONN=1` simulates a single-stream account; `IPTV_TESTRECORD=<channel>:<in s>:<s>`
-schedules a recording, `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift).
+schedules a recording, `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
+`IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag). Live playback never jumps
+on its own: the backlog a provider sends on connect is played (still "LIVE"), and when playback
+later falls clearly further behind, it leaves the live state instead of skipping ahead.
 
 ## License
 
