@@ -9,6 +9,9 @@ struct PlayerScreen: View {
 
     @State private var controlsVisible = true
     @State private var hideTask: Task<Void, Never>?
+    /// Sliders being dragged right now: the controls stay up meanwhile (the slider tracks the
+    /// mouse, so no hover or move events count as activity).
+    @State private var activeDrags = 0
     @State private var showInfo = false
     @State private var epg: [EPGEntry] = []
     @State private var loadedItem: PlayItem?
@@ -82,7 +85,8 @@ struct PlayerScreen: View {
                                showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil, onZap: zap, onFullScreen: toggleFullScreen,
                                onActivity: showControls,
                                isRecording: liveChannelID.map { recorder.active(on: $0) != nil },
-                               onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) })
+                               onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) },
+                               onDragging: { dragging in activeDrags = max(0, activeDrags + (dragging ? 1 : -1)) })
                     .transition(.opacity)
             }
 
@@ -211,6 +215,7 @@ struct PlayerScreen: View {
 
     private func load(_ item: PlayItem?) {
         guard item != loadedItem else { return }
+        activeDrags = 0
         saveResume()
         stopJellyfin()
         loadedItem = item
@@ -333,7 +338,7 @@ struct PlayerScreen: View {
             withAnimation(.easeOut(duration: 0.15)) { controlsVisible = true }
         }
         hideTask?.cancel()
-        guard autoHide else { return }
+        guard autoHide, activeDrags == 0 else { return }
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_KEEPCONTROLS"] != nil { return }
         #endif
@@ -503,6 +508,8 @@ struct PlayerControls: View {
     /// Menu picks go through the screen, which remembers them for the series.
     var onPickAudio: (MediaTrack) -> Void = { _ in }
     var onPickSubtitle: (MediaTrack?) -> Void = { _ in }
+    /// A slider drag starts (true) or ends (false); reported before the activity.
+    var onDragging: (Bool) -> Void = { _ in }
 
     @State private var scrubbing = false
     @State private var scrubValue: Double = 0
@@ -589,6 +596,7 @@ struct PlayerControls: View {
                     if let range = liveRange, scrubValue >= range.upperBound - 1 { engine.goLive() } else { engine.seek(to: scrubValue) }
                     scrubbing = false
                 }
+                onDragging(editing)
                 onActivity()
             }
             .controlSize(.small)
@@ -631,6 +639,7 @@ struct PlayerControls: View {
                             engine.seek(to: scrubValue)
                             scrubbing = false
                         }
+                        onDragging(editing)
                         onActivity()
                     }
                     .controlSize(.small)
@@ -734,7 +743,10 @@ struct PlayerControls: View {
                     }
                     .buttonStyle(.plain)
                     .help("Ton aus (M)")
-                    Slider(value: Binding(get: { Double(engine.volume) }, set: { engine.volume = Float($0); onActivity() }), in: 0...1)
+                    Slider(value: Binding(get: { Double(engine.volume) }, set: { engine.volume = Float($0); onActivity() }), in: 0...1) { editing in
+                        onDragging(editing)
+                        onActivity()
+                    }
                         .frame(width: 90)
                         .controlSize(.mini)
                 }
