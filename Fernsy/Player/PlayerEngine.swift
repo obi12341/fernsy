@@ -112,7 +112,15 @@ final class PlayerEngine: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var status: Status = .idle
+    @Published private(set) var status: Status = .idle {
+        didSet {
+            // An item that fails or ends before its first frame must not leave the loading picture running.
+            switch status {
+            case .failed, .ended: loadingCard.stop()
+            default: break
+            }
+        }
+    }
     @Published private(set) var media: MediaInfo?
     @Published private(set) var videoSize: CGSize = .zero
     @Published private(set) var stats = PlaybackStats()
@@ -143,6 +151,12 @@ final class PlayerEngine: ObservableObject {
     let bufferHistory = BufferHistory()
     let displayLayer = AVSampleBufferDisplayLayer()
 
+    /// While Picture in Picture runs: the loading picture shown until a new item's first frame.
+    private(set) lazy var loadingCard = PictureInPictureLoadingCard(renderer: displayLayer.sampleBufferRenderer)
+    let lastPicture = LastPicture()
+    #if DEBUG
+    private var debugOpenedItems = 0
+    #endif
     private let audioRenderer = AVSampleBufferAudioRenderer()
     private let synchronizer = AVSampleBufferRenderSynchronizer()
     private let controlQueue = DispatchQueue(label: "player.control", qos: .userInitiated)
@@ -335,6 +349,8 @@ final class PlayerEngine: ObservableObject {
         let audioRenderer = audioRenderer
         let tracks = trackRequest
         let synchronizer = synchronizer
+        let loadingCard = loadingCard
+        let lastPicture = lastPicture
         controlQueue.async { [weak self] in
             guard let self else { return }
             // Single-connection accounts: the old stream must be fully closed first.
@@ -349,12 +365,22 @@ final class PlayerEngine: ObservableObject {
             ) { [weak self] event in
                 self?.handle(event, generation: gen)
             }
+            session.beforeFirstVideo = { loadingCard.stop() }
+            session.lastPicture = lastPicture
             self.session = session
+            #if DEBUG
+            // IPTV_TESTSLOWSTART=<s>: a slow provider – the new item starts that much later.
+            if let delay = ProcessInfo.processInfo.environment["IPTV_TESTSLOWSTART"].flatMap(Double.init) {
+                Thread.sleep(forTimeInterval: delay)
+            }
+            #endif
             session.start()
         }
     }
 
     func stop() {
+        loadingCard.stop()
+        lastPicture.set(nil)
         earlyEndRecoveredAt = nil
         detachTuner()
         external = nil
@@ -588,7 +614,13 @@ final class PlayerEngine: ObservableObject {
         }
         #endif
         switch event {
-        case .opened(let info):
+        case .opened(var info):
+            #if DEBUG
+            // IPTV_TESTNOVIDEO=1: every item after the first counts as one without picture (radio).
+            if ProcessInfo.processInfo.environment["IPTV_TESTNOVIDEO"] != nil, debugOpenedItems > 0 { info.hasVideo = false }
+            debugOpenedItems += 1
+            #endif
+            if !info.hasVideo { loadingCard.stop() }
             media = info
             progress.duration = external?.duration ?? info.duration ?? 0
             external?.onOpened?()

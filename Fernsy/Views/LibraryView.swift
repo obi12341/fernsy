@@ -115,7 +115,7 @@ struct LibraryView: View {
             app.requestedSection = nil
         }
         .onChange(of: app.nowPlaying) { _, item in
-            if item != nil { openWindow(id: "player") }
+            if item != nil && !app.isPictureInPictureActive { openWindow(id: "player") }
         }
         .overlay {
             if !section.isJellyfin && app.channels.isEmpty && app.movies.isEmpty {

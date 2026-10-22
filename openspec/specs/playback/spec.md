@@ -222,8 +222,9 @@ media server (stop position, played state) SHALL never claim the end for such an
 ### Requirement: Picture in Picture
 The player SHALL offer Picture in Picture (button in the controls, key P) for every source. While
 it runs, the whole picture plays in the system's floating window and the player window is hidden.
-"Back" returns to the player window without interrupting playback; closing the PiP window stops
-playback like closing the player window.
+Starting other content while PiP runs plays it in the PiP window. "Back" returns to the player
+window without interrupting playback; closing the PiP window stops playback like closing the
+player window.
 
 #### Scenario: Watching while working
 - **WHEN** the user starts Picture in Picture during a live channel
@@ -244,3 +245,15 @@ playback like closing the player window.
 #### Scenario: Closing PiP
 - **WHEN** the user closes the PiP window
 - **THEN** playback stops and the stream is released as when closing the player window
+
+#### Scenario: Switching while PiP runs
+- **WHEN** the user starts another channel, film, episode, recording or Jellyfin item from the main window while PiP runs
+- **THEN** the new item plays in the PiP window with controls matching it (live or on-demand), and the player window stays hidden
+
+#### Scenario: Loading feedback in PiP
+- **WHEN** a new item is loading while PiP runs
+- **THEN** the PiP window shows an animated loading picture with the item's title until the item's first picture appears, instead of the previous item's last picture
+
+#### Scenario: Switching to content without picture
+- **WHEN** the user starts an item without video (e.g. a radio channel) while PiP runs
+- **THEN** PiP ends as with "back" and the player window plays the item

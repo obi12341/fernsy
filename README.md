@@ -115,6 +115,10 @@ source unscaled (FB22411168), so while PiP runs the layer lives in an invisible 
 follows the PiP window's size (`Fernsy/Player/PictureInPicture.swift`).
 `IPTV_TESTPIP=<s>[:back:<s>]` starts PiP and optionally returns to the player; closing has to be
 tested with the PiP window's close button (ending PiP from code always counts as "back").
+Starting something from the main window while PiP runs plays it in the PiP window, with a loading
+picture rendered into the video until its first frame (`IPTV_TESTSWITCH=<s>:<live|movie>:<id>`
+starts an item the way the main window does, `IPTV_TESTSLOWSTART=<s>` delays every start,
+`IPTV_TESTNOVIDEO=1` treats later items as radio, which ends PiP).
 
 ## License
 

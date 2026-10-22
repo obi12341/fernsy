@@ -109,6 +109,9 @@ final class AppModel: ObservableObject {
     @Published var nowPlaying: PlayItem? {
         didSet { updatePlayerTuner() }
     }
+    /// The player runs in Picture in Picture with its window hidden: new items play there and
+    /// must not bring the player window back.
+    @Published var isPictureInPictureActive = false
     /// Set from outside the library window (menu bar): the section it should show.
     @Published var requestedSection: LibrarySection?
     /// The tuner the player watches live TV through (shared with recordings of that channel).
@@ -273,6 +276,17 @@ final class AppModel: ObservableObject {
                     item.userData?.playbackPositionTicks = Int64(start * 10_000_000)
                 }
                 play(jellyfin: item)
+            }
+        }
+        if let spec = env["IPTV_TESTSWITCH"]?.split(separator: ":"), spec.count == 3,
+           let after = Double(spec[0]), let id = Int(spec[2]) {
+            // IPTV_TESTSWITCH=<s>:<live|movie>:<id>: start another item after <s> seconds the way
+            // the main window does (e.g. while Picture in Picture runs).
+            Task {
+                try? await Task.sleep(for: .seconds(after))
+                debugLog("[test] switch to \(spec[1]) \(id)")
+                if spec[1] == "live", let channel = channel(id) { play(channel) }
+                if spec[1] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
             }
         }
         guard let auto = env["IPTV_AUTOPLAY"] else { return }

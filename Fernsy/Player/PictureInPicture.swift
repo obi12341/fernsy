@@ -1,5 +1,7 @@
 import AVKit
 import Combine
+import CoreImage
+import CoreText
 
 /// System Picture in Picture for the player's display layer (every source renders into it).
 /// The player screen hides its window while PiP runs and reacts to "back" and "close".
@@ -38,7 +40,17 @@ final class PictureInPicture: NSObject, ObservableObject {
 
     func toggle() {
         guard let controller else { return }
-        if controller.isPictureInPictureActive { controller.stopPictureInPicture() } else { controller.startPictureInPicture() }
+        if controller.isPictureInPictureActive {
+            controller.stopPictureInPicture()
+        } else if canStart {
+            controller.startPictureInPicture()
+        }
+    }
+
+    /// The system reports PiP as possible before the layer shows a picture, but starting then
+    /// crashes inside AVKit (the PiP window lays out a size from the missing picture).
+    var canStart: Bool {
+        isPossible && engine.lastPicture.value != nil
     }
 
     /// Ends PiP by returning to the player window (debug hook and window reopening).
@@ -144,6 +156,28 @@ final class PictureInPictureStage {
     /// size of the original layer and covers the top of the picture (about 21 pt at the default
     /// PiP size). It can only be found by its class name; if a later macOS renames or drops it,
     /// nothing is hidden and the picture is merely covered as before.
+    /// A change of the frame size (another item, the loading picture) makes the system lay out its
+    /// mirror anew, and it comes out shifted and cropped again. Changing the layer's frame and
+    /// setting it back afterwards brings it in line; done twice, since the new size only counts
+    /// once a frame of it is on screen.
+    func refit() {
+        for delay in [0.25, 0.9] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, let stage = self.stage, let content = stage.contentView, let layer = self.layer else { return }
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                layer.frame = content.bounds.insetBy(dx: 1, dy: 1)
+                CATransaction.commit()
+                DispatchQueue.main.async {
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
+                    layer.frame = content.bounds
+                    CATransaction.commit()
+                }
+            }
+        }
+    }
+
     private func hideStaleOverlay(in view: NSView) {
         if String(describing: type(of: view)) == "AVPictureInPictureCALayerHostView" {
             if !view.isHidden {
@@ -163,6 +197,163 @@ final class PictureInPictureStage {
         if layer.superlayer !== content.layer { content.layer?.addSublayer(layer) }
         layer.frame = content.bounds
         CATransaction.commit()
+    }
+}
+
+/// Animated loading picture for the PiP window. The PiP window mirrors only the display layer's
+/// video frames (no sublayers, no system spinner for sample-buffer sources), so while a new item
+/// loads the card renders frames itself – the last picture darkened, a rotating spinner and the
+/// title – and enqueues them into the layer's video renderer. The frames keep the size of the
+/// last picture: a change of the frame size makes the system misplace its PiP mirror (see
+/// `PictureInPictureStage.refit()`). The card runs on its own queue and is stopped synchronously
+/// right before the playback session sends its first frame, so the renderer never gets frames
+/// from both.
+final class PictureInPictureLoadingCard: @unchecked Sendable {
+    private static let fps = 10
+
+    private let renderer: AVSampleBufferVideoRenderer
+    private let queue = DispatchQueue(label: "pip.loading-card", qos: .userInitiated)
+    private let imageContext = CIContext()
+    // queue only:
+    private var timer: DispatchSourceTimer?
+    private var title = ""
+    private var frame = 0
+    private var background: CVPixelBuffer?
+    private var pool: CVPixelBufferPool?
+    private var format: CMVideoFormatDescription?
+
+    init(renderer: AVSampleBufferVideoRenderer) {
+        self.renderer = renderer
+    }
+
+    /// `last` is the picture shown now; the card is drawn on it, darkened, at its size.
+    func start(title: String, over last: CVPixelBuffer?) {
+        queue.sync {
+            stopOnQueue()
+            self.title = title
+            frame = 0
+            prepare(from: last)
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            timer.schedule(deadline: .now(), repeating: 1 / Double(Self.fps))
+            timer.setEventHandler { [weak self] in self?.tick() }
+            timer.resume()
+            self.timer = timer
+            #if DEBUG
+            debugLog("[pip] loading picture for \(title), \(background.map { "\(CVPixelBufferGetWidth($0))×\(CVPixelBufferGetHeight($0))" } ?? "-")")
+            #endif
+        }
+    }
+
+    func stop() {
+        queue.sync { stopOnQueue() }
+    }
+
+    private func stopOnQueue() {
+        guard let timer else { return }
+        timer.cancel()
+        self.timer = nil
+        #if DEBUG
+        debugLog("[pip] loading picture stopped after \(frame) frames")
+        #endif
+    }
+
+    /// The last picture, blurred and darkened, as BGRA at its own size (1280×720 black when there is none).
+    private func prepare(from last: CVPixelBuffer?) {
+        let width = last.map(CVPixelBufferGetWidth) ?? 1280
+        let height = last.map(CVPixelBufferGetHeight) ?? 720
+        if let background, CVPixelBufferGetWidth(background) == width, CVPixelBufferGetHeight(background) == height {
+            // Same size as before: the pool and format stay.
+        } else {
+            let attributes: [CFString: Any] = [kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+                                               kCVPixelBufferWidthKey: width, kCVPixelBufferHeightKey: height,
+                                               kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary]
+            pool = nil
+            format = nil
+            CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary, &pool)
+        }
+        var buffer: CVPixelBuffer?
+        guard let pool, CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer) == kCVReturnSuccess, let buffer else { return }
+        let image = last.map {
+            let picture = CIImage(cvPixelBuffer: $0)
+            return picture.clampedToExtent()
+                .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: Double(height) / 90])
+                .cropped(to: picture.extent)
+        }
+            ?? CIImage(color: CIColor(red: 0.06, green: 0.06, blue: 0.06)).cropped(to: CGRect(x: 0, y: 0, width: width, height: height))
+        imageContext.render(image, to: buffer)
+        background = buffer
+    }
+
+    private func tick() {
+        guard timer != nil, let sample = render() else { return }
+        if renderer.isReadyForMoreMediaData { renderer.enqueue(sample) }
+        frame += 1
+    }
+
+    private func render() -> CMSampleBuffer? {
+        var buffer: CVPixelBuffer?
+        guard let background, let pool, CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer) == kCVReturnSuccess, let buffer else { return nil }
+        CVPixelBufferLockBaseAddress(buffer, [])
+        CVPixelBufferLockBaseAddress(background, .readOnly)
+        defer {
+            CVPixelBufferUnlockBaseAddress(background, .readOnly)
+            CVPixelBufferUnlockBaseAddress(buffer, [])
+        }
+        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
+        let rowBytes = CVPixelBufferGetBytesPerRow(buffer)
+        guard let target = CVPixelBufferGetBaseAddress(buffer), let source = CVPixelBufferGetBaseAddress(background),
+              CVPixelBufferGetBytesPerRow(background) == rowBytes else { return nil }
+        memcpy(target, source, rowBytes * height)
+        guard let context = CGContext(data: target, width: width, height: height, bitsPerComponent: 8, bytesPerRow: rowBytes,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        else { return nil }
+        draw(in: context, width: CGFloat(width), height: CGFloat(height))
+
+        if format == nil { CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: buffer, formatDescriptionOut: &format) }
+        guard let format else { return nil }
+        var timing = CMSampleTimingInfo(duration: CMTime(value: 1, timescale: CMTimeScale(Self.fps)),
+                                        presentationTimeStamp: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(Self.fps)),
+                                        decodeTimeStamp: .invalid)
+        var sample: CMSampleBuffer?
+        CMSampleBufferCreateReadyWithImageBuffer(allocator: nil, imageBuffer: buffer, formatDescription: format,
+                                                 sampleTiming: &timing, sampleBufferOut: &sample)
+        guard let sample, let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true),
+              CFArrayGetCount(attachments) > 0 else { return nil }
+        let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
+        CFDictionarySetValue(dict, Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+                             Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
+        return sample
+    }
+
+    private func draw(in context: CGContext, width: CGFloat, height: CGFloat) {
+        let unit = height / 720 // sizes below are for a 720-line picture
+        context.setFillColor(CGColor(gray: 0, alpha: 0.72))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+
+        // Spinner: 12 spokes, the bright one moving clockwise once per 1.2 s.
+        let center = CGPoint(x: width / 2, y: height * 0.56)
+        let spokes = 12
+        context.setLineWidth(9 * unit)
+        context.setLineCap(.round)
+        for i in 0..<spokes {
+            let angle = CGFloat.pi / 2 - CGFloat(i) * 2 * .pi / CGFloat(spokes)
+            let age = ((frame - i) % spokes + spokes) % spokes
+            context.setStrokeColor(CGColor(gray: 1, alpha: max(0.15, 1 - CGFloat(age) / CGFloat(spokes))))
+            context.move(to: CGPoint(x: center.x + cos(angle) * 26 * unit, y: center.y + sin(angle) * 26 * unit))
+            context.addLine(to: CGPoint(x: center.x + cos(angle) * 50 * unit, y: center.y + sin(angle) * 50 * unit))
+            context.strokePath()
+        }
+
+        // Title below the spinner, one line, shortened with "…" when too wide.
+        let font = CTFontCreateWithName("SF Pro Display Semibold" as CFString, 46 * unit, nil)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: CGColor(gray: 1, alpha: 0.9)]
+        let full = CTLineCreateWithAttributedString(NSAttributedString(string: title, attributes: attributes))
+        let ellipsis = CTLineCreateWithAttributedString(NSAttributedString(string: "…", attributes: attributes))
+        let line = CTLineCreateTruncatedLine(full, Double(width * 0.85), .end, ellipsis) ?? full
+        let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
+        context.textPosition = CGPoint(x: (width - CGFloat(lineWidth)) / 2, y: height * 0.32)
+        CTLineDraw(line, context)
     }
 }
 

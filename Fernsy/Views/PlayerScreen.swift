@@ -90,7 +90,7 @@ struct PlayerScreen: View {
                                isRecording: liveChannelID.map { recorder.active(on: $0) != nil },
                                onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) },
                                onDragging: { dragging in activeDrags = max(0, activeDrags + (dragging ? 1 : -1)) },
-                               pipPossible: pipPossible, onPictureInPicture: { pip?.toggle() })
+                               pipPossible: pipPossible && [.playing, .paused, .buffering].contains(engine.status), onPictureInPicture: { pip?.toggle() })
                     .transition(.opacity)
             }
 
@@ -145,7 +145,7 @@ struct PlayerScreen: View {
                 // player. Closing needs the PiP window's close button: ending PiP from code always
                 // counts as "back".
                 DispatchQueue.main.asyncAfter(deadline: .now() + start) {
-                    debugLog("[test] pip start, possible: \(pipPossible)")
+                    debugLog("[test] pip start, possible: \(pip?.canStart ?? false)")
                     pip?.toggle()
                 }
                 if spec.count == 3, spec[1] == "back", let after = Double(spec[2]) {
@@ -203,9 +203,17 @@ struct PlayerScreen: View {
                 showControls(autoHide: false)
             case .playing:
                 showControls()
+                if app.isPictureInPictureActive { pipStage.refit() }
             default:
                 break
             }
+        }
+        .onChange(of: engine.videoSize) { _, _ in
+            if app.isPictureInPictureActive { pipStage.refit() }
+        }
+        .onChange(of: engine.media?.hasVideo) { _, hasVideo in
+            // Nothing to show in PiP (radio): back to the player window.
+            if hasVideo == false, app.isPictureInPictureActive { pip?.restore() }
         }
         .task(id: liveChannelID) { await refreshEPG() }
         // Track the real window state so the button icon also follows the green button, Esc and ⌃⌘F.
@@ -243,6 +251,11 @@ struct PlayerScreen: View {
         guard let item else {
             engine.stop()
             return
+        }
+        // The PiP window would keep the previous item's last picture while this one loads.
+        if app.isPictureInPictureActive {
+            engine.loadingCard.start(title: item.title, over: engine.lastPicture.value)
+            pipStage.refit()
         }
         play(item)
         showControls()
@@ -391,10 +404,12 @@ struct PlayerScreen: View {
             if let surface = playerWindow?.contentView?.firstDescendant(of: VideoSurfaceView.self) { pipStage.prepare(surface: surface) }
         }
         controller.onStarted = {
+            app.isPictureInPictureActive = true
             pipStage.begin()
             playerWindow?.orderOut(nil)
         }
         controller.onRestore = {
+            app.isPictureInPictureActive = false
             pipStage.end()
             engine.displayLayer.videoGravity = .resize
             playerWindow?.makeKeyAndOrderFront(nil)
@@ -402,6 +417,7 @@ struct PlayerScreen: View {
             showControls()
         }
         controller.onClosed = {
+            app.isPictureInPictureActive = false
             pipStage.end()
             engine.displayLayer.videoGravity = .resize
             guard let window = playerWindow else { return }

@@ -181,6 +181,13 @@ final class PlaybackSession {
     private let debugClockSkew = ProcessInfo.processInfo.environment["IPTV_TESTCLOCK"].flatMap(Double.init) ?? 0
     #endif
 
+    /// Runs on the video thread right before the first video frame goes to the renderer (the
+    /// engine stops anything else feeding the renderer there, e.g. the PiP loading picture).
+    var beforeFirstVideo: (() -> Void)?
+    /// Receives every video frame that goes to the renderer.
+    var lastPicture: LastPicture?
+    private var sentVideo = false
+
     init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
          videoRenderer: AVSampleBufferVideoRenderer, audioRenderer: AVSampleBufferAudioRenderer,
          synchronizer: AVSampleBufferRenderSynchronizer, onEvent: @escaping (Event) -> Void) {
@@ -1349,7 +1356,12 @@ final class PlaybackSession {
                 Thread.sleep(forTimeInterval: 0.004)
                 continue
             }
+            if !sentVideo {
+                sentVideo = true
+                beforeFirstVideo?()
+            }
             videoRenderer.enqueue(sample)
+            if let lastPicture, let image = CMSampleBufferGetImageBuffer(sample) { lastPicture.set(image) }
             lock.lock()
             videoEnqueuedUntil = max(videoEnqueuedUntil, sec + duration)
             framesPresented += 1
@@ -1774,6 +1786,25 @@ final class PlaybackSession {
         if pb != nil {
             ffs_avio_free(&pb)
         }
+    }
+}
+
+/// The newest video frame sent to the renderer (the renderer itself does not hand it out while
+/// it plays): Picture in Picture starts only with a picture, and its loading picture is based on it.
+final class LastPicture: @unchecked Sendable {
+    private let lock = NSLock()
+    private var buffer: CVPixelBuffer?
+
+    var value: CVPixelBuffer? {
+        lock.lock()
+        defer { lock.unlock() }
+        return buffer
+    }
+
+    func set(_ buffer: CVPixelBuffer?) {
+        lock.lock()
+        self.buffer = buffer
+        lock.unlock()
     }
 }
 
