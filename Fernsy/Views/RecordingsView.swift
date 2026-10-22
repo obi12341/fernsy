@@ -5,13 +5,9 @@ struct RecordingsView: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var recorder: Recorder
     let filter: String
-    let query: String
 
     var body: some View {
-        let needle = makeSearchKey(query)
-        let all = recorder.recordings.filter {
-            needle.isEmpty || makeSearchKey($0.title + " " + $0.channelName).contains(needle)
-        }
+        let all = recorder.recordings
         let running = all.filter { $0.status == .recording }
         let scheduled = all.filter { $0.status == .scheduled }.sorted { $0.start < $1.start }
         let finished = all.filter { !$0.isUpcomingOrRunning }.sorted { $0.start > $1.start }
@@ -54,7 +50,7 @@ struct RecordingsView: View {
     }
 }
 
-private struct RecordingRow: View {
+struct RecordingRow: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var recorder: Recorder
     let recording: Recording

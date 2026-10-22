@@ -120,6 +120,12 @@ picture rendered into the video until its first frame (`IPTV_TESTSWITCH=<s>:<liv
 starts an item the way the main window does, `IPTV_TESTSLOWSTART=<s>` delays every start,
 `IPTV_TESTNOVIDEO=1` treats later items as radio, which ends PiP).
 
+The toolbar search searches everything at once – channels, films, series, recordings and the
+Jellyfin libraries – from a local index (`Fernsy/App/SearchIndex.swift`, rebuilt in the
+background when a source changes; about 20 ms per query for 50,000 entries). Only Live TV's Edit
+mode keeps it as a filter of the channel list. `IPTV_TESTSEARCH=<query>[|<query>…]` types
+queries once the catalog is loaded, one every 4 s.
+
 ## License
 
 Copyright © 2026 mobilistics GmbH

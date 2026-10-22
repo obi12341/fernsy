@@ -534,6 +534,16 @@
         }
       }
     },
+    "Alle anzeigen (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all (%lld)"
+          }
+        }
+      }
+    },
     "Als gesehen markieren": {
       "localizations": {
         "en": {
@@ -786,16 +796,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show Recordings"
-          }
-        }
-      }
-    },
-    "Aufnahmen durchsuchen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Recordings"
           }
         }
       }
@@ -1270,16 +1270,6 @@
         }
       }
     },
-    "Favoriten durchsuchen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Favorites"
-          }
-        }
-      }
-    },
     "Fernsy": {
       "localizations": {
         "en": {
@@ -1296,6 +1286,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quit Fernsy"
+          }
+        }
+      }
+    },
+    "Fernsy durchsuchen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Fernsy"
           }
         }
       }
@@ -1326,16 +1326,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Movies"
-          }
-        }
-      }
-    },
-    "Filme suchen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Movies"
           }
         }
       }
@@ -1574,6 +1564,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jellyfin could not transcode the title: %@"
+          }
+        }
+      }
+    },
+    "Jellyfin-Filme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin Movies"
+          }
+        }
+      }
+    },
+    "Jellyfin-Serien": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin Series"
           }
         }
       }
@@ -2340,16 +2350,6 @@
         }
       }
     },
-    "Serien suchen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Series"
-          }
-        }
-      }
-    },
     "Server": {
       "localizations": {
         "en": {
@@ -2536,6 +2536,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stream interrupted"
+          }
+        }
+      }
+    },
+    "Suche": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
           }
         }
       }
@@ -2866,6 +2876,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Continue Watching"
+          }
+        }
+      }
+    },
+    "Weniger anzeigen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show less"
           }
         }
       }

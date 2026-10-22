@@ -10,12 +10,14 @@ enum LiveMode: String {
 struct LibraryView: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var jellyfin: JellyfinStore
+    @EnvironmentObject private var recorder: Recorder
     @Environment(\.openWindow) private var openWindow
 
     @State private var section: LibrarySection = .live
     @State private var categoryBySection: [LibrarySection: String] = [:]
     @State private var categoryFilter = ""
     @State private var query = ""
+    @StateObject private var search = SearchModel()
     @State private var path = NavigationPath()
     @AppStorage("liveMode") private var liveMode = LiveMode.list
     /// Edit mode of Live TV: hidden categories and channels are listed to show them again.
@@ -65,7 +67,11 @@ struct LibraryView: View {
             }
         }
         .searchable(text: $query, placement: .toolbar, prompt: searchPrompt)
-        .onChange(of: query) { _, _ in path = NavigationPath() }
+        .onChange(of: query) { _, new in
+            path = NavigationPath()
+            search.setQuery(new)
+        }
+        .onAppear { search.attach(app: app, jellyfin: jellyfin, recorder: recorder) }
         .onChange(of: section) { _, new in if new != .live { editingLive = false } }
         // Signing in or out of one account: stay on a section that still exists.
         .onChange(of: availableSections, initial: true) { _, available in
@@ -146,6 +152,16 @@ struct LibraryView: View {
     /// Screenshot runs: IPTV_SCENE=<live|movies|series|favorites>[:<category id>[:movie|series:<id>]],
     /// IPTV_SCENE=live:<category id>:edit[:<s>] enters Live TV's Edit mode (after <s> seconds).
     private func debugScene() async {
+        if let text = ProcessInfo.processInfo.environment["IPTV_TESTSEARCH"] {
+            // IPTV_TESTSEARCH=<query>[|<query>…]: types the queries into the search once the catalog
+            // is loaded, one every 4 s ("" clears the field).
+            while app.channels.isEmpty && app.movies.isEmpty && jellyfin.films.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+            for (i, text) in text.split(separator: "|", omittingEmptySubsequences: false).enumerated() {
+                try? await Task.sleep(for: .seconds(i == 0 ? 1 : 4))
+                debugLog("[test] search \"\(text)\"")
+                query = String(text)
+            }
+        }
         guard let scene = ProcessInfo.processInfo.environment["IPTV_SCENE"] else { return }
         let parts = scene.split(separator: ":").map(String.init)
         guard let target = LibrarySection(rawValue: parts[0]) else { return }
@@ -175,45 +191,41 @@ struct LibraryView: View {
     }
     #endif
 
+    /// Live TV's Edit mode keeps the search as a filter of the channel list (hidden channels
+    /// included), to find channels to hide or show; everywhere else it searches everything.
+    private var editFilter: Bool { section == .live && editingLive }
+
     private var searchPrompt: LocalizedStringKey {
-        switch section {
-        case .live: return "Sender suchen"
-        case .movies: return "Filme suchen"
-        case .series: return "Serien suchen"
-        case .favorites: return "Favoriten durchsuchen"
-        case .recordings: return "Aufnahmen durchsuchen"
-        case .jellyfinHome, .jellyfinFilms: return "Filme suchen"
-        case .jellyfinSeries: return "Serien suchen"
-        }
+        editFilter ? "Sender suchen" : "Fernsy durchsuchen"
     }
 
     @ViewBuilder
     private var detail: some View {
         let category = categoryBySection[section] ?? allCategoryID
-        switch section {
-        case .live:
-            switch liveMode {
-            case .list: ChannelListView(categoryID: category, query: query, editing: editingLive)
-            case .guide: GuideView(categoryID: category, query: query)
-            }
-        case .movies:
-            MovieGridView(categoryID: category, query: query)
-        case .series:
-            SeriesGridView(categoryID: category, query: query)
-        case .favorites:
-            FavoritesView(kind: category, query: query)
-        case .recordings:
-            RecordingsView(filter: category, query: query)
-        case .jellyfinHome:
-            if query.isEmpty {
+        if !query.trimmingCharacters(in: .whitespaces).isEmpty && !editFilter {
+            SearchResultsView(results: search.results)
+        } else {
+            switch section {
+            case .live:
+                switch liveMode {
+                case .list: ChannelListView(categoryID: category, query: editingLive ? query : "", editing: editingLive)
+                case .guide: GuideView(categoryID: category)
+                }
+            case .movies:
+                MovieGridView(categoryID: category)
+            case .series:
+                SeriesGridView(categoryID: category)
+            case .favorites:
+                FavoritesView(kind: category)
+            case .recordings:
+                RecordingsView(filter: category)
+            case .jellyfinHome:
                 JellyfinHomeView()
-            } else {
-                JellyfinGridView(kind: .films, categoryID: allCategoryID, query: query)
+            case .jellyfinFilms:
+                JellyfinGridView(kind: .films, categoryID: category)
+            case .jellyfinSeries:
+                JellyfinGridView(kind: .series, categoryID: category)
             }
-        case .jellyfinFilms:
-            JellyfinGridView(kind: .films, categoryID: category, query: query)
-        case .jellyfinSeries:
-            JellyfinGridView(kind: .series, categoryID: category, query: query)
         }
     }
 

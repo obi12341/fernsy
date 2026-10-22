@@ -13,12 +13,10 @@ enum LibrarySort: String, CaseIterable, Identifiable {
 }
 
 extension AppModel {
-    func filteredMovies(categoryID: String, query: String, sort: LibrarySort) -> [Movie] {
+    func filteredMovies(categoryID: String, sort: LibrarySort) -> [Movie] {
         let hidden = hiddenCategoryIDs(movieCategories)
         var list = categoryID == allCategoryID ? movies : (moviesByCategory[categoryID] ?? [])
         if !showAdult { list = list.filter { !$0.isAdult && !hidden.contains($0.categoryId ?? "") } }
-        let needle = makeSearchKey(query)
-        if !needle.isEmpty { list = list.filter { $0.searchKey.contains(needle) } }
         switch sort {
         case .newest: list.sort { $0.added > $1.added }
         case .name: list.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -27,12 +25,10 @@ extension AppModel {
         return list
     }
 
-    func filteredSeries(categoryID: String, query: String, sort: LibrarySort) -> [Series] {
+    func filteredSeries(categoryID: String, sort: LibrarySort) -> [Series] {
         let hidden = hiddenCategoryIDs(seriesCategories)
         var list = categoryID == allCategoryID ? series : (seriesByCategory[categoryID] ?? [])
         if !showAdult { list = list.filter { !hidden.contains($0.categoryId ?? "") } }
-        let needle = makeSearchKey(query)
-        if !needle.isEmpty { list = list.filter { $0.searchKey.contains(needle) } }
         switch sort {
         case .newest: list.sort { $0.lastModified > $1.lastModified }
         case .name: list.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -47,11 +43,10 @@ private let posterColumns = [GridItem(.adaptive(minimum: 150, maximum: 200), spa
 struct MovieGridView: View {
     @EnvironmentObject private var app: AppModel
     let categoryID: String
-    let query: String
     @AppStorage("library.movieSort") private var sort: LibrarySort = .newest
 
     var body: some View {
-        let movies = app.filteredMovies(categoryID: categoryID, query: query, sort: sort)
+        let movies = app.filteredMovies(categoryID: categoryID, sort: sort)
         ScrollView {
             LazyVGrid(columns: posterColumns, spacing: 24) {
                 ForEach(movies) { movie in
@@ -70,9 +65,6 @@ struct MovieGridView: View {
                 }
             }
             .padding(24)
-        }
-        .overlay {
-            if movies.isEmpty && !app.movies.isEmpty { ContentUnavailableView.search(text: query) }
         }
         .toolbar { SortMenu(sort: $sort) }
         .navigationTitle("Filme")

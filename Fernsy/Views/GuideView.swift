@@ -9,7 +9,6 @@ import SwiftUI
 struct GuideView: View {
     @EnvironmentObject private var app: AppModel
     let categoryID: String
-    let query: String
 
     struct Selection: Equatable {
         let channelId: Int
@@ -23,7 +22,7 @@ struct GuideView: View {
     @State private var position = ScrollPosition()
 
     var body: some View {
-        let channels = app.filteredChannels(categoryID: categoryID, query: query)
+        let channels = app.filteredChannels(categoryID: categoryID, query: "")
         let playing = playingChannelID
         TimelineView(.periodic(from: .now, by: 30)) { context in
             ScrollView([.horizontal, .vertical]) {
@@ -62,11 +61,6 @@ struct GuideView: View {
         .safeAreaInset(edge: .bottom) {
             if let selection, let channel = app.channel(selection.channelId) {
                 GuideDetail(channel: channel, entry: selection.entry) { self.selection = nil }
-            }
-        }
-        .overlay {
-            if channels.isEmpty && !app.channels.isEmpty {
-                ContentUnavailableView.search(text: query)
             }
         }
         .toolbar {

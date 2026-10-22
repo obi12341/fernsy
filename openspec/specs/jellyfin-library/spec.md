@@ -22,9 +22,10 @@ type and the genres occurring in it, with item counts and the existing filter fi
 - **WHEN** the server has the film libraries "Movies" and "Kids"
 - **THEN** the category column lists All, Favorites, Movies, Kids and the genres
 
-### Requirement: Poster grids with sorting and search
+### Requirement: Poster grids with sorting
 Films and series SHALL be shown as poster grids with title, year and rating, sortable by
-recently added, name, release date and rating; the toolbar search filters by title.
+recently added, name, release date and rating. Searching by title happens in the search across
+all sources.
 
 #### Scenario: Sorting by release date
 - **WHEN** the user sorts films by release date

@@ -28,13 +28,6 @@ categories" is enabled in Settings. This only hides them; it is no parental lock
 - **WHEN** a provider offers a category named like "XXX" or "Adult"
 - **THEN** it does not appear until the user enables the setting
 
-### Requirement: Search per section
-The toolbar search SHALL filter the current section by name, ignoring case and diacritics.
-
-#### Scenario: Searching channels
-- **WHEN** the user types part of a channel name in Live TV
-- **THEN** the list shows only matching channels
-
 ### Requirement: Movies and series browsing
 Movies and series SHALL be shown as poster grids, sortable by newest, name or rating, with
 a detail view (plot, cast, director, rating, backdrop) and, for series, seasons and episodes.

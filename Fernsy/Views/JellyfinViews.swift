@@ -46,7 +46,7 @@ extension JellyfinStore {
         return rows
     }
 
-    func filtered(_ kind: JFKind, categoryID: String, query: String, sort: JFSort) -> [JFItem] {
+    func filtered(_ kind: JFKind, categoryID: String, sort: JFSort) -> [JFItem] {
         var list = items(kind)
         if categoryID == "favorites" {
             list = list.filter(\.isFavorite)
@@ -57,8 +57,6 @@ extension JellyfinStore {
             let genre = String(categoryID.dropFirst(6))
             list = list.filter { $0.genres?.contains(genre) == true }
         }
-        let needle = makeSearchKey(query)
-        if !needle.isEmpty { list = list.filter { makeSearchKey($0.name).contains(needle) } }
         switch sort {
         case .added: list.sort { $0.addedKey > $1.addedKey }
         case .name: break // already by sort name
@@ -169,14 +167,13 @@ struct JellyfinGridView: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
     let kind: JFKind
     let categoryID: String
-    let query: String
     @AppStorage("jellyfin.sort.films") private var filmSort: JFSort = .added
     @AppStorage("jellyfin.sort.series") private var seriesSort: JFSort = .added
 
     private var sort: Binding<JFSort> { kind == .films ? $filmSort : $seriesSort }
 
     var body: some View {
-        let list = jellyfin.filtered(kind, categoryID: categoryID, query: query, sort: sort.wrappedValue)
+        let list = jellyfin.filtered(kind, categoryID: categoryID, sort: sort.wrappedValue)
         ScrollView {
             LazyVGrid(columns: posterColumns, spacing: 24) {
                 ForEach(list) { item in
@@ -191,9 +188,7 @@ struct JellyfinGridView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) { JellyfinStatusBanner() }
         .overlay {
-            if list.isEmpty && !jellyfin.items(kind).isEmpty {
-                ContentUnavailableView.search(text: query)
-            } else if jellyfin.items(kind).isEmpty && jellyfin.isLoading {
+            if jellyfin.items(kind).isEmpty && jellyfin.isLoading {
                 ProgressView("Bibliothek wird geladen …")
             }
         }

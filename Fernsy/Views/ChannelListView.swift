@@ -20,6 +20,7 @@ extension AppModel {
 struct ChannelListView: View {
     @EnvironmentObject private var app: AppModel
     let categoryID: String
+    /// Filters the list in Edit mode (elsewhere the toolbar search searches everything).
     let query: String
     /// Edit mode: hidden channels are listed too, dimmed, every row has a show/hide toggle.
     var editing = false
@@ -51,7 +52,7 @@ struct ChannelListView: View {
             }
         }
         .overlay {
-            if channels.isEmpty && !app.channels.isEmpty {
+            if channels.isEmpty && !app.channels.isEmpty && !query.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
         }

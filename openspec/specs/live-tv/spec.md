@@ -16,8 +16,8 @@ description) and the next two shows.
 - **THEN** the panel shows what is on now with its progress and what follows
 
 ### Requirement: List or guide view
-The toolbar SHALL switch Live TV between "List" and "Guide"; category and search apply to
-both, and the choice is remembered.
+The toolbar SHALL switch Live TV between "List" and "Guide"; the category applies to both, and
+the choice is remembered.
 
 #### Scenario: Switching to the guide
 - **WHEN** the user picks "Guide" in the toolbar

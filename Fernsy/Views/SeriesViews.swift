@@ -5,11 +5,10 @@ private let posterColumns = [GridItem(.adaptive(minimum: 150, maximum: 200), spa
 struct SeriesGridView: View {
     @EnvironmentObject private var app: AppModel
     let categoryID: String
-    let query: String
     @AppStorage("library.seriesSort") private var sort: LibrarySort = .newest
 
     var body: some View {
-        let list = app.filteredSeries(categoryID: categoryID, query: query, sort: sort)
+        let list = app.filteredSeries(categoryID: categoryID, sort: sort)
         ScrollView {
             LazyVGrid(columns: posterColumns, spacing: 24) {
                 ForEach(list) { show in
@@ -26,9 +25,6 @@ struct SeriesGridView: View {
                 }
             }
             .padding(24)
-        }
-        .overlay {
-            if list.isEmpty && !app.series.isEmpty { ContentUnavailableView.search(text: query) }
         }
         .toolbar { SortMenu(sort: $sort) }
         .navigationTitle("Serien")
@@ -183,16 +179,14 @@ struct EpisodeRow: View {
 struct FavoritesView: View {
     @EnvironmentObject private var app: AppModel
     let kind: String
-    let query: String
 
     var body: some View {
-        let needle = makeSearchKey(query)
         let channels = (kind == allCategoryID || kind == "live")
-            ? app.channels.filter { app.isFavorite("live:\($0.id)") && !app.isHidden($0) && (needle.isEmpty || $0.searchKey.contains(needle)) } : []
+            ? app.channels.filter { app.isFavorite("live:\($0.id)") && !app.isHidden($0) } : []
         let movies = (kind == allCategoryID || kind == "movie")
-            ? app.movies.filter { app.isFavorite("movie:\($0.id)") && (needle.isEmpty || $0.searchKey.contains(needle)) } : []
+            ? app.movies.filter { app.isFavorite("movie:\($0.id)") } : []
         let shows = (kind == allCategoryID || kind == "series")
-            ? app.series.filter { app.isFavorite("series:\($0.id)") && (needle.isEmpty || $0.searchKey.contains(needle)) } : []
+            ? app.series.filter { app.isFavorite("series:\($0.id)") } : []
 
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
