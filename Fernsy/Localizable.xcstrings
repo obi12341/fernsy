@@ -2740,6 +2740,16 @@
         }
       }
     },
+    "Verbindung zum Server verloren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection to the server lost"
+          }
+        }
+      }
+    },
     "Version %lld": {
       "localizations": {
         "en": {
@@ -2866,6 +2876,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Player"
+          }
+        }
+      }
+    },
+    "Wiedergabe unterbrochen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playback interrupted"
           }
         }
       }

@@ -331,10 +331,10 @@ final class PlaybackSession {
 
         if isLive {
             source.onRejoin = { [weak self] offset in self?.rejoin(at: offset) }
-            #if DEBUG
-            scheduleNetworkTest()
-            #endif
         }
+        #if DEBUG
+        scheduleNetworkTest()
+        #endif
 
         if !isTuner {
             if hasVideo { spawn("player.video", qos: .userInteractive) { [self] in videoMain() } }
@@ -1737,8 +1737,9 @@ final class PlaybackSession {
     }
 
     #if DEBUG
-    /// IPTV_TESTNET="drop:15,stall:40": kill the connection / stall the socket at those
-    /// seconds after start, to exercise the in-place live reconnect.
+    /// IPTV_TESTNET="drop:15,stall:40,close:60": kill the connection / stall the socket / end the
+    /// download as if the server had closed it cleanly, at those seconds after start – the live
+    /// reconnect and, for films, continuing an interrupted download.
     private func scheduleNetworkTest() {
         guard let spec = ProcessInfo.processInfo.environment["IPTV_TESTNET"] else { return }
         for item in spec.split(separator: ",") {
@@ -1749,7 +1750,11 @@ final class PlaybackSession {
                 guard let self, !self.isStopped else { return }
                 debugLog("[test] simulating network \(kind)")
                 guard let http = self.source as? HTTPByteSource else { return }
-                if kind == "drop" { http.debugDropConnection() } else { http.debugStallConnection() }
+                switch kind {
+                case "drop": http.debugDropConnection()
+                case "close": http.debugCloseConnection()
+                default: http.debugStallConnection()
+                }
             }
         }
     }

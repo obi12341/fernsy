@@ -150,6 +150,8 @@ final class PlayerEngine: ObservableObject {
 
     private var generation = 0
     private var currentURL: URL?
+    /// Position of the last reload after an early end: a second early end there gives up.
+    private var earlyEndRecoveredAt: Double?
     private var currentIsLive = false
     /// Live from a tuner's timeshift buffer (seekable) instead of straight from the network.
     @Published private(set) var isTimeshift = false
@@ -210,6 +212,29 @@ final class PlayerEngine: ObservableObject {
         restarts = 0
         bufferHistory.reset()
         start(url: url, mode: .network(isLive: isLive), startAt: startAt)
+    }
+
+    /// A network film or episode that "ends" more than 60 s before its known duration was cut
+    /// off (e.g. an interrupted download), not watched to the end: load it again at the position
+    /// once, then report a failure – never `.ended`, which media servers take as "watched".
+    private func recoverFromEarlyEnd() -> Bool {
+        let position = progress.position, duration = progress.duration
+        guard duration > 0, position < duration - 60, let url = currentURL, !url.isFileURL else { return false }
+        if let last = earlyEndRecoveredAt, abs(position - last) < 30 {
+            status = .failed(String(localized: "Wiedergabe unterbrochen"))
+            endActivity()
+            return true
+        }
+        earlyEndRecoveredAt = position
+        #if DEBUG
+        debugLog("[player] ended at \(Int(position)) s of \(Int(duration)) s – reloading there")
+        #endif
+        if let restart = external?.restartAt {
+            restart(position)
+        } else {
+            start(url: url, mode: .network(isLive: false), startAt: position)
+        }
+        return true
     }
 
     /// A recording file; `isGrowing` while it is still being written.
@@ -330,6 +355,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func stop() {
+        earlyEndRecoveredAt = nil
         detachTuner()
         external = nil
         externalCues = nil
@@ -623,7 +649,7 @@ final class PlayerEngine: ObservableObject {
         case .ended:
             if currentIsLive {
                 reconnect(reason: String(localized: "Stream beendet"))
-            } else {
+            } else if !recoverFromEarlyEnd() {
                 status = .ended
                 endActivity()
             }

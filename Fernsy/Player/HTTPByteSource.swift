@@ -11,12 +11,14 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         case http(Int)
         case timeout
         case cancelled
+        case connectionLost
 
         var errorDescription: String? {
             switch self {
             case .http(let code): return String(localized: "Server antwortet mit HTTP \(code)")
             case .timeout: return String(localized: "Zeitüberschreitung beim Verbinden")
             case .cancelled: return String(localized: "Abgebrochen")
+            case .connectionLost: return String(localized: "Verbindung zum Server verloren")
             }
         }
     }
@@ -43,6 +45,8 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     private(set) var contentLength: Int64 = -1
     private(set) var supportsRanges = false
+    /// Attempts to continue a film's interrupted download; reset once data flows again.
+    private var continueAttempts = 0
     /// URL after redirects and MIME type of the first response.
     private(set) var finalURL: URL?
     private(set) var mimeType: String?
@@ -180,6 +184,17 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     func debugStallConnection() {
         cond.lock(); defer { cond.unlock() }
         task?.suspend()
+    }
+
+    /// The server ends the response early without an error (an idle connection closed by a proxy).
+    private var debugCleanClose = false
+    func debugCloseConnection() {
+        cond.lock(); defer { cond.unlock() }
+        debugCleanClose = true
+        // A held (suspended) task only completes once it runs again.
+        if suspended { task?.resume(); suspended = false }
+        task?.cancel()
+        debugLog("[test] download closed at \(bufferBase + Int64(buffer.count)) of \(contentLength) bytes")
     }
     #endif
 
@@ -519,6 +534,15 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             return
         }
         if http.statusCode == 206 {
+            // Seeks and continued downloads ask for exactly this byte.
+            let expected = bufferBase + Int64(buffer.count)
+            if let range = http.value(forHTTPHeaderField: "Content-Range"),
+               let start = range.split(separator: " ").last?.split(separator: "-").first.flatMap({ Int64($0) }),
+               start != expected {
+                failure = SourceError.http(http.statusCode)
+                completionHandler(.cancel)
+                return
+            }
             supportsRanges = true
             // Content-Range: bytes start-end/total
             if let range = http.value(forHTTPHeaderField: "Content-Range"),
@@ -552,6 +576,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         guard isCurrent(dataTask) else { return }
         buffer.append(data)
         bytesReceivedTotal += Int64(data.count)
+        continueAttempts = 0
         lastDataAt = Date()
         // Attempts count per incident: a connection that ran stable for a while ends it. A server
         // that accepts and drops again right away keeps counting towards giving up.
@@ -567,9 +592,24 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         cond.lock()
         defer { cond.broadcast(); cond.unlock() }
         guard isCurrent(task) else { return }
+        var error = error
+        #if DEBUG
+        if debugCleanClose {
+            debugCleanClose = false
+            error = nil
+        }
+        #endif
         if streaming && !cancelled && failure == nil {
             // Live streams do not end: a closed or failed connection is replaced.
             liveReconnect(reason: error.map { $0.localizedDescription } ?? String(localized: "Server hat Verbindung geschlossen"))
+            return
+        }
+        // A film's download that ends before the file does was interrupted (an idle connection
+        // closed during a long pause, or dropped) – not the end of the film.
+        let received = bufferBase + Int64(buffer.count)
+        if !cancelled && failure == nil && contentLength > 0 && received < contentLength {
+            self.task = nil
+            continueDownload(at: received, reason: error?.localizedDescription ?? "closed by the server")
             return
         }
         if let error {
@@ -578,5 +618,37 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             finished = true
         }
         self.task = nil
+    }
+
+    /// Requests the rest of the file from `offset`, keeping what is buffered (`connect(at:)`
+    /// starts over). Called with `cond` locked.
+    private func continueDownload(at offset: Int64, reason: String) {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["IPTV_TESTNOCONTINUE"] == "1" {
+            finished = true  // the old behaviour, to test the plausibility check of the end
+            return
+        }
+        #endif
+        guard supportsRanges, continueAttempts < 5 else {
+            failure = SourceError.connectionLost
+            return
+        }
+        let delay = [0.5, 1, 2, 4, 4][continueAttempts]
+        continueAttempts += 1
+        #if DEBUG
+        debugLog("[http] download interrupted at \(offset) of \(contentLength) (\(reason)), continuing (attempt \(continueAttempts))")
+        #endif
+        taskGeneration += 1
+        responseReceived = false
+        suspended = false
+        var request = URLRequest(url: url)
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range")
+        let newTask = session.dataTask(with: request)
+        newTask.taskDescription = String(taskGeneration)
+        task = newTask
+        requestStartedAt = Date()
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { newTask.resume() }
     }
 }
