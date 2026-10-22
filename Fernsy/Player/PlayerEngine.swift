@@ -381,6 +381,11 @@ final class PlayerEngine: ObservableObject {
         setPaused(!isPaused)
     }
 
+    /// For Picture in Picture: live streams show as live, and the time range is expressed on
+    /// the display layer's clock (the synchronizer's).
+    var isLiveStream: Bool { currentIsLive }
+    var clockTime: Double { synchronizer.currentTime().seconds }
+
     func setPaused(_ paused: Bool) {
         guard status != .idle else { return }
         if status == .ended && !paused {

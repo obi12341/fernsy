@@ -109,6 +109,13 @@ second). Live playback never jumps
 on its own: the backlog a provider sends on connect is played (still "LIVE"), and when playback
 later falls clearly further behind, it leaves the live state instead of skipping ahead.
 
+Picture in Picture (button in the controls, key P) uses the system's PiP with the player's
+display layer; subtitles are not shown in the PiP window. macOS mirrors a sample-buffer PiP
+source unscaled (FB22411168), so while PiP runs the layer lives in an invisible window that
+follows the PiP window's size (`Fernsy/Player/PictureInPicture.swift`).
+`IPTV_TESTPIP=<s>[:back:<s>]` starts PiP and optionally returns to the player; closing has to be
+tested with the PiP window's close button (ending PiP from code always counts as "back").
+
 ## License
 
 Copyright © 2026 mobilistics GmbH

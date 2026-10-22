@@ -13,6 +13,9 @@ struct PlayerScreen: View {
     /// mouse, so no hover or move events count as activity).
     @State private var activeDrags = 0
     @State private var showInfo = false
+    @State private var pip: PictureInPicture?
+    @State private var pipPossible = false
+    @State private var pipStage = PictureInPictureStage()
     @State private var epg: [EPGEntry] = []
     @State private var loadedItem: PlayItem?
     @EnvironmentObject private var jellyfin: JellyfinStore
@@ -86,7 +89,8 @@ struct PlayerScreen: View {
                                onActivity: showControls,
                                isRecording: liveChannelID.map { recorder.active(on: $0) != nil },
                                onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) },
-                               onDragging: { dragging in activeDrags = max(0, activeDrags + (dragging ? 1 : -1)) })
+                               onDragging: { dragging in activeDrags = max(0, activeDrags + (dragging ? 1 : -1)) },
+                               pipPossible: pipPossible, onPictureInPicture: { pip?.toggle() })
                     .transition(.opacity)
             }
 
@@ -102,6 +106,7 @@ struct PlayerScreen: View {
         .frame(minWidth: 480, minHeight: 270)
         .navigationTitle(app.nowPlaying?.title ?? "Wiedergabe")
         .onAppear {
+            setUpPictureInPicture()
             load(app.nowPlaying)
             showControls()
             #if DEBUG
@@ -135,6 +140,21 @@ struct PlayerScreen: View {
             if let target = ProcessInfo.processInfo.environment["IPTV_TESTSEEK"].flatMap(Double.init) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 12) { engine.seek(to: target) }
             }
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTPIP"]?.split(separator: ":"), let start = Double(spec[0]) {
+                // IPTV_TESTPIP=<s>[:back:<s>]: start Picture in Picture, optionally return to the
+                // player. Closing needs the PiP window's close button: ending PiP from code always
+                // counts as "back".
+                DispatchQueue.main.asyncAfter(deadline: .now() + start) {
+                    debugLog("[test] pip start, possible: \(pipPossible)")
+                    pip?.toggle()
+                }
+                if spec.count == 3, spec[1] == "back", let after = Double(spec[2]) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + start + after) {
+                        debugLog("[test] pip back")
+                        pip?.restore()
+                    }
+                }
+            }
             if let id = ProcessInfo.processInfo.environment["IPTV_TESTSUB"].flatMap(Int32.init) {
                 // IPTV_TESTSUB=<track id>: choose that subtitle track after 6 s.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
@@ -162,6 +182,7 @@ struct PlayerScreen: View {
             #endif
         }
         .onChange(of: app.nowPlaying) { _, item in load(item) }
+        .onReceive(pip?.$isPossible.eraseToAnyPublisher() ?? Just(false).eraseToAnyPublisher()) { pipPossible = $0 }
         .onDisappear {
             zapTask?.cancel()
             zapTarget = nil
@@ -355,6 +376,41 @@ struct PlayerScreen: View {
         NSApp.windows.first { $0.contentView?.firstDescendant(of: VideoSurfaceView.self) != nil }
     }
 
+    // MARK: Picture in Picture
+
+    /// The PiP window takes over the display layer; the player window hides meanwhile (not
+    /// closed – that would stop playback) and comes back on "back". Closing PiP ends playback the
+    /// same way as closing the player window.
+    private func setUpPictureInPicture() {
+        guard pip == nil else { return }
+        let controller = PictureInPicture(engine: engine)
+        // The view sizes the layer to the exact display aspect (non-square pixels); PiP sizes it
+        // to its own window, so the layer keeps the aspect itself meanwhile.
+        controller.onWillStart = {
+            engine.displayLayer.videoGravity = .resizeAspect
+            if let surface = playerWindow?.contentView?.firstDescendant(of: VideoSurfaceView.self) { pipStage.prepare(surface: surface) }
+        }
+        controller.onStarted = {
+            pipStage.begin()
+            playerWindow?.orderOut(nil)
+        }
+        controller.onRestore = {
+            pipStage.end()
+            engine.displayLayer.videoGravity = .resize
+            playerWindow?.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+            showControls()
+        }
+        controller.onClosed = {
+            pipStage.end()
+            engine.displayLayer.videoGravity = .resize
+            guard let window = playerWindow else { return }
+            window.orderFront(nil)
+            window.performClose(nil)
+        }
+        pip = controller
+    }
+
     private func toggleFullScreen() {
         guard let window = playerWindow else { return }
         // SwiftUI treats single-instance `Window` scenes as auxiliary and keeps resetting the
@@ -429,6 +485,7 @@ struct PlayerScreen: View {
         default:
             switch event.charactersIgnoringModifiers?.lowercased() {
             case "f": toggleFullScreen()
+            case "p": pip?.toggle()
             case "i": showInfo.toggle()
             case "r" where live: toggleRecording()
             case "m": engine.isMuted.toggle()
@@ -510,6 +567,8 @@ struct PlayerControls: View {
     var onPickSubtitle: (MediaTrack?) -> Void = { _ in }
     /// A slider drag starts (true) or ends (false); reported before the activity.
     var onDragging: (Bool) -> Void = { _ in }
+    var pipPossible = false
+    var onPictureInPicture: () -> Void = {}
 
     @State private var scrubbing = false
     @State private var scrubValue: Double = 0
@@ -733,6 +792,9 @@ struct PlayerControls: View {
                     }
                 }
 
+                if pipPossible {
+                    iconButton("pip.enter", help: "Bild in Bild (P)") { onPictureInPicture() }
+                }
                 iconButton(showInfo ? "info.circle.fill" : "info.circle", help: "Technische Infos (I)") { showInfo.toggle() }
 
                 HStack(spacing: 6) {

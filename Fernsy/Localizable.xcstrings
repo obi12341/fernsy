@@ -960,6 +960,16 @@
         }
       }
     },
+    "Bild in Bild (P)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picture in Picture (P)"
+          }
+        }
+      }
+    },
     "Bildrate": {
       "localizations": {
         "en": {
