@@ -96,7 +96,14 @@ final class VideoSurfaceView: NSView {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         onMouseActivity?()
-        if event.clickCount == 2 { onDoubleClick?() }
+        if event.clickCount == 2 {
+            onDoubleClick?()
+        } else {
+            // Dragging the picture moves the window (AppKit moves it only if the pointer moves;
+            // a plain click returns at mouse-up). Not `mouseDownCanMoveWindow`: AppKit would then
+            // take the press itself, and the double-click would no longer reach this view.
+            window?.performDrag(with: event)
+        }
     }
 
     override func keyDown(with event: NSEvent) {

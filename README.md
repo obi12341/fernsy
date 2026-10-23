@@ -126,6 +126,9 @@ background when a source changes; about 20 ms per query for 50,000 entries). Onl
 mode keeps it as a filter of the channel list. `IPTV_TESTSEARCH=<query>[|<query>…]` types
 queries once the catalog is loaded, one every 4 s.
 
+The player window moves when the picture is dragged (`VideoSurfaceView.mouseDown` hands single
+clicks to `performDrag`); a click still shows the controls, a double-click toggles full screen.
+
 ## License
 
 Copyright © 2026 mobilistics GmbH
