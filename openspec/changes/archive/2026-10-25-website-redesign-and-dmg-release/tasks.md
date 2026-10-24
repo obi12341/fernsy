@@ -43,7 +43,7 @@
   - cleanup in `always()`.
 - [x] 3.3 Validate the workflow locally with `actionlint`, if it is installed; otherwise check the YAML syntax with Python. Make sure no step prints a secret: no `set -x` around the secrets, and file permissions are set to 600.
 - [x] 3.4 README section "Release": create the Developer ID certificate and the App Store Connect API key, set the five repository secrets, and push a tag. Include the warning not to tag before 1.0 is approved.
-- [ ] 3.5 Manual steps by the user, outside my reach:
+- [x] 3.5 Manual steps by the user, outside my reach: Confirmed 25 Oct 2026: the user installed the notarized nightly DMG (Gatekeeper accepted it, sign-in, keychain and recordings work) and updated it through Sparkle.
   - create the certificate and the key;
   - set the secrets;
   - start the workflow manually (`workflow_dispatch`);
