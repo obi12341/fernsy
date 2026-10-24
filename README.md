@@ -38,7 +38,7 @@ images (`en-*.webp`) come from copies of the mockups with translated texts.
 
 ### Notarized DMG via GitHub Actions
 
-`.github/workflows/release.yml` builds the DMG on a GitHub-hosted macOS runner with Xcode 27.
+`.github/workflows/release.yml` builds the DMG on the GitHub-hosted `xcode-27` runner (macOS 27, public preview) with Xcode 27.1.
 The steps are:
 1. build LGPL FFmpeg, cached;
 2. sign with Developer ID and the hardened runtime;
