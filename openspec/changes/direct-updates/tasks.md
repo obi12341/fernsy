@@ -32,7 +32,7 @@
 - [x] 4.1 README: create the key (`generate_keys`), set the secret, enter the public key. The user creates the key and sets the secret; I enter the public key.
 - [ ] 4.2 Debug build of "Fernsy Direct" against a local test feed (`IPTV_UPDATEFEED` pointing to a feed with a higher build number, served with `python3 -m http.server`). The update window appears with notes. Only when the user is not using Fernsy (demo server, `FERNSY_NO_KEYCHAIN`).
 - [ ] 4.3 `IPTV_TESTUPDATEHOLD` with a running test recording (`IPTV_TESTRECORD`, demo server): the log shows the installation postponed, then released after the recording.
-- [ ] 4.4 CI: a nightly with appcast. `appcast.xml` is on the pre-release, contains build number, signature and DMG URL, and the DMG passes `spctl`. Run `appstore-test`: the App Store package contains no Sparkle.
+- [x] 4.4 CI: a nightly with appcast. `appcast.xml` is on the pre-release, contains build number, signature and DMG URL, and the DMG passes `spctl`. Run `appstore-test`: the App Store package contains no Sparkle.
 - [ ] 4.5 Manual (the user): install the newest nightly over an older nightly with "Nightly-Builds erhalten" on. The update is offered, installs and relaunches. Keep this task open until the user confirms.
 - [x] 4.6 `openspec validate direct-updates --strict` and `openspec validate --specs --strict`.
 
