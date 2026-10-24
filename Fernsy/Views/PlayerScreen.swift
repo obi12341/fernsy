@@ -884,7 +884,7 @@ struct ChannelOSD: View {
             .frame(width: 72, height: 44)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(channel.name).font(.title3.weight(.semibold)).lineLimit(1)
+                    Text(verbatim: channel.displayName).font(.title3.weight(.semibold)).lineLimit(1)
                     if isPending {
                         ProgressView().controlSize(.small).tint(.white).opacity(0.7)
                     }

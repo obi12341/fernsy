@@ -212,7 +212,7 @@ final class Recorder: ObservableObject {
     @discardableResult
     func schedule(_ entry: EPGEntry, on channel: LiveChannel, padding: (before: TimeInterval, after: TimeInterval)? = nil) -> String? {
         if let existing = recording(channelId: channel.id, entry: entry), existing.isUpcomingOrRunning { return nil }
-        let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.name, title: entry.title,
+        let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel, title: entry.title,
                                   description: entry.description, start: entry.start, end: entry.end,
                                   padBefore: padding?.before ?? padBefore, padAfter: padding?.after ?? padAfter,
                                   followsPaddingSettings: padding == nil, status: .scheduled)
@@ -229,7 +229,7 @@ final class Recorder: ObservableObject {
             schedule(entry, on: channel)
         } else {
             let now = Date()
-            let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.name,
+            let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel,
                                       title: String(localized: "Aufnahme \(now.formatted(date: .abbreviated, time: .shortened))"),
                                       description: "", start: now, end: now.addingTimeInterval(2 * 3600),
                                       padBefore: 0, padAfter: 0, followsPaddingSettings: false, status: .scheduled)

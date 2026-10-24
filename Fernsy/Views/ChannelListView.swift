@@ -8,7 +8,13 @@ extension AppModel {
     /// `includeHidden`: also the channels the user has hidden (Edit mode).
     func filteredChannels(categoryID: String, query: String, includeHidden: Bool = false) -> [LiveChannel] {
         let hidden = hiddenCategoryIDs(liveCategories)
-        var list = categoryID == allCategoryID ? channels : (channelsByCategory[categoryID] ?? [])
+        var list: [LiveChannel]
+        switch categoryID {
+        case allCategoryID: list = channels
+        case favoriteChannelsID: list = channels.filter { isFavorite("live:\($0.id)") }
+        case recentChannelsID: list = recentChannels.compactMap(channel)
+        default: list = channelsByCategory[categoryID] ?? []
+        }
         if !showAdult { list = list.filter { !$0.isAdult && !hidden.contains($0.categoryId ?? "") } }
         if !includeHidden { list = list.filter { !isHidden($0) } }
         let needle = makeSearchKey(query)
@@ -26,6 +32,8 @@ struct ChannelListView: View {
     var editing = false
 
     @State private var selection: Int?
+    /// The channel whose "Senderinfo" sheet is open.
+    @State private var infoChannel: LiveChannel?
 
     var body: some View {
         let channels = app.filteredChannels(categoryID: categoryID, query: query, includeHidden: editing)
@@ -42,6 +50,9 @@ struct ChannelListView: View {
                     app.toggleFavorite("live:\(id)")
                 }
                 ChannelVisibilityButton(channel: channel)
+                Divider()
+                Button("Senderinfo …") { infoChannel = channel }
+                    .keyboardShortcut("i", modifiers: .command)
             }
         } primaryAction: { ids in
             if let id = ids.first, let channel = app.channel(id) { app.play(channel) }
@@ -56,6 +67,15 @@ struct ChannelListView: View {
                 ContentUnavailableView.search(text: query)
             }
         }
+        .background {
+            // ⌘I for the selected channel (the context menu only shows the shortcut).
+            Button("Senderinfo …") { infoChannel = selection.flatMap(app.channel) }
+                .keyboardShortcut("i", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
+        .sheet(item: $infoChannel) { ChannelInfoView(channel: $0) }
         .onChange(of: app.visibility) { _, _ in dropHiddenSelection() }
         .onChange(of: editing) { _, _ in dropHiddenSelection() }
         .navigationTitle("Live TV")
@@ -64,6 +84,11 @@ struct ChannelListView: View {
         .task {
             // Screenshot runs: IPTV_SELECT=<channel id> shows that channel's programme panel.
             if let id = ProcessInfo.processInfo.environment["IPTV_SELECT"].flatMap(Int.init) { selection = id }
+            // IPTV_TESTINFO=<channel id> opens that channel's "Senderinfo".
+            if let id = ProcessInfo.processInfo.environment["IPTV_TESTINFO"].flatMap(Int.init) {
+                while app.channel(id) == nil { try? await Task.sleep(for: .milliseconds(200)) }
+                infoChannel = app.channel(id)
+            }
         }
         #endif
     }
@@ -89,12 +114,10 @@ struct ChannelRow: View {
     var body: some View {
         let hidden = editing && app.isHidden(channel)
         HStack(spacing: 12) {
-            LogoTile(url: channel.icon, name: channel.name, width: 52)
+            LogoTile(url: channel.icon, name: channel.displayName, width: 52)
                 .opacity(hidden ? 0.4 : 1)
 
-            Text(channel.name)
-                .lineLimit(1)
-                .fontWeight(isPlaying ? .semibold : .regular)
+            TaggedName(name: channel.parsed, weight: isPlaying ? .semibold : .regular)
                 .opacity(hidden ? 0.4 : 1)
 
             Spacer()
@@ -174,7 +197,7 @@ struct EPGPanel: View {
         let loaded = guide.entries != nil
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(channel.name).font(.headline).lineLimit(1)
+                Text(verbatim: channel.displayName).font(.headline).lineLimit(1)
                 Spacer()
                 if let now = entries.first(where: { $0.start <= Date() && $0.end > Date() }) {
                     RecordButton(channel: channel, entry: now)
@@ -222,6 +245,46 @@ struct EPGLine: View {
                     Text(entry.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
+        }
+    }
+}
+
+/// "Senderinfo": the channel as the provider delivers it, behind the cleaned name.
+struct ChannelInfoView: View {
+    @EnvironmentObject private var app: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let channel: LiveChannel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                LogoTile(url: channel.icon, name: channel.displayName, width: 64)
+                TaggedName(name: channel.parsed, font: .title3, weight: .semibold)
+            }
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                row("Name beim Anbieter", channel.name)
+                row("Nummer", "\(channel.id)")
+                row("Kategorie beim Anbieter", app.liveCategories.first { $0.id == channel.categoryId }?.name ?? "–")
+                row("EPG-ID", channel.epgId ?? "–")
+                row("Archiv", channel.hasArchive ? String(localized: "verfügbar") : String(localized: "nicht verfügbar"))
+            }
+            HStack {
+                Button("Namen kopieren") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(channel.name, forType: .string)
+                }
+                Spacer()
+                Button("Fertig") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
+    }
+
+    private func row(_ label: LocalizedStringKey, _ value: String) -> some View {
+        GridRow {
+            Text(label).foregroundStyle(.secondary)
+            Text(verbatim: value).textSelection(.enabled).lineLimit(2)
         }
     }
 }

@@ -2,6 +2,9 @@ import SwiftUI
 
 /// Pseudo category id for "everything in this section".
 let allCategoryID = "__all"
+/// Live TV's pinned entries after "All".
+let favoriteChannelsID = "__favorites"
+let recentChannelsID = "__recent"
 
 enum LiveMode: String {
     case list, guide
@@ -218,7 +221,7 @@ struct LibraryView: View {
         } else {
             switch section {
             case .live:
-                switch liveMode {
+                switch effectiveLiveMode {
                 case .list: ChannelListView(categoryID: category, query: editingLive ? query : "", editing: editingLive)
                 case .guide: GuideView(categoryID: category)
                 }
@@ -238,6 +241,14 @@ struct LibraryView: View {
                 JellyfinGridView(kind: .series, categoryID: category)
             }
         }
+    }
+
+    /// IPTV_LIVEMODE=list|guide (DEBUG): one run in that view without changing the stored choice.
+    private var effectiveLiveMode: LiveMode {
+        #if DEBUG
+        if let mode = ProcessInfo.processInfo.environment["IPTV_LIVEMODE"].flatMap(LiveMode.init) { return mode }
+        #endif
+        return liveMode
     }
 
     private var availableSections: [LibrarySection] {
@@ -297,9 +308,9 @@ struct CategoryColumn: View {
         let rows = categories
         List(selection: $selection) {
             ForEach(rows, id: \.category.id) { row in
-                let hideable = section == .live && row.category.id != allCategoryID
+                let hideable = section == .live && !row.pinned
                 HStack {
-                    Text(row.category.name).lineLimit(1)
+                    TaggedName(name: row.category.parsed)
                         .opacity(row.hidden ? 0.4 : 1)
                     Spacer()
                     if let count = row.count {
@@ -337,6 +348,8 @@ struct CategoryColumn: View {
         let category: XCategory
         let count: Int?
         var hidden = false
+        /// "All" and Live TV's pinned entries: cannot be hidden.
+        var pinned = false
     }
 
     private var selectionHidden: Bool {
@@ -391,7 +404,14 @@ struct CategoryColumn: View {
         }
         let needle = makeSearchKey(filter)
         let filtered = needle.isEmpty ? source : source.filter { makeSearchKey($0.name).contains(needle) }
-        let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle")), count: total)
-        return [all] + filtered.map { Row(category: $0, count: counts($0.id), hidden: section == .live && app.isCategoryHidden($0.id)) }
+        let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle")), count: total, pinned: true)
+        var pinned = [all]
+        if section == .live && !editing {
+            pinned.append(Row(category: XCategory(id: favoriteChannelsID, name: String(localized: "Favoriten")),
+                              count: app.filteredChannels(categoryID: favoriteChannelsID, query: "").count, pinned: true))
+            pinned.append(Row(category: XCategory(id: recentChannelsID, name: String(localized: "Zuletzt gesehen")),
+                              count: app.filteredChannels(categoryID: recentChannelsID, query: "").count, pinned: true))
+        }
+        return pinned + filtered.map { Row(category: $0, count: counts($0.id), hidden: section == .live && app.isCategoryHidden($0.id)) }
     }
 }

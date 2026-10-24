@@ -76,18 +76,23 @@ struct AccountInfo: Decodable {
 struct XCategory: Identifiable, Hashable, Decodable {
     let id: String
     let name: String
+    /// `name` without provider decoration, with its country and quality tags.
+    let parsed: ChannelName
+    var displayName: String { parsed.name }
 
     private enum Keys: String, CodingKey { case category_id, category_name }
 
     init(id: String, name: String) {
         self.id = id
         self.name = name
+        parsed = ChannelName(raw: name, name: name, country: nil, quality: nil)
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexString(.category_id) ?? ""
         name = c.flexString(.category_name) ?? String(localized: "Unbenannt")
+        parsed = ChannelName.parse(name)
     }
 }
 
@@ -100,6 +105,12 @@ struct LiveChannel: Identifiable, Hashable, Decodable {
     let isAdult: Bool
     let hasArchive: Bool
     let searchKey: String
+    /// `name` without provider decoration, with its country and quality tags. The search key
+    /// stays built from the delivered name.
+    let parsed: ChannelName
+    var displayName: String { parsed.name }
+    /// Name with the country, for recordings and their file names: "Das Erste (DE)".
+    var recordingLabel: String { parsed.country.map { "\(parsed.name) (\($0))" } ?? parsed.name }
 
     private enum Keys: String, CodingKey { case stream_id, name, stream_icon, epg_channel_id, category_id, is_adult, tv_archive }
 
@@ -113,6 +124,7 @@ struct LiveChannel: Identifiable, Hashable, Decodable {
         isAdult = c.flexInt(.is_adult) == 1
         hasArchive = c.flexInt(.tv_archive) == 1
         searchKey = makeSearchKey(name)
+        parsed = ChannelName.parse(name)
     }
 
     static func == (a: Self, b: Self) -> Bool { a.id == b.id }

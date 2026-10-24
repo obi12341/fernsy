@@ -109,6 +109,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastUpdated: Date?
 
     @Published private(set) var favorites: Set<String>
+    /// Live channels played last, newest first (Live TV › "Zuletzt gesehen").
+    @Published private(set) var recentChannels: [Int]
+    static let recentLimit = 20
     /// Hidden live categories and channels of the signed-in account.
     @Published private(set) var visibility = ChannelVisibility() {
         didSet { updateVisibleCounts() }
@@ -119,6 +122,7 @@ final class AppModel: ObservableObject {
 
     @Published var nowPlaying: PlayItem? {
         didSet {
+            if case .live(let id, _)? = nowPlaying?.kind, nowPlaying != oldValue { noteRecent(id) }
             if let item = nowPlaying, item != oldValue {
                 AppLog.info(.player, "play \(item.logDescription): \(item.title)\(item.subtitle.map { " – \($0)" } ?? "")")
             } else if nowPlaying == nil, oldValue != nil {
@@ -160,6 +164,7 @@ final class AppModel: ObservableObject {
 
     init() {
         favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
+        recentChannels = Self.skipKeychain ? [] : (UserDefaults.standard.array(forKey: "live.recent") as? [Int] ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
@@ -291,6 +296,7 @@ final class AppModel: ObservableObject {
         if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
         if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
+        if env["IPTV_NAMETEST"] == "1" { ChannelName.selfTest() }
         if let appearance = env["IPTV_APPEARANCE"] {
             // IPTV_APPEARANCE=light|dark: one run in that appearance, without touching the system setting.
             NSApp.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
@@ -618,6 +624,14 @@ final class AppModel: ObservableObject {
 
     func isFavorite(_ key: String) -> Bool { favorites.contains(key) }
 
+    private func noteRecent(_ channelId: Int) {
+        var list = recentChannels.filter { $0 != channelId }
+        list.insert(channelId, at: 0)
+        recentChannels = Array(list.prefix(Self.recentLimit))
+        // Test runs (no keychain) keep it in memory: they share the installed app's defaults.
+        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: "live.recent") }
+    }
+
     func toggleFavorite(_ key: String) {
         if favorites.contains(key) { favorites.remove(key) } else { favorites.insert(key) }
         #if DEBUG
@@ -652,7 +666,7 @@ final class AppModel: ObservableObject {
     func play(_ channel: LiveChannel, force: Bool = false) {
         guard let url = client?.liveURL(channel.id) else { return }
         let item = PlayItem(kind: .live(channelId: channel.id, categoryId: channel.categoryId),
-                            title: channel.name, subtitle: nil, url: url)
+                            title: channel.displayName, subtitle: nil, url: url)
         let blocking = recordingsBlocking(channel.id)
         guard !force, let first = blocking.first else {
             nowPlaying = item
@@ -661,7 +675,7 @@ final class AppModel: ObservableObject {
         Task {
             let accepted = await Prompt.ask(
                 title: String(localized: "Aufnahme läuft"),
-                message: String(localized: "Gerade wird „\(first.title)“ auf \(first.channelName) aufgenommen. Dein Zugang erlaubt nur \(tuners.limit) Stream(s) gleichzeitig. Aufnahme beenden und auf \(channel.name) umschalten?"),
+                message: String(localized: "Gerade wird „\(first.title)“ auf \(first.channelName) aufgenommen. Dein Zugang erlaubt nur \(tuners.limit) Stream(s) gleichzeitig. Aufnahme beenden und auf \(channel.displayName) umschalten?"),
                 confirm: String(localized: "Aufnahme beenden und umschalten"), cancel: String(localized: "Abbrechen"))
             guard accepted else { return }
             for recording in blocking { recorder.stop(recording.id) }

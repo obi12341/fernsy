@@ -109,6 +109,10 @@ Shared design building blocks live in `Fernsy/Views/Design/` (colour tokens, `Lo
 `IPTV_APPEARANCE=light|dark` runs in that appearance without changing the system,
 `IPTV_LOGOTONETEST=1` checks the logo tile's tone detection and initials,
 `IPTV_TESTNOPOSTER=1` shows every poster card's placeholder.
+Channel and category names are cleaned by `Fernsy/Xtream/ChannelName.swift` (country and
+quality tags, decoration removed; the delivered name stays in "Senderinfo" and in the search
+key). `IPTV_NAMETEST=1` runs its examples, `IPTV_TESTINFO=<channel id>` opens a channel's
+info, `IPTV_LIVEMODE=list|guide` picks the Live TV view for one run.
 
 Live TV runs through a tuner (`Fernsy/Player/LiveTuner.swift`): a headless session receives
 the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-disk

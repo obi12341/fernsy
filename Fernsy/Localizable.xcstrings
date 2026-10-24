@@ -654,6 +654,16 @@
         }
       }
     },
+    "Archiv": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive"
+          }
+        }
+      }
+    },
     "Archiv verfügbar": {
       "localizations": {
         "en": {
@@ -1291,6 +1301,16 @@
         }
       }
     },
+    "EPG-ID": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EPG ID"
+          }
+        }
+      }
+    },
     "Einblenden": {
       "localizations": {
         "en": {
@@ -1851,6 +1871,16 @@
         }
       }
     },
+    "Kategorie beim Anbieter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category at the provider"
+          }
+        }
+      }
+    },
     "Kategorien filtern": {
       "localizations": {
         "en": {
@@ -2181,6 +2211,26 @@
         }
       }
     },
+    "Name beim Anbieter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name at the provider"
+          }
+        }
+      }
+    },
+    "Namen kopieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Name"
+          }
+        }
+      }
+    },
     "Netz": {
       "localizations": {
         "en": {
@@ -2303,6 +2353,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing to Watch Yet"
+          }
+        }
+      }
+    },
+    "Nummer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Number"
           }
         }
       }
@@ -2669,6 +2729,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search Channels"
+          }
+        }
+      }
+    },
+    "Senderinfo …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel Info…"
           }
         }
       }
@@ -3444,6 +3514,16 @@
         }
       }
     },
+    "Zuletzt gesehen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently Watched"
+          }
+        }
+      }
+    },
     "Zuletzt hinzugefügt": {
       "localizations": {
         "en": {
@@ -3606,12 +3686,32 @@
         }
       }
     },
+    "nicht verfügbar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "not available"
+          }
+        }
+      }
+    },
     "verbindet …": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "connecting…"
+          }
+        }
+      }
+    },
+    "verfügbar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "available"
           }
         }
       }

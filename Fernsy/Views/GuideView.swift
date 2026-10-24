@@ -219,6 +219,7 @@ private struct NowMarker: View {
 // MARK: - Row
 
 private struct GuideRow: View {
+    @State private var showsInfo = false
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var recorder: Recorder
     let channel: LiveChannel
@@ -276,11 +277,19 @@ private struct GuideRow: View {
 
     private var channelCell: some View {
         HStack(spacing: 8) {
-            LogoTile(url: channel.icon, name: channel.name, width: 44)
-            Text(channel.name)
-                .font(.callout)
-                .fontWeight(isPlaying ? .semibold : .regular)
-                .lineLimit(2)
+            LogoTile(url: channel.icon, name: channel.displayName, width: 44)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(verbatim: channel.displayName)
+                    .font(.callout)
+                    .fontWeight(isPlaying ? .semibold : .regular)
+                    .lineLimit(1)
+                if channel.parsed.country != nil || channel.parsed.quality != nil {
+                    HStack(spacing: 4) {
+                        if let country = channel.parsed.country { NameTag(text: country) }
+                        if let quality = channel.parsed.quality { NameTag(text: quality, prominent: false) }
+                    }
+                }
+            }
             Spacer(minLength: 0)
             if isPlaying {
                 Image(systemName: "speaker.wave.2.fill").foregroundStyle(.tint).font(.caption)
@@ -295,7 +304,10 @@ private struct GuideRow: View {
         .contextMenu {
             Button("Abspielen") { app.play(channel) }
             ChannelVisibilityButton(channel: channel)
+            Divider()
+            Button("Senderinfo …") { showsInfo = true }
         }
+        .sheet(isPresented: $showsInfo) { ChannelInfoView(channel: channel) }
     }
 
     /// Full-width bar while loading or without data; the text stays in view.
@@ -381,7 +393,7 @@ private struct GuideDetail: View {
         let running = entry.start <= Date() && entry.end > Date()
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text(channel.name).font(.headline).lineLimit(1)
+                Text(verbatim: channel.displayName).font(.headline).lineLimit(1)
                 Text(timeText).foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
                 RecordButton(channel: channel, entry: entry)
