@@ -70,6 +70,17 @@ struct PlayItem: Equatable {
         case .jellyfin: return nil // resume positions live on the server
         }
     }
+
+    /// What is played, for the log (no URL: it carries the account's credentials).
+    var logDescription: String {
+        switch kind {
+        case .live(let id, _): return "channel \(id)"
+        case .movie(let id): return "film \(id)"
+        case .episode(let id, _): return "episode \(id)"
+        case .recording: return "recording"
+        case .jellyfin(let id, let startAt, _): return "Jellyfin item \(id)\(startAt > 0 ? " at \(Int(startAt)) s" : "")"
+        }
+    }
 }
 
 @MainActor
@@ -107,7 +118,14 @@ final class AppModel: ObservableObject {
     }
 
     @Published var nowPlaying: PlayItem? {
-        didSet { updatePlayerTuner() }
+        didSet {
+            if let item = nowPlaying, item != oldValue {
+                AppLog.info(.player, "play \(item.logDescription): \(item.title)\(item.subtitle.map { " – \($0)" } ?? "")")
+            } else if nowPlaying == nil, oldValue != nil {
+                AppLog.info(.player, "player closed")
+            }
+            updatePlayerTuner()
+        }
     }
     /// The player runs in Picture in Picture with its window hidden: new items play there and
     /// must not bring the player window back.
@@ -138,12 +156,19 @@ final class AppModel: ObservableObject {
     private(set) var visibleChannelCounts: [String: Int] = [:]
     private(set) var visibleChannelTotal = 0
 
+    private var logSecrets: Set<AnyCancellable> = []
+
     init() {
         favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
         jellyfin.$session.map { $0 != nil }.removeDuplicates().assign(to: &$hasJellyfin)
+        // Passwords and tokens never reach the log.
+        $credentials.map { $0?.password }.removeDuplicates()
+            .sink { AppLog.shared.setSecret("xtream", $0) }.store(in: &logSecrets)
+        jellyfin.$session.map { $0?.token }.removeDuplicates()
+            .sink { AppLog.shared.setSecret("jellyfin", $0) }.store(in: &logSecrets)
         AppDelegate.app = self
         applyTimeshiftSetting()
         updateConnectionLimit()
@@ -244,7 +269,7 @@ final class AppModel: ObservableObject {
                     case "category": setCategory(parts[1], hidden: hidden)
                     default: continue
                     }
-                    debugLog("[visibility] test \(item): \(visibleChannelTotal) of \(channels.count) channels visible")
+                    debugLog("[test] test \(item): \(visibleChannelTotal) of \(channels.count) channels visible")
                 }
             }
         }
@@ -264,13 +289,14 @@ final class AppModel: ObservableObject {
             }
         }
         if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
+        if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
         if let spec = env["JF_AUTOPLAY"] {
             // JF_AUTOPLAY=<item id>[:<start s>]: play a Jellyfin film or episode once signed in.
             let parts = spec.split(separator: ":").map(String.init)
             Task {
                 while jellyfin.films.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
                 await jellyfin.loadDetail(parts[0])
-                guard var item = jellyfin.details[parts[0]] else { debugLog("[jellyfin] autoplay: unknown item"); return }
+                guard var item = jellyfin.details[parts[0]] else { debugLog("[test] autoplay: unknown item"); return }
                 if parts.count > 1, let start = Double(parts[1]) {
                     item.userData = (item.userData ?? JFUserData())
                     item.userData?.playbackPositionTicks = Int64(start * 10_000_000)
@@ -319,7 +345,14 @@ final class AppModel: ObservableObject {
     }
 
     func login(_ creds: XtreamCredentials) async throws {
-        let info = try await XtreamClient(credentials: creds).account()
+        let info: AccountInfo
+        do {
+            info = try await XtreamClient(credentials: creds).account()
+        } catch {
+            AppLog.error(.app, "IPTV sign-in at \(creds.baseURL?.host() ?? creds.server) failed: \(error.localizedDescription)")
+            throw error
+        }
+        AppLog.info(.app, "signed in to IPTV account at \(creds.baseURL?.host() ?? creds.server)")
         if !Self.skipKeychain { CredentialStore.save(creds) }
         epg.removeAll()
         credentials = creds
@@ -328,6 +361,7 @@ final class AppModel: ObservableObject {
     }
 
     func logout() {
+        AppLog.info(.app, "signed out of the IPTV account")
         nowPlaying = nil
         tuners.stopAll()
         periodicRefresh?.cancel()
@@ -406,9 +440,7 @@ final class AppModel: ObservableObject {
 
         let started = Date()
         if let live = await Self.decode(.live, from: dir) { apply(live) }
-        #if DEBUG
-        debugLog("[catalog] live from cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(channels.count) channels)")
-        #endif
+        AppLog.detail(.catalog, "live from cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(channels.count) channels)")
 
         await withTaskGroup(of: DecodedSection?.self) { group in
             group.addTask { await Self.decode(.movies, from: dir) }
@@ -417,9 +449,7 @@ final class AppModel: ObservableObject {
                 if let section { apply(section) }
             }
         }
-        #if DEBUG
-        debugLog("[catalog] full cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(movies.count) movies, \(series.count) series)")
-        #endif
+        AppLog.detail(.catalog, "full cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(movies.count) movies, \(series.count) series)")
     }
 
     private func refresh(client: XtreamClient, dir: URL) async {
@@ -455,17 +485,13 @@ final class AppModel: ObservableObject {
             for section in CatalogSection.allCases where !changed.isDisjoint(with: section.actions) || isEmpty(section) {
                 if let decoded = await Self.decode(section, from: dir) { apply(decoded) }
             }
-            #if DEBUG
-            debugLog("[catalog] refresh in \(Int(Date().timeIntervalSince(started) * 1000)) ms, changed: \(changed.map(\.rawValue).sorted())")
-            #endif
+            AppLog.info(.catalog, "refresh in \(Int(Date().timeIntervalSince(started) * 1000)) ms, changed: \(changed.map(\.rawValue).sorted())")
         } catch {
             // A failed background refresh is silent as long as cached data is shown.
             if channels.isEmpty && movies.isEmpty && series.isEmpty {
                 loadError = error.localizedDescription
             }
-            #if DEBUG
-            debugLog("[catalog] refresh failed: \(error.localizedDescription)")
-            #endif
+            AppLog.error(.catalog, "refresh failed: \(error.localizedDescription)")
         }
     }
 
@@ -573,9 +599,7 @@ final class AppModel: ObservableObject {
     /// The signed-in account's choice; signed out, nothing is hidden (the file stays).
     private func loadVisibility() {
         visibility = cacheDirectory.map(ChannelVisibility.load) ?? ChannelVisibility()
-        #if DEBUG
-        debugLog("[visibility] \(credentials?.accountKey ?? "-"): \(visibility.hiddenCategories.count) categories, \(visibility.hiddenChannels.count) channels hidden")
-        #endif
+        AppLog.detail(.app, "\(credentials?.accountKey ?? "-"): \(visibility.hiddenCategories.count) categories, \(visibility.hiddenChannels.count) channels hidden")
     }
 
     private func updateVisibleCounts() {
@@ -665,9 +689,7 @@ final class AppModel: ObservableObject {
         while order.count > 200 { all[order.removeFirst()] = nil }
         UserDefaults.standard.set(all, forKey: Self.seriesTracksStore)
         UserDefaults.standard.set(order, forKey: Self.seriesTracksStore + ".order")
-        #if DEBUG
-        debugLog("[tracks] remembered for \(key): audio \(preferences.audioLanguage ?? "system"), subtitles \(preferences.subtitles.stored)")
-        #endif
+        AppLog.detail(.player, "remembered for \(key): audio \(preferences.audioLanguage ?? "system"), subtitles \(preferences.subtitles.stored)")
     }
 
     private var seriesTracks: [String: Data] {

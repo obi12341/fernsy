@@ -93,6 +93,17 @@ Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environmen
 skip the keychain. Further debug-only switches (`IPTV_AUTOPLAY`, `IPTV_SCENE`, `IPTV_WINDOW`,
 `IPTV_TESTNET`, …) are documented where they are read.
 
+Every build writes an event log (`Fernsy/App/AppLog.swift`): levels error, warning, info and
+detail, one category per area. It is kept in memory and in `current.log` and `previous.log`
+(this launch and the previous one, 4 MB each at most) under
+`~/Library/Containers/de.mobilistics.fernsy/Data/Library/Caches/Fernsy/logs/`. Window › Log
+(⌥⌘L) shows it, and the window can copy it or save it as a text file. Saving needs
+`com.apple.security.files.user-selected.read-write` (review note: "Saves the app's own
+diagnostic log where the user chooses"). Passwords, tokens and Xtream path or query
+credentials are replaced by "•••" before an entry is stored. Debug builds also write every
+entry to stderr. `debugLog` is left for `[test]` hooks only. `IPTV_TESTLOG=1` opens the log
+window (`previous` shows the previous launch), and `IPTV_LOGSELFTEST=1` checks the redaction.
+
 Live TV runs through a tuner (`Fernsy/Player/LiveTuner.swift`): a headless session receives
 the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-disk
 `TimeshiftBuffer`, and the player plays that buffer, so pausing, rewinding and recordings of

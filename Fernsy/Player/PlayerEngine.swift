@@ -119,9 +119,16 @@ final class PlayerEngine: ObservableObject {
             case .failed, .ended: loadingCard.stop()
             default: break
             }
+            guard status != oldValue else { return }
+            switch status {
+            case .failed(let message): AppLog.error(.player, "playback failed: \(message)")
+            case .ended: AppLog.info(.player, "playback ended")
+            default: break
+            }
         }
     }
     @Published private(set) var media: MediaInfo?
+    private var nextStatsLog = Date.distantPast
     @Published private(set) var videoSize: CGSize = .zero
     @Published private(set) var stats = PlaybackStats()
     @Published private(set) var subtitleText: String?
@@ -240,9 +247,7 @@ final class PlayerEngine: ObservableObject {
             return true
         }
         earlyEndRecoveredAt = position
-        #if DEBUG
-        debugLog("[player] ended at \(Int(position)) s of \(Int(duration)) s – reloading there")
-        #endif
+        AppLog.warning(.player, "ended at \(Int(position)) s of \(Int(duration)) s – reloading there")
         if let restart = external?.restartAt {
             restart(position)
         } else {
@@ -498,13 +503,11 @@ final class PlayerEngine: ObservableObject {
         #if DEBUG
         if !loggedBaseline {
             loggedBaseline = true
-            debugLog("[player] live start settled \(String(format: "%.1f", lagBaseline ?? Self.liveLead)) s behind the newest data")
+            AppLog.detail(.player, "live start settled \(String(format: "%.1f", lagBaseline ?? Self.liveLead)) s behind the newest data")
         }
         #endif
         guard steady > max(lagBaseline ?? Self.liveLead, Self.liveLead) + 12 else { return }
-        #if DEBUG
-        debugLog("[player] \(String(format: "%.1f", steady)) s behind live (settled at \(String(format: "%.1f", lagBaseline ?? Self.liveLead)) s), leaving live")
-        #endif
+        AppLog.info(.player, "\(String(format: "%.1f", steady)) s behind live (settled at \(String(format: "%.1f", lagBaseline ?? Self.liveLead)) s), leaving live")
         progress.followsLive = false
         recentLag.removeAll()
     }
@@ -603,16 +606,20 @@ final class PlayerEngine: ObservableObject {
 
     private func handle(_ event: PlaybackSession.Event, generation gen: Int) {
         guard gen == generation else { return }
-        #if DEBUG
         switch event {
-        case .position, .subtitle: break
-        case .bitmapSubtitle(let cue): debugLog("[player] bitmap subtitle \(cue.pieces.count) pictures at \(String(format: "%.1f", cue.start)) s")
+        case .position, .subtitle, .clearSubtitles: break
+        case .bitmapSubtitle(let cue): AppLog.detail(.player, "bitmap subtitle \(cue.pieces.count) pictures at \(String(format: "%.1f", cue.start)) s")
         case .stats(let s):
-            debugLog("[player] stats \(s.videoCodec) \(s.resolution) \(String(format: "%.2f", s.frameRate))fps decoder=\(s.decoder) fmt=\(s.pixelFormat) deint=\(s.deinterlace) \(s.dynamicRange) audio=\(s.audio) buffer=\(String(format: "%.1f", s.bufferSeconds))s rate=\(String(format: "%.1f", s.bitrateMbps))Mbit drops=\(s.droppedFrames) audioAhead=\(String(format: "%.2f", s.audioAhead))s net=\(s.networkBufferBytes / 1024)KB reconnects=\(s.seamlessReconnects) dups=\(s.duplicatesDropped) rebuffers=\(s.rebuffers) pos=\(String(format: "%.1f", progress.position))")
+            // Every ten seconds is enough to follow a stream's health.
+            guard Date() >= nextStatsLog else { break }
+            nextStatsLog = Date().addingTimeInterval(10)
+            AppLog.detail(.player, "stats \(s.videoCodec) \(s.resolution) \(String(format: "%.2f", s.frameRate))fps decoder=\(s.decoder) fmt=\(s.pixelFormat) deint=\(s.deinterlace) \(s.dynamicRange) audio=\(s.audio) buffer=\(String(format: "%.1f", s.bufferSeconds))s rate=\(String(format: "%.1f", s.bitrateMbps))Mbit drops=\(s.droppedFrames) audioAhead=\(String(format: "%.2f", s.audioAhead))s net=\(s.networkBufferBytes / 1024)KB reconnects=\(s.seamlessReconnects) dups=\(s.duplicatesDropped) rebuffers=\(s.rebuffers) pos=\(String(format: "%.1f", progress.position))")
+        case .failed(let message, let retry):
+            // The outcome (reconnect or failure) is logged where it is decided.
+            AppLog.detail(.player, "session failed: \(message) (retry: \(retry))")
         default:
-            debugLog("[player] \(event)")
+            AppLog.detail(.player, "\(event)")
         }
-        #endif
         switch event {
         case .opened(var info):
             #if DEBUG
@@ -738,6 +745,7 @@ final class PlayerEngine: ObservableObject {
         }
         reconnectAttempts += 1
         restarts += 1
+        AppLog.warning(.player, "reconnecting (attempt \(reconnectAttempts)): \(reason)")
         isReconnecting = true
         status = .buffering
         let gen = generation

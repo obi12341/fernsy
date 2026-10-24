@@ -108,9 +108,7 @@ final class Recorder: ObservableObject {
             changed = true
         }
         guard changed else { return }
-        #if DEBUG
-        debugLog("[recording] padding now \(Int(before / 60))/\(Int(after / 60)) min for scheduled recordings")
-        #endif
+        AppLog.info(.recordings, "padding now \(Int(before / 60))/\(Int(after / 60)) min for scheduled recordings")
         save()
         tick()
     }
@@ -152,9 +150,7 @@ final class Recorder: ObservableObject {
                 return r
             }
         }
-        #if DEBUG
-        debugLog("[recording] \(recordings.count) recordings loaded for this account")
-        #endif
+        AppLog.detail(.recordings, "\(recordings.count) recordings loaded for this account")
         let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -337,9 +333,7 @@ final class Recorder: ObservableObject {
                 let copier = try RecordingCopier(buffer: tuner.buffer, from: entry.offset, to: Self.folder.appendingPathComponent(name))
                 copiers[recording.id] = copier
                 update(recording.id) { $0.fileName = name }
-                #if DEBUG
-                debugLog("[recording] started \(recording.title) on \(recording.channelName) → \(name)")
-                #endif
+                AppLog.info(.recordings, "started \(recording.title) on \(recording.channelName) → \(name)")
             } catch {
                 finish(recording.id, error: error.localizedDescription)
             }
@@ -373,9 +367,11 @@ final class Recorder: ObservableObject {
             if Date() < $0.recordEnd { $0.end = max($0.start, Date()); $0.padAfter = 0 }
         }
         app?.tuners.release(recording.channelId, owner: .recording(id))
-        #if DEBUG
-        debugLog("[recording] finished \(recording.title)\(error.map { ": \($0)" } ?? "")")
-        #endif
+        if let error {
+            AppLog.error(.recordings, "\(recording.title) on \(recording.channelName) failed: \(error)")
+        } else {
+            AppLog.info(.recordings, "finished \(recording.title) on \(recording.channelName)")
+        }
     }
 
     /// App quit or sign-out: everything recorded so far is kept.

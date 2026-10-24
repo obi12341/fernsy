@@ -87,9 +87,7 @@ final class TSAudioTap {
                     | (Int64(p[b + 3]) << 7) | (Int64(p[b + 4]) >> 1)
                 // A new PES re-anchors the clock; a partial frame from the old one is dropped.
                 es.removeAll(keepingCapacity: true)
-                #if DEBUG
-                if nextPTS == nil { debugLog("[tap] first PES on PID \(pid), pts \(Double(pts) / 90_000)") }
-                #endif
+                if nextPTS == nil { AppLog.detail(.player, "first PES on PID \(pid), pts \(Double(pts) / 90_000)") }
                 nextPTS = pts
             }
             start = min(end, start + 9 + headerLength)

@@ -162,6 +162,10 @@ struct LibraryView: View {
                 query = String(text)
             }
         }
+        if ProcessInfo.processInfo.environment["IPTV_TESTLOG"] != nil {
+            // IPTV_TESTLOG=1: opens the log window (Window › Log).
+            openWindow(id: "log")
+        }
         guard let scene = ProcessInfo.processInfo.environment["IPTV_SCENE"] else { return }
         let parts = scene.split(separator: ":").map(String.init)
         guard let target = LibrarySection(rawValue: parts[0]) else { return }

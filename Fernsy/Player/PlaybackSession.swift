@@ -496,9 +496,7 @@ final class PlaybackSession {
         // reconnect once with the tap in place so it is demuxed from the first byte.
         let broken = Self.unresolvedAudio(ctx).subtracting(known)
         if isLive && known.isEmpty && audioTap == nil, let pid = broken.min(), !isStopped {
-            #if DEBUG
-            debugLog("[player] audio PID \(pid) without parameters, demuxing it via TSAudioTap")
-            #endif
+            AppLog.info(.player, "audio PID \(pid) without parameters, demuxing it via TSAudioTap")
             freeFormat()
             installAudioTap(pid: pid)
             try source.open()
@@ -520,9 +518,7 @@ final class PlaybackSession {
         connections.append(Connection(start: offset, cut: connections[connections.count - 1].cut, decided: false))
         tapConnection = connections.count - 1
         tapRejoining = audioTap != nil
-        #if DEBUG
-        debugLog("[player] rejoining live stream after reconnect at byte \(offset)")
-        #endif
+        AppLog.detail(.player, "rejoining live stream after reconnect at byte \(offset)")
     }
 
     private func countDuplicate() {
@@ -560,9 +556,7 @@ final class PlaybackSession {
                 if !connections[connection].decided, let key, let known = history.time(of: key) {
                     connections[connection].cut = streamTime - known
                     connections[connection].decided = true
-                    #if DEBUG
-                    debugLog("[player] connection \(connection) lined up by content, clock offset \(String(format: "%.2f", connections[connection].cut - connections[connection - 1].cut)) s")
-                    #endif
+                    AppLog.detail(.player, "connection \(connection) lined up by content, clock offset \(String(format: "%.2f", connections[connection].cut - connections[connection - 1].cut)) s")
                     countDuplicate()
                     return false
                 }
@@ -578,9 +572,7 @@ final class PlaybackSession {
                     connections[connection].alignWait += 1
                     return false
                 }
-                #if DEBUG
-                debugLog("[player] rejoined \(isVideo ? "video" : "audio") stream in connection \(connection), gap \(String(format: "%.2f", gap)) s, \(duplicatesDropped) duplicates dropped so far")
-                #endif
+                AppLog.detail(.player, "rejoined \(isVideo ? "video" : "audio") stream in connection \(connection), gap \(String(format: "%.2f", gap)) s, \(duplicatesDropped) duplicates dropped so far")
                 if isVideo && gap > 0.5 { needKeyframe = true }
                 // The first stream to rejoin decides the cut for both, keeping them in sync.
                 // Larger jumps are discontinuities and handled by a resync instead.
@@ -986,9 +978,7 @@ final class PlaybackSession {
         guard isVideo == clockIsVideo else { return false }
         defer { lastClockPacket = sec }
         guard let last = lastClockPacket else { return false }
-        #if DEBUG
-        if abs(sec - last) > 10 { debugLog("[player] discontinuity \(String(format: "%.2f", last)) → \(String(format: "%.2f", sec)), resync") }
-        #endif
+        if abs(sec - last) > 10 { AppLog.detail(.player, "discontinuity \(String(format: "%.2f", last)) → \(String(format: "%.2f", sec)), resync") }
         return abs(sec - last) > 10
     }
 
@@ -1179,9 +1169,7 @@ final class PlaybackSession {
         func presentDolbyVision(_ frame: DVDecoder.Frame) {
             let pixelBuffer = frame.pixelBuffer
             let duration = nominalDuration
-            #if DEBUG
-            if let lastPTS, frame.time <= lastPTS { debugLog("[player] DV frame out of order: \(frame.time) after \(lastPTS)") }
-            #endif
+            if let lastPTS, frame.time <= lastPTS { AppLog.detail(.player, "DV frame out of order: \(frame.time) after \(lastPTS)") }
             lastPTS = frame.time
             if formatDescription == nil || !CMVideoFormatDescriptionMatchesImageBuffer(formatDescription!, imageBuffer: pixelBuffer) {
                 var fd: CMVideoFormatDescription?
@@ -1236,9 +1224,7 @@ final class PlaybackSession {
                 let status = decoder.decode(pkt, output: presentDolbyVision)
                 guard status != noErr, decoder.decodedFrames == 0 else { return }
                 // Not a single frame: this Mac (or file) does not take the DV session after all.
-                #if DEBUG
-                debugLog("[player] Dolby Vision decode failed (\(status))")
-                #endif
+                AppLog.error(.player, "Dolby Vision decode failed (\(status))")
                 dv = nil
                 if decoder.config.profile == 5 {
                     emit(.failed(String(localized: "Dolby Vision \(decoder.config.name) wird auf diesem Mac nicht unterstützt"), retry: false))
@@ -1525,7 +1511,7 @@ final class PlaybackSession {
             frames += count
             guard frames >= Int(rate) else { return }
             let db = peaks.map { $0 > 0 ? String(format: "%.0f", 20 * log10($0)) : "-inf" }.joined(separator: " ")
-            debugLog("[audio] peak dB [\(db)] renderer status=\(renderer.status.rawValue) volume=\(renderer.volume) muted=\(renderer.isMuted)")
+            debugLog("[test] audio peak dB [\(db)] renderer status=\(renderer.status.rawValue) volume=\(renderer.volume) muted=\(renderer.isMuted)")
             peaks = Array(repeating: 0, count: channels)
             frames = 0
         }

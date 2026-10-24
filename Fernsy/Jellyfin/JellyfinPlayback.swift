@@ -88,18 +88,14 @@ final class JellyfinPlayback: ObservableObject {
         let choice = TrackChooser.choose(audio: audio, subtitles: subtitles, preferences: engine.trackPreferences)
         audioIndex = choice.audio.map(Int.init)
         subtitleIndex = choice.subtitle.map(Int.init)
-        #if DEBUG
-        debugLog("[jellyfin] tracks: audio \(audioIndex.map(String.init) ?? "-"), subtitle \(subtitleIndex.map(String.init) ?? "-")")
-        #endif
+        AppLog.detail(.jellyfin, "tracks: audio \(audioIndex.map(String.init) ?? "-"), subtitle \(subtitleIndex.map(String.init) ?? "-")")
     }
 
     func start(at position: Double) {
         observeEngine()
         chooseTracks()
         if let reason = transcodeReason {
-            #if DEBUG
-            debugLog("[jellyfin] transcode: \(reason)")
-            #endif
+            AppLog.info(.jellyfin, "transcode: \(reason)")
             startTranscode(at: position)
         } else if let subtitleIndex, let stream = streams.first(where: { $0.index == subtitleIndex }),
                   stream.isExternal == true, stream.isTextSubtitleStream != true {
@@ -157,9 +153,7 @@ final class JellyfinPlayback: ObservableObject {
         external.onFailedBeforeStart = { [weak self] message in
             guard let self, !self.fellBack else { return false }
             self.fellBack = true
-            #if DEBUG
-            debugLog("[jellyfin] direct play failed (\(message)), falling back to a transcode")
-            #endif
+            AppLog.warning(.jellyfin, "direct play failed (\(message)), falling back to a transcode")
             self.startTranscode(at: position)
             return true
         }
@@ -213,9 +207,7 @@ final class JellyfinPlayback: ObservableObject {
                 external.tracks = .explicit(audio: nil, subtitle: nil)
                 engine.load(url: result.url, isLive: false, startAt: 0, external: external)
             } catch {
-                #if DEBUG
-                debugLog("[jellyfin] transcode request failed: \(error.localizedDescription)")
-                #endif
+                AppLog.error(.jellyfin, "transcode request failed: \(error.localizedDescription)")
                 store.lastError = String(localized: "Jellyfin konnte den Titel nicht umwandeln: \(error.localizedDescription)")
             }
         }
@@ -316,9 +308,7 @@ final class JellyfinPlayback: ObservableObject {
             do {
                 let srt = try await store.call { client, _ in try await client.subtitleSRT(itemId: itemId, mediaSourceId: sourceId, index: index) }
                 let cues = SRTParser.parse(srt)
-                #if DEBUG
-                debugLog("[jellyfin] subtitles \(index): \(cues.count) cues")
-                #endif
+                AppLog.detail(.jellyfin, "subtitles \(index): \(cues.count) cues")
                 guard !stopped, subtitleIndex == index else { return }
                 loadedCues = (index, cues)
                 engine.showExternalSubtitles(cues, trackId: trackId)
@@ -388,9 +378,7 @@ final class JellyfinPlayback: ObservableObject {
                 engine.reportFailure(String(localized: "Die Jellyfin-Sitzung ist abgelaufen."))
                 return
             }
-            #if DEBUG
-            debugLog("[jellyfin] reloading at \(Int(position)) s after renewing the session")
-            #endif
+            AppLog.warning(.jellyfin, "reloading at \(Int(position)) s after renewing the session")
             if method == .transcode { startTranscode(at: position) } else { startDirect(at: position) }
         }
         return true

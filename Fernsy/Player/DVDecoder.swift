@@ -83,9 +83,7 @@ final class DVDecoder {
         formatDescription = fd
         timeBase = stream.pointee.time_base
         reorderDepth = max(4, Int(par.pointee.video_delay) + 1)
-        #if DEBUG
-        debugLog("[player] Dolby Vision \(config.name) session, dvcC \(config.dvcC.prefix(5).map { String(format: "%02x", $0) }.joined()), reorder \(reorderDepth)")
-        #endif
+        AppLog.detail(.player, "Dolby Vision \(config.name) session, dvcC \(config.dvcC.prefix(5).map { String(format: "%02x", $0) }.joined()), reorder \(reorderDepth)")
     }
 
     deinit {

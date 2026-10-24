@@ -115,7 +115,7 @@ enum TrackChooser {
         func check(_ name: String, _ prefs: TrackPreferences, _ a: [MediaTrack], _ s: [MediaTrack], _ expected: (Int32?, Int32?)) {
             let got = choose(audio: a, subtitles: s, preferences: prefs)
             let ok = got.audio == expected.0 && got.subtitle == expected.1
-            debugLog("[tracks] self-test \(ok ? "pass" : "FAIL") \(name): audio \(got.audio.map(String.init) ?? "-") subtitle \(got.subtitle.map(String.init) ?? "-")")
+            debugLog("[test] self-test \(ok ? "pass" : "FAIL") \(name): audio \(got.audio.map(String.init) ?? "-") subtitle \(got.subtitle.map(String.init) ?? "-")")
         }
         check("audio en, subtitles off", .init(audioLanguage: "en", subtitles: .off), audio, subs, (2, nil))
         check("audio fr missing → default", .init(audioLanguage: "fr", subtitles: .off), audio, subs, (1, nil))

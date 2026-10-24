@@ -89,9 +89,11 @@ final class LiveTuner: ObservableObject {
             state = .running
             openedAt = Date()
         case .failed(let message, let retry):
-            #if DEBUG
-            debugLog("[tuner \(channelId)] failed: \(message) (retry: \(retry))")
-            #endif
+            if retry || keepTrying {
+                AppLog.warning(.tuner, "channel \(channelId), reconnecting: \(message)")
+            } else {
+                AppLog.error(.tuner, "channel \(channelId) failed: \(message)")
+            }
             if writer.isFailed {
                 state = .unsupported
                 stopSession()

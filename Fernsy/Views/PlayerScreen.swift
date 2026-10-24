@@ -114,9 +114,9 @@ struct PlayerScreen: View {
             if ProcessInfo.processInfo.environment["IPTV_TESTZAP"] != nil {
                 for i in 0..<3 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 6 + Double(i) * 0.15) {
-                        debugLog("[zap] key down #\(i + 1)")
+                        AppLog.detail(.player, "key down #\(i + 1)")
                         zap(1)
-                        debugLog("[zap] target \(zapTarget.map { "\($0.channel.id) (#\($0.number))" } ?? "-")")
+                        AppLog.detail(.player, "target \(zapTarget.map { "\($0.channel.id) (#\($0.number))" } ?? "-")")
                     }
                 }
             }
@@ -125,7 +125,7 @@ struct PlayerScreen: View {
                 for (delay, label) in [(6.0, "enter"), (10.0, "leave"), (14.0, "re-enter")] {
                     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { toggleFullScreen() }
                     DispatchQueue.main.asyncAfter(deadline: .now() + delay + 2.5) {
-                        debugLog("[fs] after \(label): fullscreen=\(playerWindow?.styleMask.contains(.fullScreen) ?? false) iconState=\(isFullScreen)")
+                        AppLog.detail(.player, "after \(label): fullscreen=\(playerWindow?.styleMask.contains(.fullScreen) ?? false) iconState=\(isFullScreen)")
                     }
                 }
             }

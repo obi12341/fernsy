@@ -134,9 +134,7 @@ final class SearchModel: ObservableObject {
                 try? await Task.sleep(for: delay)
                 guard !Task.isCancelled else { return }
             }
-            #if DEBUG
             let started = Date()
-            #endif
             let hits = await Task.detached(priority: .userInitiated) { snapshot.index.search(needle) }.value
             guard let self, !Task.isCancelled else { return }
             var results = SearchResults(query: query)
@@ -146,9 +144,7 @@ final class SearchModel: ObservableObject {
             results.recordings = (hits[.recordings] ?? []).map { snapshot.recordings[$0] }
             results.jellyfinFilms = (hits[.jellyfinFilms] ?? []).map { snapshot.jellyfinFilms[$0] }
             results.jellyfinSeries = (hits[.jellyfinSeries] ?? []).map { snapshot.jellyfinSeries[$0] }
-            #if DEBUG
-            debugLog("[search] \"\(query)\": \(hits.values.reduce(0) { $0 + $1.count }) hits of \(snapshot.index.entries.count) in \(Int(-started.timeIntervalSinceNow * 1000)) ms")
-            #endif
+            AppLog.detail(.app, "search \"\(query)\": \(hits.values.reduce(0) { $0 + $1.count }) hits of \(snapshot.index.entries.count) in \(Int(-started.timeIntervalSinceNow * 1000)) ms")
             self.results = results
         }
     }

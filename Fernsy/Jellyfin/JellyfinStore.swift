@@ -71,8 +71,16 @@ final class JellyfinStore: ObservableObject {
     func signIn(server: String, username: String, password: String) async throws {
         guard let base = JFSession.normalize(server) else { throw JellyfinError.invalidURL }
         let anonymous = JellyfinClient(base: base, token: nil)
-        let info = try await anonymous.publicInfo()
-        let auth = try await anonymous.authenticate(username: username, password: password)
+        let info: JFPublicInfo
+        let auth: JFAuthResult
+        do {
+            info = try await anonymous.publicInfo()
+            auth = try await anonymous.authenticate(username: username, password: password)
+        } catch {
+            AppLog.error(.jellyfin, "sign-in at \(base.host() ?? server) failed: \(error.localizedDescription)")
+            throw error
+        }
+        AppLog.info(.jellyfin, "signed in at \(base.host() ?? server)")
         let newSession = JFSession(server: base.absoluteString, serverId: info.id ?? "", serverName: info.serverName ?? base.host() ?? "",
                                    version: info.version ?? "", userId: auth.user.id, userName: auth.user.name, token: auth.accessToken)
         if !skipKeychain {
@@ -87,6 +95,7 @@ final class JellyfinStore: ObservableObject {
     }
 
     func signOut() {
+        AppLog.info(.jellyfin, "signed out")
         if let client { Task { await client.logout() } }
         if !skipKeychain {
             Keychain.delete(account: Self.keychainAccount)
@@ -144,14 +153,10 @@ final class JellyfinStore: ObservableObject {
                 self.session?.token = auth.accessToken
                 if !skipKeychain, let renewed = self.session { Keychain.save(renewed, account: Self.keychainAccount) }
                 isExpired = false
-                #if DEBUG
-                debugLog("[jellyfin] session renewed")
-                #endif
+                AppLog.info(.jellyfin, "session renewed")
                 return true
             } catch {
-                #if DEBUG
-                debugLog("[jellyfin] session renewal failed: \(error.localizedDescription)")
-                #endif
+                AppLog.error(.jellyfin, "session renewal failed: \(error.localizedDescription)")
                 return false
             }
         }
@@ -205,18 +210,14 @@ final class JellyfinStore: ObservableObject {
             series = newSeries.values.sorted(by: Self.byName)
             membership = newMembership
             saveCache()
-            #if DEBUG
-            debugLog("[jellyfin] \(libs.count) libraries, \(films.count) films, \(series.count) series")
-            #endif
+            AppLog.info(.jellyfin, "\(libs.count) libraries, \(films.count) films, \(series.count) series")
             await refreshHome()
         } catch {
             // Offline and expired have their own notices.
             if !(error is CancellationError || error is URLError || (error as? JellyfinError) == .unauthorized) {
                 lastError = error.localizedDescription
             }
-            #if DEBUG
-            debugLog("[jellyfin] refresh failed: \(error)")
-            #endif
+            AppLog.warning(.jellyfin, "refresh failed: \(error)")
         }
     }
 
@@ -417,9 +418,7 @@ final class JellyfinStore: ObservableObject {
         series = cache.series
         membership = cache.membership
         fillHomeFromLibrary()
-        #if DEBUG
-        debugLog("[jellyfin] cache: \(films.count) films, \(series.count) series")
-        #endif
+        AppLog.detail(.jellyfin, "cache: \(films.count) films, \(series.count) series")
     }
 
     private func saveCache() {
@@ -454,11 +453,11 @@ final class JellyfinStore: ObservableObject {
                     // the server), then refresh and try to mark an unwatched film.
                     session?.server = "https://127.0.0.1:9"
                     await loadLibrary(forceRefresh: true)
-                    debugLog("[jellyfin] offline=\(isOffline), films still shown: \(films.count)")
+                    debugLog("[test] offline=\(isOffline), films still shown: \(films.count)")
                     if let film = films.first(where: { !$0.isPlayed }) {
                         await setPlayed(film, true)
                         let shown = films.first { $0.id == film.id }
-                        debugLog("[jellyfin] offline mark reverted: \(shown?.isPlayed == false), error: \(lastError ?? "none")")
+                        debugLog("[test] offline mark reverted: \(shown?.isPlayed == false), error: \(lastError ?? "none")")
                     }
                 }
                 if let fake = env["JF_TOKEN"] {
@@ -466,10 +465,10 @@ final class JellyfinStore: ObservableObject {
                     if env["JF_BADPASS"] == "1" { password = "wrong" }
                     session?.token = fake
                     await refreshUserData()
-                    debugLog("[jellyfin] fake token, expired=\(isExpired)")
+                    debugLog("[test] fake token, expired=\(isExpired)")
                 }
             } catch {
-                debugLog("[jellyfin] debug sign-in failed: \(error.localizedDescription)")
+                debugLog("[test] debug sign-in failed: \(error.localizedDescription)")
             }
         }
     }
@@ -485,7 +484,7 @@ final class JellyfinStore: ObservableObject {
             let on = parts[2] == "1"
             if parts[0] == "played" { await setPlayed(item, on) } else { await setFavorite(item, on) }
             let shown = (films + series).first { $0.id == item.id } ?? details[item.id]
-            debugLog("[jellyfin] mark \(step) (\(item.type)): played=\(shown?.isPlayed ?? false) favorite=\(shown?.isFavorite ?? false) unplayed=\(shown?.userData?.unplayedItemCount ?? -1) error=\(lastError ?? "none")")
+            debugLog("[test] mark \(step) (\(item.type)): played=\(shown?.isPlayed ?? false) favorite=\(shown?.isFavorite ?? false) unplayed=\(shown?.userData?.unplayedItemCount ?? -1) error=\(lastError ?? "none")")
             lastError = nil
         }
     }
@@ -495,16 +494,16 @@ final class JellyfinStore: ObservableObject {
         guard let film = films.first, let show = series.first else { return }
         await loadDetail(film.id)
         let detail = details[film.id]
-        debugLog("[jellyfin] detail \(detail?.name ?? "–"): people \(detail?.people?.count ?? -1), sources \(detail?.mediaSources?.count ?? -1), streams \(detail?.mediaSources?.first?.mediaStreams?.count ?? -1)")
+        debugLog("[test] detail \(detail?.name ?? "–"): people \(detail?.people?.count ?? -1), sources \(detail?.mediaSources?.count ?? -1), streams \(detail?.mediaSources?.first?.mediaStreams?.count ?? -1)")
         await loadSeasons(show.id)
         let seasonList = seasons[show.id] ?? []
-        debugLog("[jellyfin] seasons of a series: \(seasonList.count)")
+        debugLog("[test] seasons of a series: \(seasonList.count)")
         if let first = seasonList.first {
             await loadEpisodes(seriesId: show.id, seasonId: first.id)
-            debugLog("[jellyfin] episodes of season 1: \(episodes[first.id]?.count ?? -1)")
+            debugLog("[test] episodes of season 1: \(episodes[first.id]?.count ?? -1)")
         }
-        debugLog("[jellyfin] home: resume \(resume.count), next up \(nextUp.count), latest films \(latestFilms.count), latest series \(latestSeries.count)")
-        debugLog("[jellyfin] poster url ok: \(posterURL(film) != nil), backdrop url ok: \(backdropURL(film) != nil)")
+        debugLog("[test] home: resume \(resume.count), next up \(nextUp.count), latest films \(latestFilms.count), latest series \(latestSeries.count)")
+        debugLog("[test] poster url ok: \(posterURL(film) != nil), backdrop url ok: \(backdropURL(film) != nil)")
     }
     #endif
 }

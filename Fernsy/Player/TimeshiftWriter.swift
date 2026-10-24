@@ -120,9 +120,7 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
                 var dead: OpaquePointer? = m
                 ffs_mux_free(&dead)
                 failed = true
-                #if DEBUG
-                debugLog("[timeshift] muxer refused the streams, timeshift off for this channel")
-                #endif
+                AppLog.warning(.timeshift, "muxer refused the streams, timeshift off for this channel")
                 return false
             }
             muxer = m
@@ -138,9 +136,7 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
                 mapping[input.index] = out
             }
         }
-        #if DEBUG
-        debugLog("[timeshift] new connection mapped \(mapping.count) of \(inputs.count) streams")
-        #endif
+        AppLog.detail(.timeshift, "new connection mapped \(mapping.count) of \(inputs.count) streams")
         return !mapping.isEmpty
     }
 
@@ -191,9 +187,7 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
         outputs[out].lastDTS = dts90
         outputs[out].last = time
         if ffs_mux_write(muxer, pkt, Int32(out), timeBase, resync ? 1 : 0) < 0 {
-            #if DEBUG
-            debugLog("[timeshift] write failed for stream \(out) at \(String(format: "%.2f", time))")
-            #endif
+            AppLog.warning(.timeshift, "write failed for stream \(out) at \(String(format: "%.2f", time))")
         }
     }
 
@@ -240,18 +234,14 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
         outputs[out].rejected = 0
         let offset = t - (newest + 0.02)
         outputs[out].ownOffset = offset
-        #if DEBUG
-        debugLog("[timeshift] stream \(out) jumped on its own, continues at \(String(format: "%.2f", newest)) s")
-        #endif
+        AppLog.detail(.timeshift, "stream \(out) jumped on its own, continues at \(String(format: "%.2f", newest)) s")
         return offset
     }
 
     private func newEpoch(_ t: Double, after newest: Double) -> Double {
         let offset = t - (newest + 0.04)
         epochs = [offset] + epochs.prefix(1)
-        #if DEBUG
-        debugLog("[timeshift] timeline jump, new epoch at \(String(format: "%.2f", newest + 0.04)) s")
-        #endif
+        AppLog.detail(.timeshift, "timeline jump, new epoch at \(String(format: "%.2f", newest + 0.04)) s")
         return offset
     }
 }

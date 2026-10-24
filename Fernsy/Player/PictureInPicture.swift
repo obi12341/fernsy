@@ -103,14 +103,10 @@ final class PictureInPictureStage {
         guard let stage,
               let panel = NSApp.windows.first(where: { !windowsBefore.contains(ObjectIdentifier($0)) && $0 !== stage }),
               let content = panel.contentView else {
-            #if DEBUG
-            debugLog("[pip] PiP window not found, picture stays at the player's size")
-            #endif
+            AppLog.warning(.pip, "PiP window not found, picture stays at the player's size")
             return
         }
-        #if DEBUG
-        debugLog("[pip] PiP window at \(panel.frame)")
-        #endif
+        AppLog.detail(.pip, "PiP window at \(panel.frame)")
         fit(to: content.bounds.size)
         // The system builds the PiP window's views right after the start.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in self?.hideStaleOverlay(in: content) }
@@ -147,9 +143,7 @@ final class PictureInPictureStage {
         guard let stage, let content = stage.contentView, let layer, size.width > 0, size.height > 0 else { return }
         stage.setFrame(NSRect(x: stage.frame.minX, y: stage.frame.maxY - size.height, width: size.width, height: size.height), display: false)
         place(layer, in: content)
-        #if DEBUG
-        debugLog("[pip] video sized to the PiP window: \(Int(size.width))×\(Int(size.height))")
-        #endif
+        AppLog.detail(.pip, "video sized to the PiP window: \(Int(size.width))×\(Int(size.height))")
     }
 
     /// Second part of the same system bug: an empty black view inside the PiP window keeps the
@@ -182,9 +176,7 @@ final class PictureInPictureStage {
         if String(describing: type(of: view)) == "AVPictureInPictureCALayerHostView" {
             if !view.isHidden {
                 view.isHidden = true
-                #if DEBUG
-                debugLog("[pip] hid the stale overlay in the PiP window")
-                #endif
+                AppLog.detail(.pip, "hid the stale overlay in the PiP window")
             }
             return
         }
@@ -238,9 +230,7 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
             timer.setEventHandler { [weak self] in self?.tick() }
             timer.resume()
             self.timer = timer
-            #if DEBUG
-            debugLog("[pip] loading picture for \(title), \(background.map { "\(CVPixelBufferGetWidth($0))×\(CVPixelBufferGetHeight($0))" } ?? "-")")
-            #endif
+            AppLog.detail(.pip, "loading picture for \(title), \(background.map { "\(CVPixelBufferGetWidth($0))×\(CVPixelBufferGetHeight($0))" } ?? "-")")
         }
     }
 
@@ -252,9 +242,7 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
         guard let timer else { return }
         timer.cancel()
         self.timer = nil
-        #if DEBUG
-        debugLog("[pip] loading picture stopped after \(frame) frames")
-        #endif
+        AppLog.detail(.pip, "loading picture stopped after \(frame) frames")
     }
 
     /// The last picture, blurred and darkened, as BGRA at its own size (1280×720 black when there is none).
@@ -396,9 +384,7 @@ extension PictureInPicture: AVPictureInPictureControllerDelegate {
     nonisolated func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
         MainActor.assumeIsolated {
             isActive = true
-            #if DEBUG
-            debugLog("[pip] started")
-            #endif
+            AppLog.info(.pip, "started")
             onStarted()
         }
     }
@@ -417,17 +403,13 @@ extension PictureInPicture: AVPictureInPictureControllerDelegate {
             isActive = false
             let wasRestore = restoring
             restoring = false
-            #if DEBUG
-            debugLog("[pip] stopped (\(wasRestore ? "back to the player" : "closed"))")
-            #endif
+            AppLog.info(.pip, "stopped (\(wasRestore ? "back to the player" : "closed"))")
             if !wasRestore { onClosed() }
         }
     }
 
     nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController,
                                                 failedToStartPictureInPictureWithError error: Error) {
-        #if DEBUG
-        MainActor.assumeIsolated { debugLog("[pip] failed to start: \(error.localizedDescription)") }
-        #endif
+        MainActor.assumeIsolated { AppLog.error(.pip, "failed to start: \(error.localizedDescription)") }
     }
 }

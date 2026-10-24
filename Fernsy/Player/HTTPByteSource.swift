@@ -417,9 +417,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         taskGeneration += 1
         suspended = false
         guard reconnectAttempts < maxReconnectAttempts else {
-            #if DEBUG
-            debugLog("[http] giving up after \(reconnectAttempts) reconnects (\(reason))")
-            #endif
+            AppLog.error(.network, "giving up after \(reconnectAttempts) reconnects (\(reason))")
             failure = SourceError.timeout
             cond.broadcast()
             return
@@ -443,9 +441,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             connectionStart = junction
         }
         incidentAttempts += 1
-        #if DEBUG
-        debugLog("[http] live reconnect #\(reconnectAttempts): \(reason), \(String(format: "%.1f", Double(buffer.count - readIndex) / 1e6)) MB still buffered")
-        #endif
+        AppLog.warning(.network, "live reconnect #\(reconnectAttempts): \(reason), \(String(format: "%.1f", Double(buffer.count - readIndex) / 1e6)) MB still buffered")
         let generation = taskGeneration
         // First try the same edge; if its token or slot is gone, go through the load balancer.
         let target = incidentAttempts == 1 ? (edgeURL ?? url) : url
@@ -513,9 +509,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                 net.connectTime = Date().timeIntervalSince(requestStartedAt)
                 connectedAt = Date()
                 lastDataAt = Date()
-                #if DEBUG
-                debugLog("[http] reconnected (HTTP \(status)) via \(http?.url?.host ?? "?")\(incidentAttempts == 1 ? " (same edge)" : " (load balancer)")")
-                #endif
+                AppLog.info(.network, "reconnected (HTTP \(status)) via \(http?.url?.host ?? "?")\(incidentAttempts == 1 ? " (same edge)" : " (load balancer)")")
                 completionHandler(.allow)
             } else {
                 completionHandler(.cancel)
@@ -635,9 +629,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         }
         let delay = [0.5, 1, 2, 4, 4][continueAttempts]
         continueAttempts += 1
-        #if DEBUG
-        debugLog("[http] download interrupted at \(offset) of \(contentLength) (\(reason)), continuing (attempt \(continueAttempts))")
-        #endif
+        AppLog.warning(.network, "download interrupted at \(offset) of \(contentLength) (\(reason)), continuing (attempt \(continueAttempts))")
         taskGeneration += 1
         responseReceived = false
         suspended = false

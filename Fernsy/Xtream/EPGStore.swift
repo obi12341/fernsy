@@ -102,9 +102,7 @@ final class EPGStore {
         guard !Task.isCancelled, let table = try? await client.epgTable(channelId),
               !Task.isCancelled, generation == self.generation else { return }
         let entries = Self.clean(table)
-        #if DEBUG
-        debugLog("[epg] channel \(channelId): \(table.count) entries, \(entries.count) kept")
-        #endif
+        AppLog.detail(.guide, "channel \(channelId): \(table.count) entries, \(entries.count) kept")
         if !entries.isEmpty || guide.entries == nil { guide.entries = entries }
         guide.fetchedAt = Date()
         let file = Self.cacheFile(channelId, client: client), cached = CachedGuide(guide.entries ?? [], fetchedAt: Date())

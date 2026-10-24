@@ -21,6 +21,7 @@ struct FernsyApp: App {
         }
         .defaultSize(width: 1280, height: 820)
         .commands {
+            LogCommands()
             CommandGroup(after: .toolbar) {
                 Button("Katalog aktualisieren") {
                     Task { await app.loadCatalog(forceRefresh: true) }
@@ -41,6 +42,12 @@ struct FernsyApp: App {
         .defaultSize(width: 1280, height: 720)
         .windowResizability(.contentMinSize)
         .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+
+        Window("Protokoll", id: "log") {
+            LogView()
+        }
+        .defaultSize(width: 980, height: 560)
         .restorationBehavior(.disabled)
 
         Settings {
@@ -70,9 +77,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [MenuBarSupport.enabledKey: true])
-        #if DEBUG
-        debugLog("[app] did finish launching")
-        #endif
+        let info = Bundle.main.infoDictionary
+        AppLog.info(.app, "Fernsy \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?")) started, macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
             guard let window = note.object as? NSWindow else { return }
