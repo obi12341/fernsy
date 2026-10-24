@@ -25,6 +25,8 @@ final class LiveTuner: ObservableObject {
     /// Recordings keep a tuner trying for as long as they run; the player alone gives up
     /// after a few attempts like before.
     var keepTrying = false
+    /// The provider reported the channel offline (true) or it delivers again (false).
+    var onOffline: ((Bool) -> Void)?
 
     private let writer: TimeshiftWriter
     nonisolated private let holder = SessionHolder()
@@ -88,12 +90,15 @@ final class LiveTuner: ObservableObject {
         case .opened:
             state = .running
             openedAt = Date()
+            onOffline?(false)
         case .failed(let message, let retry):
             if retry || keepTrying {
                 AppLog.warning(.tuner, "channel \(channelId), reconnecting: \(message)")
             } else {
                 AppLog.error(.tuner, "channel \(channelId) failed: \(message)")
             }
+            // Not retryable and still muxable: the provider's offline placeholder.
+            if !retry && !writer.isFailed { onOffline?(true) }
             if writer.isFailed {
                 state = .unsupported
                 stopSession()
@@ -166,6 +171,8 @@ final class TunerPool: ObservableObject {
     private var tuners: [Int: LiveTuner] = [:]
     /// Simultaneous streams the account allows.
     var limit = 1
+    /// A channel was reported offline by the provider, or delivers again.
+    var onOffline: ((Int, Bool) -> Void)?
     var keepSeconds: Double = 3600 {
         didSet { for tuner in tuners.values { tuner.buffer.keepSeconds = keepSeconds } }
     }
@@ -184,6 +191,7 @@ final class TunerPool: ObservableObject {
         }
         tuners[channelId]?.stop()
         let tuner = LiveTuner(channelId: channelId, url: url, keepSeconds: keepSeconds)
+        tuner.onOffline = { [weak self] offline in self?.onOffline?(channelId, offline) }
         tuners[channelId] = tuner
         owners[channelId, default: []].insert(owner)
         updateKeepTrying(channelId)

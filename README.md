@@ -113,6 +113,9 @@ Channel and category names are cleaned by `Fernsy/Xtream/ChannelName.swift` (cou
 quality tags, decoration removed; the delivered name stays in "Senderinfo" and in the search
 key). `IPTV_NAMETEST=1` runs its examples, `IPTV_TESTINFO=<channel id>` opens a channel's
 info, `IPTV_LIVEMODE=list|guide` picks the Live TV view for one run.
+Live TV: `IPTV_SELECT=<id>` selects a channel (detail pane), `IPTV_TESTSCHEDULE=1` then
+schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog refresh fail
+(the provider-unreachable notice over the cached list).
 
 Live TV runs through a tuner (`Fernsy/Player/LiveTuner.swift`): a headless session receives
 the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-disk

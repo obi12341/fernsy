@@ -98,6 +98,13 @@ struct LibraryView: View {
                     .help("Senderliste oder Programmraster")
                     .disabled(editingLive)
                 }
+                if editingLive {
+                    ToolbarItem {
+                        Button("Alle einblenden") { app.showAllChannels() }
+                            .disabled(!app.hasHiddenChannels)
+                            .help("Alle ausgeblendeten Kategorien und Sender wieder anzeigen")
+                    }
+                }
                 ToolbarItem {
                     Button(editingLive ? "Fertig" : "Bearbeiten") { setEditingLive(!editingLive) }
                         .help("Kategorien und Sender aus- oder wieder einblenden")
@@ -135,7 +142,8 @@ struct LibraryView: View {
         }
         .overlay {
             if !section.isJellyfin && app.channels.isEmpty && app.movies.isEmpty {
-                if app.isLoading {
+                // Live TV's list shows its own placeholder rows while loading.
+                if app.isLoading && !(section == .live && effectiveLiveMode == .list) {
                     ProgressView("Katalog wird geladen …")
                         .padding(32)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
@@ -222,7 +230,10 @@ struct LibraryView: View {
             switch section {
             case .live:
                 switch effectiveLiveMode {
-                case .list: ChannelListView(categoryID: category, query: editingLive ? query : "", editing: editingLive)
+                case .list:
+                    ChannelListView(categoryID: category, query: editingLive ? query : "", editing: editingLive,
+                                    showInGuide: { liveMode = .guide },
+                                    showAll: { categoryBySection[.live] = allCategoryID })
                 case .guide: GuideView(categoryID: category)
                 }
             case .movies:
@@ -318,7 +329,12 @@ struct CategoryColumn: View {
                             .opacity(row.hidden ? 0.4 : 1)
                     }
                     if editing && hideable {
-                        VisibilityToggle(hidden: row.hidden) { app.setCategory(row.category.id, hidden: !row.hidden) }
+                        if app.isAdultCategory(row.category) {
+                            // Youth protection is decided in Settings, not hidden here on the side.
+                            NameTag(text: String(localized: "JUGENDSCHUTZ"))
+                        } else {
+                            VisibilityToggle(hidden: row.hidden) { app.setCategory(row.category.id, hidden: !row.hidden) }
+                        }
                     }
                 }
                 .tag(row.category.id)
@@ -339,6 +355,15 @@ struct CategoryColumn: View {
                     .textFieldStyle(.roundedBorder)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if editing && section == .live {
+                Text("Erwachsenen-Kategorien steuerst du in Einstellungen › Jugendschutz.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
             }
         }
         .navigationTitle(section.title)

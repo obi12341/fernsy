@@ -106,11 +106,15 @@ final class AppModel: ObservableObject {
 
     @Published private(set) var isLoading = false
     @Published private(set) var loadError: String?
+    /// The last background refresh failed while the cached catalog is shown (Live TV's notice).
+    @Published private(set) var refreshError: String?
     @Published private(set) var lastUpdated: Date?
 
     @Published private(set) var favorites: Set<String>
     /// Live channels played last, newest first (Live TV › "Zuletzt gesehen").
     @Published private(set) var recentChannels: [Int]
+    /// Channels the provider reported offline when played in this run (cleared by a successful start).
+    @Published var offlineChannels: Set<Int> = []
     static let recentLimit = 20
     /// Hidden live categories and channels of the signed-in account.
     @Published private(set) var visibility = ChannelVisibility() {
@@ -168,6 +172,10 @@ final class AppModel: ObservableObject {
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
+        tuners.onOffline = { [weak self] channelId, offline in
+            guard let self else { return }
+            if offline { offlineChannels.insert(channelId) } else { offlineChannels.remove(channelId) }
+        }
         jellyfin.$session.map { $0 != nil }.removeDuplicates().assign(to: &$hasJellyfin)
         // Passwords and tokens never reach the log.
         $credentials.map { $0?.password }.removeDuplicates()
@@ -381,6 +389,7 @@ final class AppModel: ObservableObject {
         if !Self.skipKeychain { CredentialStore.delete() }
         credentials = nil
         account = nil
+        refreshError = nil
         liveCategories = []; movieCategories = []; seriesCategories = []
         channels = []; movies = []; series = []
         channelsByCategory = [:]; moviesByCategory = [:]; seriesByCategory = [:]
@@ -474,6 +483,10 @@ final class AppModel: ObservableObject {
 
         let started = Date()
         do {
+            #if DEBUG
+            // IPTV_TESTCATALOGFAIL=1: the refresh fails as if the provider were unreachable.
+            if ProcessInfo.processInfo.environment["IPTV_TESTCATALOGFAIL"] != nil { throw URLError(.cannotConnectToHost) }
+            #endif
             // Download everything, keep only actions whose payload changed.
             let changed: Set<CatalogAction> = try await withThrowingTaskGroup(of: CatalogAction?.self) { group in
                 for action in CatalogAction.allCases {
@@ -496,11 +509,14 @@ final class AppModel: ObservableObject {
             for section in CatalogSection.allCases where !changed.isDisjoint(with: section.actions) || isEmpty(section) {
                 if let decoded = await Self.decode(section, from: dir) { apply(decoded) }
             }
+            refreshError = nil
             AppLog.info(.catalog, "refresh in \(Int(Date().timeIntervalSince(started) * 1000)) ms, changed: \(changed.map(\.rawValue).sorted())")
         } catch {
-            // A failed background refresh is silent as long as cached data is shown.
+            // Without cached data the whole library says so; with it, Live TV shows a notice.
             if channels.isEmpty && movies.isEmpty && series.isEmpty {
                 loadError = error.localizedDescription
+            } else {
+                refreshError = error.localizedDescription
             }
             AppLog.error(.catalog, "refresh failed: \(error.localizedDescription)")
         }
@@ -599,6 +615,17 @@ final class AppModel: ObservableObject {
         if hidden { value.hiddenChannels.insert(id) } else { value.hiddenChannels.remove(id) }
         storeVisibility(value)
     }
+
+    /// Edit mode's "Show All": nothing hidden any more.
+    func showAllChannels() {
+        guard !visibility.hiddenCategories.isEmpty || !visibility.hiddenChannels.isEmpty else { return }
+        var value = visibility
+        value.hiddenCategories = []
+        value.hiddenChannels = []
+        storeVisibility(value)
+    }
+
+    var hasHiddenChannels: Bool { !visibility.hiddenCategories.isEmpty || !visibility.hiddenChannels.isEmpty }
 
     private func storeVisibility(_ value: ChannelVisibility) {
         var value = value
