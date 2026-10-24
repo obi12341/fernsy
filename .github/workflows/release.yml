@@ -281,9 +281,10 @@ jobs:
           BUILD_NUMBER: ${{ needs.prepare.outputs.build }}
           CHANNEL: ${{ needs.prepare.outputs.channel }}
         run: |
-          umask 077
           ASC_KEY="$RUNNER_TEMP/asc-key.p8"
-          echo "$NOTARY_KEY_P8" | base64 --decode > "$ASC_KEY"
+          # umask only for the key file: a step-wide 077 made every built file owner-only, and
+          # App Store Connect rejects packages with files only root can read.
+          (umask 077; echo "$NOTARY_KEY_P8" | base64 --decode > "$ASC_KEY")
           export ASC_KEY
           if [ "$CHANNEL" = "release" ]; then export UPLOAD=1; fi
           scripts/build-appstore.sh

@@ -150,6 +150,15 @@ upload leaves no half-finished release behind.
 Concurrency: the group is `release-${{ github.ref }}`, and the nightly has its own group
 without cancellation.
 
+### 6. Pitfall from the first release run
+
+`v1.1.0`, 24 Oct 2026: the App Store upload was rejected with "The installer package includes
+files that are only readable by the root user". The upload step began with `umask 077` to
+protect the API key file, and that umask applied to the whole build, so every file of the app
+became owner-only. The umask is now limited to writing the key file. The `appstore-test`
+export does not run this validation, so only a real upload shows it. The missing dSYMs for
+the FFmpeg libraries are warnings only.
+
 ## Risks / Trade-offs
 
 - **[Cloud signing with an API key is new for this project]** → It is first tested with a
