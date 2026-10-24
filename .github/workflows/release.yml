@@ -18,7 +18,8 @@ concurrency:
 
 jobs:
   dmg:
-    runs-on: macos-26
+    # macOS 27 image with Xcode 27 (public preview); macos-26 only has Xcode 26.
+    runs-on: xcode-27
     timeout-minutes: 60
     permissions:
       contents: write
@@ -43,11 +44,13 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Select Xcode 27
+      - name: Select Xcode
+        env:
+          XCODE_VERSION: '27.1'   # the release Xcode the app is built with locally; not a beta
         run: |
-          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1 || true)
-          if [ -z "$XCODE" ]; then
-            echo "::error::This runner has no Xcode 27 (Fernsy targets macOS 27). Installed: $(ls -d /Applications/Xcode*.app | xargs -n1 basename | tr '\n' ' ')"
+          XCODE="/Applications/Xcode_$XCODE_VERSION.app"
+          if [ ! -d "$XCODE" ]; then
+            echo "::error::This runner has no Xcode $XCODE_VERSION (Fernsy targets macOS 27). Installed: $(ls -d /Applications/Xcode*.app | xargs -n1 basename | tr '\n' ' ')"
             exit 1
           fi
           sudo xcode-select -s "$XCODE"
