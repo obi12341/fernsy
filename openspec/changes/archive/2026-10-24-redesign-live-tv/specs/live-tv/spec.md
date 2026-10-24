@@ -2,12 +2,10 @@
 
 ### Requirement: Channel list with now and next
 The Live TV section SHALL show the channels of the selected category as rows with number,
-logo tile, cleaned name with tags, the current show with its progress and the next show's
-start and title, and marks for "in the player", "recording", "offline" and favourite.
-Selecting a channel SHALL show a detail pane on the right with the channel, "Play", the
-favourite toggle, the current show (time, title, progress, remaining minutes, description,
-"Record") and the following shows, each with "Record" or "Scheduled". In a narrow window
-the pane moves below the list.
+logo, tagged name, the current show with progress, the next show, and status marks.
+Selecting a channel SHALL show a detail pane on the right with "Play", the favourite toggle,
+the current show with remaining time and "Record", and the following shows, each with
+"Record" or "Scheduled". In a narrow window the pane moves below the list.
 
 #### Scenario: Selecting a channel
 - **WHEN** the user selects a channel in the list
