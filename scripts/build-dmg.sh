@@ -31,8 +31,10 @@ mkdir -p "$DIST"
 if [ "$SIGN_IDENTITY" = "-" ]; then
     SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
 else
-    # Notarization requires the hardened runtime; set it here instead of relying on the project.
-    SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp)
+    # Notarization requires the hardened runtime and rejects the get-task-allow (debugging)
+    # entitlement Xcode injects by default; set both here instead of relying on the project.
+    SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" ENABLE_HARDENED_RUNTIME=YES
+             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO OTHER_CODE_SIGN_FLAGS=--timestamp)
 fi
 
 echo "▸ Release build ($([ "$SIGN_IDENTITY" = "-" ] && echo ad-hoc || echo "$SIGN_IDENTITY"))"
@@ -44,6 +46,9 @@ APP="$BUILD/DerivedData/Build/Products/Release/Fernsy.app"
 codesign --verify --deep --strict "$APP"
 if [ "$SIGN_IDENTITY" != "-" ] && ! codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime"; then
     echo "The app is not signed with the hardened runtime"; exit 1
+fi
+if [ "$SIGN_IDENTITY" != "-" ] && codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "get-task-allow"; then
+    echo "The app still requests com.apple.security.get-task-allow"; exit 1
 fi
 APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")
 
