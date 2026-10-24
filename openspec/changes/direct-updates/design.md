@@ -104,6 +104,11 @@ release text as notes. The result is attached as `appcast.xml`:
 `SPUUpdaterDelegate.feedURLString(for:)` returns the nightly URL when "Nightly-Builds
 erhalten" is on (UserDefaults `updates.nightly`), otherwise the release URL.
 
+The setting's default comes from the build. A nightly (version `nightly-…`) registers `true`,
+a release `false`, through `UserDefaults.register`. A nightly downloaded by hand thus keeps
+following nightlies; otherwise its high build number would wait for the next release. An
+explicit choice by the user overrides the default.
+
 Sparkle compares `sparkle:version` = `CFBundleVersion` = the commit count. A release after
 nightlies therefore only counts as newer when its commit count is higher, which holds for
 tags on main. The display shows `sparkle:shortVersionString`.

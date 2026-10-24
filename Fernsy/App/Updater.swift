@@ -29,9 +29,17 @@ final class Updater: NSObject, ObservableObject {
 
     var updater: SPUUpdater { controller.updater }
 
+    /// Nightlies carry the version "nightly-<date>"; releases a number.
+    nonisolated static var isNightlyBuild: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "").hasPrefix("nightly-")
+    }
+
     init(recorder: Recorder) {
         self.recorder = recorder
         super.init()
+        // A nightly follows the nightly feed unless the user chose otherwise, so a nightly
+        // downloaded by hand keeps getting nightlies; releases follow the release feed.
+        UserDefaults.standard.register(defaults: [Self.nightlyKey: Self.isNightlyBuild])
         controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
         updater.publisher(for: \.canCheckForUpdates).receive(on: RunLoop.main)
             .sink { [weak self] in self?.canCheckForUpdates = $0 }.store(in: &observations)

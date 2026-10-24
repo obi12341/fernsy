@@ -24,7 +24,7 @@ comes in German and English.
   - a daily automatic check, with Sparkle's consent prompt at the second launch;
   - Sparkle's update window with release notes, Install, Later and Skip;
   - a "Updates" section in Settings: check automatically (on/off), receive nightly builds
-    (off), last check, "Jetzt suchen".
+    (off in releases, on in nightlies), last check, "Jetzt suchen".
 - **Recordings are protected.** An update never installs or relaunches while a recording
   runs or starts within the next 30 minutes. Sparkle postpones the relaunch and installs when
   the user quits, or after the recordings.

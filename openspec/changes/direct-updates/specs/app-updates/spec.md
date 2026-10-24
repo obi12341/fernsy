@@ -25,13 +25,22 @@ Install, Later and Skip; it is only installed when its EdDSA signature matches t
 - **THEN** Sparkle refuses to install it
 
 ### Requirement: Nightly channel
-Settings SHALL offer "Nightly-Builds erhalten" (off by default). When on, the app SHALL check
-the nightly feed instead of the release feed; builds are compared by build number, so a newer
-release replaces an older nightly.
+Settings SHALL offer "Nightly-Builds erhalten", off by default in releases and on by default in
+nightly builds; the user's own choice is kept. When on, the app SHALL check the nightly feed
+instead of the release feed; builds are compared by build number, so a newer release replaces
+an older nightly.
 
 #### Scenario: Opting in
 - **WHEN** the user turns on nightly builds and a nightly newer than the installed build exists
 - **THEN** Fernsy offers that nightly as an update
+
+#### Scenario: Nightly installed by hand
+- **WHEN** the user installs the nightly DMG from GitHub and never touched the setting
+- **THEN** the setting is on and the next nightly is offered as an update
+
+#### Scenario: Releases stay on releases
+- **WHEN** a user runs release 1.1.1 with the setting untouched
+- **THEN** only release 1.1.2 is offered, never a nightly
 
 #### Scenario: Opting out
 - **WHEN** the user turns nightly builds off while running a nightly
