@@ -209,6 +209,10 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
     // queue only:
     private var timer: DispatchSourceTimer?
     private var title = ""
+    /// The target channel's logo (or its initials) on a tile left of the title.
+    private var logo: CGImage?
+    private var initials = ""
+    private var lightTile = false
     private var frame = 0
     private var background: CVPixelBuffer?
     private var pool: CVPixelBufferPool?
@@ -219,10 +223,13 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
     }
 
     /// `last` is the picture shown now; the card is drawn on it, darkened, at its size.
-    func start(title: String, over last: CVPixelBuffer?) {
+    func start(title: String, over last: CVPixelBuffer?, logo: CGImage? = nil, initials: String = "", lightTile: Bool = false) {
         queue.sync {
             stopOnQueue()
             self.title = title
+            self.logo = logo
+            self.initials = initials
+            self.lightTile = lightTile
             frame = 0
             prepare(from: last)
             let timer = DispatchSource.makeTimerSource(queue: queue)
@@ -338,9 +345,36 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: CGColor(gray: 1, alpha: 0.9)]
         let full = CTLineCreateWithAttributedString(NSAttributedString(string: title, attributes: attributes))
         let ellipsis = CTLineCreateWithAttributedString(NSAttributedString(string: "…", attributes: attributes))
-        let line = CTLineCreateTruncatedLine(full, Double(width * 0.85), .end, ellipsis) ?? full
-        let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
-        context.textPosition = CGPoint(x: (width - CGFloat(lineWidth)) / 2, y: height * 0.32)
+        // A logo tile (13:8) left of the title, when the target is a channel.
+        let hasTile = logo != nil || !initials.isEmpty
+        let tile = CGSize(width: 104 * unit, height: 64 * unit)
+        let gap = hasTile ? 22 * unit : 0
+        let line = CTLineCreateTruncatedLine(full, Double(width * 0.85 - (hasTile ? tile.width + gap : 0)), .end, ellipsis) ?? full
+        let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        let total = (hasTile ? tile.width + gap : 0) + lineWidth
+        let left = (width - total) / 2
+        let baseline = height * 0.32
+        if hasTile {
+            let rect = CGRect(x: left, y: baseline - tile.height * 0.3, width: tile.width, height: tile.height)
+            context.setFillColor(lightTile ? CGColor(srgbRed: 0.91, green: 0.91, blue: 0.93, alpha: 1)
+                                           : CGColor(srgbRed: 0.17, green: 0.17, blue: 0.2, alpha: 1))
+            context.addPath(CGPath(roundedRect: rect, cornerWidth: 12 * unit, cornerHeight: 12 * unit, transform: nil))
+            context.fillPath()
+            if let logo {
+                let inset = rect.insetBy(dx: tile.width * 0.12, dy: tile.width * 0.12)
+                let scale = min(inset.width / CGFloat(logo.width), inset.height / CGFloat(logo.height))
+                let size = CGSize(width: CGFloat(logo.width) * scale, height: CGFloat(logo.height) * scale)
+                context.draw(logo, in: CGRect(x: inset.midX - size.width / 2, y: inset.midY - size.height / 2, width: size.width, height: size.height))
+            } else {
+                let small = CTFontCreateWithName("SF Pro Display Heavy" as CFString, 26 * unit, nil)
+                let mark = CTLineCreateWithAttributedString(NSAttributedString(string: initials,
+                    attributes: [.font: small, .foregroundColor: CGColor(gray: 1, alpha: 0.8)]))
+                let markWidth = CGFloat(CTLineGetTypographicBounds(mark, nil, nil, nil))
+                context.textPosition = CGPoint(x: rect.midX - markWidth / 2, y: rect.midY - 9 * unit)
+                CTLineDraw(mark, context)
+            }
+        }
+        context.textPosition = CGPoint(x: left + (hasTile ? tile.width + gap : 0), y: baseline)
         CTLineDraw(line, context)
     }
 }

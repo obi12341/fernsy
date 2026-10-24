@@ -183,7 +183,12 @@ final class PlayerEngine: ObservableObject {
     private var tuner: LiveTuner?
     private var tunerState: AnyCancellable?
     static var liveLead: Double { PlaybackSession.liveLead }
-    private var reconnectAttempts = 0
+    private var reconnectAttempts = 0 {
+        didSet { if reconnectAttempt != reconnectAttempts { reconnectAttempt = reconnectAttempts } }
+    }
+    /// The player's own restart of the stream (shown as "Versuch n von 8"); 0 when none runs.
+    @Published private(set) var reconnectAttempt = 0
+    static let maxReconnectAttempts = 8
     /// Full restarts since the last user-initiated load.
     private var restarts = 0
     private var startedAt: Date?

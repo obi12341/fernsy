@@ -84,10 +84,11 @@ struct PlayerScreen: View {
             }
 
             if controlsVisible, let item = app.nowPlaying {
-                PlayerControls(engine: engine, progress: engine.progress, item: item, epg: currentEPG,
+                PlayerControls(engine: engine, progress: engine.progress, item: item, entries: epg,
                                showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil, onZap: zap, onFullScreen: toggleFullScreen,
                                onActivity: showControls,
-                               isRecording: liveChannelID.map { recorder.active(on: $0) != nil },
+                               recordingEnd: liveChannelID.flatMap { recorder.active(on: $0)?.recordEnd },
+                               canRecord: liveChannelID != nil,
                                onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) },
                                onDragging: { dragging in activeDrags = max(0, activeDrags + (dragging ? 1 : -1)) },
                                pipPossible: pipPossible && [.playing, .paused, .buffering].contains(engine.status), onPictureInPicture: { pip?.toggle() })
@@ -254,7 +255,19 @@ struct PlayerScreen: View {
         }
         // The PiP window would keep the previous item's last picture while this one loads.
         if app.isPictureInPictureActive {
-            engine.loadingCard.start(title: item.title, over: engine.lastPicture.value)
+            if case .live(let id, _) = item.kind, let channel = app.channel(id) {
+                // Whatever size of this logo is already decoded (the list, guide or banner loaded it).
+                let url = channel.icon.flatMap(URL.init(string:))
+                let image = url.flatMap { url in
+                    [156, 240, 132, 198, 144, 216, 192, 450].lazy.compactMap { ImagePipeline.shared.cached(url, maxPixel: $0) }.first
+                }
+                engine.loadingCard.start(title: channel.displayName, over: engine.lastPicture.value,
+                                         logo: image?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                                         initials: LogoTile.initials(of: channel.displayName),
+                                         lightTile: url.flatMap { ImagePipeline.shared.tone(for: $0) } == .darkOnClear)
+            } else {
+                engine.loadingCard.start(title: item.title, over: engine.lastPicture.value)
+            }
             pipStage.refit()
         }
         play(item)
@@ -344,7 +357,13 @@ struct PlayerScreen: View {
         epg = []
         guard let id = liveChannelID else { return }
         while !Task.isCancelled {
-            epg = (try? await app.client?.shortEPG(id, limit: 3)) ?? epg
+            // The full schedule: the timeline marks shows across the whole buffer.
+            await app.epg.load(id, client: app.client)
+            if let entries = app.epg.guide(id).entries, !entries.isEmpty {
+                epg = entries
+            } else {
+                epg = (try? await app.client?.shortEPG(id, limit: 3)) ?? epg
+            }
             try? await Task.sleep(for: .seconds(60))
         }
     }
@@ -519,32 +538,72 @@ struct PlayerScreen: View {
     @ViewBuilder
     private var statusOverlay: some View {
         switch engine.status {
-        case .loading, .buffering:
-            VStack(spacing: 12) {
-                ProgressView().controlSize(.large).tint(.white)
-                if engine.isReconnecting {
-                    Text("Verbindung wird wiederhergestellt …").foregroundStyle(.white.opacity(0.8))
-                } else if engine.status == .loading {
-                    Text("Verbinde …").foregroundStyle(.white.opacity(0.8))
+        case .loading where !engine.isReconnecting:
+            VStack(spacing: 18) {
+                if let id = liveChannelID, let channel = app.channel(id) {
+                    LogoTile(url: channel.icon, name: channel.displayName, width: 150)
                 }
+                ProgressView().controlSize(.large).tint(.white)
+                Text("\(app.nowPlaying?.title ?? "") wird geladen …")
+                    .font(.callout)
+                    .foregroundStyle(.white.opacity(0.7))
             }
-            .padding(24)
-            .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
             .allowsHitTesting(false)
-        case .failed(let message):
-            VStack(spacing: 14) {
-                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 40)).foregroundStyle(.yellow)
-                Text(message).foregroundStyle(.white).multilineTextAlignment(.center)
-                Button("Erneut versuchen") {
-                    if let item = loadedItem {
-                        if item.isLive { app.retuneForPlayer() }
-                        play(item)
+        case .loading, .buffering:
+            if engine.isReconnecting || engine.reconnectAttempt > 0 {
+                VStack(spacing: 10) {
+                    ProgressView().controlSize(.regular).tint(.white)
+                    Text("Verbindung wird wiederhergestellt …").font(.callout.weight(.semibold))
+                    if engine.reconnectAttempt > 0 {
+                        Text("Versuch \(engine.reconnectAttempt) von \(PlayerEngine.maxReconnectAttempts)")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.65))
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 26).padding(.vertical, 18)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .environment(\.colorScheme, .dark)
+                .allowsHitTesting(false)
+            } else {
+                ProgressView().controlSize(.large).tint(.white).allowsHitTesting(false)
             }
-            .padding(28)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        case .failed(let message):
+            let offline = message == PlayerError.offline.localizedDescription
+            VStack(spacing: 10) {
+                Image(systemName: "exclamationmark")
+                    .font(.system(size: 20, weight: .heavy))
+                    .foregroundStyle(Color(hex: 0x1A1300))
+                    .frame(width: 38, height: 38)
+                    .background(Theme.warning, in: Circle())
+                Text(offline ? String(localized: "Sender ist beim Anbieter offline") : message)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                if offline {
+                    Text("\(app.nowPlaying?.title ?? "") liefert gerade kein Bild. Das liegt am Anbieter, nicht an deiner Verbindung.")
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+                HStack(spacing: 10) {
+                    Button("Erneut versuchen") {
+                        if let item = loadedItem {
+                            if item.isLive { app.retuneForPlayer() }
+                            play(item)
+                        }
+                    }
+                    if loadedItem?.isLive == true {
+                        Button("Nächster Sender  ↓") { zap(1) }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                .controlSize(.large)
+                .padding(.top, 8)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: 400)
+            .padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 22)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .environment(\.colorScheme, .dark)
         case .ended:
             Button {
@@ -564,10 +623,12 @@ struct PlayerScreen: View {
 // MARK: - Controls
 
 struct PlayerControls: View {
+    @EnvironmentObject private var app: AppModel
     @ObservedObject var engine: PlayerEngine
     @ObservedObject var progress: PlaybackProgress
     let item: PlayItem
-    let epg: EPGEntry?
+    /// The live channel's programme (empty for films).
+    var entries: [EPGEntry] = []
     @Binding var showInfo: Bool
     let isFullScreen: Bool
     /// Hidden while the channel banner shows the same information.
@@ -575,8 +636,10 @@ struct PlayerControls: View {
     let onZap: (Int) -> Void
     let onFullScreen: () -> Void
     let onActivity: () -> Void
-    /// Live: the current show is being recorded; nil when recording is not possible.
-    var isRecording: Bool? = nil
+    /// Live: the end of the recording running on this channel; nil when none runs.
+    var recordingEnd: Date? = nil
+    /// Live: recording is possible here.
+    var canRecord = false
     var onRecord: () -> Void = {}
     /// Menu picks go through the screen, which remembers them for the series.
     var onPickAudio: (MediaTrack) -> Void = { _ in }
@@ -586,64 +649,78 @@ struct PlayerControls: View {
     var pipPossible = false
     var onPictureInPicture: () -> Void = {}
 
-    @State private var scrubbing = false
-    @State private var scrubValue: Double = 0
+    private var channel: LiveChannel? {
+        if case .live(let id, _) = item.kind { return app.channel(id) }
+        return nil
+    }
+
+    private var current: EPGEntry? { entries.first { $0.start <= Date() && $0.end > Date() } }
+    private var next: EPGEntry? { entries.first { $0.start >= (current?.end ?? Date()) } }
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar.opacity(showsTitle ? 1 : 0)
-            Spacer(minLength: 0)
-            bottomBar
+        ZStack {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.black.opacity(0.42), .clear], startPoint: .top, endPoint: .bottom).frame(height: 170)
+                Spacer(minLength: 0)
+                LinearGradient(colors: [.clear, .black.opacity(0.38)], startPoint: .top, endPoint: .bottom).frame(height: 260)
+            }
+            .allowsHitTesting(false)
+            VStack(spacing: 0) {
+                HStack(alignment: .top) {
+                    captionPill.opacity(showsTitle ? 1 : 0)
+                    Spacer()
+                    if let recordingEnd { recordingPill(until: recordingEnd) }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 40)
+                .allowsHitTesting(false)
+                Spacer(minLength: 0)
+                panel
+            }
         }
-        .environment(\.colorScheme, .dark)
     }
 
-    private var topBar: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 10) {
-                    if item.isLive {
-                        let live = progress.followsLive
-                        Text(live ? "LIVE" : "ZEITVERSETZT")
-                            .font(.caption.weight(.heavy))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(live ? Color.red : Color.gray, in: RoundedRectangle(cornerRadius: 4))
-                    }
-                    if isRecording == true {
-                        Label("REC", systemImage: "record.circle.fill")
-                            .font(.caption.weight(.heavy))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(.red.opacity(0.85), in: RoundedRectangle(cornerRadius: 4))
-                            .fixedSize()
-                    }
-                    Text(item.title).font(.title2.weight(.semibold)).lineLimit(1)
+    // MARK: Caption
+
+    private var captionPill: some View {
+        HStack(spacing: 12) {
+            if let channel {
+                LogoTile(url: channel.icon, name: channel.displayName, width: 48)
+            } else {
+                RoundedRectangle(cornerRadius: 7).fill(Theme.logoTile).frame(width: 48, height: 30)
+                    .overlay(Image(systemName: "play.fill").font(.caption).foregroundStyle(.white))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                if let channel {
+                    TaggedName(name: channel.parsed, font: .callout, weight: .semibold)
+                } else {
+                    Text(verbatim: item.title).font(.callout.weight(.semibold)).lineLimit(1)
                 }
-                if let subtitle = item.subtitle {
-                    Text(subtitle).foregroundStyle(.secondary).lineLimit(1)
-                }
-                if let epg {
-                    HStack(spacing: 8) {
-                        Text("\(epg.start.formatted(date: .omitted, time: .shortened)) – \(epg.end.formatted(date: .omitted, time: .shortened))")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                        Text(epg.title).lineLimit(1)
-                    }
-                    ProgressView(value: epg.progress)
-                        .progressViewStyle(.linear)
-                        .frame(width: 260)
-                        .tint(.white)
+                if let current {
+                    Text(verbatim: "\(current.title) · \(times(current))").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                } else if let subtitle = item.subtitle {
+                    Text(verbatim: subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
-            Spacer()
         }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 24)
-        .padding(.top, 34)
-        .padding(.bottom, 40)
-        .background(LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom))
-        .allowsHitTesting(false)
+        .padding(.leading, 8).padding(.trailing, 16).padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.separator, lineWidth: 0.5))
+        .frame(maxWidth: 520, alignment: .leading)
     }
+
+    private func recordingPill(until end: Date) -> some View {
+        HStack(spacing: 7) {
+            Circle().fill(.white).frame(width: 8, height: 8)
+            Text("Aufnahme · bis \(end.formatted(date: .omitted, time: .shortened))")
+        }
+        .font(.caption.weight(.bold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 11).frame(height: 26)
+        .background(Theme.record, in: Capsule())
+    }
+
+    // MARK: Panel
 
     /// Timeshift: what can be played, from the oldest buffered second to the live edge.
     private var liveRange: ClosedRange<Double>? {
@@ -653,195 +730,204 @@ struct PlayerControls: View {
         return progress.liveStart...end
     }
 
-    private var timeshiftBar: some View {
-        HStack(spacing: 12) {
-            Text((progress.wallClock ?? Date()).formatted(date: .omitted, time: .standard))
-                .monospacedDigit()
-                .frame(minWidth: 70, alignment: .trailing)
-            Slider(value: Binding(
-                // Following live sits at the end; the real position wobbles with bursty delivery.
-                get: { scrubbing ? scrubValue : (progress.followsLive ? (liveRange?.upperBound ?? progress.position) : progress.position) },
-                set: { scrubValue = $0 }
-            ), in: liveRange ?? 0...1) { editing in
-                if editing {
-                    scrubValue = progress.followsLive ? (liveRange?.upperBound ?? progress.position) : progress.position
-                    scrubbing = true
-                } else {
-                    // Let go at the end: back to live, not to a fixed point just before it.
-                    if let range = liveRange, scrubValue >= range.upperBound - 1 { engine.goLive() } else { engine.seek(to: scrubValue) }
-                    scrubbing = false
+    private var panel: some View {
+        VStack(spacing: 12) {
+            if item.isLive, let current {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    label("JETZT")
+                    Text(verbatim: current.title).fontWeight(.semibold).lineLimit(1)
+                    Text("\(times(current)) · noch \(max(1, Int(current.end.timeIntervalSinceNow / 60))) Min.")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                    Spacer(minLength: 12)
+                    if let next {
+                        label("DANACH")
+                        Text(verbatim: "\(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
-                onDragging(editing)
-                onActivity()
+                .font(.callout)
             }
-            .controlSize(.small)
+            if let range = liveRange {
+                LiveTimeline(progress: progress, range: range, entries: entries,
+                             onSeek: { engine.seek(to: $0) }, onGoLive: { engine.goLive() },
+                             onDragging: onDragging, onActivity: onActivity)
+            }
+            if !item.isLive && progress.duration > 0 {
+                FilmTimeline(progress: progress, onSeek: { engine.seek(to: $0) }, onDragging: onDragging, onActivity: onActivity)
+                    .padding(.top, 4)
+            }
+            buttons
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 16)
+        .padding(.bottom, 14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.separator, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.28), radius: 25, y: 18)
+        .frame(maxWidth: 1100)
+        .padding(.horizontal, 40)
+        .padding(.bottom, 26)
+        .onHover { if $0 { onActivity() } }
+    }
+
+    private var buttons: some View {
+        HStack(spacing: 8) {
+            if item.isLive {
+                roundButton("chevron.up", help: "Vorheriger Sender (↑)") { onZap(-1) }
+                roundButton("chevron.down", help: "Nächster Sender (↓)") { onZap(1) }
+                Divider().frame(height: 20).padding(.horizontal, 4)
+            }
+            let seekable = !item.isLive || engine.isTimeshift
+            if !item.isLive {
+                textButton("−60", help: "1 min zurück (⇧←)") { engine.seek(by: -60) }
+            }
+            if seekable {
+                textButton("−10", help: "10 s zurück (←)") { engine.seek(by: -10) }
+            }
+            Button {
+                engine.togglePause()
+                onActivity()
+            } label: {
+                Image(systemName: engine.isPaused ? "play.fill" : "pause.fill")
+                    .font(.system(size: 17, weight: .bold))
+                    .frame(width: 42, height: 42)
+                    .background(.fill.secondary, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Wiedergabe/Pause (Leertaste)")
+            if seekable {
+                textButton("+10", help: "10 s vor (→)") { engine.seek(by: 10) }
+                    .disabled(item.isLive && progress.followsLive)
+                    .opacity(item.isLive && progress.followsLive ? 0.35 : 1)
+            }
+            if !item.isLive {
+                textButton("+60", help: "1 min vor (⇧→)") { engine.seek(by: 60) }
+            }
+            if liveRange != nil { liveState.padding(.leading, 6) }
+
+            Spacer()
+
+            if canRecord {
+                Button {
+                    onRecord()
+                    onActivity()
+                } label: {
+                    HStack(spacing: 7) {
+                        Circle().fill(recordingEnd != nil ? .white : Theme.record).frame(width: 9, height: 9)
+                        Text(recordingEnd != nil ? "Aufnahme beenden" : "Aufnehmen")
+                        if recordingEnd == nil { Text(verbatim: "R").foregroundStyle(.secondary) }
+                    }
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(recordingEnd != nil ? .white : .primary)
+                    .padding(.horizontal, 12).frame(height: 30)
+                    .background(recordingEnd != nil ? AnyShapeStyle(Theme.record) : AnyShapeStyle(.fill.tertiary), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(recordingEnd != nil ? "Aufnahme beenden (R)" : "Laufende Sendung aufnehmen (R)")
+            }
+
+            HStack(spacing: 6) {
+                Button { engine.isMuted.toggle() } label: {
+                    Image(systemName: volumeIcon).frame(width: 22)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Ton aus (M)")
+                Slider(value: Binding(get: { Double(engine.volume) }, set: { engine.volume = Float($0); onActivity() }), in: 0...1) { editing in
+                    onDragging(editing)
+                    onActivity()
+                }
+                .frame(width: 84)
+                .controlSize(.mini)
+            }
+            .padding(.horizontal, 6)
+
+            tracksMenu
+            roundButton(showInfo ? "info.circle.fill" : "info", help: "Technische Infos (I)") { showInfo.toggle() }
+            if pipPossible {
+                roundButton("pip.enter", help: "Bild in Bild (P)") { onPictureInPicture() }
+            }
+            roundButton(isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                        help: isFullScreen ? "Vollbild beenden (F, Esc)" : "Vollbild (F)") { onFullScreen() }
+        }
+    }
+
+    /// Red "LIVE" at the live edge; behind it the distance with a way back.
+    @ViewBuilder
+    private var liveState: some View {
+        if progress.followsLive {
+            StatusBadge(kind: .live)
+        } else {
             Button {
                 engine.goLive()
                 onActivity()
             } label: {
-                let behind = scrubbing ? max(0, (liveRange?.upperBound ?? 0) - scrubValue) : progress.behindLive
-                let live = scrubbing ? behind < 1 : progress.followsLive
-                Text(live ? String(localized: "LIVE") : "−" + formatTime(behind))
-                    .monospacedDigit()
-                    .font(.callout.weight(live ? .bold : .regular))
-                    .foregroundStyle(live ? Color.red : Color.white)
-                    .frame(minWidth: 64, alignment: .leading)
+                HStack(spacing: 8) {
+                    Text("−" + formatTime(progress.behindLive)).font(.callout.weight(.bold)).monospacedDigit()
+                    Text("ZU LIVE ⇥")
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.4)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8).frame(height: 20)
+                        .background(Theme.record, in: Capsule())
+                }
+                .padding(.leading, 11).padding(.trailing, 5).frame(height: 28)
+                .background(.fill.tertiary, in: Capsule())
             }
             .buttonStyle(.plain)
             .help("Zurück zu Live")
         }
-        .font(.callout)
     }
 
-    private var bottomBar: some View {
-        VStack(spacing: 10) {
-            if liveRange != nil {
-                timeshiftBar
+    /// Audio and subtitle tracks in one menu.
+    @ViewBuilder
+    private var tracksMenu: some View {
+        if let media = engine.media, media.audioTracks.count > 1 || !media.subtitleTracks.isEmpty {
+            Menu {
+                if media.audioTracks.count > 1 {
+                    Picker("Tonspur", selection: Binding(
+                        get: { media.selectedAudio },
+                        set: { id in if let track = media.audioTracks.first(where: { $0.id == id }) { onPickAudio(track) } }
+                    )) {
+                        ForEach(media.audioTracks) { track in Text(track.title).tag(Optional(track.id)) }
+                    }
+                    .pickerStyle(.inline)
+                }
+                if !media.subtitleTracks.isEmpty {
+                    Picker("Untertitel", selection: Binding(
+                        get: { media.selectedSubtitle },
+                        set: { id in onPickSubtitle(media.subtitleTracks.first { $0.id == id }) }
+                    )) {
+                        Text("Aus").tag(Int32?.none)
+                        ForEach(media.subtitleTracks) { track in Text(track.title).tag(Optional(track.id)) }
+                    }
+                    .pickerStyle(.inline)
+                }
+            } label: {
+                Text("Ton & UT")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 10).frame(height: 32)
+                    .background(media.selectedSubtitle != nil ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary), in: Capsule())
             }
-            if !item.isLive && progress.duration > 0 {
-                HStack(spacing: 12) {
-                    Text(formatTime(scrubbing ? scrubValue : progress.position))
-                        .monospacedDigit()
-                        .frame(minWidth: 56, alignment: .trailing)
-                    Slider(value: Binding(
-                        get: { scrubbing ? scrubValue : progress.position },
-                        set: { scrubValue = $0 }
-                    ), in: 0...max(progress.duration, 1)) { editing in
-                        if editing {
-                            scrubValue = progress.position
-                            scrubbing = true
-                        } else {
-                            engine.seek(to: scrubValue)
-                            scrubbing = false
-                        }
-                        onDragging(editing)
-                        onActivity()
-                    }
-                    .controlSize(.small)
-                    Text("-" + formatTime(max(0, progress.duration - (scrubbing ? scrubValue : progress.position))))
-                        .monospacedDigit()
-                        .frame(minWidth: 64, alignment: .leading)
-                }
-                .font(.callout)
-            }
-
-            HStack(spacing: 18) {
-                if item.isLive {
-                    iconButton("chevron.up", help: "Vorheriger Sender (↑)") { onZap(-1) }
-                    iconButton("chevron.down", help: "Nächster Sender (↓)") { onZap(1) }
-                }
-                if !item.isLive || engine.isTimeshift {
-                    iconButton("gobackward.10", help: "10 s zurück (←)") { engine.seek(by: -10) }
-                }
-
-                Button {
-                    engine.togglePause()
-                    onActivity()
-                } label: {
-                    Image(systemName: engine.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 26))
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.plain)
-                .help("Wiedergabe/Pause (Leertaste)")
-
-                if !item.isLive || engine.isTimeshift {
-                    iconButton("goforward.10", help: "10 s vor (→)") { engine.seek(by: 10) }
-                        .disabled(item.isLive && progress.followsLive)
-                }
-
-                if let isRecording {
-                    Button {
-                        onRecord()
-                        onActivity()
-                    } label: {
-                        Image(systemName: isRecording ? "stop.circle.fill" : "record.circle")
-                            .foregroundStyle(isRecording ? Color.red : Color.white)
-                            .frame(width: 26, height: 26)
-                    }
-                    .buttonStyle(.plain)
-                    .help(isRecording ? "Aufnahme beenden (R)" : "Laufende Sendung aufnehmen (R)")
-                }
-
-                Spacer()
-
-                if let media = engine.media {
-                    if media.audioTracks.count > 1 {
-                        let current = media.audioTracks.first { $0.id == media.selectedAudio }
-                        Menu {
-                            // An inline picker: real menu checkmarks for the selected track.
-                            Picker("Tonspur", selection: Binding(
-                                get: { media.selectedAudio },
-                                set: { id in if let track = media.audioTracks.first(where: { $0.id == id }) { onPickAudio(track) } }
-                            )) {
-                                ForEach(media.audioTracks) { track in Text(track.title).tag(Optional(track.id)) }
-                            }
-                            .pickerStyle(.inline)
-                            .labelsHidden()
-                        } label: {
-                            Image(systemName: "waveform.circle")
-                        }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
-                        .help("Tonspur: \(current?.title ?? "–")")
-                    }
-                    if !media.subtitleTracks.isEmpty {
-                        let current = media.subtitleTracks.first { $0.id == media.selectedSubtitle }
-                        Menu {
-                            Picker("Untertitel", selection: Binding(
-                                get: { media.selectedSubtitle },
-                                set: { id in onPickSubtitle(media.subtitleTracks.first { $0.id == id }) }
-                            )) {
-                                Text("Aus").tag(Int32?.none)
-                                ForEach(media.subtitleTracks) { track in Text(track.title).tag(Optional(track.id)) }
-                            }
-                            .pickerStyle(.inline)
-                            .labelsHidden()
-                        } label: {
-                            Image(systemName: current != nil ? "captions.bubble.fill" : "captions.bubble")
-                        }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
-                        .help(current.map { String(localized: "Untertitel: \($0.title)") } ?? String(localized: "Untertitel: Aus"))
-                    }
-                }
-
-                if pipPossible {
-                    iconButton("pip.enter", help: "Bild in Bild (P)") { onPictureInPicture() }
-                }
-                iconButton(showInfo ? "info.circle.fill" : "info.circle", help: "Technische Infos (I)") { showInfo.toggle() }
-
-                HStack(spacing: 6) {
-                    Button {
-                        engine.isMuted.toggle()
-                    } label: {
-                        Image(systemName: volumeIcon).frame(width: 22)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Ton aus (M)")
-                    Slider(value: Binding(get: { Double(engine.volume) }, set: { engine.volume = Float($0); onActivity() }), in: 0...1) { editing in
-                        onDragging(editing)
-                        onActivity()
-                    }
-                        .frame(width: 90)
-                        .controlSize(.mini)
-                }
-
-                iconButton(isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                           help: isFullScreen ? "Vollbild beenden (F, Esc)" : "Vollbild (F)") { onFullScreen() }
-            }
-            .font(.system(size: 17))
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Tonspur und Untertitel")
         }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .frame(maxWidth: 980)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 22)
-        .onHover { if $0 { onActivity() } }
+    }
+
+    // MARK: Pieces
+
+    private func label(_ text: LocalizedStringKey) -> some View {
+        Text(text).font(.caption2.weight(.bold)).tracking(0.6).foregroundStyle(.tertiary)
+    }
+
+    private func times(_ entry: EPGEntry) -> String {
+        "\(entry.start.formatted(date: .omitted, time: .shortened))–\(entry.end.formatted(date: .omitted, time: .shortened))"
     }
 
     private var volumeIcon: String {
@@ -851,19 +937,37 @@ struct PlayerControls: View {
         return "speaker.wave.3.fill"
     }
 
-    private func iconButton(_ symbol: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+    private func roundButton(_ symbol: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button {
             action()
             onActivity()
         } label: {
-            Image(systemName: symbol).frame(width: 26, height: 26)
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 32, height: 32)
+                .background(.fill.tertiary, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    private func textButton(_ title: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+            onActivity()
+        } label: {
+            Text(verbatim: title)
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+                .padding(.horizontal, 10).frame(height: 32)
+                .background(.fill.tertiary, in: Capsule())
         }
         .buttonStyle(.plain)
         .help(help)
     }
 }
 
-/// TV-style channel banner: number, logo, name and what is on now.
+/// TV-style channel banner: number, logo, name, what is on now and what follows.
 struct ChannelOSD: View {
     @EnvironmentObject private var app: AppModel
     let channel: LiveChannel
@@ -871,55 +975,73 @@ struct ChannelOSD: View {
     /// Still choosing (key presses continue); the channel is not tuned yet.
     let isPending: Bool
     @State private var now: EPGEntry?
+    @State private var next: EPGEntry?
 
     var body: some View {
-        HStack(spacing: 16) {
-            Text("\(number)")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .frame(minWidth: 52)
-            RemoteImage(url: channel.icon, maxPixel: 160, contentMode: .fit) {
-                Image(systemName: "tv").font(.title).foregroundStyle(.secondary)
-            }
-            .frame(width: 72, height: 44)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(verbatim: channel.displayName).font(.title3.weight(.semibold)).lineLimit(1)
-                    if isPending {
-                        ProgressView().controlSize(.small).tint(.white).opacity(0.7)
-                    }
-                }
-                if let now {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 14) {
+                Text(verbatim: "\(number)")
+                    .font(.system(size: 26, weight: .light))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(minWidth: 50, alignment: .leading)
+                LogoTile(url: channel.icon, name: channel.displayName, width: 66)
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
-                        Text("\(now.start.formatted(date: .omitted, time: .shortened)) – \(now.end.formatted(date: .omitted, time: .shortened))")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                        Text(now.title).lineLimit(1)
+                        TaggedName(name: channel.parsed, font: .title3, weight: .bold)
+                        if isPending {
+                            ProgressView().controlSize(.small).tint(.white).opacity(0.7)
+                        }
                     }
-                    .font(.callout)
-                    ProgressView(value: now.progress)
-                        .progressViewStyle(.linear)
-                        .tint(.white)
-                        .frame(width: 240)
+                    if let now {
+                        Text(verbatim: "\(now.title) · \(now.start.formatted(date: .omitted, time: .shortened))–\(now.end.formatted(date: .omitted, time: .shortened))")
+                            .font(.callout)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(1)
+                    }
                 }
             }
-            .frame(minWidth: 220, alignment: .leading)
+            if let now {
+                ProgressBar(value: now.progress, tint: .white, height: 4)
+            }
+            HStack {
+                if let next {
+                    Text("Danach \(next.start.formatted(date: .omitted, time: .shortened)) \(next.title)")
+                        .lineLimit(1)
+                }
+                Spacer()
+                HStack(spacing: 4) {
+                    keyCap("↑")
+                    keyCap("↓")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.white.opacity(0.65))
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.white.opacity(0.12)))
+        .padding(.vertical, 16)
+        .frame(width: 440, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.3), radius: 25, y: 18)
         .environment(\.colorScheme, .dark)
-        .frame(maxWidth: 560, alignment: .leading)
         .task(id: channel.id) {
             now = nil
+            next = nil
             // Short debounce: no EPG request for channels that are only skipped past.
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            let entries = (try? await app.client?.shortEPG(channel.id, limit: 2)) ?? []
+            let entries = (try? await app.client?.shortEPG(channel.id, limit: 3)) ?? []
             now = entries.first { $0.start <= Date() && $0.end > Date() } ?? entries.first
+            next = entries.first { $0.start >= (now?.end ?? Date()) }
         }
+    }
+
+    private func keyCap(_ key: String) -> some View {
+        Text(verbatim: key)
+            .padding(.horizontal, 5)
+            .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 4))
     }
 }
 

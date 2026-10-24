@@ -32,6 +32,42 @@
         }
       }
     },
+    "%@ liefert gerade kein Bild. Das liegt am Anbieter, nicht an deiner Verbindung.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is not sending a picture right now. This is the provider, not your connection."
+          }
+        }
+      }
+    },
+    "%@ wird geladen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading %@…"
+          }
+        }
+      }
+    },
+    "%@ · noch %lld Min.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · noch %2$lld Min."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$lld min left"
+          }
+        }
+      }
+    },
     "%@ – %@": {
       "localizations": {
         "de": {
@@ -396,6 +432,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 hour"
+          }
+        }
+      }
+    },
+    "1 min vor (⇧→)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 min forward (⇧→)"
+          }
+        }
+      }
+    },
+    "1 min zurück (⇧←)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 min back (⇧←)"
           }
         }
       }
@@ -882,6 +938,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Recording in Progress"
+          }
+        }
+      }
+    },
+    "Aufnahme · bis %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording · until %@"
           }
         }
       }
@@ -2655,6 +2721,16 @@
         }
       }
     },
+    "Nächster Sender  ↓": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Channel  ↓"
+          }
+        }
+      }
+    },
     "Nächster Sender (↓)": {
       "localizations": {
         "en": {
@@ -2841,6 +2917,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Buffer"
+          }
+        }
+      }
+    },
+    "Puffer %@ Std.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buffer %@ h"
+          }
+        }
+      }
+    },
+    "Puffer %lld Min.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buffer %lld min"
           }
         }
       }
@@ -3336,6 +3432,16 @@
         }
       }
     },
+    "Ton & UT": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio & Subtitles"
+          }
+        }
+      }
+    },
     "Ton aus (M)": {
       "localizations": {
         "en": {
@@ -3352,6 +3458,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Audio Track"
+          }
+        }
+      }
+    },
+    "Tonspur und Untertitel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio track and subtitles"
           }
         }
       }
@@ -3542,6 +3658,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version %lld"
+          }
+        }
+      }
+    },
+    "Versuch %lld von %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Versuch %1$lld von %2$lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attempt %1$lld of %2$lld"
           }
         }
       }
@@ -3756,12 +3888,32 @@
         }
       }
     },
+    "ZU LIVE ⇥": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TO LIVE ⇥"
+          }
+        }
+      }
+    },
     "Zeit": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Time"
+          }
+        }
+      }
+    },
+    "Zeitleiste": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timeline"
           }
         }
       }
