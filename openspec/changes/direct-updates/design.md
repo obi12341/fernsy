@@ -86,7 +86,10 @@ Info.plist settings:
 - no downloader service, because the app already has `network.client`;
 - `SUPublicEDKey`;
 - `SUFeedURL` = the release feed;
-- `SUScheduledCheckInterval = 86400`.
+- `SUScheduledCheckInterval = 86400`;
+- `SUEnableAutomaticChecks = YES`: daily checks without Sparkle's consent prompt at the second
+  launch. A check only fetches the appcast and sends no data about the user; Settings turns it
+  off.
 
 Sparkle's XPC services are signed by the build like the app. The task list checks
 notarization and `spctl` in CI.

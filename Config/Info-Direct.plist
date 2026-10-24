@@ -12,6 +12,10 @@
 	<true/>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<!-- Daily checks are on from the start (no consent prompt); Settings can turn them off.
+	     A check only fetches the appcast from GitHub. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<!-- Xtream servers and their stream redirects are plain HTTP.
 	     Do not add NSAllowsArbitraryLoadsForMedia: it makes ATS ignore NSAllowsArbitraryLoads. -->
 	<!-- Only standard HTTPS/TLS from the system: exempt from export documentation. -->

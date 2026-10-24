@@ -8,7 +8,7 @@ recordings for an update.
 
 ### Requirement: Checking for updates
 The DMG build SHALL check a signed feed for newer builds once a day when automatic checks are
-on (Sparkle asks for consent at the second launch) and SHALL offer "Nach Updates suchen …" in
+on (the default, switchable in Settings) and SHALL offer "Nach Updates suchen …" in
 the Fernsy menu and in Settings. An update SHALL show its version and release notes and offer
 Install, Later and Skip; it is only installed when its EdDSA signature matches the app's key.
 

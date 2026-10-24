@@ -21,7 +21,7 @@ comes in German and English.
   `build-dmg.sh` and CI build "Fernsy Direct"; `build-appstore.sh` builds "Fernsy".
 - **Updates in the app (DMG build only):**
   - the menu item "Nach Updates suchen …" in the Fernsy menu;
-  - a daily automatic check, with Sparkle's consent prompt at the second launch;
+  - a daily automatic check, on by default (no consent prompt), switchable in Settings;
   - Sparkle's update window with release notes, Install, Later and Skip;
   - a "Updates" section in Settings: check automatically (on/off), receive nightly builds
     (off in releases, on in nightlies), last check, "Jetzt suchen".
