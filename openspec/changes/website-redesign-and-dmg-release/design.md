@@ -154,6 +154,24 @@ Rejected:
 Signing a Developer ID build sets `ENABLE_HARDENED_RUNTIME=YES` explicitly. Notarization
 requires it, and the script must not depend on the project setting.
 
+### 6. Pitfalls found in the first CI runs
+
+These were found in the first CI runs (24 Oct 2026):
+- **The hosted `macos-26` image only has Xcode 26.** Xcode 27 is on the separate `xcode-27`
+  image (macOS 27, public preview). The workflow pins Xcode 27.1 instead of "newest", which
+  would pick the 27.2 beta.
+- **Notarization rejected the embedded FFmpeg libraries without a secure timestamp.**
+  `embed-ffmpeg.sh` signed them with `--timestamp=none`. It now timestamps them when the build
+  passes `--timestamp` in `OTHER_CODE_SIGN_FLAGS`, which `build-dmg.sh` does for signed builds.
+  Debug and App Store builds stay as they were.
+- **Notarization rejected `com.apple.security.get-task-allow`,** which Xcode injects by
+  default. `build-dmg.sh` sets `CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO` for signed builds and
+  checks the result.
+- **`notarytool submit --wait` exits 0 on an "Invalid" result.** `build-dmg.sh` checks for
+  "Accepted" and prints `notarytool log` otherwise.
+- **`actions/cache` only saves on a successful job.** The FFmpeg cache is saved with
+  `actions/cache/save` right after building it.
+
 ## Risks / Trade-offs
 
 - **[Hosted runners may not have Xcode 27 yet]** → The run fails clearly at the start. The

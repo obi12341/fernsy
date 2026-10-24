@@ -26,7 +26,7 @@
 
 ## 3. DMG and release
 
-- [ ] 3.1 `scripts/build-dmg.sh`:
+- [x] 3.1 `scripts/build-dmg.sh`:
   - API-key notarization (`NOTARY_KEY`, `NOTARY_KEY_ID`, `NOTARY_ISSUER`);
   - `ENABLE_HARDENED_RUNTIME=YES` when signing with an identity;
   - a check after signing that `flags` contains `runtime`.
