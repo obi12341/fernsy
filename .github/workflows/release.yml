@@ -1,28 +1,93 @@
-# Builds the notarized DMG for distribution outside the App Store.
-#   push a tag vX.Y on main → GitHub release "Fernsy X.Y" with Fernsy.dmg and Fernsy-X.Y.dmg
-#   run manually            → the same DMG as a workflow artifact, no release
-# Signing data comes only from repository secrets (see README › Release).
+# Builds Fernsy outside the user's Mac (see README › Release).
+#   tag vX.Y / vX.Y.Z on main → release "Fernsy X.Y" with the notarized DMG, and the App Store
+#                               build uploaded to App Store Connect (submitting stays manual)
+#   every night (main changed) → the notarized DMG on the rolling pre-release "Nightly"
+#   run manually               → channel "nightly" (default) or "appstore-test" (archive and
+#                               export the App Store build without uploading)
+# The version comes from the tag (nightly: the newest release tag), the build number from
+# the commit count; the project file is never changed. Signing data comes only from secrets.
 name: Release
 
 on:
   push:
     tags: ['v*']
+  schedule:
+    - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      channel:
+        description: What to build
+        type: choice
+        options: [nightly, appstore-test]
+        default: nightly
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.ref }}-${{ inputs.channel || github.event_name }}
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.plan.outputs.channel }}
+      version: ${{ steps.plan.outputs.version }}
+      build: ${{ steps.plan.outputs.build }}
+      sha: ${{ steps.plan.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Plan
+        id: plan
+        env:
+          INPUT_CHANNEL: ${{ inputs.channel }}
+        run: |
+          SHA="$GITHUB_SHA"
+          git fetch -q origin main --tags --force
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            CHANNEL=release
+            if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME is not vX.Y or vX.Y.Z"; exit 1
+            fi
+            if ! git merge-base --is-ancestor "$SHA" origin/main; then
+              echo "::error::Tag $GITHUB_REF_NAME is not on main"; exit 1
+            fi
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            CHANNEL="${INPUT_CHANNEL:-nightly}"
+            if [ "$CHANNEL" = "nightly" ]; then
+              # Not a release: the version names the commit date, never a release number.
+              VERSION="nightly-$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%d "$SHA")"
+            else
+              LAST=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA" 2>/dev/null || true)
+              if [ -n "$LAST" ]; then VERSION="${LAST#v}"; else
+                VERSION=$(grep -m1 -o 'MARKETING_VERSION = [^;]*' Fernsy.xcodeproj/project.pbxproj | cut -d' ' -f3)
+              fi
+            fi
+            if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+              NIGHTLY=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || true)
+              if [ "$NIGHTLY" = "$SHA" ]; then
+                echo "main has not changed since the last nightly ($SHA)"; CHANNEL=skip
+              fi
+            fi
+          fi
+          BUILD=$(git rev-list --count "$SHA")
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Fernsy $VERSION ($BUILD) · $CHANNEL · $SHA"
+
   dmg:
+    needs: prepare
+    if: needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'nightly'
     # macOS 27 image with Xcode 27 (public preview); macos-26 only has Xcode 26.
     runs-on: xcode-27
     timeout-minutes: 60
-    permissions:
-      contents: write
     steps:
       # Secrets go only to the steps that need them, never to third-party actions.
       - name: Check secrets
@@ -43,6 +108,8 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - name: Select Xcode
         env:
@@ -55,17 +122,6 @@ jobs:
           fi
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
-
-      - name: Check version
-        id: version
-        run: |
-          VERSION=$(grep -m1 -o 'MARKETING_VERSION = [^;]*' Fernsy.xcodeproj/project.pbxproj | cut -d' ' -f3)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match MARKETING_VERSION $VERSION"
-            exit 1
-          fi
-          echo "Fernsy $VERSION"
 
       - name: Restore FFmpeg
         id: ffmpeg-cache
@@ -117,42 +173,182 @@ jobs:
         env:
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          BUILD_VERSION: ${{ needs.prepare.outputs.version }}
+          BUILD_NUMBER: ${{ needs.prepare.outputs.build }}
         run: scripts/build-dmg.sh
 
       - name: Verify
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          BUILD: ${{ needs.prepare.outputs.build }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
         run: |
-          DMG="dist/Fernsy-${{ steps.version.outputs.version }}.dmg"
+          DMG="dist/Fernsy-$VERSION.dmg"
           xcrun stapler validate "$DMG"
           spctl -a -t open --context context:primary-signature -v "$DMG"
           MOUNT=$(hdiutil attach -nobrowse -readonly "$DMG" | grep -o '/Volumes/.*' | head -1)
           codesign --verify --deep --strict "$MOUNT/Fernsy.app"
           codesign -dv "$MOUNT/Fernsy.app" 2>&1 | grep -q 'flags=.*runtime'
           spctl -a -t exec -v "$MOUNT/Fernsy.app"
+          PLIST="$MOUNT/Fernsy.app/Contents/Info.plist"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$PLIST")" = "$VERSION" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$PLIST")" = "$BUILD" ]
           hdiutil detach "$MOUNT"
-          cp "$DMG" dist/Fernsy.dmg
-
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Fernsy-${{ steps.version.outputs.version }}
-          path: dist/Fernsy-${{ steps.version.outputs.version }}.dmg
-
-      - name: Publish release
-        if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          if [ -f RELEASE_NOTES.md ]; then NOTES=RELEASE_NOTES.md; else
-            NOTES="$RUNNER_TEMP/notes.md"
-            printf 'Fernsy %s for Macs with Apple silicon (macOS 27 or later). Signed with Developer ID and notarized by Apple.\n' "$VERSION" > "$NOTES"
+          mkdir -p out
+          if [ "$CHANNEL" = "nightly" ]; then
+            cp "$DMG" out/Fernsy-Nightly.dmg
+          else
+            cp "$DMG" out/Fernsy.dmg
+            cp "$DMG" "out/Fernsy-$VERSION.dmg"
           fi
-          gh release create "$GITHUB_REF_NAME" --title "Fernsy $VERSION" --notes-file "$NOTES" \
-            dist/Fernsy.dmg "dist/Fernsy-$VERSION.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: out/
+          retention-days: 7
 
       - name: Clean up signing data
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/notary-key.p8"
+
+  appstore:
+    needs: prepare
+    if: needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'appstore-test'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - name: Check secrets
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          missing=()
+          for name in NOTARY_KEY_P8 NOTARY_KEY_ID NOTARY_ISSUER; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]} (see README › Release)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: Select Xcode
+        env:
+          XCODE_VERSION: '27.1'
+        run: |
+          XCODE="/Applications/Xcode_$XCODE_VERSION.app"
+          if [ ! -d "$XCODE" ]; then
+            echo "::error::This runner has no Xcode $XCODE_VERSION. Installed: $(ls -d /Applications/Xcode*.app | xargs -n1 basename | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Restore FFmpeg
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: Vendor/ffmpeg
+          key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
+
+      - name: Build FFmpeg (LGPL)
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: scripts/build-ffmpeg.sh
+
+      - name: Save FFmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: Vendor/ffmpeg
+          key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
+
+      # Apple's cloud signing through the API key (Admin role): no certificates or profiles
+      # to import; Xcode fetches the App Store profile and signs with the cloud-managed
+      # distribution certificate.
+      - name: Archive and upload (or export for a test)
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ASC_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          BUILD_VERSION: ${{ needs.prepare.outputs.version }}
+          BUILD_NUMBER: ${{ needs.prepare.outputs.build }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+        run: |
+          umask 077
+          ASC_KEY="$RUNNER_TEMP/asc-key.p8"
+          echo "$NOTARY_KEY_P8" | base64 --decode > "$ASC_KEY"
+          export ASC_KEY
+          if [ "$CHANNEL" = "release" ]; then export UPLOAD=1; fi
+          scripts/build-appstore.sh
+          if [ "$CHANNEL" != "release" ]; then
+            PKG=$(ls build/appstore/export/*.pkg)
+            pkgutil --check-signature "$PKG"
+          fi
+
+      - name: Clean up the API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc-key.p8"
+
+  publish:
+    needs: [prepare, dmg, appstore]
+    # A release needs the App Store upload too; a nightly has no App Store job.
+    if: >-
+      always() && needs.dmg.result == 'success' &&
+      (needs.prepare.outputs.channel == 'nightly' ||
+       (needs.prepare.outputs.channel == 'release' && needs.appstore.result == 'success'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dmg
+          path: out
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          BUILD: ${{ needs.prepare.outputs.build }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          if [ "$CHANNEL" = "release" ]; then
+            TAG="$GITHUB_REF_NAME"
+            if gh release view "$TAG" > /dev/null 2>&1; then
+              # Created by hand in the web interface: keep its title and text.
+              gh release upload "$TAG" out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" --clobber
+            else
+              if [ -f RELEASE_NOTES.md ]; then NOTES=RELEASE_NOTES.md; else
+                NOTES="$RUNNER_TEMP/notes.md"
+                printf 'Fernsy %s for Macs with Apple silicon (macOS 27 or later). Signed with Developer ID and notarized by Apple.\n' "$VERSION" > "$NOTES"
+              fi
+              gh release create "$TAG" --title "Fernsy $VERSION" --notes-file "$NOTES" --latest \
+                out/Fernsy.dmg "out/Fernsy-$VERSION.dmg"
+            fi
+          else
+            LAST=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA" 2>/dev/null || true)
+            NOTES="$RUNNER_TEMP/nightly.md"
+            {
+              echo "Test build of \`main\` at $(git log -1 --format='%h, %cd' --date=format:'%Y-%m-%d %H:%M UTC' "$SHA")."
+              echo "Signed with Developer ID and notarized by Apple. Installs over Fernsy and uses the same data."
+              echo
+              echo "Changes since ${LAST:-the beginning}:"
+              echo
+              git log --format='- %s (%h)' "${LAST:+$LAST..}$SHA" | head -60
+            } > "$NOTES"
+            gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
+            gh release create nightly --prerelease --latest=false --target "$SHA" \
+              --title "Fernsy Nightly ${VERSION#nightly-} (build $BUILD)" --notes-file "$NOTES" out/Fernsy-Nightly.dmg
+          fi

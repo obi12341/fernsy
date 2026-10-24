@@ -36,39 +36,61 @@ main. The images on the home page are rendered from the mockups of the Claude De
 "Fernsy Redesign" (headless Chrome, 2×, WebP); they are not app screenshots. The English
 images (`en-*.webp`) come from copies of the mockups with translated texts.
 
-### Notarized DMG via GitHub Actions
+### Releases and nightlies via GitHub Actions
 
-`.github/workflows/release.yml` builds the DMG on the GitHub-hosted `xcode-27` runner (macOS 27, public preview) with Xcode 27.1.
-The steps are:
+`.github/workflows/release.yml` builds on the GitHub-hosted `xcode-27` runner (macOS 27, public
+preview) with Xcode 27.1. The version comes from the tag, the build number from the commit
+count (`git rev-list --count`); neither is written back to the project.
+
+- **Tag `vX.Y` or `vX.Y.Z` on main.** This builds two things in parallel:
+  - the notarized DMG;
+  - the App Store build, signed with Apple's cloud signing through the API key and uploaded
+    to App Store Connect.
+
+  Only when both work does it publish the release "Fernsy X.Y" with `Fernsy.dmg` and
+  `Fernsy-X.Y.dmg`. Submitting for review stays a manual step in App Store Connect. A release
+  created by hand in the GitHub web interface keeps its text and gets the DMGs attached.
+  Otherwise `RELEASE_NOTES.md`, if present, becomes the release text. The website's download
+  button links to `releases/latest/download/Fernsy.dmg`.
+- **Nightly.** Every night at 02:00 UTC, if main changed, it builds the notarized DMG. It
+  replaces the single pre-release "Nightly" (tag `nightly`) with `Fernsy-Nightly.dmg`. A
+  nightly has no release version: it is `nightly-<commit date>` with the commit count as build
+  number, and the text lists the changes since the last release. Nightlies
+  are the same app (bundle ID, data) and install over Fernsy. Pre-releases never become
+  "latest".
+- **Manual runs:**
+  - `gh workflow run release.yml` builds a nightly now;
+  - `-f channel=appstore-test` archives and exports the App Store build without uploading it.
+
+The DMG steps are:
 1. build LGPL FFmpeg, cached;
 2. sign with Developer ID and the hardened runtime;
 3. run the smoke test;
-4. notarize with an App Store Connect API key, and staple;
+4. notarize, and staple;
 5. check the result with Gatekeeper.
-
-A tag `vX.Y` (it must match `MARKETING_VERSION`) publishes a GitHub release with
-`Fernsy.dmg` and `Fernsy-X.Y.dmg`. The website's download button links to
-`releases/latest/download/Fernsy.dmg`. Run manually, the workflow only uploads the DMG as an
-artifact. `RELEASE_NOTES.md`, if present, becomes the release text.
 
 One-time setup:
 1. **Certificate.** In the Apple Developer account (team B8YT7FNB66, only the Account Holder
    can do this), create a "Developer ID Application" certificate. Export it with its private
    key from Keychain Access as a .p12 with a password.
 2. **API key.** In App Store Connect › Users and Access › Integrations, create a team API key
-   with the "Developer" role. Download the .p8 and note the key ID and issuer ID.
+   with the **Admin** role. Cloud signing for the App Store build needs Admin; notarization
+   alone would need only Developer. Download the .p8 and note the key ID and issuer ID.
 3. **Repository secrets** (Settings › Secrets and variables › Actions):
-   - `DEVELOPER_ID_P12`: `base64 -i DeveloperID.p12 | pbcopy`;
-   - `DEVELOPER_ID_P12_PASSWORD`: the export password;
-   - `NOTARY_KEY_P8`: `base64 -i AuthKey_XXXX.p8 | pbcopy`;
+   - `DEVELOPER_ID_P12`: `base64 -i DeveloperID.p12 | gh secret set DEVELOPER_ID_P12`;
+   - `DEVELOPER_ID_P12_PASSWORD`: set it in the web interface;
+   - `NOTARY_KEY_P8`: `base64 -i AuthKey_XXXX.p8 | gh secret set NOTARY_KEY_P8`;
    - `NOTARY_KEY_ID` and `NOTARY_ISSUER`.
-4. Run the workflow manually once and check the artifact on another Mac.
 
-Do not push a release tag before the current version is approved in the App Store.
+Do not push a release tag before the previous version is approved in the App Store. A tag
+uploads to App Store Connect.
 
-Locally the same script notarizes with
-`SIGN_IDENTITY="Developer ID Application: …" NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh`
-(or with a `NOTARY_PROFILE`).
+Locally the same scripts still work:
+- `SIGN_IDENTITY="Developer ID Application: …" NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh`
+  (or with a `NOTARY_PROFILE`);
+- `UPLOAD=1 scripts/build-appstore.sh` with the Xcode account.
+
+Both take `BUILD_VERSION`/`BUILD_NUMBER` for one build without changing the project.
 
 ## Demo server
 

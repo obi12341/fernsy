@@ -8,6 +8,7 @@
 #   SIGN_IDENTITY=… NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh
 #                                        # + notarize with an App Store Connect API key (CI)
 #   VERSION=1.0 scripts/build-dmg.sh     # set a new version (saved in the project, build number +1)
+#   BUILD_VERSION=1.2 BUILD_NUMBER=214 scripts/build-dmg.sh   # version for this build only (CI)
 #
 # NOTARY_PROFILE is a notarytool keychain profile, created once with
 #   xcrun notarytool store-credentials fernsy --apple-id … --team-id B8YT7FNB66
@@ -36,6 +37,10 @@ else
     SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" ENABLE_HARDENED_RUNTIME=YES
              CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO OTHER_CODE_SIGN_FLAGS=--timestamp)
 fi
+
+# CI passes the version from the tag and the build number from git, without editing the project.
+[ -n "${BUILD_VERSION:-}" ] && SIGNING+=("MARKETING_VERSION=$BUILD_VERSION")
+[ -n "${BUILD_NUMBER:-}" ] && SIGNING+=("CURRENT_PROJECT_VERSION=$BUILD_NUMBER")
 
 echo "▸ Release build ($([ "$SIGN_IDENTITY" = "-" ] && echo ad-hoc || echo "$SIGN_IDENTITY"))"
 xcodebuild -project Fernsy.xcodeproj -scheme Fernsy -configuration Release \
