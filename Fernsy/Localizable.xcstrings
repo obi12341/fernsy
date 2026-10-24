@@ -800,6 +800,7 @@
         }
       }
     },
+    "Aufnahmen durchsuchen": {},
     "Aufnahmen laufen nur, solange Fernsy geöffnet ist. Du kannst alle Fenster schließen, Fernsy aber geöffnet lassen.": {
       "localizations": {
         "en": {
@@ -1270,6 +1271,7 @@
         }
       }
     },
+    "Favoriten durchsuchen": {},
     "Fernsy": {
       "localizations": {
         "en": {
@@ -1330,6 +1332,7 @@
         }
       }
     },
+    "Filme suchen": {},
     "Filme › Fernsy": {
       "localizations": {
         "en": {
@@ -2350,6 +2353,7 @@
         }
       }
     },
+    "Serien suchen": {},
     "Server": {
       "localizations": {
         "en": {
@@ -2856,6 +2860,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Record before"
+          }
+        }
+      }
+    },
+    "Wartet auf den Sender …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the channel…"
           }
         }
       }

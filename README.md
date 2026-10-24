@@ -100,7 +100,10 @@ the same channel share one connection. Recordings (`Fernsy/Recording/`) copy the
 `~/Movies/Fernsy` and only run while the app is open. For tests use the demo server
 (`IPTV_MAXCONN=1` simulates a single-stream account; `IPTV_TESTRECORD=<channel>:<in s>:<s>`
 schedules a recording, `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
-`IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag).
+`IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag,
+`IPTV_TESTNODATA=<offline|silent>:<s>` makes tuner connections fail as an offline or silent
+channel for that many seconds after the first one; a recording keeps waiting for its channel
+until its window ends).
 `IPTV_TESTNET` (`drop:`, `stall:`, `close:<s>`) also runs for films: a film's download that ends
 before the file does (an idle connection closed during a long pause) continues with a range
 request and keeps its buffer; an end more than 60 s before the known duration reloads at the

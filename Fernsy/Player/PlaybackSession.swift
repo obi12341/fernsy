@@ -477,6 +477,9 @@ final class PlaybackSession {
     }
 
     private func openInput() throws {
+        #if DEBUG
+        try simulateNoData()
+        #endif
         try source.open()
 
         // Xtream panels redirect offline live channels to a looping placeholder clip.
@@ -1749,6 +1752,24 @@ final class PlaybackSession {
     }
 
     #if DEBUG
+    /// IPTV_TESTNODATA=<offline|silent>:<s>: for that many seconds after the first tuner
+    /// connection, tuner connections fail as an offline channel, or (silent) deliver nothing and
+    /// time out after 8 s – a recording has to keep waiting for its channel.
+    private static let noDataTest: (offline: Bool, until: Date)? = {
+        let parts = ProcessInfo.processInfo.environment["IPTV_TESTNODATA"]?.split(separator: ":") ?? []
+        guard parts.count == 2, let seconds = Double(parts[1]) else { return nil }
+        return (parts[0] == "offline", Date().addingTimeInterval(seconds))
+    }()
+
+    private func simulateNoData() throws {
+        guard isTuner, let test = Self.noDataTest, Date() < test.until else { return }
+        debugLog("[test] simulating a channel without data (\(test.offline ? "offline" : "silent"))")
+        if test.offline { throw PlayerError.offline }
+        let deadline = Date().addingTimeInterval(8)
+        while Date() < deadline && !isStopped { Thread.sleep(forTimeInterval: 0.1) }
+        throw HTTPByteSource.SourceError.timeout
+    }
+
     /// IPTV_TESTNET="drop:15,stall:40,close:60": kill the connection / stall the socket / end the
     /// download as if the server had closed it cleanly, at those seconds after start – the live
     /// reconnect and, for films, continuing an interrupted download.

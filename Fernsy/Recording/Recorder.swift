@@ -147,6 +147,7 @@ final class Recorder: ObservableObject {
                 if r.status == .recording {
                     r.status = fileURL(r).map { FileManager.default.fileExists(atPath: $0.path) } == true ? .done : .failed
                     r.bytes = fileURL(r).flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path)[.size] as? Int64 }
+                    if r.fileName == nil { r.error = String(localized: "Keine Daten vom Sender") }
                 }
                 return r
             }
@@ -314,19 +315,20 @@ final class Recorder: ObservableObject {
             }
             guard recordings.first(where: { $0.id == recording.id })?.status == .scheduled else { return }
             let tuner = app.tuners.acquire(recording.channelId, url: url, owner: .recording(recording.id))
-            // Wait for the start time and the first data, so the recording starts on a keyframe.
-            var waited = 0.0
-            while (tuner.buffer.newest == nil || Date() < recording.recordStart) && tuner.isActive && waited < 30 + Self.tuneAhead {
+            // Running from now on, with or without data: the list shows it waiting, and it can be
+            // stopped. Waits for the start time and the first data (so the file starts on a
+            // keyframe) until the window ends; the tuner keeps reconnecting meanwhile.
+            update(recording.id) { $0.status = .recording }
+            while isWaiting(recording.id) && (tuner.buffer.newest == nil || Date() < recording.recordStart)
+                    && Date() < recording.recordEnd && tuner.state != .unsupported {
                 try? await Task.sleep(for: .milliseconds(250))
-                waited += 0.25
             }
-            guard recordings.first(where: { $0.id == recording.id })?.status == .scheduled else {
-                app.tuners.release(recording.channelId, owner: .recording(recording.id))
+            guard isWaiting(recording.id) else {
+                // Stopped or finished meanwhile (finish released the tuner).
                 return
             }
-            guard let entry = tuner.buffer.entry(atOrBeforeWall: recording.recordStart) else {
-                app.tuners.release(recording.channelId, owner: .recording(recording.id))
-                update(recording.id) { $0.status = .failed; $0.error = String(localized: "Keine Daten vom Sender") }
+            guard tuner.state != .unsupported, let entry = tuner.buffer.entry(atOrBeforeWall: recording.recordStart) else {
+                finish(recording.id, error: tuner.state == .unsupported ? PlayerError.unsupported.localizedDescription : nil)
                 return
             }
             let name = Self.fileName(for: recording)
@@ -334,15 +336,19 @@ final class Recorder: ObservableObject {
                 try FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
                 let copier = try RecordingCopier(buffer: tuner.buffer, from: entry.offset, to: Self.folder.appendingPathComponent(name))
                 copiers[recording.id] = copier
-                update(recording.id) { $0.status = .recording; $0.fileName = name }
+                update(recording.id) { $0.fileName = name }
                 #if DEBUG
                 debugLog("[recording] started \(recording.title) on \(recording.channelName) → \(name)")
                 #endif
             } catch {
-                app.tuners.release(recording.channelId, owner: .recording(recording.id))
-                update(recording.id) { $0.status = .failed; $0.error = error.localizedDescription }
+                finish(recording.id, error: error.localizedDescription)
             }
         }
+    }
+
+    /// Started (status `.recording`) but not writing yet, because no data has arrived.
+    private func isWaiting(_ id: UUID) -> Bool {
+        recordings.first { $0.id == id }?.status == .recording && copiers[id] == nil
     }
 
     private func finish(_ id: UUID, error: String?) {
@@ -358,6 +364,8 @@ final class Recorder: ObservableObject {
             }
             copier.finish(at: tuner?.buffer.endOffset ?? 0)
         }
+        // Waited the whole time (or was stopped while waiting) without any data.
+        let error = recording.fileName == nil ? error ?? String(localized: "Keine Daten vom Sender") : error
         update(id) {
             $0.status = error == nil ? .done : .failed
             $0.error = error

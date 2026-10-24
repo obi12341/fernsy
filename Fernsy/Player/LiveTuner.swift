@@ -97,6 +97,10 @@ final class LiveTuner: ObservableObject {
                 stopSession()
             } else if retry {
                 restart(reason: message)
+            } else if keepTrying {
+                // Offline at the provider: a recording waits for the channel until its window
+                // ends, asking calmly (the player alone gives up below).
+                restart(reason: message, after: 30)
             } else {
                 state = .failed(message)
                 stopSession()
@@ -106,7 +110,7 @@ final class LiveTuner: ObservableObject {
         }
     }
 
-    private func restart(reason: String) {
+    private func restart(reason: String, after fixedDelay: TimeInterval? = nil) {
         if let openedAt, Date().timeIntervalSince(openedAt) > 20 { attempts = 0 }
         openedAt = nil
         guard attempts < 8 || keepTrying else {
@@ -117,7 +121,7 @@ final class LiveTuner: ObservableObject {
         attempts += 1
         state = .reconnecting
         let gen = generation
-        let delay = min(keepTrying ? 10 : 5, 0.5 * Double(attempts))
+        let delay = fixedDelay ?? min(keepTrying ? 10 : 5, 0.5 * Double(attempts))
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, gen == self.generation else { return }
             self.connect()

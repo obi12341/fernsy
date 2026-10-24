@@ -157,6 +157,7 @@ struct RecordingRow: View {
 
     private var detail: String? {
         switch recording.status {
+        case .recording where recording.fileName == nil: return String(localized: "Wartet auf den Sender …")
         case .skipped: return String(localized: "ausgelassen")
         case .missed: return String(localized: "verpasst (Fernsy war nicht geöffnet)")
         case .failed where recording.bytes == nil: return String(localized: "fehlgeschlagen")
