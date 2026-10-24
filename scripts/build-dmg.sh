@@ -5,10 +5,14 @@
 #   scripts/build-dmg.sh                 # ad-hoc signed (local use, no developer account)
 #   SIGN_IDENTITY="Developer ID Application: …" scripts/build-dmg.sh
 #   SIGN_IDENTITY=… NOTARY_PROFILE=fernsy scripts/build-dmg.sh   # + notarize and staple
+#   SIGN_IDENTITY=… NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh
+#                                        # + notarize with an App Store Connect API key (CI)
 #   VERSION=1.0 scripts/build-dmg.sh     # set a new version (saved in the project, build number +1)
 #
 # NOTARY_PROFILE is a notarytool keychain profile, created once with
 #   xcrun notarytool store-credentials fernsy --apple-id … --team-id B8YT7FNB66
+# NOTARY_KEY is the path to the API key's .p8 file; NOTARY_KEY_ID and NOTARY_ISSUER are its
+# key ID and issuer ID from App Store Connect (Users and Access › Integrations).
 #
 # Output: dist/Fernsy-<version>.dmg
 set -euo pipefail
@@ -27,7 +31,8 @@ mkdir -p "$DIST"
 if [ "$SIGN_IDENTITY" = "-" ]; then
     SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
 else
-    SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" OTHER_CODE_SIGN_FLAGS=--timestamp)
+    # Notarization requires the hardened runtime; set it here instead of relying on the project.
+    SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp)
 fi
 
 echo "▸ Release build ($([ "$SIGN_IDENTITY" = "-" ] && echo ad-hoc || echo "$SIGN_IDENTITY"))"
@@ -37,6 +42,9 @@ xcodebuild -project Fernsy.xcodeproj -scheme Fernsy -configuration Release \
 APP="$BUILD/DerivedData/Build/Products/Release/Fernsy.app"
 [ -x "$APP/Contents/MacOS/Fernsy" ] || { echo "Build failed"; exit 1; }
 codesign --verify --deep --strict "$APP"
+if [ "$SIGN_IDENTITY" != "-" ] && ! codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime"; then
+    echo "The app is not signed with the hardened runtime"; exit 1
+fi
 APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")
 
 echo "▸ Smoke test (libraries load from the bundle only)"
@@ -61,9 +69,15 @@ hdiutil create -volname "Fernsy" -srcfolder "$DMG_ROOT" -fs APFS -format ULMO -o
 
 if [ "$SIGN_IDENTITY" != "-" ]; then
     codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"
-    if [ -n "${NOTARY_PROFILE:-}" ]; then
+    if [ -n "${NOTARY_PROFILE:-}" ] || [ -n "${NOTARY_KEY:-}" ]; then
         echo "▸ Notarizing"
-        xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+        if [ -n "${NOTARY_KEY:-}" ]; then
+            : "${NOTARY_KEY_ID:?NOTARY_KEY_ID is missing}" "${NOTARY_ISSUER:?NOTARY_ISSUER is missing}"
+            NOTARY=(--key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER")
+        else
+            NOTARY=(--keychain-profile "$NOTARY_PROFILE")
+        fi
+        xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait
         xcrun stapler staple "$DMG"
     fi
 fi

@@ -31,7 +31,44 @@ their length limits. `scripts/make-icon.swift`
 renders the app icon.
 
 The product, support, privacy and imprint pages (German and English) live in `website/` and
-are published to https://www.fernsy.app/ by `.github/workflows/pages.yml`.
+are published to https://www.fernsy.app/ by `.github/workflows/pages.yml` on every push to
+main. The images on the home page are rendered from the mockups of the Claude Design project
+"Fernsy Redesign" (headless Chrome, 2×, WebP); they are not app screenshots. The English
+images (`en-*.webp`) come from copies of the mockups with translated texts.
+
+### Notarized DMG via GitHub Actions
+
+`.github/workflows/release.yml` builds the DMG on a GitHub-hosted macOS runner with Xcode 27.
+The steps are:
+1. build LGPL FFmpeg, cached;
+2. sign with Developer ID and the hardened runtime;
+3. run the smoke test;
+4. notarize with an App Store Connect API key, and staple;
+5. check the result with Gatekeeper.
+
+A tag `vX.Y` (it must match `MARKETING_VERSION`) publishes a GitHub release with
+`Fernsy.dmg` and `Fernsy-X.Y.dmg`. The website's download button links to
+`releases/latest/download/Fernsy.dmg`. Run manually, the workflow only uploads the DMG as an
+artifact. `RELEASE_NOTES.md`, if present, becomes the release text.
+
+One-time setup:
+1. **Certificate.** In the Apple Developer account (team B8YT7FNB66, only the Account Holder
+   can do this), create a "Developer ID Application" certificate. Export it with its private
+   key from Keychain Access as a .p12 with a password.
+2. **API key.** In App Store Connect › Users and Access › Integrations, create a team API key
+   with the "Developer" role. Download the .p8 and note the key ID and issuer ID.
+3. **Repository secrets** (Settings › Secrets and variables › Actions):
+   - `DEVELOPER_ID_P12`: `base64 -i DeveloperID.p12 | pbcopy`;
+   - `DEVELOPER_ID_P12_PASSWORD`: the export password;
+   - `NOTARY_KEY_P8`: `base64 -i AuthKey_XXXX.p8 | pbcopy`;
+   - `NOTARY_KEY_ID` and `NOTARY_ISSUER`.
+4. Run the workflow manually once and check the artifact on another Mac.
+
+Do not push a release tag before the current version is approved in the App Store.
+
+Locally the same script notarizes with
+`SIGN_IDENTITY="Developer ID Application: …" NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh`
+(or with a `NOTARY_PROFILE`).
 
 ## Demo server
 
