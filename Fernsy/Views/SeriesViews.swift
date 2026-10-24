@@ -41,64 +41,88 @@ struct SeriesDetailView: View {
     @State private var error: String?
 
     var body: some View {
+        let next = info.flatMap(nextEpisode)
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                RemoteImage(url: info?.backdrop ?? series.cover, maxPixel: 1600) {
-                    Rectangle().fill(.quaternary)
-                }
-                .frame(height: 300)
-                .frame(maxWidth: .infinity)
-                .clipped()
-                .overlay(LinearGradient(colors: [.clear, Color(nsColor: .windowBackgroundColor)], startPoint: .center, endPoint: .bottom))
+                DetailBackdrop(url: info?.backdrop ?? series.cover)
 
                 HStack(alignment: .top, spacing: 28) {
                     RemoteImage(url: series.cover, maxPixel: 500) { Rectangle().fill(.quaternary) }
                         .aspectRatio(2 / 3, contentMode: .fit)
                         .frame(width: 180)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(radius: 10)
-                        .offset(y: -90)
-                        .padding(.bottom, -90)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .shadow(color: .black.opacity(0.35), radius: 14, y: 8)
+                        .offset(y: -110)
+                        .padding(.bottom, -110)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(series.name).font(.largeTitle.weight(.bold)).textSelection(.enabled)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(verbatim: series.name).font(.largeTitle.weight(.bold)).textSelection(.enabled)
+                        HStack(spacing: 8) {
+                            let parts = [series.releaseDate.map { String($0.prefix(4)) }, series.genre,
+                                         info.map { String(localized: "\($0.seasons.count) Staffeln") }].compactMap { $0 }
+                            Text(verbatim: parts.joined(separator: " · ")).lineLimit(1)
+                            if let rating = series.rating, rating > 0 {
+                                Text(verbatim: "· ★ \(rating.formatted(.number.precision(.fractionLength(1))))")
+                            }
+                        }
+                        .foregroundStyle(.secondary)
                         HStack(spacing: 12) {
-                            if let date = series.releaseDate { Text(String(date.prefix(4))) }
-                            if let genre = series.genre { Text(genre).lineLimit(1) }
-                            if let rating = series.rating { Label(String(format: "%.1f", rating), systemImage: "star.fill") }
+                            if let next {
+                                Button { app.play(next, of: series) } label: {
+                                    HStack(spacing: 8) {
+                                        Label("Nächste Episode", systemImage: "play.fill")
+                                        Text(verbatim: "S\(next.season) E\(next.number) · \(next.title)").lineLimit(1).opacity(0.8)
+                                    }
+                                    .padding(.horizontal, 8)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                            }
                             Button {
                                 app.toggleFavorite("series:\(series.id)")
                             } label: {
                                 Image(systemName: app.isFavorite("series:\(series.id)") ? "star.fill" : "star")
+                                    .foregroundStyle(app.isFavorite("series:\(series.id)") ? .yellow : .primary)
                             }
-                            .buttonStyle(.borderless)
+                            .controlSize(.large)
+                            .help("Favorit")
                         }
-                        .foregroundStyle(.secondary)
                         if let plot = series.plot {
-                            Text(plot).foregroundStyle(.secondary).frame(maxWidth: 720, alignment: .leading).textSelection(.enabled)
+                            Text(verbatim: plot).foregroundStyle(.secondary).lineSpacing(3)
+                                .frame(maxWidth: 680, alignment: .leading).textSelection(.enabled)
                         }
                     }
+                    .padding(.top, 4)
                 }
-                .padding(.horizontal, 32)
+                .padding(.horizontal, 36)
 
-                episodes
-                    .padding(32)
+                episodes(next: next)
+                    .padding(36)
             }
         }
+        .ignoresSafeArea(edges: .top)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .navigationTitle(series.name)
         .task(id: series.id) {
             do {
                 let loaded = try await app.client?.seriesInfo(series.id)
                 info = loaded
-                season = loaded?.seasons.keys.sorted().first
+                season = loaded.flatMap(nextEpisode)?.season ?? loaded?.seasons.keys.sorted().first
             } catch {
                 self.error = error.localizedDescription
             }
         }
     }
 
+    /// The episode with a resume position, else the first one not watched (else the first).
+    private func nextEpisode(_ info: SeriesInfo) -> Episode? {
+        let all = info.seasons.keys.sorted().flatMap { (info.seasons[$0] ?? []).sorted { $0.number < $1.number } }
+        if let started = all.first(where: { app.resumePosition("episode.\($0.id)") > 0 }) { return started }
+        return all.first { !app.isWatched("episode.\($0.id)") } ?? all.first
+    }
+
     @ViewBuilder
-    private var episodes: some View {
+    private func episodes(next: Episode?) -> some View {
         if let info, let season {
             let seasons = info.seasons.keys.sorted()
             VStack(alignment: .leading, spacing: 16) {
@@ -107,13 +131,16 @@ struct SeriesDetailView: View {
                         ForEach(seasons, id: \.self) { Text("Staffel \($0)").tag($0) }
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     .frame(maxWidth: min(CGFloat(seasons.count) * 110, 900))
                 } else {
                     Text("Staffel \(season)").font(.title2.weight(.semibold))
                 }
                 LazyVStack(spacing: 10) {
-                    ForEach(info.seasons[season] ?? []) { episode in
-                        EpisodeRow(episode: episode, resume: app.resumePosition("episode.\(episode.id)")) {
+                    ForEach((info.seasons[season] ?? []).sorted { $0.number < $1.number }) { episode in
+                        let key = "episode.\(episode.id)"
+                        EpisodeRow(episode: episode, resume: app.resumePosition(key), fraction: app.resumeFraction(key),
+                                   watched: app.isWatched(key), isNext: episode.id == next?.id) {
                             app.play(episode, of: series)
                         }
                     }
@@ -130,6 +157,9 @@ struct SeriesDetailView: View {
 struct EpisodeRow: View {
     let episode: Episode
     let resume: Double
+    var fraction: Double? = nil
+    var watched = false
+    var isNext = false
     let play: () -> Void
     @State private var hovering = false
 
@@ -143,6 +173,11 @@ struct EpisodeRow: View {
                     }
                 }
                 .frame(width: 200, height: 112)
+                .overlay(alignment: .bottom) {
+                    if let fraction {
+                        ProgressBar(value: fraction, tint: .accentColor, height: 4).padding(8)
+                    }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay {
                     if hovering {
@@ -151,15 +186,24 @@ struct EpisodeRow: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("\(episode.number). \(episode.title)").font(.headline).lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(verbatim: "\(episode.number). \(episode.title)").font(.headline).lineLimit(1)
+                        if isNext {
+                            Text("Als Nächstes")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tint)
+                        } else if watched {
+                            Label("Gesehen", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
                         if let d = episode.durationSeconds, d > 0 {
                             Text("\(d / 60) Min.").foregroundStyle(.secondary).font(.callout)
                         }
                     }
                     if let plot = episode.plot {
-                        Text(plot).font(.callout).foregroundStyle(.secondary).lineLimit(3)
+                        Text(verbatim: plot).font(.callout).foregroundStyle(.secondary).lineLimit(3)
                     }
                     if resume > 0 {
                         Label("Fortsetzen bei \(formatTime(resume))", systemImage: "play.circle")

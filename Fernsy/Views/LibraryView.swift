@@ -63,7 +63,8 @@ struct LibraryView: View {
         } content: {
             // Jellyfin Home has no categories, the guide picks its category from a menu: the
             // column collapses.
-            if section == .jellyfinHome || (section == .live && effectiveLiveMode == .guide && !editingLive) {
+            // Detail pages (film, series) give the column's width to the backdrop as well.
+            if section == .jellyfinHome || (section == .live && effectiveLiveMode == .guide && !editingLive) || !path.isEmpty {
                 Color.clear.navigationSplitViewColumnWidth(0)
             } else {
                 CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter, editing: section == .live && editingLive)

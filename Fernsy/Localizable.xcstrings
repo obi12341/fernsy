@@ -340,6 +340,42 @@
         }
       }
     },
+    "%lld Staffeln": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Seasons"
+          }
+        }
+      }
+    },
+    "%lld Std.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld h"
+          }
+        }
+      }
+    },
+    "%lld Std. %lld Min.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld Std. %2$lld Min."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld h %2$lld min"
+          }
+        }
+      }
+    },
     "%lld Titel": {
       "localizations": {
         "de": {
@@ -692,6 +728,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show All"
+          }
+        }
+      }
+    },
+    "Als Nächstes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up Next"
           }
         }
       }
@@ -1711,6 +1757,16 @@
         }
       }
     },
+    "Format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format"
+          }
+        }
+      }
+    },
     "Fortsetzen": {
       "localizations": {
         "en": {
@@ -1753,6 +1809,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "To record, Fernsy switches to %@, because your account allows only %lld stream(s) at a time."
+          }
+        }
+      }
+    },
+    "Genre": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genre"
           }
         }
       }
@@ -2605,6 +2671,16 @@
         }
       }
     },
+    "Neueste": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newest"
+          }
+        }
+      }
+    },
     "Neueste zuerst": {
       "localizations": {
         "en": {
@@ -2691,6 +2767,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Forced Only"
+          }
+        }
+      }
+    },
+    "Nächste Episode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Episode"
           }
         }
       }

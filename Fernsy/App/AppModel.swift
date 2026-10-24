@@ -305,6 +305,16 @@ final class AppModel: ObservableObject {
         if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
         if env["IPTV_NAMETEST"] == "1" { ChannelName.selfTest() }
+        if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
+        if let spec = env["IPTV_TESTRESUME"] {
+            // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run.
+            for item in spec.split(separator: ",") {
+                let p = item.split(separator: ":")
+                if p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) {
+                    testResume[String(p[0])] = (position, duration)
+                }
+            }
+        }
         if let appearance = env["IPTV_APPEARANCE"] {
             // IPTV_APPEARANCE=light|dark: one run in that appearance, without touching the system setting.
             NSApp.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
@@ -832,15 +842,52 @@ final class AppModel: ObservableObject {
     // MARK: Resume positions
 
     func resumePosition(_ key: String) -> Double {
-        UserDefaults.standard.double(forKey: "resume." + key)
+        if Self.skipKeychain { return testResume[key]?.position ?? 0 }
+        return UserDefaults.standard.double(forKey: "resume." + key)
     }
+
+    private var testResume: [String: (position: Double, duration: Double)] = [:]
+    private var testWatched: Set<String> = []
 
     func saveResume(_ key: String, position: Double, duration: Double) {
         let finished = duration > 0 && position > duration - 90
+        // Test runs (no keychain) share the installed app's defaults: they keep this in memory.
+        if Self.skipKeychain {
+            testResume[key] = position < 30 || finished ? nil : (position, duration)
+            if finished { testWatched.insert(key) }
+            objectWillChange.send()
+            return
+        }
         if position < 30 || finished {
             UserDefaults.standard.removeObject(forKey: "resume." + key)
+            UserDefaults.standard.removeObject(forKey: "resume." + key + ".duration")
         } else {
             UserDefaults.standard.set(position, forKey: "resume." + key)
+            if duration > 0 { UserDefaults.standard.set(duration, forKey: "resume." + key + ".duration") }
         }
+        if finished {
+            UserDefaults.standard.set(true, forKey: "watched." + key)
+            AppLog.detail(.player, "watched \(key)")
+        }
+        objectWillChange.send()
     }
+
+    /// 0…1 of a started item, nil without a stored duration.
+    func resumeFraction(_ key: String) -> Double? {
+        let position = resumePosition(key)
+        let duration = Self.skipKeychain ? (testResume[key]?.duration ?? 0)
+            : UserDefaults.standard.double(forKey: "resume." + key + ".duration")
+        guard position > 0, duration > 0 else { return nil }
+        return min(1, position / duration)
+    }
+
+    /// Played to its end (within the last 90 s) at some point.
+    func isWatched(_ key: String) -> Bool {
+        Self.skipKeychain ? testWatched.contains(key) : UserDefaults.standard.bool(forKey: "watched." + key)
+    }
+
+    #if DEBUG
+    /// IPTV_TESTWATCHED=<key>,…: these items count as watched (in memory).
+    func markWatchedForTest(_ keys: [String]) { testWatched.formUnion(keys) }
+    #endif
 }
