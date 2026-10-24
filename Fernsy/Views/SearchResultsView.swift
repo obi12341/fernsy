@@ -234,12 +234,6 @@ struct SearchResultsView: View {
                 }
             }
         }
-        if !results.recordings.isEmpty {
-            header("Aufnahmen", source: .recordings, total: results.recordings.count, limit: Self.rowLimit)
-            VStack(spacing: 6) {
-                ForEach(shown(results.recordings, .recordings, Self.rowLimit)) { RecordingRow(recording: $0) }
-            }
-        }
         if !results.jellyfinFilms.isEmpty {
             header("Jellyfin-Filme", source: .jellyfinFilms, total: results.jellyfinFilms.count, limit: Self.posterLimit)
             jellyfinGrid(shown(results.jellyfinFilms, .jellyfinFilms, Self.posterLimit))
@@ -247,6 +241,12 @@ struct SearchResultsView: View {
         if !results.jellyfinSeries.isEmpty {
             header("Jellyfin-Serien", source: .jellyfinSeries, total: results.jellyfinSeries.count, limit: Self.posterLimit)
             jellyfinGrid(shown(results.jellyfinSeries, .jellyfinSeries, Self.posterLimit))
+        }
+        if !results.recordings.isEmpty {
+            header("Aufnahmen", source: .recordings, total: results.recordings.count, limit: Self.rowLimit)
+            VStack(spacing: 6) {
+                ForEach(shown(results.recordings, .recordings, Self.rowLimit)) { RecordingRow(recording: $0) }
+            }
         }
     }
 

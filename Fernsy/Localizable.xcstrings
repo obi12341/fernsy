@@ -908,6 +908,22 @@
         }
       }
     },
+    "Aufnahme %@–%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Aufnahme %1$@–%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording %1$@–%2$@"
+          }
+        }
+      }
+    },
     "Aufnahme auslassen": {
       "localizations": {
         "en": {
@@ -1039,6 +1055,16 @@
       }
     },
     "Aufnahmen durchsuchen": {},
+    "Aufnahmen laufen nur, solange Fernsy geöffnet ist – auch mit geschlossenen Fenstern über das Menüleistensymbol.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recordings only run while Fernsy is open – also with all windows closed, via the menu bar icon."
+          }
+        }
+      }
+    },
     "Aufnahmen laufen nur, solange Fernsy geöffnet ist. Du kannst alle Fenster schließen, Fernsy aber geöffnet lassen.": {
       "localizations": {
         "en": {
@@ -4388,6 +4414,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "missed (Fernsy was not open)"
+          }
+        }
+      }
+    },
+    "verpasst · Fernsy war nicht geöffnet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "missed · Fernsy was not open"
           }
         }
       }

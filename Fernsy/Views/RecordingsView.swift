@@ -35,6 +35,15 @@ struct RecordingsView: View {
                 }
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            Label("Aufnahmen laufen nur, solange Fernsy geöffnet ist – auch mit geschlossenen Fenstern über das Menüleistensymbol.",
+                  systemImage: "info.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background(.bar)
+        }
         .navigationTitle("Aufnahmen")
         .toolbar {
             ToolbarItem {
@@ -59,30 +68,37 @@ struct RecordingRow: View {
         HStack(spacing: 12) {
             icon.frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {
-                Text(recording.title).font(.headline).lineLimit(1)
+                Text(verbatim: recording.title).font(.headline).lineLimit(1)
                 HStack(spacing: 6) {
-                    Text(recording.channelName)
-                    Text("·")
+                    Text(verbatim: recording.channelName)
+                    Text(verbatim: "·")
                     Text(timeText).monospacedDigit()
-                    if let detail { Text("·"); Text(detail) }
+                    if recording.padBefore > 0 || recording.padAfter > 0 {
+                        Text(verbatim: "·")
+                        Text("Aufnahme \(recording.recordStart.formatted(date: .omitted, time: .shortened))–\(recording.recordEnd.formatted(date: .omitted, time: .shortened))")
+                            .monospacedDigit()
+                    }
+                    if let detail { Text(verbatim: "·"); Text(detail) }
                 }
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                if recording.padBefore > 0 || recording.padAfter > 0 {
-                    Text("Aufnahme \(recording.recordStart.formatted(date: .omitted, time: .shortened)) – \(recording.recordEnd.formatted(date: .omitted, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                if let error = recording.error {
-                    Text(error).font(.caption).foregroundStyle(.orange).lineLimit(2)
+                if let outcome {
+                    Label {
+                        Text(verbatim: outcome.text).lineLimit(2)
+                    } icon: {
+                        Image(systemName: outcome.symbol).foregroundStyle(outcome.failed ? Theme.warning : Color.secondary)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(outcome.failed ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .help(outcome.text)
                 }
                 if recording.status == .recording {
                     TimelineView(.periodic(from: .now, by: 5)) { context in
-                        ProgressView(value: progress(at: context.date)).progressViewStyle(.linear).tint(.red)
+                        ProgressBar(value: progress(at: context.date), tint: Theme.record)
                     }
                     .frame(maxWidth: 320)
+                    .padding(.top, 3)
                 }
             }
             Spacer()
@@ -158,10 +174,26 @@ struct RecordingRow: View {
     private var detail: String? {
         switch recording.status {
         case .recording where recording.fileName == nil: return String(localized: "Wartet auf den Sender …")
-        case .skipped: return String(localized: "ausgelassen")
-        case .missed: return String(localized: "verpasst (Fernsy war nicht geöffnet)")
-        case .failed where recording.bytes == nil: return String(localized: "fehlgeschlagen")
+        case .skipped, .missed: return nil
+        case .failed where recording.bytes == nil: return nil
         default: return recording.bytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) }
+        }
+    }
+
+    /// What went wrong, with its cause: "fehlgeschlagen · Keine Daten vom Sender".
+    private var outcome: (symbol: String, text: String, failed: Bool)? {
+        switch recording.status {
+        case .failed:
+            let cause = recording.error.map { " · \($0)" } ?? ""
+            return ("exclamationmark.triangle.fill", String(localized: "fehlgeschlagen") + cause, true)
+        case .missed:
+            return ("minus.circle", String(localized: "verpasst · Fernsy war nicht geöffnet"), false)
+        case .skipped:
+            return ("minus.circle", String(localized: "ausgelassen"), false)
+        case .done where recording.error != nil:
+            return ("exclamationmark.triangle.fill", recording.error ?? "", true)
+        default:
+            return nil
         }
     }
 
