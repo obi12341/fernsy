@@ -109,6 +109,13 @@ struct PosterCard: View {
 
     @State private var hovering = false
 
+    /// IPTV_TESTNOPOSTER=1 (DEBUG): every card shows its placeholder.
+    #if DEBUG
+    private static let showsPosters = ProcessInfo.processInfo.environment["IPTV_TESTNOPOSTER"] == nil
+    #else
+    private static let showsPosters = true
+    #endif
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // A fixed 2:3 frame decides the size; artwork of other proportions fills it and is
@@ -117,10 +124,16 @@ struct PosterCard: View {
                 .aspectRatio(2 / 3, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .overlay {
-                    RemoteImage(url: imageURL, maxPixel: 420) {
+                    RemoteImage(url: Self.showsPosters ? imageURL : nil, maxPixel: 420) {
+                        // No or broken poster: the title on a neutral surface keeps the grid calm.
                         ZStack {
                             Rectangle().fill(.quaternary)
-                            Image(systemName: "film").font(.largeTitle).foregroundStyle(.tertiary)
+                            Text(title)
+                                .font(.headline)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(4)
+                                .foregroundStyle(.secondary)
+                                .padding(12)
                         }
                     }
                 }
@@ -131,6 +144,17 @@ struct PosterCard: View {
                         .foregroundStyle(.yellow)
                         .padding(6)
                         .background(.black.opacity(0.5), in: Circle())
+                        .padding(6)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if (unwatchedCount ?? 0) == 0, let rating, rating > 0 {
+                    Text(verbatim: "★ \(rating.formatted(.number.precision(.fractionLength(1))))")
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(.black.opacity(0.6), in: Capsule())
+                        .foregroundStyle(.white)
                         .padding(6)
                 }
             }
@@ -183,12 +207,6 @@ struct PosterCard: View {
                 .multilineTextAlignment(.leading)
             if let subtitle {
                 Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
-            if let rating {
-                Label(String(format: "%.1f", rating), systemImage: "star.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .labelStyle(.titleAndIcon)
             }
         }
         .contentShape(Rectangle())

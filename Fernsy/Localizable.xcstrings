@@ -328,6 +328,16 @@
         }
       }
     },
+    "%lld läuft": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld running"
+          }
+        }
+      }
+    },
     "%lld nahtlos": {
       "localizations": {
         "en": {
@@ -897,6 +907,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hide"
+          }
+        }
+      }
+    },
+    "Ausgeblendet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden"
           }
         }
       }
@@ -1661,6 +1681,16 @@
         }
       }
     },
+    "Im Player": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Player"
+          }
+        }
+      }
+    },
     "In den Papierkorb legen": {
       "localizations": {
         "en": {
@@ -2349,6 +2379,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
+          }
+        }
+      }
+    },
+    "Offline": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline"
           }
         }
       }

@@ -89,11 +89,8 @@ struct ChannelRow: View {
     var body: some View {
         let hidden = editing && app.isHidden(channel)
         HStack(spacing: 12) {
-            RemoteImage(url: channel.icon, maxPixel: 96, contentMode: .fit) {
-                Image(systemName: "tv").foregroundStyle(.tertiary)
-            }
-            .frame(width: 48, height: 30)
-            .opacity(hidden ? 0.4 : 1)
+            LogoTile(url: channel.icon, name: channel.name, width: 52)
+                .opacity(hidden ? 0.4 : 1)
 
             Text(channel.name)
                 .lineLimit(1)

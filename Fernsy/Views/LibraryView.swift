@@ -36,19 +36,26 @@ struct LibraryView: View {
                 if app.credentials != nil {
                     Section("IPTV") {
                         ForEach(LibrarySection.iptv) { s in
-                            Label(s.title, systemImage: s.icon).tag(s)
+                            if s == .recordings && runningRecordings > 0 {
+                                Label(s.title, systemImage: s.icon).tag(s)
+                                    .badge(Text("\(runningRecordings) läuft").foregroundStyle(Theme.record))
+                            } else {
+                                Label(s.title, systemImage: s.icon).tag(s)
+                            }
                         }
                     }
                 }
                 if app.hasJellyfin {
-                    Section("Jellyfin") {
+                    Section {
                         ForEach(LibrarySection.jellyfin) { s in
                             Label(s.title, systemImage: s.icon).tag(s)
                         }
+                    } header: {
+                        jellyfinHeader
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 240)
+            .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 260)
             .safeAreaInset(edge: .bottom) { if app.credentials != nil { accountFooter } }
         } content: {
             // Jellyfin Home has no categories: the column collapses.
@@ -237,8 +244,29 @@ struct LibraryView: View {
         (app.credentials != nil ? LibrarySection.iptv : []) + (app.hasJellyfin ? LibrarySection.jellyfin : [])
     }
 
+    private var runningRecordings: Int {
+        recorder.recordings.filter { $0.status == .recording }.count
+    }
+
+    /// "Jellyfin" with the server's state as dot and text (never colour alone).
+    private var jellyfinHeader: some View {
+        HStack(spacing: 6) {
+            Text("Jellyfin")
+            Spacer()
+            Circle()
+                .fill(jellyfin.isOffline ? Theme.warning : Theme.online)
+                .frame(width: 6, height: 6)
+            Text(jellyfin.isOffline ? String(localized: "Offline") : (jellyfin.session?.serverName ?? ""))
+                .fontWeight(.regular)
+                .lineLimit(1)
+        }
+    }
+
     private var accountFooter: some View {
         VStack(alignment: .leading, spacing: 2) {
+            if let host = app.credentials?.baseURL?.host() {
+                Text(host).foregroundStyle(.primary.opacity(0.7)).fontWeight(.medium).lineLimit(1)
+            }
             if let account = app.account, let expires = account.expiresAt {
                 Text("Gültig bis \(expires.formatted(date: .abbreviated, time: .omitted))")
             }

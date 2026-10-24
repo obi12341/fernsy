@@ -276,10 +276,7 @@ private struct GuideRow: View {
 
     private var channelCell: some View {
         HStack(spacing: 8) {
-            RemoteImage(url: channel.icon, maxPixel: 96, contentMode: .fit) {
-                Image(systemName: "tv").foregroundStyle(.tertiary)
-            }
-            .frame(width: 40, height: 26)
+            LogoTile(url: channel.icon, name: channel.name, width: 44)
             Text(channel.name)
                 .font(.callout)
                 .fontWeight(isPlaying ? .semibold : .regular)

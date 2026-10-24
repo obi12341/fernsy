@@ -104,6 +104,12 @@ credentials are replaced by "•••" before an entry is stored. Debug builds 
 entry to stderr. `debugLog` is left for `[test]` hooks only. `IPTV_TESTLOG=1` opens the log
 window (`previous` shows the previous launch), and `IPTV_LOGSELFTEST=1` checks the redaction.
 
+Shared design building blocks live in `Fernsy/Views/Design/` (colour tokens, `LogoTile`,
+`StatusBadge`); the accent is `AccentColor` in the asset catalog. Debug switches:
+`IPTV_APPEARANCE=light|dark` runs in that appearance without changing the system,
+`IPTV_LOGOTONETEST=1` checks the logo tile's tone detection and initials,
+`IPTV_TESTNOPOSTER=1` shows every poster card's placeholder.
+
 Live TV runs through a tuner (`Fernsy/Player/LiveTuner.swift`): a headless session receives
 the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-disk
 `TimeshiftBuffer`, and the player plays that buffer, so pausing, rewinding and recordings of

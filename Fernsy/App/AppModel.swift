@@ -290,6 +290,11 @@ final class AppModel: ObservableObject {
         }
         if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
         if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
+        if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
+        if let appearance = env["IPTV_APPEARANCE"] {
+            // IPTV_APPEARANCE=light|dark: one run in that appearance, without touching the system setting.
+            NSApp.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
+        }
         if let spec = env["JF_AUTOPLAY"] {
             // JF_AUTOPLAY=<item id>[:<start s>]: play a Jellyfin film or episode once signed in.
             let parts = spec.split(separator: ":").map(String.init)
