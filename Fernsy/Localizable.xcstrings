@@ -3540,6 +3540,22 @@
         }
       }
     },
+    "keine Daten seit %.0f s, Player fast leer (%.1f s Vorrat)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "keine Daten seit %1$.0f s, Player fast leer (%2$.1f s Vorrat)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)"
+          }
+        }
+      }
+    },
     "min": {
       "localizations": {
         "en": {

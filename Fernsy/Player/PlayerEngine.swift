@@ -121,7 +121,9 @@ final class PlayerEngine: ObservableObject {
             }
             guard status != oldValue else { return }
             switch status {
-            case .failed(let message): AppLog.error(.player, "playback failed: \(message)")
+            case .failed(let message):
+                logStallEnd("failed")
+                AppLog.error(.player, "playback failed: \(message)")
             case .ended: AppLog.info(.player, "playback ended")
             default: break
             }
@@ -129,6 +131,8 @@ final class PlayerEngine: ObservableObject {
     }
     @Published private(set) var media: MediaInfo?
     private var nextStatsLog = Date.distantPast
+    /// When the picture stopped for lack of data (after the start), for the log.
+    private var stallStartedAt: Date?
     @Published private(set) var videoSize: CGSize = .zero
     @Published private(set) var stats = PlaybackStats()
     @Published private(set) var subtitleText: String?
@@ -323,6 +327,8 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func start(url: URL, mode: PlaybackSession.Mode, startAt: Double) {
+        // A restart of the same stream continues the freeze; another item ends it.
+        if url != currentURL { logStallEnd("switched to another item") }
         generation += 1
         let gen = generation
         currentURL = url
@@ -384,6 +390,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func stop() {
+        logStallEnd("stopped")
         loadingCard.stop()
         lastPicture.set(nil)
         earlyEndRecoveredAt = nil
@@ -602,6 +609,15 @@ final class PlayerEngine: ObservableObject {
         media = info
     }
 
+    /// Logs how long the picture stood still (the user-visible part of a stall).
+    private func logStallEnd(_ outcome: String? = nil) {
+        guard let since = stallStartedAt else { return }
+        stallStartedAt = nil
+        let seconds = Date().timeIntervalSince(since)
+        let text = String(format: "stalled for %.1f s", seconds) + (outcome.map { ", then \($0)" } ?? "")
+        if seconds >= 3 { AppLog.warning(.player, text) } else { AppLog.info(.player, text) }
+    }
+
     // MARK: Events
 
     private func handle(_ event: PlaybackSession.Event, generation gen: Int) {
@@ -634,6 +650,7 @@ final class PlayerEngine: ObservableObject {
         case .videoSize(let size):
             videoSize = size
         case .started:
+            logStallEnd()
             hasStarted = true
             status = isPaused ? .paused : .playing
             isReconnecting = false
@@ -646,6 +663,11 @@ final class PlayerEngine: ObservableObject {
             }
         case .buffering(let flag):
             if flag { status = .buffering } else { status = isPaused ? .paused : .playing }
+            if flag && hasStarted && stallStartedAt == nil {
+                stallStartedAt = Date()
+            } else if !flag {
+                logStallEnd()
+            }
         case .position(let streamPosition, let streamBuffered):
             let offset = external?.timelineOffset ?? 0
             let position = streamPosition + offset

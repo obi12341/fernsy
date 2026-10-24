@@ -453,7 +453,13 @@ final class PlaybackSession {
 
     /// Timeshift: playback "at the live edge" stays this far behind the newest data, so
     /// channels that deliver in bursts do not run dry between them.
-    static let liveLead = 5.0
+    static let liveLead: Double = {
+        #if DEBUG
+        // IPTV_LIVELEAD=<s>: start live closer to the newest data (tests the dry-player reconnect).
+        if let lead = ProcessInfo.processInfo.environment["IPTV_LIVELEAD"].flatMap(Double.init) { return lead }
+        #endif
+        return 5
+    }()
 
     /// TS PIDs (per stream URL path) whose audio has to be pulled out by TSAudioTap.
     /// Remembered so the next open of such a channel skips the failed probe.
@@ -1758,7 +1764,8 @@ final class PlaybackSession {
 
     /// IPTV_TESTNET="drop:15,stall:40,close:60": kill the connection / stall the socket / end the
     /// download as if the server had closed it cleanly, at those seconds after start – the live
-    /// reconnect and, for films, continuing an interrupted download.
+    /// reconnect and, for films, continuing an interrupted download. "forbid:<s>": the next
+    /// reconnect to the edge gets a 403; "flaky:<s>": drops now and 6 s after the reconnect.
     private func scheduleNetworkTest() {
         guard let spec = ProcessInfo.processInfo.environment["IPTV_TESTNET"] else { return }
         for item in spec.split(separator: ",") {
@@ -1772,6 +1779,8 @@ final class PlaybackSession {
                 switch kind {
                 case "drop": http.debugDropConnection()
                 case "close": http.debugCloseConnection()
+                case "forbid": http.debugForbidNextEdge()
+                case "flaky": http.debugFlakyEdge()
                 default: http.debugStallConnection()
                 }
             }

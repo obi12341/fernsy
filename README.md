@@ -115,7 +115,9 @@ schedules a recording, `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` driv
 `IPTV_TESTNODATA=<offline|silent>:<s>` makes tuner connections fail as an offline or silent
 channel for that many seconds after the first one; a recording keeps waiting for its channel
 until its window ends).
-`IPTV_TESTNET` (`drop:`, `stall:`, `close:<s>`) also runs for films: a film's download that ends
+`IPTV_TESTNET` (`drop:`, `stall:`, `close:<s>`; for live also `forbid:<s>`, the next edge
+reconnect gets a 403, and `flaky:<s>`, dropping again 6 s after the reconnect) (`IPTV_LIVELEAD=<s>`
+starts live closer to the newest data for the dry-player rule) also runs for films: a film's download that ends
 before the file does (an idle connection closed during a long pause) continues with a range
 request and keeps its buffer; an end more than 60 s before the known duration reloads at the
 position instead of finishing (`IPTV_TESTNOCONTINUE=1` switches the first part off to test the

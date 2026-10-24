@@ -99,6 +99,22 @@ continues where it was. A full restart is tried up to 8 times before an error is
 - **WHEN** no data arrives for 4 s while the player has less than 4 s left (or for 30 s regardless)
 - **THEN** the connection is replaced, first via the same edge host, then via the provider's load balancer
 
+#### Scenario: Player has run dry
+- **WHEN** a player reports less than 1 s left and no data has arrived for 2 s
+- **THEN** the connection is replaced without waiting for the 4 s rule
+
+#### Scenario: Burst delivery with buffer left
+- **WHEN** a channel pauses for 3 s between bursts while the player still has 5 s left
+- **THEN** the connection is kept
+
+#### Scenario: Edge token expired
+- **WHEN** the reconnect to the same edge host is answered with HTTP 403 or 401
+- **THEN** the next attempt goes to the load balancer at once, without the backoff delay
+
+#### Scenario: Edge fails again right after a reconnect
+- **WHEN** the connection to an edge host stalls again within 20 s after a reconnect to that host
+- **THEN** the new incident's first attempt goes to the load balancer instead of that edge
+
 #### Scenario: Several quick reconnects
 - **WHEN** a provider accepts and drops connections several times within seconds
 - **THEN** packets still arriving from older connections are placed with their own connection's offset, and the source gives up after 8 attempts in one incident

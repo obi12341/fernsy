@@ -79,7 +79,21 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private let lowPlaybackAhead: Double = 4
     /// Reconnect regardless of the player's buffer.
     private let hardStallTimeout: TimeInterval = 30
+    /// The player has (almost) run dry: waiting the full stall timeout only lengthens a freeze
+    /// the user already sees. Only while a player reports its buffer (not for recording-only
+    /// tuners, whose figure is stale).
+    private let dryStallTimeout: TimeInterval = 2
+    private let dryPlaybackAhead: Double = 1
     private var playbackAhead: Double = 0
+    private var playbackAheadAt = Date.distantPast
+    /// The current reconnect attempt goes to the edge host (not the load balancer).
+    private var attemptToEdge = false
+    /// This incident skips the edge: it rejected us (403/401), or it stalled again right after
+    /// the last reconnect to it.
+    private var avoidEdge = false
+    /// Host and time of the last successful reconnect, to notice an edge that fails again.
+    private var lastReconnectHost: String?
+    private var lastReconnectAt = Date.distantPast
     private var requestStartedAt = Date()
     private var net = NetStats()
     private let maxReconnectAttempts = 8
@@ -186,6 +200,21 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         task?.suspend()
     }
 
+    /// The next reconnect to the edge is answered as if with HTTP 403 (expired edge token).
+    private var debugForbidEdge = false
+    func debugForbidNextEdge() {
+        cond.lock(); defer { cond.unlock() }
+        debugForbidEdge = true
+    }
+
+    /// Drops now and again 6 s after the next successful reconnect (an edge that fails again).
+    private var debugFlaky = false
+    func debugFlakyEdge() {
+        cond.lock(); defer { cond.unlock() }
+        debugFlaky = true
+        task?.cancel()
+    }
+
     /// The server ends the response early without an error (an idle connection closed by a proxy).
     private var debugCleanClose = false
     func debugCloseConnection() {
@@ -262,6 +291,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     func reportPlaybackAhead(_ seconds: Double) {
         cond.lock()
         playbackAhead = seconds
+        playbackAheadAt = Date()
         cond.unlock()
     }
 
@@ -404,14 +434,21 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             }
         } else if !suspended {
             let idle = now.timeIntervalSince(lastDataAt)
+            let playerReports = now.timeIntervalSince(playbackAheadAt) < 2
             if idle > hardStallTimeout || (idle > stallTimeout && playbackAhead < lowPlaybackAhead) {
                 liveReconnect(reason: String(format: String(localized: "keine Daten seit %.0f s, %.1f s Vorrat"), idle, playbackAhead))
+            } else if playerReports && idle > dryStallTimeout && playbackAhead < dryPlaybackAhead
+                        && now.timeIntervalSince(connectedAt) > stallTimeout {
+                // A fresh connection gets the normal time for its first bytes (servers often
+                // fetch their buffer first), or reconnects would chain.
+                liveReconnect(reason: String(format: String(localized: "keine Daten seit %.0f s, Player fast leer (%.1f s Vorrat)"), idle, playbackAhead))
             }
         }
     }
 
-    /// Replaces the current connection; the caller holds `cond`.
-    private func liveReconnect(reason: String) {
+    /// Replaces the current connection; the caller holds `cond`. `immediate`: no backoff (the
+    /// edge rejected us, the load balancer is a different server).
+    private func liveReconnect(reason: String, immediate: Bool = false) {
         task?.cancel()
         task = nil
         taskGeneration += 1
@@ -426,6 +463,9 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         if !reconnecting {
             reconnecting = true
             incidentAttempts = 0
+            // An edge that stalls again right after we reconnected to it is skipped this time.
+            avoidEdge = Date().timeIntervalSince(lastReconnectAt) < 20 && lastReconnectHost != nil
+                && lastReconnectHost == edgeURL?.host
             net.reconnects += 1
             net.lastReconnectReason = reason
             net.lastReconnectAt = Date()
@@ -444,10 +484,11 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         AppLog.warning(.network, "live reconnect #\(reconnectAttempts): \(reason), \(String(format: "%.1f", Double(buffer.count - readIndex) / 1e6)) MB still buffered")
         let generation = taskGeneration
         // First try the same edge; if its token or slot is gone, go through the load balancer.
-        let target = incidentAttempts == 1 ? (edgeURL ?? url) : url
+        attemptToEdge = incidentAttempts == 1 && !avoidEdge && edgeURL != nil
+        let target = attemptToEdge ? (edgeURL ?? url) : url
         // The first retry is quick; later ones give single-connection servers time to
         // release the old slot.
-        let delay = reconnectAttempts == 1 ? 0.2 : 0.5 * Double(reconnectAttempts)
+        let delay = immediate ? 0 : reconnectAttempts == 1 ? 0.2 : 0.5 * Double(reconnectAttempts)
         reconnectStartedAt = Date().addingTimeInterval(delay)
         watchdogQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
@@ -497,7 +538,14 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         }
         if reconnecting {
             let http = response as? HTTPURLResponse
-            let status = http?.statusCode ?? 200
+            var status = http?.statusCode ?? 200
+            #if DEBUG
+            if debugForbidEdge && attemptToEdge {
+                debugForbidEdge = false
+                status = 403
+                debugLog("[test] edge answers 403")
+            }
+            #endif
             let target = http?.url?.absoluteString.lowercased() ?? ""
             if target.contains("stream_offline") || target.contains("offline.mp4") {
                 // The channel went offline: hand over to a full restart, which reports it.
@@ -506,14 +554,33 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             } else if (200..<300).contains(status) {
                 reconnecting = false
                 if let edge = http?.url { edgeURL = edge }
+                lastReconnectHost = http?.url?.host
+                lastReconnectAt = Date()
+                #if DEBUG
+                if debugFlaky {
+                    debugFlaky = false
+                    let generation = taskGeneration
+                    watchdogQueue.asyncAfter(deadline: .now() + 6) { [weak self] in
+                        guard let self else { return }
+                        self.cond.lock(); defer { self.cond.unlock() }
+                        guard self.taskGeneration == generation else { return }
+                        debugLog("[test] flaky edge drops again")
+                        self.task?.cancel()
+                    }
+                }
+                #endif
                 net.connectTime = Date().timeIntervalSince(requestStartedAt)
                 connectedAt = Date()
                 lastDataAt = Date()
-                AppLog.info(.network, "reconnected (HTTP \(status)) via \(http?.url?.host ?? "?")\(incidentAttempts == 1 ? " (same edge)" : " (load balancer)")")
+                AppLog.info(.network, "reconnected (HTTP \(status)) via \(http?.url?.host ?? "?")\(attemptToEdge ? " (same edge)" : " (load balancer)")")
                 completionHandler(.allow)
             } else {
                 completionHandler(.cancel)
-                liveReconnect(reason: "HTTP \(status)")
+                // The edge's token expired: the load balancer is another server, no need to
+                // wait for a slot.
+                let rejectedByEdge = attemptToEdge && (status == 403 || status == 401)
+                if rejectedByEdge { avoidEdge = true }
+                liveReconnect(reason: "HTTP \(status)", immediate: rejectedByEdge)
             }
             return
         }
