@@ -22,6 +22,11 @@ struct FernsyApp: App {
         .defaultSize(width: 1280, height: 820)
         .commands {
             LogCommands()
+            #if DIRECT_DISTRIBUTION
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesButton(updater: app.updater)
+            }
+            #endif
             CommandGroup(after: .toolbar) {
                 Button("Katalog aktualisieren") {
                     Task { await app.loadCatalog(forceRefresh: true) }

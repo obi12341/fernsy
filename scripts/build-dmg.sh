@@ -1,5 +1,7 @@
 #!/bin/bash
 # Builds a Release Fernsy.app and packs it into a DMG (distribution outside the App Store).
+# It builds the "Fernsy Direct" target: the app plus the Sparkle updater (the App Store build,
+# scripts/build-appstore.sh, uses the "Fernsy" target without it).
 # FFmpeg comes from Vendor/ffmpeg (scripts/build-ffmpeg.sh) and is embedded by the build.
 #
 #   scripts/build-dmg.sh                 # ad-hoc signed (local use, no developer account)
@@ -43,11 +45,29 @@ fi
 [ -n "${BUILD_NUMBER:-}" ] && SIGNING+=("CURRENT_PROJECT_VERSION=$BUILD_NUMBER")
 
 echo "▸ Release build ($([ "$SIGN_IDENTITY" = "-" ] && echo ad-hoc || echo "$SIGN_IDENTITY"))"
-xcodebuild -project Fernsy.xcodeproj -scheme Fernsy -configuration Release \
+xcodebuild -project Fernsy.xcodeproj -scheme "Fernsy Direct" -configuration Release \
     -derivedDataPath "$BUILD/DerivedData" "${SIGNING[@]}" build -quiet 2>&1 \
     | grep -v "DVTPlugIn\|IDESimulatorFoundation\|CoreSimulator\|^\s*Referenced from\|^\s*Reason:" || true
 APP="$BUILD/DerivedData/Build/Products/Release/Fernsy.app"
 [ -x "$APP/Contents/MacOS/Fernsy" ] || { echo "Build failed"; exit 1; }
+codesign --verify --deep --strict "$APP"
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+[ -d "$SPARKLE/Versions/B/XPCServices/Installer.xpc" ] || { echo "Sparkle or its installer service is missing"; exit 1; }
+if [ "$SIGN_IDENTITY" != "-" ]; then
+    # Xcode signs Sparkle.framework but leaves its helpers ad-hoc signed, which notarization
+    # rejects. Re-sign them inside out (Sparkle's documented order), then the app again with
+    # the entitlements it was built with.
+    echo "▸ Signing Sparkle's helpers"
+    SIGN=(codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp)
+    "${SIGN[@]}" "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
+    "${SIGN[@]}" --preserve-metadata=entitlements "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
+    "${SIGN[@]}" "$SPARKLE/Versions/B/Autoupdate"
+    "${SIGN[@]}" "$SPARKLE/Versions/B/Updater.app"
+    "${SIGN[@]}" "$SPARKLE"
+    codesign -d --entitlements - --xml "$APP" > "$BUILD/app.entitlements" 2>/dev/null
+    "${SIGN[@]}" --entitlements "$BUILD/app.entitlements" "$APP"
+fi
+codesign --verify --deep --strict "$SPARKLE"
 codesign --verify --deep --strict "$APP"
 if [ "$SIGN_IDENTITY" != "-" ] && ! codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime"; then
     echo "The app is not signed with the hardened runtime"; exit 1

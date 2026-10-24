@@ -146,6 +146,10 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
+    #if DIRECT_DISTRIBUTION
+    /// Sparkle updates of the DMG build ("Fernsy Direct" target only).
+    private(set) var updater: Updater!
+    #endif
     /// The Jellyfin account, independent of the IPTV one.
     /// Debug sign-ins (JF_SERVER) leave the keychain alone unless they use their own items
     /// (JF_KEYCHAIN_SUFFIX) – then only those, even with FERNSY_NO_KEYCHAIN, so a debug build
@@ -172,6 +176,9 @@ final class AppModel: ObservableObject {
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
+        #if DIRECT_DISTRIBUTION
+        updater = Updater(recorder: recorder)
+        #endif
         tuners.onOffline = { [weak self] channelId, offline in
             guard let self else { return }
             if offline { offlineChannels.insert(channelId) } else { offlineChannels.remove(channelId) }

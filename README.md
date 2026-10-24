@@ -82,6 +82,35 @@ One-time setup:
    - `NOTARY_KEY_P8`: `base64 -i AuthKey_XXXX.p8 | gh secret set NOTARY_KEY_P8`;
    - `NOTARY_KEY_ID` and `NOTARY_ISSUER`.
 
+### Updates of the DMG build (Sparkle)
+
+The DMG is built from the target **"Fernsy Direct"**. It has the same sources and bundle ID
+as "Fernsy", plus the Sparkle 2 package, `DIRECT_DISTRIBUTION`,
+`Config/Info-Direct.plist` and `Config/Fernsy-Direct.entitlements`. The App Store build
+("Fernsy") contains no updater. New files are picked up by both targets through the
+synchronized `Fernsy/` folder.
+
+The release workflow attaches a signed `appcast.xml` to every release and to the nightly. The
+app reads `releases/latest/download/appcast.xml`, or the nightly's feed when "Nightly-Builds
+erhalten" is on. Updates never relaunch Fernsy while a recording runs or starts within 30
+minutes.
+
+One-time key setup:
+1. Download Sparkle's tools (`Sparkle-2.10.0.tar.xz` from the Sparkle releases) and run
+   `bin/generate_keys`. It stores the private key in your keychain and prints the public key.
+2. Export the private key with `bin/generate_keys -x sparkle-private.txt`, then run
+   `gh secret set SPARKLE_ED_PRIVATE_KEY < sparkle-private.txt`, and delete the file.
+3. Put the public key into the build setting `SPARKLE_PUBLIC_ED_KEY` of the "Fernsy Direct"
+   target.
+
+Keep the private key safe. Without it no update can be signed, and a new key means one manual
+update for every user.
+
+Debug switches: `IPTV_UPDATEFEED=<url>` runs Sparkle in a debug build against a test feed.
+Without it, Sparkle stays off in debug builds, because they share its settings with the
+installed app. `IPTV_TESTUPDATEHOLD=1` logs every 10 s whether an update would wait for
+recordings.
+
 Do not push a release tag before the previous version is approved in the App Store. A tag
 uploads to App Store Connect.
 

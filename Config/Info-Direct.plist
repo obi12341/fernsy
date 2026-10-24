@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Info.plist of the "Fernsy Direct" target (DMG with Sparkle). Keep the shared keys in sync
+	     with Config/Info.plist; the Sparkle keys below exist only here. -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/obi12341/fernsy/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<!-- Xtream servers and their stream redirects are plain HTTP.
+	     Do not add NSAllowsArbitraryLoadsForMedia: it makes ATS ignore NSAllowsArbitraryLoads. -->
+	<!-- Only standard HTTPS/TLS from the system: exempt from export documentation. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Fernsy verbindet sich mit deinem Jellyfin-Server oder IPTV-Anbieter im lokalen Netzwerk.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

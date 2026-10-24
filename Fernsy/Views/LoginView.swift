@@ -374,6 +374,9 @@ private struct AccountsSettings: View {
                     Button("Jellyfin-Server hinzufügen …") { addingAccount = .jellyfin }
                 }
             }
+            #if DIRECT_DISTRIBUTION
+            UpdateSettingsSection(updater: app.updater)
+            #endif
         }
         .formStyle(.grouped)
         .scrollDisabled(true)

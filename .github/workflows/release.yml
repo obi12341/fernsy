@@ -110,6 +110,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
 
       - name: Select Xcode
         env:
@@ -201,6 +202,53 @@ jobs:
             cp "$DMG" out/Fernsy.dmg
             cp "$DMG" "out/Fernsy-$VERSION.dmg"
           fi
+
+      # Sparkle feed for the in-app updater of the DMG build. generate_appcast only signs the
+      # DMG when the app's SUPublicEDKey matches the private key, which is checked here.
+      - name: Appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          SPARKLE_VERSION: '2.10.0'   # same as the Swift package
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
+            echo "::warning::SPARKLE_ED_PRIVATE_KEY is not set: no appcast.xml, the in-app updater finds nothing (README › Updates)"
+            exit 0
+          fi
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle" && tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          if [ "$CHANNEL" = "nightly" ]; then
+            TAG=nightly; NAME=Fernsy-Nightly.dmg
+            SINCE=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA" 2>/dev/null || true)
+          else
+            TAG="$GITHUB_REF_NAME"; NAME="Fernsy-$VERSION.dmg"
+            SINCE=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA^" 2>/dev/null || true)
+          fi
+          FEED="$RUNNER_TEMP/feed"
+          mkdir -p "$FEED"
+          cp "out/$NAME" "$FEED/"
+          # Short notes for Sparkle's window; the full text is on the release page.
+          {
+            echo "<ul>"
+            if [ "$CHANNEL" = "release" ] && [ -f RELEASE_NOTES.md ]; then
+              grep -E '^[-*] ' RELEASE_NOTES.md | sed -E 's/^[-*] //'
+            else
+              git log --format='%s' "${SINCE:+$SINCE..}$SHA" | head -30
+            fi | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's#.*#<li>&</li>#'
+            echo "</ul>"
+          } > "$FEED/${NAME%.dmg}.html"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle/bin/generate_appcast" --ed-key-file - \
+            --download-url-prefix "https://github.com/obi12341/fernsy/releases/download/$TAG/" \
+            --full-release-notes-url "https://github.com/obi12341/fernsy/releases/tag/$TAG" \
+            --embed-release-notes -o out/appcast.xml "$FEED"
+          if ! grep -q 'sparkle:edSignature=' out/appcast.xml; then
+            echo "::error::The appcast is unsigned: SUPublicEDKey in the app does not match SPARKLE_ED_PRIVATE_KEY"
+            exit 1
+          fi
+          grep -o '<sparkle:version>[^<]*\|<sparkle:shortVersionString>[^<]*\|enclosure url="[^"]*"' out/appcast.xml
 
       - uses: actions/upload-artifact@v7
         with:
@@ -325,18 +373,20 @@ jobs:
           BUILD: ${{ needs.prepare.outputs.build }}
           SHA: ${{ needs.prepare.outputs.sha }}
         run: |
+          APPCAST=""
+          [ -f out/appcast.xml ] && APPCAST=out/appcast.xml
           if [ "$CHANNEL" = "release" ]; then
             TAG="$GITHUB_REF_NAME"
             if gh release view "$TAG" > /dev/null 2>&1; then
               # Created by hand in the web interface: keep its title and text.
-              gh release upload "$TAG" out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" --clobber
+              gh release upload "$TAG" out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" $APPCAST --clobber
             else
               if [ -f RELEASE_NOTES.md ]; then NOTES=RELEASE_NOTES.md; else
                 NOTES="$RUNNER_TEMP/notes.md"
                 printf 'Fernsy %s for Macs with Apple silicon (macOS 27 or later). Signed with Developer ID and notarized by Apple.\n' "$VERSION" > "$NOTES"
               fi
               gh release create "$TAG" --title "Fernsy $VERSION" --notes-file "$NOTES" --latest \
-                out/Fernsy.dmg "out/Fernsy-$VERSION.dmg"
+                out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" $APPCAST
             fi
           else
             LAST=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA" 2>/dev/null || true)
@@ -351,5 +401,5 @@ jobs:
             } > "$NOTES"
             gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
             gh release create nightly --prerelease --latest=false --target "$SHA" \
-              --title "Fernsy Nightly ${VERSION#nightly-} (build $BUILD)" --notes-file "$NOTES" out/Fernsy-Nightly.dmg
+              --title "Fernsy Nightly ${VERSION#nightly-} (build $BUILD)" --notes-file "$NOTES" out/Fernsy-Nightly.dmg $APPCAST
           fi
