@@ -30,7 +30,7 @@ type and the genres occurring in it, with item counts and the existing filter fi
 
 ### Requirement: Poster grids with sorting
 Films and series SHALL be shown as poster grids with title, year and rating, sortable by
-recently added, name, release date and rating. Searching by title happens in the search across
+recently added, name, release date and rating through a visible segment. Searching by title happens in the search across
 all sources.
 
 #### Scenario: Sorting by release date
@@ -79,7 +79,8 @@ season, the episodes with number, title, runtime, overview, thumbnail and watche
 - **THEN** the episodes of season 3 are listed in order
 
 ### Requirement: Home rows
-Home SHALL show "Continue Watching" (partly watched films and episodes) and "Next Up" (next
+Home SHALL show the server's name and state at the top, then "Continue Watching" (partly
+watched films and episodes, as wide cards with a progress bar) and "Next Up" (next
 unwatched episode of series in progress) from the server, followed by "Recently Added" for
 films and series. Home has no category column; each row pages with previous/next buttons,
 so no horizontal scroll wheel is needed. Without the server, the rows come from the cached library.
@@ -95,7 +96,9 @@ so no horizontal scroll wheel is needed. Without the server, the rows come from 
 ### Requirement: Cached library, refreshed in the background
 The film and series lists SHALL be shown from a local cache at launch and refreshed in the
 background; watched status and favorites SHALL be refreshed when a Jellyfin section opens.
-A server that is not reachable keeps the cached library usable with a notice.
+A server that is not reachable keeps the cached library usable with an amber notice
+("Jellyfin nicht erreichbar", the saved library is shown, "Retry"), and the sidebar and the
+Home header say "Offline" at the same time.
 
 #### Scenario: Server offline
 - **WHEN** the Jellyfin server is not reachable at launch
