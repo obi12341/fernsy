@@ -7,7 +7,8 @@ IPTV account, and keeps that session until they sign out.
 ## Requirements
 
 ### Requirement: Choose the account type when signing in
-The login screen SHALL offer IPTV (Xtream Codes) and Jellyfin. Settings SHALL offer adding
+The login screen SHALL offer IPTV (Xtream Codes) and Jellyfin as two cards that say what
+each source provides. Settings SHALL offer adding
 the other account type while one is signed in.
 
 #### Scenario: First launch

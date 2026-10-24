@@ -44,7 +44,7 @@ Out of scope:
 - `jellyfin-account`: the account type choice shares the new sign-in screen.
 - `catalog`: the youth protection settings list the detected adult categories.
 - `menu-bar`: the red dot on the symbol, and the warning that quitting stops a recording.
-- `app-log`: the toolbar layout of the log window.
+- (The log window already matches the source since `add-log-viewer`; no change.)
 
 ## Impact
 

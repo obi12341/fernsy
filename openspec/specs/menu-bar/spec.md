@@ -7,13 +7,14 @@ recordings are not lost by accident.
 ## Requirements
 
 ### Requirement: Menu bar item
-The app SHALL show a menu bar item (TV symbol, red record symbol while recording) listing
+The app SHALL show a menu bar item (TV symbol, with a red dot while recording) listing
 running recordings with their end time and a stop action, the next scheduled recording,
-"Open Fernsy", "Show Recordings" and "Quit Fernsy". It can be turned off in Settings.
+"Open Fernsy", "Show Recordings" and "Quit Fernsy"; while a recording runs, the menu warns
+that quitting stops it. It can be turned off in Settings.
 
 #### Scenario: Recording in progress
 - **WHEN** a recording runs
-- **THEN** the menu bar symbol is the red record symbol and the menu offers "Stop Recording"
+- **THEN** the menu bar symbol shows a red dot and the menu offers "Stop Recording" and warns that quitting stops it
 
 ### Requirement: Running without windows
 Closing the last window SHALL NOT quit the app. With the menu bar item enabled the Dock icon
