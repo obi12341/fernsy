@@ -40,12 +40,12 @@ struct LibraryView: View {
                 if app.credentials != nil {
                     Section("IPTV") {
                         ForEach(LibrarySection.iptv) { s in
-                            if s == .recordings && runningRecordings > 0 {
-                                Label(s.title, systemImage: s.icon).tag(s)
-                                    .badge(Text("\(runningRecordings) läuft").foregroundStyle(Theme.record))
-                            } else {
-                                Label(s.title, systemImage: s.icon).tag(s)
-                            }
+                            // The tag must be the row's outermost modifier: under a badge the
+                            // List finds no tag and the row cannot be selected.
+                            Label(s.title, systemImage: s.icon)
+                                .badge(s == .recordings && runningRecordings > 0
+                                       ? Text("\(runningRecordings) läuft").foregroundStyle(Theme.record) : nil)
+                                .tag(s)
                         }
                     }
                 }

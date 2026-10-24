@@ -89,6 +89,8 @@ the sidebar; Live TV rows and the player adopt it in their own changes.
 These stay native: the `List` sidebar, plus the following additions.
 - **Recordings badge:** "Aufnahmen" gets `.badge(Text("\(n) läuft"))` in `Theme.record`
   while recordings run. It disappears when none does.
+  Pitfall (fixed 25 Oct 2026): the badge has to come before `.tag`. With `.tag(s).badge(…)`
+  the List found no tag on the row, so "Aufnahmen" could not be clicked while a recording ran.
 - **Jellyfin header:** `Section` gets a custom header: "Jellyfin", then a dot and text, a
   green dot with the server name, or an amber dot with "Offline" (`JellyfinStore.isOffline`).
 - **Footer:** the existing footer gets the account's host as its first line, then "Gültig
