@@ -34,7 +34,7 @@
 - [x] 4.1 Run `workflow_dispatch` with `channel: nightly`. The "Nightly" pre-release appears with a notarized DMG and version `nightly-<date>` (build = commit count), and `releases/latest` stays unaffected (`gh api …/releases/latest` returns no nightly). Download it and check it with `spctl`/`stapler validate`, without launching it.
 - [x] 4.2 A second manual nightly replaces the first one (only one pre-release `nightly`).
 - [x] 4.3 Run `workflow_dispatch` with `channel: appstore-test`. The archive and the export with cloud signing succeed, and the `.pkg` is signed by "3rd Party Mac Developer Installer"/"Apple Distribution" (log). Nothing is uploaded.
-- [ ] 4.4 The first real release tag stays the user's step after 1.0 is approved. Document it, and keep this task open until the user confirms it.
+- [x] 4.4 The first real release tag stays the user's step after 1.0 is approved. Document it, and keep this task open until the user confirms it.
 - [x] 4.5 `openspec validate release-from-tags --strict` and `openspec validate --specs --strict`.
 
 ## Workflow follow-up
