@@ -590,6 +590,16 @@
         }
       }
     },
+    "Alle Sender": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Channels"
+          }
+        }
+      }
+    },
     "Alle Sender anzeigen": {
       "localizations": {
         "en": {
@@ -2023,12 +2033,32 @@
         }
       }
     },
+    "Kategorie": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
     "Kategorie beim Anbieter": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Category at the provider"
+          }
+        }
+      }
+    },
+    "Kategorie des Programms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category of the guide"
           }
         }
       }
@@ -2635,6 +2665,16 @@
         }
       }
     },
+    "Nächster Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Day"
+          }
+        }
+      }
+    },
     "OK": {
       "localizations": {
         "en": {
@@ -2931,6 +2971,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Watch channel live"
+          }
+        }
+      }
+    },
+    "Sender live einschalten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch the channel live"
+          }
+        }
+      }
+    },
+    "Sender läuft trotzdem · Doppelklick zum Einschalten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The channel plays anyway · double-click to watch"
           }
         }
       }
@@ -3556,6 +3616,16 @@
         }
       }
     },
+    "Vorheriger Tag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous Day"
+          }
+        }
+      }
+    },
     "Vorlauf": {
       "localizations": {
         "en": {
@@ -3746,6 +3816,16 @@
         }
       }
     },
+    "Zu einer Uhrzeit springen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jump to a time"
+          }
+        }
+      }
+    },
     "Zuletzt gesehen": {
       "localizations": {
         "en": {
@@ -3856,6 +3936,32 @@
         }
       }
     },
+    "in %lld Min.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %lld min"
+          }
+        }
+      }
+    },
+    "in %lld Std. %lld Min.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "in %1$lld Std. %2$lld Min."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %1$lld h %2$lld min"
+          }
+        }
+      }
+    },
     "jetzt": {
       "localizations": {
         "en": {
@@ -3904,6 +4010,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)"
+          }
+        }
+      }
+    },
+    "läuft seit %lld Min.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "running for %lld min"
           }
         }
       }
@@ -3984,6 +4100,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld s ago"
+          }
+        }
+      }
+    },
+    "vorbei": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "over"
           }
         }
       }
@@ -4094,6 +4220,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "● %@ – %@"
+          }
+        }
+      }
+    },
+    "● Aufgenommen · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Recorded · %@"
+          }
+        }
+      }
+    },
+    "● Aufnahme läuft · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Recording · %@"
+          }
+        }
+      }
+    },
+    "● Geplant · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Scheduled · %@"
           }
         }
       }

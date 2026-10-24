@@ -61,8 +61,9 @@ struct LibraryView: View {
             .navigationSplitViewColumnWidth(min: 190, ideal: 215, max: 260)
             .safeAreaInset(edge: .bottom) { if app.credentials != nil { accountFooter } }
         } content: {
-            // Jellyfin Home has no categories: the column collapses.
-            if section == .jellyfinHome {
+            // Jellyfin Home has no categories, the guide picks its category from a menu: the
+            // column collapses.
+            if section == .jellyfinHome || (section == .live && effectiveLiveMode == .guide && !editingLive) {
                 Color.clear.navigationSplitViewColumnWidth(0)
             } else {
                 CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter, editing: section == .live && editingLive)
@@ -234,7 +235,7 @@ struct LibraryView: View {
                     ChannelListView(categoryID: category, query: editingLive ? query : "", editing: editingLive,
                                     showInGuide: { liveMode = .guide },
                                     showAll: { categoryBySection[.live] = allCategoryID })
-                case .guide: GuideView(categoryID: category)
+                case .guide: GuideView(categoryID: category, categorySelection: categoryID)
                 }
             case .movies:
                 MovieGridView(categoryID: category)

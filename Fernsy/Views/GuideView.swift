@@ -9,6 +9,8 @@ import SwiftUI
 struct GuideView: View {
     @EnvironmentObject private var app: AppModel
     let categoryID: String
+    /// The category column is hidden while the guide shows; the toolbar menu picks it.
+    var categorySelection: Binding<String?>? = nil
 
     struct Selection: Equatable {
         let channelId: Int
@@ -17,6 +19,9 @@ struct GuideView: View {
     }
 
     @State private var origin = GuideLayout.origin(for: Date())
+    /// 0 = today (from two hours back), 1…3 = the following days from midnight.
+    @State private var dayOffset = 0
+    static let maxDays = 3
     @State private var selection: Selection?
     @State private var scroll = GuideScroll()
     @State private var position = ScrollPosition()
@@ -46,7 +51,24 @@ struct GuideView: View {
         .onAppear { scrollToNow() }
         #if DEBUG
         // IPTV_GUIDESCROLL=x,y: scroll there after loading (layout checks of the sticky parts).
+        // IPTV_GUIDEDAY=<n> and IPTV_GUIDETIME=<hh:mm>: that day and time.
         .task {
+            let env = ProcessInfo.processInfo.environment
+            if let day = env["IPTV_GUIDEDAY"].flatMap(Int.init) {
+                try? await Task.sleep(for: .seconds(3))
+                setDay(day)
+            }
+            // IPTV_GUIDESELECT=<channel id>:<n>: selects that channel's n-th upcoming show.
+            if let spec = env["IPTV_GUIDESELECT"]?.split(separator: ":").compactMap({ Int($0) }), spec.count == 2 {
+                while app.channel(spec[0]) == nil { try? await Task.sleep(for: .milliseconds(200)) }
+                await app.epg.load(spec[0], client: app.client)
+                let upcoming = (app.epg.guide(spec[0]).entries ?? []).filter { $0.start > Date() }
+                if upcoming.count > spec[1] { selection = Selection(channelId: spec[0], entry: upcoming[spec[1]]) }
+            }
+            if let time = env["IPTV_GUIDETIME"] {
+                try? await Task.sleep(for: .seconds(env["IPTV_GUIDEDAY"] == nil ? 3 : 1))
+                jump(to: time)
+            }
             let parts = ProcessInfo.processInfo.environment["IPTV_GUIDESCROLL"]?.split(separator: ",").compactMap { Double($0) }
             guard let parts, parts.count == 2 else { return }
             try? await Task.sleep(for: .seconds(4))
@@ -64,17 +86,106 @@ struct GuideView: View {
             }
         }
         .toolbar {
+            if let categorySelection {
+                ToolbarItem(placement: .navigation) { categoryMenu(categorySelection) }
+            }
             ToolbarItem {
-                Button("Jetzt", systemImage: "clock") { scrollToNow() }
-                    .help("Zur aktuellen Uhrzeit springen")
+                ControlGroup {
+                    Button("Vorheriger Tag", systemImage: "chevron.left") { setDay(dayOffset - 1) }
+                        .disabled(dayOffset == 0)
+                    Menu {
+                        ForEach(Self.jumps, id: \.self) { time in
+                            Button(time) { jump(to: time) }
+                        }
+                    } label: {
+                        Text(verbatim: dayTitle).monospacedDigit()
+                    }
+                    .help("Zu einer Uhrzeit springen")
+                    Button("Nächster Tag", systemImage: "chevron.right") { setDay(dayOffset + 1) }
+                        .disabled(dayOffset == Self.maxDays)
+                }
+            }
+            ToolbarItem {
+                Button { scrollToNow() } label: {
+                    Text("Jetzt").fontWeight(.semibold).foregroundStyle(Theme.record)
+                }
+                .help("Zur aktuellen Uhrzeit springen")
             }
         }
         .navigationTitle("Live TV")
         .navigationSubtitle("\(channels.count) Sender")
     }
 
+    private func categoryMenu(_ selection: Binding<String?>) -> some View {
+        let categories = app.visibleCategories(app.liveCategories).filter { !app.isCategoryHidden($0.id) }
+        let current = selection.wrappedValue ?? allCategoryID
+        let title: String = switch current {
+        case allCategoryID: String(localized: "Alle Sender")
+        case favoriteChannelsID: String(localized: "Favoriten")
+        case recentChannelsID: String(localized: "Zuletzt gesehen")
+        default: categories.first { $0.id == current }?.displayName ?? String(localized: "Alle Sender")
+        }
+        return Menu {
+            Picker("Kategorie", selection: Binding(get: { current }, set: { selection.wrappedValue = $0 })) {
+                Text("Alle Sender").tag(allCategoryID)
+                Text("Favoriten").tag(favoriteChannelsID)
+                Text("Zuletzt gesehen").tag(recentChannelsID)
+                Divider()
+                ForEach(categories) { Text(verbatim: $0.displayName).tag($0.id) }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Text(verbatim: title).fontWeight(.semibold)
+        }
+        .help("Kategorie des Programms")
+    }
+
+    static let jumps = ["06:00", "12:00", "18:00", "20:15", "23:00"]
+
+    private var dayTitle: String {
+        let day = Calendar.current.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
+        let name = dayOffset == 0 ? String(localized: "Heute") : dayOffset == 1 ? String(localized: "Morgen")
+            : day.formatted(.dateTime.weekday(.wide))
+        return "\(name), \(day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))"
+    }
+
+    private func origin(forDay offset: Int) -> Date {
+        if offset == 0 { return GuideLayout.origin(for: Date()) }
+        let today = Calendar.current.startOfDay(for: Date())
+        return Calendar.current.date(byAdding: .day, value: offset, to: today) ?? today
+    }
+
+    /// Another day, keeping the time of day at the left edge.
+    private func setDay(_ offset: Int) {
+        let offset = min(max(0, offset), Self.maxDays)
+        let left = origin.addingTimeInterval(Double(max(0, scroll.offset.x) / GuideLayout.pointsPerMinute) * 60)
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: left)
+        dayOffset = offset
+        origin = origin(forDay: offset)
+        scrollTo(hour: parts.hour ?? 20, minute: parts.minute ?? 0, animated: false)
+    }
+
+    /// "20:15": that time on the shown day, a quarter of an hour in from the left edge.
+    private func jump(to time: String) {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return }
+        scrollTo(hour: parts[0], minute: parts[1], animated: true)
+    }
+
+    private func scrollTo(hour: Int, minute: Int, animated: Bool) {
+        let day = Calendar.current.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
+        guard let target = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: day) else { return }
+        let x = max(0, GuideLayout.x(of: target.addingTimeInterval(-15 * 60), origin: origin))
+        let point = CGPoint(x: x, y: max(0, scroll.offset.y))
+        if animated { withAnimation { position.scrollTo(point: point) } } else {
+            // After an origin change the grid lays out first.
+            Task { @MainActor in position.scrollTo(point: point) }
+        }
+    }
+
     private func scrollToNow() {
         let now = Date()
+        if dayOffset != 0 { dayOffset = 0; origin = GuideLayout.origin(for: now) }
         if now.timeIntervalSince(origin) > GuideLayout.span - 4 * 3600 { origin = GuideLayout.origin(for: now) }
         let x = GuideLayout.x(of: now.addingTimeInterval(-30 * 60), origin: origin)
         // Keep the vertical position: scrolling only one axis lets the other jump.
@@ -110,7 +221,7 @@ final class GuideScroll {
 }
 
 enum GuideLayout {
-    static let channelWidth: CGFloat = 170
+    static let channelWidth: CGFloat = 188
     static let rowHeight: CGFloat = 50
     static let rulerHeight: CGFloat = 26
     static let pointsPerMinute: CGFloat = 5
@@ -167,6 +278,18 @@ private struct GuideRuler: View {
             .padding(.leading, GuideLayout.channelWidth)
 
             NowMarker(x: GuideLayout.channelWidth + GuideLayout.x(of: now, origin: origin))
+            Text(now.formatted(date: .omitted, time: .shortened))
+                .font(.caption.weight(.bold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .frame(height: 18)
+                .background(Theme.record, in: Capsule())
+                .fixedSize()
+                .frame(width: 70)
+                .padding(.leading, max(0, GuideLayout.channelWidth + GuideLayout.x(of: now, origin: origin) - 35))
+                .padding(.top, 4)
+                .opacity(now < origin ? 0 : 1)
 
             DayLabel(origin: origin, scroll: scroll)
                 .padding(.leading, 12)
@@ -212,7 +335,9 @@ private struct NowMarker: View {
     let x: CGFloat
 
     var body: some View {
-        Rectangle().fill(.red).frame(width: 2).padding(.leading, max(0, x - 1))
+        // On a later day "now" lies before the timeline: no line.
+        Rectangle().fill(Theme.record).frame(width: 2).padding(.leading, max(0, x - 1))
+            .opacity(x < GuideLayout.channelWidth ? 0 : 1)
     }
 }
 
@@ -236,9 +361,9 @@ private struct GuideRow: View {
         let from = origin.addingTimeInterval(Double(scroll.chunk - 1) * GuideLayout.chunk)
         let to = origin.addingTimeInterval(Double(scroll.chunk + scroll.visibleChunks + 1) * GuideLayout.chunk)
         ZStack(alignment: .topLeading) {
-            if let entries = guide.entries {
+            if let entries = guideEntries {
                 if !entries.contains(where: { $0.end > origin && $0.start < end }) {
-                    placeholder("Keine Programminformationen")
+                    noData
                 } else {
                     ForEach(entries.filter { $0.end > max(origin, from) && $0.start < min(end, to) }) { entry in
                         let x0 = GuideLayout.x(of: max(entry.start, origin), origin: origin)
@@ -310,6 +435,35 @@ private struct GuideRow: View {
         .sheet(isPresented: $showsInfo) { ChannelInfoView(channel: channel) }
     }
 
+    private var guideEntries: [EPGEntry]? {
+        #if DEBUG
+        // IPTV_TESTNOEPG=<channel id>: that channel has no listings.
+        if ProcessInfo.processInfo.environment["IPTV_TESTNOEPG"] == String(channel.id) { return [] }
+        #endif
+        return guide.entries
+    }
+
+    /// Hatched bar for a channel without listings; it still plays (double-click).
+    private var noData: some View {
+        RoundedRectangle(cornerRadius: 7)
+            .fill(.fill.quinary)
+            .overlay { Hatching().clipShape(RoundedRectangle(cornerRadius: 7)) }
+            .overlay { RoundedRectangle(cornerRadius: 7).strokeBorder(.separator, lineWidth: 1) }
+            .frame(width: GuideLayout.timelineWidth - 4, height: GuideLayout.rowHeight - 8)
+            .overlay(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Keine Programmdaten").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                    Text("Sender läuft trotzdem · Doppelklick zum Einschalten").font(.caption).foregroundStyle(.tertiary)
+                }
+                .padding(.leading, GuideLayout.channelWidth + 10)
+                .stickyLeading()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { app.play(channel) }
+            .padding(.leading, GuideLayout.channelWidth + 2)
+            .padding(.top, 4)
+    }
+
     /// Full-width bar while loading or without data; the text stays in view.
     private func placeholder(_ text: String?) -> some View {
         RoundedRectangle(cornerRadius: 6)
@@ -337,47 +491,77 @@ private struct GuideCell: View {
     var body: some View {
         let running = entry.start <= now && entry.end > now
         let past = entry.end <= now
-        VStack(alignment: .leading, spacing: 2) {
+        let mark = recording.flatMap { $0 == .skipped || $0 == .missed ? nil : $0 }
+        VStack(alignment: .leading, spacing: 1) {
             if width > 28 {
-                HStack(spacing: 4) {
-                    if let recording, recording != .skipped && recording != .missed {
-                        Image(systemName: recording == .scheduled ? "record.circle" : "record.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .accessibilityLabel(recording == .scheduled ? "Aufnahme geplant" : "Aufgenommen")
-                    }
-                    Text(entry.title)
-                        .font(.callout)
-                        .fontWeight(running ? .semibold : .regular)
-                        .foregroundStyle(past ? .secondary : .primary)
+                Text(verbatim: entry.title)
+                    .font(.callout)
+                    .fontWeight(running ? .semibold : .medium)
+                    .foregroundStyle(past ? .tertiary : .primary)
+                if width > 58 {
+                    Text(secondLine(mark))
+                        .font(.caption)
+                        .fontWeight(mark == nil ? .regular : .semibold)
+                        .monospacedDigit()
+                        .foregroundStyle(mark != nil ? AnyShapeStyle(Theme.record) : past ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
                 }
-                Text(entry.start.formatted(date: .omitted, time: .shortened))
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
             }
         }
         .lineLimit(1)
-        .padding(.horizontal, 7)
-        .frame(width: max(0, width - 2), height: GuideLayout.rowHeight - 6, alignment: .leading)
+        .padding(.horizontal, 8)
+        .frame(width: max(0, width - 4), height: GuideLayout.rowHeight - 8, alignment: .leading)
         .visualEffect { [width] content, proxy in
             // Keep the title readable while the start has scrolled under the channel column.
             let hidden = GuideLayout.channelWidth - proxy.frame(in: .scrollView).minX
             return content.offset(x: min(max(0, hidden), max(0, width - 60)))
         }
-        .background {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(running ? AnyShapeStyle(Color.accentColor.opacity(0.22)) : AnyShapeStyle(.fill.tertiary))
-                .opacity(past ? 0.55 : 1)
+        .background(alignment: .leading) {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(past ? AnyShapeStyle(.fill.quinary) : running ? AnyShapeStyle(Color.accentColor.opacity(0.20)) : AnyShapeStyle(.fill.tertiary))
+                if running {
+                    // The part of the show that has already run.
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.18))
+                        .frame(width: max(0, width - 4) * entry.progress)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 7))
         }
         .overlay {
+            if let mark {
+                RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.record, lineWidth: 1.5)
+                if mark == .scheduled {
+                    // Planned, not yet recording: a second, inner line.
+                    RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.record.opacity(0.55), lineWidth: 1).padding(3)
+                }
+            }
             if selected {
-                RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 7).strokeBorder(Color.accentColor, lineWidth: 2)
             }
         }
         .clipped()
         .contentShape(Rectangle())
-        .padding(.top, 3)
+        .padding(.top, 4)
+        .padding(.leading, 2)
+        .accessibilityLabel(accessibility(mark))
+    }
+
+    private var times: String {
+        "\(entry.start.formatted(date: .omitted, time: .shortened))–\(entry.end.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private func secondLine(_ mark: Recording.Status?) -> String {
+        switch mark {
+        case .scheduled?: return String(localized: "● Geplant · \(times)")
+        case .recording?: return String(localized: "● Aufnahme läuft · \(times)")
+        case .done?, .failed?: return String(localized: "● Aufgenommen · \(times)")
+        default: return times
+        }
+    }
+
+    private func accessibility(_ mark: Recording.Status?) -> String {
+        [entry.title, secondLine(mark)].joined(separator: ", ")
     }
 }
 
@@ -385,42 +569,113 @@ private struct GuideCell: View {
 
 private struct GuideDetail: View {
     @EnvironmentObject private var app: AppModel
+    @EnvironmentObject private var recorder: Recorder
     let channel: LiveChannel
     let entry: EPGEntry
     let close: () -> Void
 
     var body: some View {
         let running = entry.start <= Date() && entry.end > Date()
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: channel.displayName).font(.headline).lineLimit(1)
-                Text(timeText).foregroundStyle(.secondary).monospacedDigit()
-                Spacer()
-                RecordButton(channel: channel, entry: entry)
-                    .controlSize(.small)
-                Button("Abspielen", systemImage: "play.fill") { app.play(channel) }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .help(running ? "Läuft gerade" : "Sender live abspielen")
-                Button("Schließen", systemImage: "xmark") { close() }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.borderless)
+        HStack(alignment: .top, spacing: 18) {
+            LogoTile(url: channel.icon, name: channel.displayName, width: 72)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: caption)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                Text(verbatim: entry.title).font(.title3.weight(.bold)).lineLimit(2)
+                if running {
+                    ProgressBar(value: entry.progress, height: 4).frame(maxWidth: 360)
+                }
+                if !entry.description.isEmpty {
+                    Text(verbatim: entry.description)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .frame(maxWidth: 560, alignment: .leading)
+                }
             }
-            Text(entry.title).font(.title3).fontWeight(.semibold).lineLimit(2)
-            if running {
-                ProgressView(value: entry.progress).progressViewStyle(.linear)
+            Spacer(minLength: 8)
+            VStack(spacing: 8) {
+                recordButton
+                Button { app.play(channel) } label: {
+                    Text("Einschalten").frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .help(running ? "Läuft gerade" : "Sender live einschalten")
             }
-            if !entry.description.isEmpty {
-                Text(entry.description).font(.callout).foregroundStyle(.secondary).lineLimit(4)
-            }
+            .frame(width: 200)
+            Button("Schließen", systemImage: "xmark") { close() }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
         }
-        .padding(14)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .background(.bar)
+        .overlay(alignment: .top) { Divider() }
     }
 
-    private var timeText: String {
-        let times = "\(entry.start.formatted(date: .omitted, time: .shortened)) – \(entry.end.formatted(date: .omitted, time: .shortened))"
-        if Calendar.current.isDateInToday(entry.start) { return times }
-        return entry.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) + "  " + times
+    /// "Aufnehmen" (R), or the way back once planned or running.
+    @ViewBuilder
+    private var recordButton: some View {
+        if entry.end > Date() {
+            let existing = recorder.recording(channelId: channel.id, entry: entry).flatMap { $0.isUpcomingOrRunning ? $0 : nil }
+            Button {
+                if let existing {
+                    recorder.stop(existing.id)
+                } else if let warning = recorder.schedule(entry, on: channel) {
+                    Prompt.inform(title: String(localized: "Aufnahme geplant"), message: warning)
+                }
+            } label: {
+                HStack(spacing: 7) {
+                    Circle().fill(.white).frame(width: 8, height: 8)
+                    Text(existing == nil ? "Aufnehmen" : existing?.status == .recording ? "Aufnahme beenden" : "Aufnahme entfernen")
+                    if existing == nil { Text(verbatim: "R").opacity(0.7) }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.record)
+            .controlSize(.large)
+            .keyboardShortcut("r", modifiers: [])
+        }
+    }
+
+    /// "Lichtspiel · Heute 22:55–23:45 · in 20 Min."
+    private var caption: String {
+        let times = "\(entry.start.formatted(date: .omitted, time: .shortened))–\(entry.end.formatted(date: .omitted, time: .shortened))"
+        let day = Calendar.current.isDateInToday(entry.start) ? String(localized: "Heute")
+            : Calendar.current.isDateInTomorrow(entry.start) ? String(localized: "Morgen")
+            : entry.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        let now = Date()
+        let relative: String
+        if entry.start > now {
+            let minutes = Int(entry.start.timeIntervalSince(now) / 60)
+            relative = minutes < 60 ? String(localized: "in \(max(1, minutes)) Min.")
+                : String(localized: "in \(minutes / 60) Std. \(minutes % 60) Min.")
+        } else if entry.end > now {
+            relative = String(localized: "läuft seit \(Int(now.timeIntervalSince(entry.start) / 60)) Min.")
+        } else {
+            relative = String(localized: "vorbei")
+        }
+        return [channel.displayName, "\(day) \(times)", relative].joined(separator: " · ")
+    }
+}
+
+/// Diagonal stripes for rows without listings.
+private struct Hatching: View {
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            var x: CGFloat = -size.height
+            while x < size.width {
+                path.move(to: CGPoint(x: x, y: size.height))
+                path.addLine(to: CGPoint(x: x + size.height, y: 0))
+                x += 14
+            }
+            context.stroke(path, with: .style(.primary.opacity(0.05)), lineWidth: 7)
+        }
+        .allowsHitTesting(false)
     }
 }
