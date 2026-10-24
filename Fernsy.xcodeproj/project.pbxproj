@@ -408,7 +408,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
 				PRODUCT_NAME = Fernsy;
-				SPARKLE_PUBLIC_ED_KEY = "";
+				SPARKLE_PUBLIC_ED_KEY = "jOhtmmUX0BOx1oTRsWehQWehmSWuahwKdjzD++0Bjec=";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DIRECT_DISTRIBUTION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
@@ -454,7 +454,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
 				PRODUCT_NAME = Fernsy;
-				SPARKLE_PUBLIC_ED_KEY = "";
+				SPARKLE_PUBLIC_ED_KEY = "jOhtmmUX0BOx1oTRsWehQWehmSWuahwKdjzD++0Bjec=";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DIRECT_DISTRIBUTION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
