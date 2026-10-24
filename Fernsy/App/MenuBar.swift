@@ -29,6 +29,9 @@ struct MenuBarContent: View {
             MenuBarSupport.showLibrary(openWindow)
         }
         Divider()
+        if !running.isEmpty {
+            Text("Fernsy beenden stoppt die laufende Aufnahme")
+        }
         Button("Fernsy beenden") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
@@ -44,7 +47,48 @@ struct MenuBarLabel: View {
     @ObservedObject var recorder: Recorder
 
     var body: some View {
-        Image(systemName: recorder.recordings.contains { $0.status == .recording } ? "record.circle.fill" : "tv")
+        let recording = recorder.recordings.contains { $0.status == .recording }
+        Image(nsImage: Self.symbol(recording: recording))
+            .accessibilityLabel(recording ? Text("Fernsy – Aufnahme läuft") : Text(verbatim: "Fernsy"))
+    }
+
+    /// The TV symbol in the menu bar's text colour, with a red dot while recording. Not a
+    /// template image, so the dot stays red; the colour resolves when the image is drawn.
+    static func symbol(recording: Bool) -> NSImage {
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular).applying(.preferringMonochrome())
+        guard let tv = NSImage(systemSymbolName: "tv", accessibilityDescription: nil)?.withSymbolConfiguration(config) else {
+            return NSImage()
+        }
+        guard recording else {
+            tv.isTemplate = true
+            return tv
+        }
+        let size = NSSize(width: tv.size.width + 3, height: max(tv.size.height, 16))
+        let image = NSImage(size: size, flipped: false) { rect in
+            // Drawn into a bitmap of its own, so tinting and the gap leave the menu bar alone.
+            let scale = NSGraphicsContext.current?.cgContext.userSpaceToDeviceSpaceTransform.a ?? 2
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(rect.width * scale), pixelsHigh: Int(rect.height * scale),
+                                             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return false }
+            rep.size = rect.size
+            let color = NSColor.labelColor.usingColorSpace(.deviceRGB) ?? .black
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            tv.draw(in: NSRect(origin: NSPoint(x: 0, y: (rect.height - tv.size.height) / 2), size: tv.size))
+            color.set()
+            rect.fill(using: .sourceAtop)
+            // A gap around the dot so it reads against the symbol.
+            let dot = NSRect(x: rect.maxX - 7, y: 0.5, width: 6.5, height: 6.5)
+            NSGraphicsContext.current?.compositingOperation = .clear
+            NSBezierPath(ovalIn: dot.insetBy(dx: -1.5, dy: -1.5)).fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: dot).fill()
+            NSGraphicsContext.restoreGraphicsState()
+            return rep.draw(in: rect)
+        }
+        image.isTemplate = false
+        return image
     }
 }
 

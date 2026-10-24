@@ -15,6 +15,7 @@ struct LibraryView: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
     @EnvironmentObject private var recorder: Recorder
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     @State private var section: LibrarySection = .live
     @State private var categoryBySection: [LibrarySection: String] = [:]
@@ -185,6 +186,11 @@ struct LibraryView: View {
         if ProcessInfo.processInfo.environment["IPTV_TESTLOG"] != nil {
             // IPTV_TESTLOG=1: opens the log window (Window › Log).
             openWindow(id: "log")
+        }
+        if ProcessInfo.processInfo.environment["IPTV_TESTSETTINGS"] != nil {
+            // IPTV_TESTSETTINGS=<tab>: opens Settings on that tab once the catalog is loaded.
+            while app.channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+            openSettings()
         }
         guard let scene = ProcessInfo.processInfo.environment["IPTV_SCENE"] else { return }
         let parts = scene.split(separator: ":").map(String.init)

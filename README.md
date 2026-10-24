@@ -122,6 +122,10 @@ channel's n-th upcoming show.
 Films and series: resume positions and watched flags stay in memory in keychain-less test
 runs; `IPTV_TESTRESUME=<key>:<pos s>:<dur s>,…` and `IPTV_TESTWATCHED=<key>,…` (keys like
 `movie.500`, `episode.00100`) set them for one run.
+Sign-in and Settings: `IPTV_TESTLOGIN=<iptv|jellyfin>|<server>|<user>|<pass>` fills the login
+screen's form and submits it (without `IPTV_SERVER`; use the demo server or an unreachable
+address such as `http://127.0.0.1:9`), `IPTV_TESTSETTINGS=<accounts|playback|recordings|youthProtection>`
+opens Settings on that tab once the catalog is loaded.
 
 Live TV runs through a tuner (`Fernsy/Player/LiveTuner.swift`): a headless session receives
 the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-disk
