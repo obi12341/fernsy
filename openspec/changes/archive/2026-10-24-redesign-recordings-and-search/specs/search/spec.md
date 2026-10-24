@@ -1,12 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Search across all sources
-The toolbar search SHALL search all sources at once, whichever section is open: channels,
-films, series and recordings of the IPTV account and films and series of the Jellyfin account.
-It matches names and titles anywhere, ignoring case and diacritics, and shows the hits grouped
-by source in the order channels, films, series, Jellyfin films, Jellyfin series, recordings;
-groups without hits and sources of accounts that are not signed in are left out. Channel hits
-show the logo, tagged name and current show, so they can be started directly.
+The toolbar search SHALL search all sources at once, whichever section is open: IPTV
+channels, films, series and recordings, and Jellyfin films and series. It matches names
+anywhere, ignoring case and diacritics, and groups the hits by source in the order channels,
+films, series, Jellyfin films, Jellyfin series, recordings, leaving out empty groups and
+signed-out accounts. Channel hits show the current show.
 
 #### Scenario: One search, several sources
 - **WHEN** the user types "tatort" while Live TV is open
