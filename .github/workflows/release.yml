@@ -69,7 +69,7 @@ jobs:
 
       - name: Restore FFmpeg
         id: ffmpeg-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: Vendor/ffmpeg
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
@@ -77,6 +77,14 @@ jobs:
       - name: Build FFmpeg (LGPL)
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         run: scripts/build-ffmpeg.sh
+
+      # Saved right away, so a later failing step does not throw the build away.
+      - name: Save FFmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: Vendor/ffmpeg
+          key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       - name: Import the Developer ID certificate
         env:

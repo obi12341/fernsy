@@ -14,6 +14,13 @@ mkdir -p "$DEST"
 
 IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:-}"
 [ -n "$IDENTITY" ] || IDENTITY="-"
+# A secure timestamp when the app itself is signed with one (scripts/build-dmg.sh passes
+# --timestamp for Developer ID builds; notarization rejects binaries without it). Other builds
+# skip it, so they do not need the timestamp server.
+case " ${OTHER_CODE_SIGN_FLAGS:-} " in
+    *" --timestamp "*) TIMESTAMP=--timestamp ;;
+    *) TIMESTAMP=--timestamp=none ;;
+esac
 
 for lib in "$LIB"/lib*.dylib; do
     name=$(basename "$lib")
@@ -21,5 +28,5 @@ for lib in "$LIB"/lib*.dylib; do
     echo "$name" | grep -Eq '^lib[a-z0-9_]+\.[0-9]+\.dylib$' || continue
     cp -fL "$lib" "$DEST/$name"
     chmod 644 "$DEST/$name"
-    codesign --force --sign "$IDENTITY" --timestamp=none "$DEST/$name"
+    codesign --force --sign "$IDENTITY" "$TIMESTAMP" "$DEST/$name"
 done

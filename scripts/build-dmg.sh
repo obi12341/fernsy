@@ -77,7 +77,13 @@ if [ "$SIGN_IDENTITY" != "-" ]; then
         else
             NOTARY=(--keychain-profile "$NOTARY_PROFILE")
         fi
-        xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait
+        xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait | tee "$BUILD/notary.txt"
+        if ! grep -q "status: Accepted" "$BUILD/notary.txt"; then
+            # notarytool exits 0 for an "Invalid" result; show Apple's reasons and stop.
+            SUBMISSION=$(grep -m1 -o 'id: [0-9a-f-]*' "$BUILD/notary.txt" | cut -d' ' -f2)
+            [ -n "$SUBMISSION" ] && xcrun notarytool log "$SUBMISSION" "${NOTARY[@]}" || true
+            echo "Notarization failed"; exit 1
+        fi
         xcrun stapler staple "$DMG"
     fi
 fi
