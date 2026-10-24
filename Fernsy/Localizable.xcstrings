@@ -1515,6 +1515,16 @@
         }
       }
     },
+    "Du siehst die gespeicherte Bibliothek.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are seeing the saved library."
+          }
+        }
+      }
+    },
     "Dynamik": {
       "localizations": {
         "en": {
@@ -1611,6 +1621,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Try Again"
+          }
+        }
+      }
+    },
+    "Erscheinung": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Release"
           }
         }
       }
@@ -1935,6 +1955,16 @@
         }
       }
     },
+    "Hinzugefügt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added"
+          }
+        }
+      }
+    },
     "IPTV": {
       "localizations": {
         "en": {
@@ -2055,6 +2085,16 @@
         }
       }
     },
+    "Jellyfin nicht erreichbar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin Not Reachable"
+          }
+        }
+      }
+    },
     "Jellyfin-Filme": {
       "localizations": {
         "en": {
@@ -2081,6 +2121,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Jellyfin Server …"
+          }
+        }
+      }
+    },
+    "Jellyfin-Sitzung abgelaufen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin Session Expired"
           }
         }
       }
@@ -2471,6 +2521,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Max. connections"
+          }
+        }
+      }
+    },
+    "Melde dich neu an, um weiterzuschauen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again to keep watching."
           }
         }
       }
@@ -3734,6 +3794,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Connection to the server lost"
+          }
+        }
+      }
+    },
+    "Verbunden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
           }
         }
       }

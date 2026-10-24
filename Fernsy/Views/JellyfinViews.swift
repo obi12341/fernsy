@@ -20,6 +20,16 @@ enum JFSort: String, CaseIterable, Identifiable {
         case .rating: return String(localized: "Bewertung")
         }
     }
+
+    /// For the segmented control.
+    var shortTitle: String {
+        switch self {
+        case .added: return String(localized: "Hinzugefügt")
+        case .name: return String(localized: "Name")
+        case .release: return String(localized: "Erscheinung")
+        case .rating: return String(localized: "Bewertung")
+        }
+    }
 }
 
 /// Category ids in the category column: "favorites", "lib:<id>", "genre:<name>".
@@ -77,48 +87,55 @@ private let posterColumns = [GridItem(.adaptive(minimum: 150, maximum: 200), spa
 
 // MARK: - Status
 
-/// Offline, expired session and failed writes, above every Jellyfin view.
+/// Offline, expired session and failed writes, above every Jellyfin view – the same notice as
+/// Live TV's "provider not reachable".
 struct JellyfinStatusBanner: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
     @State private var signingIn = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 6) {
             if jellyfin.isExpired {
-                banner(Text("Die Jellyfin-Sitzung ist abgelaufen."), systemImage: "person.crop.circle.badge.exclamationmark") {
+                notice(title: "Jellyfin-Sitzung abgelaufen", detail: "Melde dich neu an, um weiterzuschauen.") {
                     Button("Neu anmelden") { signingIn = true }
                 }
             } else if jellyfin.isOffline {
-                banner(Text("Der Jellyfin-Server ist nicht erreichbar – gespeicherte Bibliothek."), systemImage: "wifi.slash") {
+                notice(title: "Jellyfin nicht erreichbar", detail: "Du siehst die gespeicherte Bibliothek.") {
                     Button("Erneut versuchen") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }
+                        .disabled(jellyfin.isLoading)
                 }
             }
             if let error = jellyfin.lastError {
-                banner(Text(verbatim: error), systemImage: "exclamationmark.triangle") {
+                notice(title: "Jellyfin", detail: LocalizedStringKey(error)) {
                     Button("OK") { jellyfin.lastError = nil }
                 }
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.top, jellyfin.isExpired || jellyfin.isOffline || jellyfin.lastError != nil ? 6 : 0)
         .sheet(isPresented: $signingIn) {
             JellyfinSignInForm(prefillServer: jellyfin.session?.server, prefillUser: jellyfin.session?.userName) { signingIn = false }
                 .padding(24)
         }
     }
 
-    private func banner(_ text: Text, systemImage: String, @ViewBuilder action: () -> some View) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-            text.lineLimit(2)
+    private func notice(title: LocalizedStringKey, detail: LocalizedStringKey, @ViewBuilder action: () -> some View) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Theme.warning)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.callout.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
             Spacer()
             action()
         }
-        .font(.callout)
-        .padding(.horizontal, 16).padding(.vertical, 8)
-        .background(.yellow.opacity(0.18))
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .background(Theme.warning.opacity(0.13), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
-/// Play / Resume (at the server's position) and From the Beginning.
 struct JellyfinPlayButton: View {
     @EnvironmentObject private var app: AppModel
     let item: JFItem
@@ -195,9 +212,9 @@ struct JellyfinGridView: View {
         .toolbar {
             ToolbarItem {
                 Picker("Sortierung", selection: sort) {
-                    ForEach(JFSort.allCases) { Text($0.title).tag($0) }
+                    ForEach(JFSort.allCases) { Text($0.shortTitle).tag($0) }
                 }
-                .pickerStyle(.menu)
+                .pickerStyle(.segmented)
                 .help("Sortierung")
             }
         }
@@ -233,7 +250,8 @@ struct JellyfinItemDetailView: View {
     }
 }
 
-/// Backdrop, poster, title and a slot for the content below.
+/// Backdrop (under the toolbar), poster, title and a slot for the content below – the same
+/// layout as the IPTV film and series pages.
 private struct JellyfinDetailHeader<Content: View>: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
     let item: JFItem
@@ -241,29 +259,24 @@ private struct JellyfinDetailHeader<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            RemoteImage(url: jellyfin.backdropURL(item, height: 1080), maxPixel: 1600) {
-                Rectangle().fill(.quaternary)
-            }
-            .frame(height: 320)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .overlay(LinearGradient(colors: [.clear, Color(nsColor: .windowBackgroundColor)], startPoint: .center, endPoint: .bottom))
+            DetailBackdrop(url: jellyfin.backdropURL(item, height: 1080))
 
             HStack(alignment: .top, spacing: 28) {
                 Color.clear
                     .frame(width: 200, height: 300)
                     .overlay { RemoteImage(url: jellyfin.posterURL(item, height: 750), maxPixel: 500) { Rectangle().fill(.quaternary) } }
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(radius: 10)
-                    .offset(y: -100)
-                    .padding(.bottom, -100)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(color: .black.opacity(0.35), radius: 14, y: 8)
+                    .offset(y: -120)
+                    .padding(.bottom, -120)
 
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(item.name).font(.largeTitle.weight(.bold)).textSelection(.enabled)
+                    Text(verbatim: item.name).font(.largeTitle.weight(.bold)).textSelection(.enabled)
                     content()
                 }
+                .padding(.top, 4)
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, 36)
         }
     }
 }
@@ -272,19 +285,12 @@ private struct MetaLine: View {
     let item: JFItem
 
     var body: some View {
-        HStack(spacing: 12) {
-            if let year = item.year { Text(String(year)) }
-            if let minutes = item.runtimeMinutes, item.type == "Movie" { Text("\(minutes) Min.") }
-            if let official = item.officialRating {
-                Text(official)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(.secondary))
-            }
-            if let rating = item.communityRating { Label(String(format: "%.1f", rating), systemImage: "star.fill") }
-            if let genres = item.genres, !genres.isEmpty { Text(genres.prefix(3).joined(separator: ", ")).lineLimit(1) }
-        }
-        .foregroundStyle(.secondary)
+        let parts = [item.year.map(String.init), item.type == "Movie" ? item.runtimeMinutes.flatMap { runtimeText("\($0)") } : nil,
+                     item.officialRating, item.communityRating.map { "★ \($0.formatted(.number.precision(.fractionLength(1))))" },
+                     item.genres.flatMap { $0.isEmpty ? nil : $0.prefix(3).joined(separator: ", ") }].compactMap { $0 }
+        Text(verbatim: parts.joined(separator: " · "))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
 
@@ -339,7 +345,9 @@ struct JellyfinFilmDetailView: View {
             }
             .padding(.bottom, 32)
         }
-        .safeAreaInset(edge: .top, spacing: 0) { JellyfinStatusBanner() }
+        .ignoresSafeArea(edges: .top)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        .overlay(alignment: .top) { JellyfinStatusBanner().padding(.top, 52) }
         .navigationTitle(item.name)
         .task(id: itemId) { await jellyfin.loadDetail(itemId) }
     }
@@ -404,7 +412,9 @@ struct JellyfinSeriesDetailView: View {
             episodesSection(seasons)
                 .padding(32)
         }
-        .safeAreaInset(edge: .top, spacing: 0) { JellyfinStatusBanner() }
+        .ignoresSafeArea(edges: .top)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        .overlay(alignment: .top) { JellyfinStatusBanner().padding(.top, 52) }
         .navigationTitle(item.name)
         .task(id: seriesId) {
             async let detail: Void = jellyfin.loadDetail(seriesId)
@@ -429,11 +439,13 @@ struct JellyfinSeriesDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     if seasons.count > 1 {
-                        Picker("Staffel", selection: Binding(get: { seasonId }, set: { self.seasonId = $0 })) {
-                            ForEach(seasons) { Text($0.name).tag($0.id) }
+                        let picker = Picker("Staffel", selection: Binding(get: { seasonId }, set: { self.seasonId = $0 })) {
+                            ForEach(seasons) { Text(verbatim: $0.name).tag($0.id) }
                         }
-                        .pickerStyle(.menu)
+                        .labelsHidden()
                         .fixedSize()
+                        // A segment like the IPTV series page; a menu once there are too many seasons.
+                        if seasons.count <= 6 { picker.pickerStyle(.segmented) } else { picker.pickerStyle(.menu) }
                     } else {
                         Text(season.name).font(.title2.weight(.semibold))
                     }
@@ -518,11 +530,16 @@ struct JellyfinHomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
+                HStack(spacing: 10) {
+                    Text(verbatim: jellyfin.session?.serverName ?? "Jellyfin").font(.title2.weight(.bold))
+                    Circle().fill(jellyfin.isOffline ? Theme.warning : Theme.online).frame(width: 8, height: 8)
+                    Text(jellyfin.isOffline ? "Offline" : "Verbunden").font(.callout).foregroundStyle(.secondary)
+                }
                 if !jellyfin.resume.isEmpty {
                     row("Weiterschauen", items: jellyfin.resume, landscape: true)
                 }
                 if !jellyfin.nextUp.isEmpty {
-                    row("Nächste Folge", items: jellyfin.nextUp, landscape: true)
+                    row("Als Nächstes", items: jellyfin.nextUp, landscape: true)
                 }
                 if !jellyfin.latestFilms.isEmpty {
                     row("Neue Filme", items: jellyfin.latestFilms, landscape: false)
@@ -531,6 +548,7 @@ struct JellyfinHomeView: View {
                     row("Neue Serien", items: jellyfin.latestSeries, landscape: false)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
         }
         .safeAreaInset(edge: .top, spacing: 0) { JellyfinStatusBanner() }
@@ -575,7 +593,7 @@ struct JellyfinHomeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(alignment: .bottom) {
                     if let progress = item.progress {
-                        ProgressView(value: progress).progressViewStyle(.linear).padding(8)
+                        ProgressBar(value: progress, height: 4).padding(10)
                     }
                 }
             Text(item.seriesName ?? item.name).font(.callout.weight(.medium)).lineLimit(1)
