@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fernsy – IPTV Player für den Mac</title>
-<meta name="description" content="Fernsy ist ein schneller, nativer IPTV-Player für den Mac: Live-TV mit Programmraster, Filme und Serien für deinen Xtream-Codes-Zugang.">
+<meta name="description" content="Fernsy ist ein schneller, nativer IPTV-Player für den Mac: Live-TV mit Programmraster, Aufnahmen, Timeshift, Filme und Serien – auch von deinem Jellyfin-Server.">
+<meta name="theme-color" content="#111015">
 <link rel="icon" href="assets/icon.png">
 <link rel="alternate" hreflang="en" href="en/">
 <link rel="stylesheet" href="style.css">
@@ -21,47 +22,159 @@
   </nav>
 </div></header>
 
-<section class="hero"><div class="wrap">
-  <img class="icon" src="assets/icon.png" alt="Fernsy-Icon">
+<main>
+<section class="hero wrap">
+  <img class="icon" src="assets/icon.png" alt="Fernsy-Icon" width="128" height="128">
   <h1>Dein IPTV-Zugang als echte Mac-App</h1>
   <p class="lead">Live-TV mit Programmraster, Filme und Serien – schnell, nativ und ohne Werbung. Für Xtream-Codes-Zugänge.</p>
-  <span class="badge">Bald im Mac App Store</span>
-  <p class="note">Für Mac mit Apple-Chip · macOS 27 oder neuer</p>
-</div></section>
+  <div class="get">
+    <div class="buttons">
+      <a class="button primary" href="https://github.com/obi12341/fernsy/releases/latest/download/Fernsy.dmg">Für Mac laden</a>
+      <span class="button soon">Bald im Mac App Store</span>
+    </div>
+    <span class="note">Für Mac mit Apple-Chip · macOS 27 oder neuer</span>
+  </div>
+  <div class="frame"><img src="assets/player-live.webp" alt="Live-TV im Player: laufende Sendung, Zeitleiste mit Zeitversatz und laufender Aufnahme" width="1280" height="720" fetchpriority="high"></div>
+</section>
 
-<div class="wrap">
-  <section class="gallery" aria-label="Screenshots">
-    <a href="assets/de-01-programm.jpg"><img src="assets/de-01-programm.jpg" alt="Programmraster mit allen Sendern und Jetzt-Linie" loading="lazy"></a>
-    <a href="assets/de-02-live-tv.jpg"><img src="assets/de-02-live-tv.jpg" alt="Live-TV im Player mit laufender Sendung" loading="lazy"></a>
-    <a href="assets/de-03-sender.jpg"><img src="assets/de-03-sender.jpg" alt="Senderliste mit Kategorien und aktuellem Programm" loading="lazy"></a>
-    <a href="assets/de-04-filme.jpg"><img src="assets/de-04-filme.jpg" alt="Filmkatalog als Poster-Raster" loading="lazy"></a>
-    <a href="assets/de-05-film-details.jpg"><img src="assets/de-05-film-details.jpg" alt="Filmdetails mit Handlung und Besetzung" loading="lazy"></a>
-    <a href="assets/de-06-serien.jpg"><img src="assets/de-06-serien.jpg" alt="Serie mit Staffeln und Episoden" loading="lazy"></a>
-  </section>
+<section class="gallery wrap" aria-label="Ansichten">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-programm" aria-controls="view-programm" aria-selected="true">Programm</button>
+    <button role="tab" id="tab-live" aria-controls="view-live" aria-selected="false">Live-TV</button>
+    <button role="tab" id="tab-sender" aria-controls="view-sender" aria-selected="false">Sender</button>
+    <button role="tab" id="tab-filme" aria-controls="view-filme" aria-selected="false">Filme</button>
+    <button role="tab" id="tab-details" aria-controls="view-details" aria-selected="false">Film-Details</button>
+    <button role="tab" id="tab-serien" aria-controls="view-serien" aria-selected="false">Serien</button>
+  </div>
+  <div class="panel" role="tabpanel" id="view-programm" aria-labelledby="tab-programm">
+    <p>Programmraster mit allen Sendern und Jetzt-Linie</p>
+    <div class="frame"><img src="assets/programm.webp" alt="Programmraster mit allen Sendern und Jetzt-Linie" width="1280" height="820" loading="lazy"></div>
+  </div>
+  <div class="panel" role="tabpanel" id="view-live" aria-labelledby="tab-live">
+    <p>Live-TV im Player mit laufender Sendung</p>
+    <div class="frame"><img src="assets/player-live-edge.webp" alt="Live-TV im Player mit laufender Sendung" width="1280" height="720" loading="lazy"></div>
+  </div>
+  <div class="panel" role="tabpanel" id="view-sender" aria-labelledby="tab-sender">
+    <p>Senderliste mit Kategorien und aktuellem Programm</p>
+    <div class="frame"><img src="assets/sender.webp" alt="Senderliste mit Kategorien und aktuellem Programm" width="1280" height="820" loading="lazy"></div>
+  </div>
+  <div class="panel" role="tabpanel" id="view-filme" aria-labelledby="tab-filme">
+    <p>Filmkatalog als Poster-Raster</p>
+    <div class="frame"><img src="assets/filme.webp" alt="Filmkatalog als Poster-Raster" width="1280" height="820" loading="lazy"></div>
+  </div>
+  <div class="panel" role="tabpanel" id="view-details" aria-labelledby="tab-details">
+    <p>Filmdetails mit Handlung und Besetzung</p>
+    <div class="frame"><img src="assets/film-details.webp" alt="Filmdetails mit Handlung und Besetzung" width="1280" height="820" loading="lazy"></div>
+  </div>
+  <div class="panel" role="tabpanel" id="view-serien" aria-labelledby="tab-serien">
+    <p>Serie mit Staffeln und Episoden</p>
+    <div class="frame"><img src="assets/serien.webp" alt="Serie mit Staffeln und Episoden" width="1280" height="820" loading="lazy"></div>
+  </div>
+</section>
 
-  <section class="features">
-    <div class="card"><h3>Live-TV</h3><ul>
+<section class="new wrap">
+  <div class="section-head">
+    <span class="kicker">NEU IN FERNSY</span>
+    <h2>Aufnehmen, zurückspulen und deine eigene Mediathek.</h2>
+  </div>
+  <div class="row">
+    <div class="copy">
+      <span class="kicker">JELLYFIN</span>
+      <h3>Dein eigener Medienserver, direkt neben dem IPTV-Zugang.</h3>
+      <p>Verbinde zusätzlich deinen Jellyfin-Server. Beide Konten sind gleichzeitig aktiv und erscheinen getrennt in der Seitenleiste, mit derselben Bedienung.</p>
+      <ul class="checks">
+        <li>Weiterschauen, Als Nächstes und Neu hinzugefügt auf einer Startseite</li>
+        <li>Bibliotheken und Genres als Kategorien</li>
+        <li>Gesehen-Status, ungesehene Episoden und Favoriten</li>
+        <li>Bibliothek bleibt sichtbar, wenn der Server offline ist</li>
+      </ul>
+    </div>
+    <div class="frame"><img src="assets/jellyfin.webp" alt="Jellyfin-Startseite mit Weiterschauen, Als Nächstes und Neu hinzugefügt" width="1280" height="820" loading="lazy"></div>
+  </div>
+  <div class="row reverse rec">
+    <div class="copy">
+      <span class="kicker">AUFNAHMEN</span>
+      <h3>Sendungen aufnehmen, ohne etwas zu verpassen.</h3>
+      <p>Aufnehmen geht direkt aus der Senderliste, dem Programmraster oder dem Player. Fernsy arbeitet in der Menüleiste weiter, auch wenn das Fenster geschlossen ist.</p>
+      <ul class="checks">
+        <li>Vor- und Nachlauf selbst einstellbar</li>
+        <li>Abspielen schon während der Aufnahme</li>
+        <li>Laufend, geplant und aufgenommen in einer Liste</li>
+        <li>Klare Hinweise bei fehlgeschlagenen oder verpassten Aufnahmen</li>
+      </ul>
+    </div>
+    <div class="frame"><img src="assets/aufnahmen.webp" alt="Aufnahmen: laufend, geplant und aufgenommen" width="1280" height="820" loading="lazy"></div>
+  </div>
+  <div class="cards">
+    <div class="card violet"><span class="glyph" aria-hidden="true">⟲</span><h3>Timeshift</h3><p>Live-TV anhalten und bis zu zwei Stunden zurückspulen. Ein Klick bringt dich zurück zu Live.</p></div>
+    <div class="card peach"><span class="glyph" aria-hidden="true">⧉</span><h3>Bild-in-Bild</h3><p>Weiterschauen, während du am Mac arbeitest. Auch das Umschalten klappt im kleinen Fenster.</p></div>
+    <div class="card pink"><span class="glyph" aria-hidden="true">◎</span><h3>Eine Suche für alles</h3><p>Sender, Filme, Serien, Aufnahmen und Jellyfin in einem Suchfeld, nach Quelle sortiert.</p></div>
+    <div class="card red"><span class="glyph" aria-hidden="true">●</span><h3>Menüleiste</h3><p>Laufende und nächste Aufnahmen auf einen Blick, auch ohne geöffnetes Fenster.</p></div>
+  </div>
+</section>
+
+<section class="all wrap">
+  <h2>Alles, was Fernsy kann</h2>
+  <div class="cards">
+    <div class="card violet"><span class="glyph" aria-hidden="true">◉</span><h3>Live-TV</h3><ul class="checks">
       <li>Senderliste mit Kategorien, Suche und Favoriten</li>
       <li>Programmraster für alle Sender</li>
       <li>Umschalten mit den Pfeiltasten</li></ul></div>
-    <div class="card"><h3>Filme und Serien</h3><ul>
+    <div class="card peach"><span class="glyph" aria-hidden="true">▶</span><h3>Filme und Serien</h3><ul class="checks">
       <li>Poster-Ansicht, sortiert nach Neuheit, Name oder Bewertung</li>
       <li>Staffeln und Episoden</li>
       <li>Weiterschauen, wo du aufgehört hast</li></ul></div>
-    <div class="card"><h3>Wiedergabe</h3><ul>
+    <div class="card pink"><span class="glyph" aria-hidden="true">▤</span><h3>Wiedergabe</h3><ul class="checks">
       <li>Hardware-Dekodierung, bis 4K</li>
       <li>Deinterlacing auf der Grafikkarte</li>
       <li>Nahtlose Wiederverbindung bei Netzaussetzern</li></ul></div>
-    <div class="card"><h3>Datenschutz</h3>
+    <div class="card green"><span class="glyph" aria-hidden="true">◐</span><h3>Datenschutz</h3>
       <p>Fernsy erfasst keine Daten. Deine Zugangsdaten liegen im Schlüsselbund deines Macs, und die App verbindet sich nur mit deinem Anbieter.</p></div>
-  </section>
+  </div>
+  <div class="notice"><p><strong>Wichtig:</strong> Fernsy enthält keine Sender, Filme oder sonstigen Inhalte und verkauft keine Abonnements. Du benötigst einen Zugang (Xtream Codes API) bei einem IPTV-Anbieter deiner Wahl.</p></div>
+</section>
 
-  <div class="callout"><strong>Wichtig:</strong> Fernsy enthält keine Sender, Filme oder sonstigen Inhalte und verkauft keine Abonnements. Du benötigst einen Zugang (Xtream Codes API) bei einem IPTV-Anbieter deiner Wahl.</div>
-</div>
+<section class="closing wrap">
+  <img src="assets/icon.png" alt="" width="88" height="88" loading="lazy">
+  <h2>Dein IPTV-Zugang als echte Mac-App</h2>
+  <div class="get">
+    <div class="buttons">
+      <a class="button primary" href="https://github.com/obi12341/fernsy/releases/latest/download/Fernsy.dmg">Für Mac laden</a>
+      <span class="button soon">Bald im Mac App Store</span>
+    </div>
+    <span class="note">Für Mac mit Apple-Chip · macOS 27 oder neuer</span>
+  </div>
+</section>
+</main>
 
 <footer><div class="wrap">
-  <span>© 2026 mobilistics GmbH · Videobild: „Big Buck Bunny“ © Blender Foundation, CC BY 3.0</span>
+  <span>© 2026 mobilistics GmbH</span>
   <nav><a href="support.html">Support</a><a href="datenschutz.html">Datenschutz</a><a href="impressum.html">Impressum</a><a href="https://github.com/obi12341/fernsy">GitHub</a></nav>
 </div></footer>
+
+<script>
+// Gallery tabs: without this script every view is shown one below the other.
+(function () {
+  document.documentElement.classList.remove("no-js");
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tabs [role=tab]"));
+  function select(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    if (focus) tab.focus();
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener("click", function () { select(tab, false); });
+    tab.addEventListener("keydown", function (e) {
+      var step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (step) { e.preventDefault(); select(tabs[(i + step + tabs.length) % tabs.length], true); }
+    });
+  });
+  if (tabs.length) select(tabs[0], false);
+})();
+</script>
 </body>
 </html>
