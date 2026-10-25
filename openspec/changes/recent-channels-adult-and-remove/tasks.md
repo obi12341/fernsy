@@ -18,10 +18,10 @@
 
 ## 3. Verification (demo server)
 
-- [ ] 3.1 Hide by default. Run with `IPTV_TESTADULT=103`, `IPTV_RECENT=101,103,102`, `IPTV_SHOWADULT=1` and `IPTV_SCENE=live:__recent`. Screenshot: "Zuletzt gesehen" lists 101 and 102, not 103, and the count says 2.
-- [ ] 3.2 Show again. Same run with `IPTV_ADULTRECENT=1`. Screenshot: 101, 103, 102 in that order, count 3.
-- [ ] 3.3 Adult categories off. Run with `IPTV_SHOWADULT=0` and `IPTV_ADULTRECENT=1`, `IPTV_TESTSETTINGS=youthProtection` (opens Settings › Jugendschutz). Screenshot: the new toggle is disabled, and 103 is not in "Zuletzt gesehen".
-- [ ] 3.4 Removal. Run with `IPTV_RECENT=101,102` and a debug trigger `IPTV_TESTUNRECENT=101` that calls `removeRecent` after the list is shown, the same path as the menu item. Screenshot: only 102 is left. The installed app's `live.recent` default is unchanged (`defaults read` before and after).
+- [x] 3.1 Hide by default. Run with `IPTV_TESTADULT=103`, `IPTV_RECENT=101,103,102`, `IPTV_SHOWADULT=1` and `IPTV_SCENE=live:__recent`. Screenshot: "Zuletzt gesehen" lists 101 and 102, not 103, and the count says 2.
+- [x] 3.2 Show again. Same run with `IPTV_ADULTRECENT=1`. Screenshot: 101, 103, 102 in that order, count 3.
+- [x] 3.3 Adult categories off. Run with `IPTV_SHOWADULT=0` and `IPTV_ADULTRECENT=1`, `IPTV_TESTSETTINGS=youthProtection` (opens Settings › Jugendschutz). Screenshot: the new toggle is disabled, and 103 is not in "Zuletzt gesehen".
+- [x] 3.4 Removal. Run with `IPTV_RECENT=101,102` and a debug trigger `IPTV_TESTUNRECENT=101` that calls `removeRecent` after the list is shown, the same path as the menu item. Screenshot: only 102 is left. The installed app's `live.recent` default is unchanged (`defaults read` before and after).
 - [x] 3.5 Debug and Release builds; `openspec validate recent-channels-adult-and-remove --strict` and `openspec validate --specs --strict`.
 
 ## Workflow follow-up
