@@ -22,6 +22,16 @@
         }
       }
     },
+    "%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
+        }
+      }
+    },
     "%@ gespeichert": {
       "localizations": {
         "en": {
@@ -48,6 +58,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading %@…"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        }
+      }
+    },
+    "%@ · bis %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · bis %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · until %2$@"
           }
         }
       }
@@ -1258,6 +1300,16 @@
         }
       }
     },
+    "Beendet die Wiedergabe in Fernsy.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops playback in Fernsy."
+          }
+        }
+      }
+    },
     "Befehl kopieren": {
       "localizations": {
         "en": {
@@ -1674,6 +1726,26 @@
         }
       }
     },
+    "Diese Sendung finde ich nicht mehr im Programm.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't find this show in the guide any more."
+          }
+        }
+      }
+    },
+    "Diesen Sender gibt es in Fernsy nicht.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy doesn't have this channel."
+          }
+        }
+      }
+    },
     "Dieser Sender überträgt keine Tonspur.": {
       "localizations": {
         "en": {
@@ -1994,6 +2066,16 @@
         }
       }
     },
+    "Fernsy hat die Wiedergabe beendet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy stopped playback."
+          }
+        }
+      }
+    },
     "Fernsy hält den Mac nicht wach. Geht er in den Ruhezustand, bricht eine laufende Aufnahme ab.": {
       "localizations": {
         "en": {
@@ -2020,6 +2102,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fernsy collects no data. Credentials stay in this Mac’s keychain."
+          }
+        }
+      }
+    },
+    "Fernsy zeigt jetzt %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy is now showing %@."
           }
         }
       }
@@ -2134,6 +2226,16 @@
         }
       }
     },
+    "Für deine Favoriten gibt es gerade keine Programmdaten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no program data for your favorites right now."
+          }
+        }
+      }
+    },
     "Für die Aufnahme schaltet Fernsy auf %@ um, weil dein Zugang nur %lld Stream(s) gleichzeitig erlaubt.": {
       "localizations": {
         "de": {
@@ -2176,6 +2278,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove scheduled recording"
+          }
+        }
+      }
+    },
+    "Gerade läuft %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On now: %@."
+          }
+        }
+      }
+    },
+    "Gerade wird „%@“ auf %@ aufgenommen, und dein Zugang erlaubt nur %lld Stream(s). Fernsy schaltet deshalb nicht um.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Gerade wird „%1$@“ auf %2$@ aufgenommen, und dein Zugang erlaubt nur %3$lld Stream(s). Fernsy schaltet deshalb nicht um."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%1$@\" is being recorded on %2$@, and your account allows only %3$lld stream(s). So Fernsy doesn't switch."
           }
         }
       }
@@ -2358,6 +2486,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Always while a recording is scheduled"
+          }
+        }
+      }
+    },
+    "In Fernsy läuft gerade nichts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing is playing in Fernsy."
           }
         }
       }
@@ -2802,6 +2940,16 @@
         }
       }
     },
+    "Laufende Sendung aufnehmen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record Current Show"
+          }
+        }
+      }
+    },
     "Laufende Sendung aufnehmen (R)": {
       "localizations": {
         "en": {
@@ -2952,6 +3100,26 @@
         }
       }
     },
+    "Markiere in Fernsy Sender als Favoriten, dann sage ich dir, was dort läuft.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark channels as favorites in Fernsy, and I'll tell you what's on."
+          }
+        }
+      }
+    },
+    "Markiere in Fernsy Sender als Favoriten, dann suche ich dort im Programm.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark channels as favorites in Fernsy, and I'll search their guide."
+          }
+        }
+      }
+    },
     "Max. Verbindungen": {
       "localizations": {
         "en": {
@@ -2968,6 +3136,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sign in again to keep watching."
+          }
+        }
+      }
+    },
+    "Melde dich zuerst in Fernsy bei deinem IPTV-Konto an.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First sign in to your IPTV account in Fernsy."
           }
         }
       }
@@ -3244,6 +3422,16 @@
         }
       }
     },
+    "Nimmt die Sendung auf, die gerade auf dem Sender läuft – ohne Angabe auf dem Sender im Player.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records the show on now on the channel – without a channel, on the one in the player."
+          }
+        }
+      }
+    },
     "Noch keine Favoriten": {
       "localizations": {
         "en": {
@@ -3450,6 +3638,16 @@
         }
       }
     },
+    "Plant die Aufnahme einer Sendung aus dem Programm.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedules a recording of a show from the guide."
+          }
+        }
+      }
+    },
     "Platte": {
       "localizations": {
         "en": {
@@ -3640,6 +3838,36 @@
         }
       }
     },
+    "Sag mir den Sender, oder schalte ihn zuerst in Fernsy ein.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tell me the channel, or switch to it in Fernsy first."
+          }
+        }
+      }
+    },
+    "Sagt, was gerade auf deinen Lieblingssendern läuft.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tells you what's on now on your favorite channels."
+          }
+        }
+      }
+    },
+    "Schalte auf ${channel}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to ${channel}"
+          }
+        }
+      }
+    },
     "Schließen": {
       "localizations": {
         "en": {
@@ -3676,6 +3904,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Channels"
+          }
+        }
+      }
+    },
+    "Sender einschalten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch Channel"
           }
         }
       }
@@ -3776,6 +4014,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading Channel List"
+          }
+        }
+      }
+    },
+    "Sendung": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show"
+          }
+        }
+      }
+    },
+    "Sendung aufnehmen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record Show"
+          }
+        }
+      }
+    },
+    "Sendung suchen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find Show"
           }
         }
       }
@@ -4046,6 +4314,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search"
+          }
+        }
+      }
+    },
+    "Suche ${query} im Programm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find ${query} in the guide"
+          }
+        }
+      }
+    },
+    "Sucht eine Sendung im Programm deiner Favoriten und zuletzt gesehenen Sender.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searches the guide of your favorite and recently watched channels for a show."
           }
         }
       }
@@ -4462,6 +4750,16 @@
         }
       }
     },
+    "Was läuft gerade": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's On"
+          }
+        }
+      }
+    },
     "Weiter": {
       "localizations": {
         "en": {
@@ -4508,6 +4806,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Player"
+          }
+        }
+      }
+    },
+    "Wiedergabe beenden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Playback"
           }
         }
       }
@@ -4578,6 +4886,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "TO LIVE ⇥"
+          }
+        }
+      }
+    },
+    "Zeigt einen Live-Sender in Fernsy.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows a live channel in Fernsy."
           }
         }
       }
@@ -4782,6 +5100,16 @@
         }
       }
     },
+    "heute %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "today %@"
+          }
+        }
+      }
+    },
     "in %lld Min.": {
       "localizations": {
         "en": {
@@ -4886,6 +5214,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "min"
+          }
+        }
+      }
+    },
+    "morgen %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tomorrow %@"
           }
         }
       }
@@ -5022,6 +5360,32 @@
         }
       }
     },
+    "„%@“ habe ich im Programm deiner Favoriten und zuletzt gesehenen Sender nicht gefunden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I didn't find \"%@\" in the guide of your favorite and recently watched channels."
+          }
+        }
+      }
+    },
+    "„%@“ kommt %@ auf %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "„%1$@“ kommt %2$@ auf %3$@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%1$@\" is on %2$@ on %3$@."
+          }
+        }
+      }
+    },
     "„%@“ konnte nicht geändert werden: %@": {
       "localizations": {
         "de": {
@@ -5066,6 +5430,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” is on at the same time as %@. Your account allows %lld stream(s) at a time. Remove one of these recordings to record this show."
+          }
+        }
+      }
+    },
+    "„%@“ wird aufgenommen, %@ bis %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "„%1$@“ wird aufgenommen, %2$@ bis %3$@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%1$@\" will be recorded, %2$@ to %3$@."
+          }
+        }
+      }
+    },
+    "„%@“ wird aufgenommen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" will be recorded."
           }
         }
       }

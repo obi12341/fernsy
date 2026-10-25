@@ -292,6 +292,14 @@ at launch and logs the path, `IPTV_MCPADDCLAUDE=<s>` runs the button after s sec
 `IPTV_TESTNOCLAUDE=1` acts as if Claude Desktop were missing, `IPTV_MCPVERSION=<version>` fakes the
 app version for the manifest.
 
+Siri, Spotlight and Shortcuts use App Intents (`Fernsy/Intents/`): `ChannelEntity` (indexed in
+Spotlight's semantic index, visible channels only), `ShowEntity`, five App Shortcuts with German
+phrases in code and English ones in `Fernsy/AppShortcuts.xcstrings`; the actions themselves are
+`FernsyActions`, shared with the MCP tools. Debug builds neither index nor donate unless
+`IPTV_SIRIINDEX=1`. `IPTV_TESTINTENT=<step>|…` runs the intents' actions once the catalog is
+loaded and logs the answers (`query:<text>`, `suggested`, `play:<id>`, `whatson`, `find:<text>`,
+`record[:<id>]`, `recordshow:<channel>:<epoch>`, `stop`).
+
 Picture in Picture (button in the controls, key P) uses the system's PiP with the player's
 display layer; subtitles are not shown in the PiP window. macOS mirrors a sample-buffer PiP
 source unscaled (FB22411168), so while PiP runs the layer lives in an invisible window that

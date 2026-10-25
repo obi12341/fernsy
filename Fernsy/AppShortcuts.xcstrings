@@ -1,0 +1,126 @@
+{
+  "sourceLanguage": "de",
+  "version": "1.0",
+  "strings": {
+    "${applicationName} auf ${channel}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} on ${channel}"
+          }
+        }
+      }
+    },
+    "Aufnahme in ${applicationName} starten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start recording in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Beende die Wiedergabe in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop playback in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Nimm ${channel} in ${applicationName} auf": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record ${channel} in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Nimm das in ${applicationName} auf": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record this in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Schalte ${applicationName} auf ${channel}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch ${applicationName} to ${channel}"
+          }
+        }
+      }
+    },
+    "Stopp ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop ${applicationName}"
+          }
+        }
+      }
+    },
+    "Suche eine Sendung in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find a show in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Wann kommt etwas in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When is something on in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Was läuft gerade in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's on in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Was läuft in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's on now in ${applicationName}"
+          }
+        }
+      }
+    },
+    "Zeig ${channel} in ${applicationName}": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show ${channel} in ${applicationName}"
+          }
+        }
+      }
+    }
+  }
+}

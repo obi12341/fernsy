@@ -134,6 +134,7 @@ final class AppModel: ObservableObject {
             #endif
             UserDefaults.standard.set(showAdult, forKey: "library.showAdult")
         }
+        willSet { if newValue != showAdult { Task { @MainActor in SiriIndex.schedule(self) } } }
     }
     /// Adult channels also appear in "Zuletzt gesehen" (Youth protection; only while
     /// `showAdult` is on).
@@ -178,7 +179,10 @@ final class AppModel: ObservableObject {
 
     @Published var nowPlaying: PlayItem? {
         didSet {
-            if case .live(let id, _)? = nowPlaying?.kind, nowPlaying != oldValue { noteRecent(id) }
+            if case .live(let id, _)? = nowPlaying?.kind, nowPlaying != oldValue {
+                noteRecent(id)
+                donateChannel(id)
+            }
             if let item = nowPlaying, item != oldValue {
                 AppLog.info(.player, "play \(item.logDescription): \(item.title)\(item.subtitle.map { " – \($0)" } ?? "")")
             } else if nowPlaying == nil, oldValue != nil {
@@ -376,6 +380,40 @@ final class AppModel: ObservableObject {
             if let value = env["IPTV_SHOWMOVIES"] { showsIPTVMovies = value == "1" }
             if let value = env["IPTV_SHOWSERIES"] { showsIPTVSeries = value == "1" }
         }
+        // IPTV_TESTINTENT=<step>[|<step>…]: runs Siri's actions once the catalog is loaded, as the
+        // system does, one step every 4 s, and logs the answer. Steps: query:<text>, play:<id>,
+        // whatson, find:<text>, record[:<id>], recordshow:<channel>:<epoch>, stop.
+        if let steps = env["IPTV_TESTINTENT"]?.split(separator: "|").map(String.init) {
+            Task {
+                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+                try? await Task.sleep(for: .seconds(2))
+                for step in steps {
+                    let parts = step.split(separator: ":", maxSplits: 1).map(String.init)
+                    let arg = parts.count > 1 ? parts[1] : ""
+                    var line: String
+                    switch parts[0] {
+                    case "query":
+                        let found = (try? await ChannelQuery().entities(matching: arg)) ?? []
+                        line = found.map { "\($0.id) \($0.name)" }.joined(separator: ", ")
+                    case "suggested":
+                        line = ((try? await ChannelQuery().suggestedEntities()) ?? []).map(\.name).joined(separator: ", ")
+                    case "play": line = await IntentActions.play(channelId: Int(arg) ?? 0).text
+                    case "whatson":
+                        let answer = await IntentActions.whatsOn()
+                        line = answer.text + " | rows: \(answer.rows.count)"
+                    case "find":
+                        let answer = await IntentActions.findShow(arg)
+                        line = answer.text + " | shows: " + answer.shows.prefix(3).map(\.id).joined(separator: ",")
+                    case "record": line = await IntentActions.recordNow(channelId: Int(arg)).text
+                    case "recordshow": line = await IntentActions.record(showId: arg).text
+                    case "stop": line = await IntentActions.stop().text
+                    default: line = "unknown step"
+                    }
+                    debugLog("[test] intent \(step): \(line)")
+                    try? await Task.sleep(for: .seconds(4))
+                }
+            }
+        }
         // IPTV_TESTSWITCHMEDIA=<s>:<movies|series>:<0|1>,…: flips the switch s seconds after the
         // live catalog loaded, as in Settings (also in memory only).
         if let list = env["IPTV_TESTSWITCHMEDIA"] {
@@ -537,6 +575,7 @@ final class AppModel: ObservableObject {
 
     func logout() {
         AppLog.info(.app, "signed out of the IPTV account")
+        SiriIndex.clear()
         nowPlaying = nil
         tuners.stopAll()
         periodicRefresh?.cancel()
@@ -849,6 +888,14 @@ final class AppModel: ObservableObject {
         for channel in channels where !isHidden(channel) { counts[channel.categoryId ?? "", default: 0] += 1 }
         visibleChannelCounts = counts
         visibleChannelTotal = counts.values.reduce(0, +)
+        SiriIndex.schedule(self)
+    }
+
+    /// Teaches Siri which channels are watched (suggestions, "Schalte Fernsy auf …").
+    private func donateChannel(_ id: Int) {
+        guard SiriIndex.isEnabled, let channel = channel(id) else { return }
+        let entity = ChannelEntity(channel, app: self)
+        Task { _ = try? await PlayChannelIntent(channel: entity).donate() }
     }
 
     // MARK: Favorites

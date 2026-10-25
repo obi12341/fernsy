@@ -1,3 +1,4 @@
+import AppIntents
 import Charts
 import Combine
 import SwiftUI
@@ -37,6 +38,11 @@ struct PlayerScreen: View {
     private static let channelListWidth: CGFloat = 340
 
     private let resumeTimer = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
+
+    private var playingChannelEntity: EntityIdentifier? {
+        guard case .live(let id, _)? = app.nowPlaying?.kind else { return nil }
+        return EntityIdentifier(for: ChannelEntity.self, identifier: id)
+    }
 
     var body: some View {
         ZStack {
@@ -233,6 +239,8 @@ struct PlayerScreen: View {
             }
             #endif
         }
+        // Onscreen context for Siri: "Nimm das in Fernsy auf" refers to the channel shown here.
+        .appEntityIdentifier(playingChannelEntity)
         .onChange(of: app.nowPlaying) { _, item in load(item) }
         .onReceive(pip?.$isPossible.eraseToAnyPublisher() ?? Just(false).eraseToAnyPublisher()) { pipPossible = $0 }
         .onDisappear {
