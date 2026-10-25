@@ -39,7 +39,7 @@ struct LibraryView: View {
             List(selection: Binding(get: { section }, set: { if let s = $0 { section = s; path = NavigationPath() } })) {
                 if app.credentials != nil {
                     Section("IPTV") {
-                        ForEach(LibrarySection.iptv) { s in
+                        ForEach(app.iptvSections) { s in
                             // The tag must be the row's outermost modifier: under a badge the
                             // List finds no tag and the row cannot be selected.
                             Label(s.title, systemImage: s.icon)
@@ -271,7 +271,7 @@ struct LibraryView: View {
     }
 
     private var availableSections: [LibrarySection] {
-        (app.credentials != nil ? LibrarySection.iptv : []) + (app.hasJellyfin ? LibrarySection.jellyfin : [])
+        (app.credentials != nil ? app.iptvSections : []) + (app.hasJellyfin ? LibrarySection.jellyfin : [])
     }
 
     private var runningRecordings: Int {
@@ -413,12 +413,17 @@ struct CategoryColumn: View {
             let hiddenLive = app.favorites.filter { key in
                 key.hasPrefix("live:") && Int(key.dropFirst(5)).flatMap(app.channel).map(app.isHidden) == true
             }.count
-            return [
-                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Favoriten")), count: app.favorites.count - hiddenLive),
-                Row(category: XCategory(id: "live", name: String(localized: "Sender")), count: app.favorites.filter { $0.hasPrefix("live:") }.count - hiddenLive),
-                Row(category: XCategory(id: "movie", name: String(localized: "Filme")), count: app.favorites.filter { $0.hasPrefix("movie:") }.count),
-                Row(category: XCategory(id: "series", name: String(localized: "Serien")), count: app.favorites.filter { $0.hasPrefix("series:") }.count),
+            // Films and series switched off in Settings are left out; their favorites stay stored.
+            let live = app.favorites.filter { $0.hasPrefix("live:") }.count - hiddenLive
+            let movies = app.showsIPTVMovies ? app.favorites.filter { $0.hasPrefix("movie:") }.count : 0
+            let shows = app.showsIPTVSeries ? app.favorites.filter { $0.hasPrefix("series:") }.count : 0
+            var rows = [
+                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Favoriten")), count: live + movies + shows),
+                Row(category: XCategory(id: "live", name: String(localized: "Sender")), count: live),
             ]
+            if app.showsIPTVMovies { rows.append(Row(category: XCategory(id: "movie", name: String(localized: "Filme")), count: movies)) }
+            if app.showsIPTVSeries { rows.append(Row(category: XCategory(id: "series", name: String(localized: "Serien")), count: shows)) }
+            return rows
         case .jellyfinHome:
             return [Row(category: XCategory(id: allCategoryID, name: String(localized: "Übersicht")), count: nil)]
         case .jellyfinFilms, .jellyfinSeries:

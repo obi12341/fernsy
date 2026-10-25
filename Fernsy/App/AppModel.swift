@@ -146,6 +146,36 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// The IPTV account's films and series (Settings › Konten). Switched off, they are neither
+    /// downloaded nor shown, searched or listed under Favorites; favorites, watched marks and
+    /// resume positions stay.
+    @Published var showsIPTVMovies: Bool {
+        didSet {
+            guard showsIPTVMovies != oldValue else { return }
+            storeSetting(showsIPTVMovies, "library.iptvMovies")
+            catalogSectionSwitched(.movies, on: showsIPTVMovies)
+        }
+    }
+    @Published var showsIPTVSeries: Bool {
+        didSet {
+            guard showsIPTVSeries != oldValue else { return }
+            storeSetting(showsIPTVSeries, "library.iptvSeries")
+            catalogSectionSwitched(.series, on: showsIPTVSeries)
+        }
+    }
+
+    /// The IPTV group in the sidebar.
+    var iptvSections: [LibrarySection] {
+        LibrarySection.iptv.filter { ($0 != .movies || showsIPTVMovies) && ($0 != .series || showsIPTVSeries) }
+    }
+
+    private func storeSetting(_ value: Bool, _ key: String) {
+        #if DEBUG
+        if debugSettingsInMemory { return }
+        #endif
+        UserDefaults.standard.set(value, forKey: key)
+    }
+
     @Published var nowPlaying: PlayItem? {
         didSet {
             if case .live(let id, _)? = nowPlaying?.kind, nowPlaying != oldValue { noteRecent(id) }
@@ -197,6 +227,8 @@ final class AppModel: ObservableObject {
         recentChannels = Self.skipKeychain ? [] : (UserDefaults.standard.array(forKey: "live.recent") as? [Int] ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         showAdultInRecent = UserDefaults.standard.bool(forKey: "library.showAdultInRecent")
+        showsIPTVMovies = UserDefaults.standard.object(forKey: "library.iptvMovies") as? Bool ?? true
+        showsIPTVSeries = UserDefaults.standard.object(forKey: "library.iptvSeries") as? Bool ?? true
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
         #if DIRECT_DISTRIBUTION
@@ -335,6 +367,28 @@ final class AppModel: ObservableObject {
         // IPTV_TESTUNRECENT=<id> removes a channel from the history 3 s after the catalog loaded.
         if let list = env["IPTV_TESTADULT"] { debugAdultChannels = Set(list.split(separator: ",").compactMap { Int($0) }) }
         if let list = env["IPTV_RECENT"] { recentChannels = list.split(separator: ",").compactMap { Int($0) } }
+        // IPTV_SHOWMOVIES / IPTV_SHOWSERIES=0|1: the IPTV account's films and series, in memory only.
+        if env["IPTV_SHOWMOVIES"] != nil || env["IPTV_SHOWSERIES"] != nil {
+            debugSettingsInMemory = true
+            if let value = env["IPTV_SHOWMOVIES"] { showsIPTVMovies = value == "1" }
+            if let value = env["IPTV_SHOWSERIES"] { showsIPTVSeries = value == "1" }
+        }
+        // IPTV_TESTSWITCHMEDIA=<s>:<movies|series>:<0|1>,…: flips the switch s seconds after the
+        // live catalog loaded, as in Settings (also in memory only).
+        if let list = env["IPTV_TESTSWITCHMEDIA"] {
+            debugSettingsInMemory = true
+            let steps = list.split(separator: ",").map { $0.split(separator: ":") }.filter { $0.count == 3 }
+            Task {
+                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+                let loaded = Date()
+                for step in steps {
+                    guard let at = Double(step[0]) else { continue }
+                    try? await Task.sleep(for: .seconds(max(0, at - Date().timeIntervalSince(loaded))))
+                    debugLog("[test] \(step[1]) \(step[2] == "1" ? "on" : "off")")
+                    if step[1] == "movies" { showsIPTVMovies = step[2] == "1" } else { showsIPTVSeries = step[2] == "1" }
+                }
+            }
+        }
         if env["IPTV_SHOWADULT"] != nil || env["IPTV_ADULTRECENT"] != nil {
             debugSettingsInMemory = true
             if let value = env["IPTV_SHOWADULT"] { showAdult = value == "1" }
@@ -562,8 +616,8 @@ final class AppModel: ObservableObject {
         AppLog.detail(.catalog, "live from cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(channels.count) channels)")
 
         await withTaskGroup(of: DecodedSection?.self) { group in
-            group.addTask { await Self.decode(.movies, from: dir) }
-            group.addTask { await Self.decode(.series, from: dir) }
+            if showsIPTVMovies { group.addTask { await Self.decode(.movies, from: dir) } }
+            if showsIPTVSeries { group.addTask { await Self.decode(.series, from: dir) } }
             for await section in group {
                 if let section { apply(section) }
             }
@@ -590,7 +644,7 @@ final class AppModel: ObservableObject {
             #endif
             // Download everything, keep only actions whose payload changed.
             let changed: Set<CatalogAction> = try await withThrowingTaskGroup(of: CatalogAction?.self) { group in
-                for action in CatalogAction.allCases {
+                for action in CatalogSection.allCases.filter(isEnabled).flatMap(\.actions) {
                     group.addTask {
                         let data = try await client.catalog(action)
                         let file = dir.appendingPathComponent(action.rawValue + ".json")
@@ -607,7 +661,7 @@ final class AppModel: ObservableObject {
             lastRefresh = Date()
             lastUpdated = lastRefresh
 
-            for section in CatalogSection.allCases where !changed.isDisjoint(with: section.actions) || isEmpty(section) {
+            for section in CatalogSection.allCases where isEnabled(section) && (!changed.isDisjoint(with: section.actions) || isEmpty(section)) {
                 if let decoded = await Self.decode(section, from: dir) { apply(decoded) }
             }
             refreshError = nil
@@ -630,6 +684,43 @@ final class AppModel: ObservableObject {
                 try? await Task.sleep(for: .seconds(Self.refreshInterval))
                 guard let self, !Task.isCancelled else { return }
                 await self.loadCatalog(forceRefresh: true)
+            }
+        }
+    }
+
+    private func isEnabled(_ section: CatalogSection) -> Bool {
+        switch section {
+        case .live: return true
+        case .movies: return showsIPTVMovies
+        case .series: return showsIPTVSeries
+        }
+    }
+
+    /// Off: the section is emptied and its cache removed. On: it is downloaded at once, after a
+    /// refresh that is still running (which skipped it).
+    private func catalogSectionSwitched(_ section: CatalogSection, on: Bool) {
+        AppLog.info(.catalog, "\(section == .movies ? "films" : "series") switched \(on ? "on" : "off")")
+        guard on else {
+            apply(section == .movies ? .movies([], []) : .series([], []))
+            if let dir = cacheDirectory {
+                for action in section.actions { try? FileManager.default.removeItem(at: dir.appendingPathComponent(action.rawValue + ".json")) }
+            }
+            return
+        }
+        Task {
+            while refreshInFlight { try? await Task.sleep(for: .milliseconds(200)) }
+            guard isEnabled(section), let client, let dir = cacheDirectory else { return }
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                for action in section.actions {
+                    try await client.catalog(action).write(to: dir.appendingPathComponent(action.rawValue + ".json"), options: .atomic)
+                }
+                if isEnabled(section), let decoded = await Self.decode(section, from: dir) { apply(decoded) }
+                AppLog.info(.catalog, "\(section == .movies ? "films" : "series") downloaded")
+            } catch {
+                refreshError = error.localizedDescription
+                AppLog.error(.catalog, "download after switching on failed: \(error.localizedDescription)")
             }
         }
     }
