@@ -38,6 +38,7 @@ movies and series are there.
 - Program guide for all channels
 - Switch channels with the arrow keys
 - What is on now and next, right in the list
+- A channel list in the player (L): switch channels without leaving the picture
 
 ![Channel list with categories and what is on now](website/assets/en-sender.webp)
 
@@ -66,6 +67,8 @@ or the player. Fernsy keeps working in the menu bar, even when the window is clo
 - Play while still recording
 - Running, scheduled and recorded in one list
 - Clear notes on failed or missed recordings
+- Keeps your Mac awake before a scheduled recording, as long ahead as you choose
+- Opens at login if you like, so recordings also happen after a restart
 
 ![Recordings: running, scheduled and recorded](website/assets/en-aufnahmen.webp)
 
@@ -79,6 +82,7 @@ controls.
 - Libraries and genres as categories
 - Watched status, unwatched episodes and favorites
 - The library stays visible when the server is offline
+- Hide your IPTV provider's movies and series when your films come from Jellyfin
 
 ![Jellyfin home with Continue Watching, Next Up and Recently Added](website/assets/en-jellyfin.webp)
 
@@ -90,6 +94,8 @@ controls.
 - **One search for everything.** Channels, movies, series, recordings and Jellyfin in one
   search field, sorted by source.
 - **Menu bar.** Running and upcoming recordings at a glance, even without an open window.
+- **Works with your AI assistant.** Ask Claude what's on tonight, schedule recordings or switch
+  channels in plain words. Fernsy's optional MCP server stays on your Mac.
 
 ## Privacy
 
