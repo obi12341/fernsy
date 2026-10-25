@@ -81,21 +81,33 @@ final class Recorder: ObservableObject {
     private var starting: Set<UUID> = []
     private var timer: Timer?
     private var activity: NSObjectProtocol?
+    private var activityReason: String?
 
     /// Connect this early, so the recording has data from its first second.
     static let tuneAhead: TimeInterval = 20
     static let padBeforeKey = "recording.padBefore"
     static let padAfterKey = "recording.padAfter"
+    /// Hours before a scheduled recording from which the Mac is kept from idle sleep:
+    /// 0 keeps it awake while any recording is scheduled, -1 never (not even while recording).
+    static let keepAwakeHoursKey = "recording.keepAwakeHours"
+    static let keepAwakeChoices = [-1, 1, 3, 6, 12, 24, 0]
 
     private var defaultsObserver: NSObjectProtocol?
     private var appliedPadding: (before: TimeInterval, after: TimeInterval) = (0, 0)
 
     init() {
-        UserDefaults.standard.register(defaults: [Self.padBeforeKey: 10, Self.padAfterKey: 10])
+        UserDefaults.standard.register(defaults: [Self.padBeforeKey: 10, Self.padAfterKey: 10, Self.keepAwakeHoursKey: 6])
+        #if DEBUG
+        // IPTV_AWAKEHOURS=<hours|0|off>: the keep-awake setting for this run, in memory only.
+        if let value = ProcessInfo.processInfo.environment["IPTV_AWAKEHOURS"] {
+            debugKeepAwakeHours = value == "off" ? -1 : Int(value)
+        }
+        #endif
         appliedPadding = (padBefore, padAfter)
         defaultsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                self.updateActivity()
                 let current = (self.padBefore, self.padAfter)
                 guard current != self.appliedPadding else { return }
                 self.applyPadding(before: current.0, after: current.1)
@@ -520,15 +532,37 @@ final class Recorder: ObservableObject {
 
     // MARK: Keeping the Mac awake
 
+    private var debugKeepAwakeHours: Int?
+
+    private var keepAwakeHours: Int {
+        debugKeepAwakeHours ?? UserDefaults.standard.integer(forKey: Self.keepAwakeHoursKey)
+    }
+
+    /// Holds an activity against idle sleep while a recording runs or the next one starts within
+    /// the set hours. Its reason names that recording, so `pmset -g assertions` explains it.
     private func updateActivity() {
-        let soon = Date().addingTimeInterval(3600)
-        let needed = recordings.contains { $0.status == .recording || ($0.status == .scheduled && $0.recordStart < soon) }
-        if needed && activity == nil {
-            activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .suddenTerminationDisabled],
-                                                             reason: "Recording TV")
-        } else if !needed, let activity {
+        let hours = keepAwakeHours
+        let reason: String?
+        if hours < 0 {
+            reason = nil
+        } else if let running = recordings.first(where: { $0.status == .recording }) {
+            reason = "Recording: \(running.title)"
+        } else {
+            let limit = hours == 0 ? Date.distantFuture : Date().addingTimeInterval(Double(hours) * 3600)
+            let next = recordings.filter { $0.status == .scheduled && $0.recordStart < limit }.min { $0.recordStart < $1.recordStart }
+            reason = next.map { "Recording scheduled: \($0.title) at \($0.recordStart.formatted(date: .abbreviated, time: .shortened))" }
+        }
+        guard reason != activityReason else { return }
+        if let activity {
             ProcessInfo.processInfo.endActivity(activity)
             self.activity = nil
+        }
+        activityReason = reason
+        if let reason {
+            activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .suddenTerminationDisabled], reason: reason)
+            AppLog.info(.recordings, "keeping the Mac awake (\(hours < 1 ? "always" : "\(hours) h")): \(reason)")
+        } else {
+            AppLog.info(.recordings, hours < 0 ? "keep-awake off" : "the Mac may sleep again")
         }
     }
 

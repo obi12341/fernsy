@@ -251,7 +251,8 @@ the same channel share one connection. Recordings (`Fernsy/Recording/`) copy the
 (`IPTV_MAXCONN=1` simulates a single-stream account;
 `IPTV_TESTRECORD=<channel>:<in s>:<s>[:<before min>:<after min>],…` plans recordings in that
 order, refused or with shortened padding as the stream limit requires; `IPTV_PLANTEST=1` runs
-the plan calculation's examples (`RecordingPlan`), `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
+the plan calculation's examples (`RecordingPlan`), `IPTV_AWAKEHOURS=<hours|0|off>` sets "Mac wach halten" in memory
+(0 = always while a recording is scheduled, off = never), `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
 `IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag,
 `IPTV_TESTNODATA=<offline|silent>:<s>` makes tuner connections fail as an offline or silent
 channel for that many seconds after the first one; a recording keeps waiting for its channel
