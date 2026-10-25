@@ -802,6 +802,16 @@
         }
       }
     },
+    "Anmeldeobjekte öffnen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Login Items …"
+          }
+        }
+      }
+    },
     "Anmeldung fehlgeschlagen – Benutzername oder Passwort falsch": {
       "localizations": {
         "en": {
@@ -1214,6 +1224,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quit"
+          }
+        }
+      }
+    },
+    "Beim Anmelden öffnen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open at Login"
           }
         }
       }
@@ -2832,12 +2852,12 @@
         }
       }
     },
-    "Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter.": {
+    "Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter. Beim Anmelden geöffnet, startet Fernsy ohne Fenster, damit geplante Aufnahmen stattfinden.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "With the menu bar icon, Fernsy keeps running there after you close all windows."
+            "value": "With the menu bar icon, Fernsy keeps running there after you close all windows. Opened at login, Fernsy starts without a window so that scheduled recordings happen."
           }
         }
       }
@@ -4666,6 +4686,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "running for %lld min"
+          }
+        }
+      }
+    },
+    "macOS muss das Öffnen beim Anmelden noch erlauben.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS still has to allow opening at login."
           }
         }
       }
