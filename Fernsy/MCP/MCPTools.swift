@@ -393,6 +393,12 @@ final class MCPTools {
 @MainActor
 enum PlayerWindow {
     static var openWindow: OpenWindowAction?
+    /// From the menu bar item, which outlives the windows (see `MenuBarLabel`).
+    static var menuBarOpenWindow: OpenWindowAction?
+
+    private static func open(_ id: String) {
+        (menuBarOpenWindow ?? openWindow)?(id: id)
+    }
 
     private static var window: NSWindow? {
         NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("player") == true }
@@ -401,10 +407,24 @@ enum PlayerWindow {
     static func show(_ app: AppModel) {
         guard !app.isPictureInPictureActive, window?.isVisible != true else { return }
         NSApp.setActivationPolicy(.regular)
-        openWindow?(id: "player")
+        open("player")
     }
 
     static func close() {
         if let window, window.isVisible { window.close() }
+    }
+
+    /// Brings the library window to the front, or opens one (Fernsy may run in the menu bar).
+    static func showLibrary() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate()
+        if let library = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("library") == true && $0.canBecomeMain && ($0.isVisible || $0.isMiniaturized) }) {
+            library.deminiaturize(nil)
+            library.makeKeyAndOrderFront(nil)
+            AppLog.detail(.app, "library window brought to the front")
+        } else {
+            AppLog.detail(.app, "opening a library window (menu bar action: \(menuBarOpenWindow != nil))")
+            open("library")
+        }
     }
 }

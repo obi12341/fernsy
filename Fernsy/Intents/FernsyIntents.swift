@@ -143,11 +143,47 @@ enum IntentActions {
         }
     }
 
+    /// Shows `text` in the library's toolbar search.
+    static func search(_ text: String) -> IntentAnswer {
+        guard let app = AppDelegate.app else { return notSignedIn }
+        app.requestedSearch = text
+        PlayerWindow.showLibrary()
+        return IntentAnswer(text: String(localized: "Fernsy sucht nach „\(text)“."))
+    }
+
     static func stop() async -> IntentAnswer {
         guard let app = await IntentSupport.app() else { return notSignedIn }
         return FernsyActions(app: app).stopPlayback()
             ? IntentAnswer(text: String(localized: "Fernsy hat die Wiedergabe beendet."))
             : IntentAnswer(text: String(localized: "In Fernsy läuft gerade nichts."))
+    }
+}
+
+// MARK: Siri AI schemas
+
+/// "Öffne ZDF in Fernsy": opening a live channel means watching it.
+@AppIntent(schema: .system.open)
+struct OpenChannelIntent: OpenIntent {
+    var target: ChannelEntity
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        .result(dialog: IntentDialog(stringLiteral: await IntentActions.play(channelId: target.id).text))
+    }
+}
+
+/// "Suche Tatort in Fernsy": the library's search over channels, films, series, recordings
+/// and Jellyfin.
+@AppIntent(schema: .system.searchInApp)
+struct SearchFernsyIntent: ShowInAppSearchResultsIntent {
+    static let searchScopes: [StringSearchScope] = [.general]
+
+    var criteria: StringSearchCriteria
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        _ = IntentActions.search(criteria.term)
+        return .result()
     }
 }
 

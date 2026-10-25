@@ -137,6 +137,11 @@ struct LibraryView: View {
         #if DEBUG
         .task { await debugScene() }
         #endif
+        .onChange(of: app.requestedSearch, initial: true) { _, text in
+            guard let text else { return }
+            query = text
+            app.requestedSearch = nil
+        }
         .onChange(of: app.requestedSection, initial: true) { _, requested in
             guard let requested else { return }
             section = requested
