@@ -28,7 +28,7 @@ private struct DetailContent: View {
     var body: some View {
         // Redrawn every full minute: current show, remaining time and the following shows
         // (with their buttons) move on while the pane stays open.
-        TimelineView(.everyMinute) { context in
+        TimelineView(LiveClock.everyMinute) { context in
             content(now: LiveClock.now(context.date))
         }
     }

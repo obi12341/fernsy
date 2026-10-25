@@ -42,6 +42,12 @@ Only the time-dependent part is wrapped:
 - in the pane, the whole body, because current show, list of following shows and buttons all
   depend on "now".
 
+**Found during verification (the night DST ended):** `.everyMinute` is calendar based. In
+the hour that repeats when daylight saving time ends (02:00–02:59 twice), it fired once with a
+date several minutes in the past and then never again, so rows and pane stood still. Fernsy
+therefore uses `LiveClock.everyMinute`: `.periodic(from:by: 60)` starting at the current full
+minute counted in seconds since 1970, which needs no calendar and still lands on full minutes.
+
 Rejected:
 - **One shared `@Published` minute clock in `AppModel`:** every observer of `AppModel`
   would redraw every minute. That is the whole library, not just the visible rows.

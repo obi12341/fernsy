@@ -16,8 +16,8 @@
 
 ## 3. Verification
 
-- [ ] 3.1 On the demo server, set `IPTV_SCENE=live:<category>` and `IPTV_SELECT=<id>`, plus an `IPTV_CLOCKOFFSET` that puts the window about a minute before a show change in the demo EPG. Take screenshots of the Fernsy window before and after the change. Row and pane must show the new show, with the next show and progress moved on.
-- [ ] 3.2 Check the reload with `IPTV_EPGRECHECK=<s>` (a shorter check interval) and `IPTV_EPGSTALE=1` (`needsRefresh` always true). The log for a visible row shows the programme being fetched again. Once the row disappears, it shows no more fetches.
+- [x] 3.1 On the demo server, set `IPTV_SCENE=live:<category>` and `IPTV_SELECT=<id>`, plus an `IPTV_CLOCKOFFSET` that puts the window about a minute before a show change in the demo EPG. Take screenshots of the Fernsy window before and after the change. Row and pane must show the new show, with the next show and progress moved on.
+- [x] 3.2 Check the reload with `IPTV_EPGRECHECK=<s>` (a shorter check interval) and `IPTV_EPGSTALE=1` (`needsRefresh` always true). The log for a visible row shows the programme being fetched again. Once the row disappears, it shows no more fetches.
 - [x] 3.3 Debug and Release builds; `openspec validate live-now-next-follows-clock --strict` and `openspec validate --specs --strict`.
 
 ## Workflow follow-up

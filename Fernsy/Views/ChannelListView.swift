@@ -247,7 +247,7 @@ private struct NowNextLine: View {
 
     var body: some View {
         // Redrawn every full minute, so current and next show move on without a scroll.
-        TimelineView(.everyMinute) { context in
+        TimelineView(LiveClock.everyMinute) { context in
             line(now: LiveClock.now(context.date))
         }
     }
@@ -297,6 +297,12 @@ enum LiveClock {
     #endif
 
     static func now(_ date: Date = Date()) -> Date { date.addingTimeInterval(offset) }
+
+    /// Every full minute, counted in seconds rather than by the calendar: `.everyMinute`
+    /// stalls in the hour that repeats when daylight saving time ends.
+    static var everyMinute: PeriodicTimelineSchedule {
+        .periodic(from: Date(timeIntervalSince1970: (Date().timeIntervalSince1970 / 60).rounded(.down) * 60), by: 60)
+    }
 }
 
 /// A thin rounded progress bar (3 pt).
