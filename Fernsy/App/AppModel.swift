@@ -200,6 +200,8 @@ final class AppModel: ObservableObject {
     @Published var requestedSearch: String?
     /// The tuner the player watches live TV through (shared with recordings of that channel).
     @Published private(set) var playerTuner: LiveTuner?
+    /// The player window's engine while it is open (position and state for MCP `now_playing`).
+    weak var playerEngine: PlayerEngine?
 
     let epg = EPGStore()
     let tuners = TunerPool()
