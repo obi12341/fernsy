@@ -283,6 +283,12 @@ MCP server on 127.0.0.1 for the user's own AI assistant, off by default). Reques
 `Origin` header or a foreign `Host` are refused. Tools: `MCPTools.definitions`. Debug builds keep
 everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
 token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
+"Zu Claude Desktop hinzufügen …" builds a desktop extension (`MCPDesktopExtension`, `.mcpb`
+manifest 0.3: a dependency-free Node bridge from stdio to the endpoint, token as a sensitive
+`user_config` value) in the temporary directory, zipped with `ditto`, and opens it with Claude
+Desktop (`com.anthropic.claudefordesktop`), else offers to save it. `IPTV_MCPBUNDLE=1` builds it
+at launch and logs the path, `IPTV_MCPADDCLAUDE=<s>` runs the button after s seconds,
+`IPTV_TESTNOCLAUDE=1` acts as if Claude Desktop were missing.
 
 Picture in Picture (button in the controls, key P) uses the system's PiP with the player's
 display layer; subtitles are not shown in the PiP window. macOS mirrors a sample-buffer PiP
