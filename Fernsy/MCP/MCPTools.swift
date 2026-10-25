@@ -68,6 +68,15 @@ final class MCPTools {
             "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>"],
         ], required: ["item_id"], readOnly: true),
         tool("stop_playback", "Stop playback and close the player.", [:], readOnly: false),
+        tool("get_log", "Fernsy's event log (redacted: no credentials or tokens), oldest first. Use it to explain errors, stutter, reconnects or failed recordings.", [
+            "level": ["type": "string", "enum": ["error", "warning", "info", "detail"], "description": "Minimum level (default info)"],
+            "category": ["type": "string", "enum": LogCategory.allCases.map(\.rawValue)],
+            "minutes": ["type": "integer", "minimum": 1, "description": "Only the last N minutes of the current run (default 30)"],
+            "query": ["type": "string", "description": "Text the message must contain"],
+            "limit": ["type": "integer", "minimum": 1, "maximum": 1000, "description": "Newest N matching entries (default 200)"],
+            "run": ["type": "string", "enum": ["current", "previous"]],
+        ], readOnly: true),
+        tool("playback_diagnostics", "Why playback stutters or fails: what plays, the player's state and statistics (buffer, bitrate, dropped frames, decode failures, rebuffers, reconnects with the last reason, codec, decoder) and recent player/network/tuner/timeshift warnings.", [:], readOnly: true),
     ]
 
     private static func tool(_ name: String, _ description: String, _ properties: [String: Any], required: [String] = [], readOnly: Bool) -> [String: Any] {
@@ -92,6 +101,8 @@ final class MCPTools {
         case "play": return try await play(args)
         case "now_playing": return nowPlaying()
         case "item_info": return try await itemInfo(args)
+        case "get_log": return getLog(args)
+        case "playback_diagnostics": return playbackDiagnostics()
         case "stop_playback": return stopPlayback()
         default: throw ToolError("Unknown tool \(name)")
         }
@@ -465,6 +476,50 @@ final class MCPTools {
         default:
             throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
         }
+        return value
+    }
+
+    // MARK: Diagnostics
+
+    private static let levels: [String: LogLevel] = ["error": .error, "warning": .warning, "info": .info, "detail": .detail]
+
+    private static func entryJSON(_ entry: LogEntry) -> [String: Any] {
+        ["time": iso(entry.date), "level": levels.first { $0.value == entry.level }?.key ?? "info", "category": entry.category.rawValue, "message": entry.message]
+    }
+
+    private func getLog(_ args: [String: Any]) -> [String: Any] {
+        let previous = args["run"] as? String == "previous"
+        let minutes = args["minutes"] as? Int ?? 30
+        let limit = min(1000, max(1, args["limit"] as? Int ?? 200))
+        let categories = (args["category"] as? String).flatMap(LogCategory.init).map { Set([$0]) } ?? []
+        let result = AppLog.shared.query(previous: previous, minimum: Self.levels[args["level"] as? String ?? "info"] ?? .info,
+                                         categories: categories, since: previous ? nil : Date().addingTimeInterval(-Double(minutes) * 60),
+                                         query: args["query"] as? String ?? "", limit: limit)
+        return ["run": previous ? "previous" : "current", "truncated": result.truncated, "entries": result.entries.map(Self.entryJSON)]
+    }
+
+    private func playbackDiagnostics() -> [String: Any] {
+        var value = nowPlaying()
+        if let engine = app.playerEngine, app.nowPlaying != nil {
+            let s = engine.stats
+            var stats: [String: Any] = [
+                "buffer_seconds": (s.bufferSeconds * 10).rounded() / 10, "bitrate_mbps": (s.bitrateMbps * 10).rounded() / 10,
+                "dropped_frames": s.droppedFrames, "decode_failures": s.decodeFailures, "rebuffers": s.rebuffers,
+                "seamless_reconnects": s.seamlessReconnects, "reconnecting": s.isReconnecting, "restarts": s.restarts,
+                "duplicates_dropped": s.duplicatesDropped, "startup_seconds": (s.startupTime * 100).rounded() / 100,
+                "video_codec": s.videoCodec, "resolution": s.resolution, "frame_rate": (s.frameRate * 100).rounded() / 100,
+                "decoder": s.decoder, "dynamic_range": s.dynamicRange, "audio": s.audio, "container": s.container,
+            ]
+            if let reason = s.lastReconnectReason { stats["last_reconnect_reason"] = reason }
+            if let at = s.lastReconnectAt { stats["last_reconnect_at"] = Self.iso(at) }
+            if let method = s.playMethod { stats["play_method"] = method }
+            value["stats"] = stats
+        } else {
+            value["note"] = "Nothing is playing; recent warnings are still listed."
+        }
+        let recent = AppLog.shared.query(minimum: .warning, categories: [.player, .network, .tuner, .timeshift],
+                                         since: Date().addingTimeInterval(-600), limit: 100)
+        value["recent_warnings"] = recent.entries.map(Self.entryJSON)
         return value
     }
 

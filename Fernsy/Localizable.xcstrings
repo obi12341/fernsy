@@ -1490,12 +1490,12 @@
         }
       }
     },
-    "Claude und andere Assistenten können das Programm und den Verlauf lesen, Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.": {
+    "Claude und andere Assistenten können das Programm, den Verlauf und Fernsys Protokoll lesen (ohne Zugangsdaten), Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude and other assistants can read the guide and your history, schedule recordings and play shows. Only programs on this Mac with the access token can connect, and only while Fernsy is open."
+            "value": "Claude and other assistants can read the guide, your history and Fernsy's log (without credentials), schedule recordings and play shows. Only programs on this Mac with the access token can connect, and only while Fernsy is open."
           }
         }
       }

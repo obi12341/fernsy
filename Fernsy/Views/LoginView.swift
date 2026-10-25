@@ -659,7 +659,7 @@ private struct MCPSettingsForm: View {
                     }
                 }
             } footer: {
-                Text("Claude und andere Assistenten können das Programm und den Verlauf lesen, Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.")
+                Text("Claude und andere Assistenten können das Programm, den Verlauf und Fernsys Protokoll lesen (ohne Zugangsdaten), Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
