@@ -376,7 +376,7 @@ struct PlayerScreen: View {
         if let running = recorder.active(on: id) {
             recorder.stop(running.id)
         } else {
-            recorder.recordNow(channel, entry: currentEPG)
+            recorder.recordNow(channel, entry: currentEPG).present()
         }
     }
 

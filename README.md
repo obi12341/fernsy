@@ -238,8 +238,10 @@ the stream, `TimeshiftWriter` remuxes it (FFmpeg's MPEG-TS muxer) into an on-dis
 `TimeshiftBuffer`, and the player plays that buffer, so pausing, rewinding and recordings of
 the same channel share one connection. Recordings (`Fernsy/Recording/`) copy the buffer into
 `~/Movies/Fernsy` and only run while the app is open. For tests use the demo server
-(`IPTV_MAXCONN=1` simulates a single-stream account; `IPTV_TESTRECORD=<channel>:<in s>:<s>`
-schedules a recording, `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
+(`IPTV_MAXCONN=1` simulates a single-stream account;
+`IPTV_TESTRECORD=<channel>:<in s>:<s>[:<before min>:<after min>],…` plans recordings in that
+order, refused or with shortened padding as the stream limit requires; `IPTV_PLANTEST=1` runs
+the plan calculation's examples (`RecordingPlan`), `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
 `IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag,
 `IPTV_TESTNODATA=<offline|silent>:<s>` makes tuner connections fail as an offline or silent
 channel for that many seconds after the first one; a recording keeps waiting for its channel

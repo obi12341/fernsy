@@ -23,9 +23,14 @@ struct Recording: Codable, Identifiable, Equatable {
     var fileName: String?
     var error: String?
     var bytes: Int64?
+    /// Seconds taken off the padding so the recordings fit the account's streams
+    /// (`Recorder.rebalance`); the configured padding stays, so it comes back when the
+    /// neighbour goes.
+    var clipBefore: TimeInterval = 0
+    var clipAfter: TimeInterval = 0
 
-    var recordStart: Date { start.addingTimeInterval(-padBefore) }
-    var recordEnd: Date { end.addingTimeInterval(padAfter) }
+    var recordStart: Date { start.addingTimeInterval(-padBefore + clipBefore) }
+    var recordEnd: Date { end.addingTimeInterval(padAfter - clipAfter) }
 
     var isUpcomingOrRunning: Bool { status == .scheduled || status == .recording }
 
@@ -37,7 +42,7 @@ struct Recording: Codable, Identifiable, Equatable {
 extension Recording {
     private enum CodingKeys: String, CodingKey {
         case id, channelId, channelName, title, description, start, end, padBefore, padAfter
-        case followsPaddingSettings, status, fileName, error, bytes
+        case followsPaddingSettings, status, fileName, error, bytes, clipBefore, clipAfter
     }
 
     /// Lists written before `followsPaddingSettings` existed: their scheduled entries follow
@@ -58,6 +63,8 @@ extension Recording {
         fileName = try c.decodeIfPresent(String.self, forKey: .fileName)
         error = try c.decodeIfPresent(String.self, forKey: .error)
         bytes = try c.decodeIfPresent(Int64.self, forKey: .bytes)
+        clipBefore = try c.decodeIfPresent(TimeInterval.self, forKey: .clipBefore) ?? 0
+        clipAfter = try c.decodeIfPresent(TimeInterval.self, forKey: .clipAfter) ?? 0
     }
 }
 
@@ -109,6 +116,7 @@ final class Recorder: ObservableObject {
         }
         guard changed else { return }
         AppLog.info(.recordings, "padding now \(Int(before / 60))/\(Int(after / 60)) min for scheduled recordings")
+        rebalance()
         save()
         tick()
     }
@@ -151,6 +159,7 @@ final class Recorder: ObservableObject {
             }
         }
         AppLog.detail(.recordings, "\(recordings.count) recordings loaded for this account")
+        rebalance()
         let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -207,36 +216,108 @@ final class Recorder: ObservableObject {
     private var padBefore: TimeInterval { Double(UserDefaults.standard.integer(forKey: Self.padBeforeKey)) * 60 }
     private var padAfter: TimeInterval { Double(UserDefaults.standard.integer(forKey: Self.padAfterKey)) * 60 }
 
-    /// Plans a show (running or future). Returns a warning when it overlaps another recording
-    /// on an account without a free connection.
+    enum PlanResult {
+        /// Planned; the notice names paddings shortened for it.
+        case planned(notice: String?)
+        /// Not planned: the shows would need more streams than the account has.
+        case refused(String)
+    }
+
+    private var limit: Int { app?.tuners.limit ?? 1 }
+
+    /// Plans a show (running or future), unless the shows' own times would need more streams
+    /// than the account allows.
     @discardableResult
-    func schedule(_ entry: EPGEntry, on channel: LiveChannel, padding: (before: TimeInterval, after: TimeInterval)? = nil) -> String? {
-        if let existing = recording(channelId: channel.id, entry: entry), existing.isUpcomingOrRunning { return nil }
+    func schedule(_ entry: EPGEntry, on channel: LiveChannel, padding: (before: TimeInterval, after: TimeInterval)? = nil) -> PlanResult {
+        if let existing = recording(channelId: channel.id, entry: entry), existing.isUpcomingOrRunning { return .planned(notice: nil) }
         let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel, title: entry.title,
                                   description: entry.description, start: entry.start, end: entry.end,
                                   padBefore: padding?.before ?? padBefore, padAfter: padding?.after ?? padAfter,
                                   followsPaddingSettings: padding == nil, status: .scheduled)
-        recordings.append(recording)
-        save()
-        tick()
-        return overlapWarning(for: recording)
+        return plan(recording)
     }
 
     /// Player: records the show that is on now (from its start, as far as the timeshift
     /// buffer reaches back), or the next two hours without programme data.
-    func recordNow(_ channel: LiveChannel, entry: EPGEntry?) {
-        if let entry {
-            schedule(entry, on: channel)
-        } else {
-            let now = Date()
-            let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel,
-                                      title: String(localized: "Aufnahme \(now.formatted(date: .abbreviated, time: .shortened))"),
-                                      description: "", start: now, end: now.addingTimeInterval(2 * 3600),
-                                      padBefore: 0, padAfter: 0, followsPaddingSettings: false, status: .scheduled)
-            recordings.append(recording)
-            save()
-            tick()
+    @discardableResult
+    func recordNow(_ channel: LiveChannel, entry: EPGEntry?) -> PlanResult {
+        if let entry { return schedule(entry, on: channel) }
+        let now = Date()
+        let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel,
+                                  title: String(localized: "Aufnahme \(now.formatted(date: .abbreviated, time: .shortened))"),
+                                  description: "", start: now, end: now.addingTimeInterval(2 * 3600),
+                                  padBefore: 0, padAfter: 0, followsPaddingSettings: false, status: .scheduled)
+        return plan(recording)
+    }
+
+    private func plan(_ recording: Recording) -> PlanResult {
+        let limit = limit
+        let others = recordings.filter(\.isUpcomingOrRunning).map(planItem)
+        let inTheWay = RecordingPlan.blockers(for: planItem(recording), among: others, limit: limit, now: Date())
+            .compactMap { id in recordings.first { $0.id == id } }
+        guard inTheWay.isEmpty else {
+            let names = inTheWay.map { String(localized: "„\($0.title)“ (\($0.channelName))") }.joined(separator: ", ")
+            AppLog.info(.recordings, "refused \(recording.title) on \(recording.channelName): overlaps \(names) with \(limit) stream(s)")
+            return .refused(String(localized: "„\(recording.title)“ läuft zur selben Zeit wie \(names). Dein Zugang erlaubt \(limit) Stream(s) gleichzeitig. Entferne eine dieser Aufnahmen, um diese Sendung aufzunehmen."))
         }
+        recordings.append(recording)
+        let previous = rebalance()
+        save()
+        tick()
+        var lines: [String] = []
+        for r in recordings where r.isUpcomingOrRunning {
+            let old = previous[r.id] ?? (before: 0, after: 0)
+            if r.clipAfter > old.after {
+                lines.append(String(localized: "Nachlauf von „\(r.title)“ verkürzt auf \(Int(((r.padAfter - r.clipAfter) / 60).rounded())) Min."))
+            }
+            if r.clipBefore > old.before {
+                lines.append(String(localized: "Vorlauf von „\(r.title)“ verkürzt auf \(Int(((r.padBefore - r.clipBefore) / 60).rounded())) Min."))
+            }
+        }
+        if let planned = recordings.first(where: { $0.id == recording.id }) {
+            AppLog.info(.recordings, "planned \(planned.title) on \(planned.channelName): \(Self.window(planned))")
+        }
+        guard !lines.isEmpty else { return .planned(notice: nil) }
+        let notice = String(localized: "Dein Zugang erlaubt \(limit) Stream(s) gleichzeitig, deshalb ist weniger Puffer möglich:") + "\n" + lines.joined(separator: "\n")
+        return .planned(notice: notice)
+    }
+
+    /// Shortens padding where it would need more streams than the account allows (see
+    /// `RecordingPlan`), after any change to the plan, the padding or the limit. Returns the
+    /// clips from before, so planning can say what got shorter.
+    @discardableResult
+    func rebalance() -> [UUID: (before: TimeInterval, after: TimeInterval)] {
+        let previous = Dictionary(uniqueKeysWithValues: recordings.map { ($0.id, (before: $0.clipBefore, after: $0.clipAfter)) })
+        let now = Date()
+        let windows = RecordingPlan.windows(for: recordings.filter(\.isUpcomingOrRunning).map(planItem), limit: limit, now: now)
+        var changed: [Recording] = []
+        for i in recordings.indices where recordings[i].isUpcomingOrRunning {
+            let r = recordings[i]
+            guard let window = windows[r.id] else { continue }
+            // A window that has already begun keeps its start.
+            let before = r.recordStart <= now ? r.clipBefore : max(0, window.start.timeIntervalSince(r.start.addingTimeInterval(-r.padBefore)))
+            let after = max(0, r.end.addingTimeInterval(r.padAfter).timeIntervalSince(window.end))
+            guard before != r.clipBefore || after != r.clipAfter else { continue }
+            recordings[i].clipBefore = before
+            recordings[i].clipAfter = after
+            changed.append(recordings[i])
+        }
+        if !changed.isEmpty {
+            for r in changed { AppLog.info(.recordings, "window of \(r.title) on \(r.channelName) now \(Self.window(r)) (\(limit) stream(s))") }
+            save()
+        }
+        return previous
+    }
+
+    private func planItem(_ r: Recording) -> RecordingPlan.Item {
+        let begun = r.status == .recording || r.recordStart <= Date()
+        return RecordingPlan.Item(id: r.id, channelId: r.channelId, start: r.start, end: r.end, padBefore: r.padBefore,
+                                  padAfter: r.padAfter, runningSince: begun ? r.recordStart : nil)
+    }
+
+    private static func window(_ r: Recording) -> String {
+        "\(r.recordStart.formatted(date: .omitted, time: .shortened))–\(r.recordEnd.formatted(date: .omitted, time: .shortened))"
+            + " (show \(r.start.formatted(date: .omitted, time: .shortened))–\(r.end.formatted(date: .omitted, time: .shortened)))"
     }
 
     /// Stops a running recording now (keeping what was recorded) or drops a scheduled one.
@@ -244,7 +325,7 @@ final class Recorder: ObservableObject {
         guard let recording = recordings.first(where: { $0.id == id }) else { return }
         switch recording.status {
         case .recording: finish(id, error: nil)
-        case .scheduled: recordings.removeAll { $0.id == id }; save()
+        case .scheduled: recordings.removeAll { $0.id == id }; rebalance(); save()
         default: break
         }
     }
@@ -255,23 +336,13 @@ final class Recorder: ObservableObject {
         if recording.status == .recording { finish(id, error: nil) }
         if let url = fileURL(recording) { try? FileManager.default.trashItem(at: url, resultingItemURL: nil) }
         recordings.removeAll { $0.id == id }
+        rebalance()
         save()
     }
 
     func unschedule(channelId: Int, entry: EPGEntry) {
         guard let recording = recording(channelId: channelId, entry: entry) else { return }
         stop(recording.id)
-    }
-
-    private func overlapWarning(for recording: Recording) -> String? {
-        guard let app else { return nil }
-        let limit = app.tuners.limit
-        let overlapping = recordings.filter {
-            $0.id != recording.id && $0.isUpcomingOrRunning && $0.channelId != recording.channelId
-                && $0.recordStart < recording.recordEnd && recording.recordStart < $0.recordEnd
-        }
-        guard overlapping.count >= limit, let other = overlapping.first else { return nil }
-        return String(localized: "„\(recording.title)“ überschneidet sich mit der Aufnahme „\(other.title)“. Dein Zugang erlaubt \(limit) Stream(s) gleichzeitig – Fernsy fragt beim Start nach, welche Aufnahme laufen soll.")
     }
 
     // MARK: Running
@@ -305,6 +376,8 @@ final class Recorder: ObservableObject {
         starting.insert(recording.id)
         Task {
             defer { starting.remove(recording.id) }
+            await handOver(to: recording.id)
+            guard let recording = recordings.first(where: { $0.id == recording.id }) else { return }
             guard await resolveConflicts(for: recording) else {
                 update(recording.id) { $0.status = .skipped }
                 return
@@ -364,9 +437,10 @@ final class Recorder: ObservableObject {
             $0.status = error == nil ? .done : .failed
             $0.error = error
             // A recording stopped early ends now.
-            if Date() < $0.recordEnd { $0.end = max($0.start, Date()); $0.padAfter = 0 }
+            if Date() < $0.recordEnd { $0.end = max($0.start, Date()); $0.padAfter = 0; $0.clipAfter = 0 }
         }
         app?.tuners.release(recording.channelId, owner: .recording(id))
+        rebalance()
         if let error {
             AppLog.error(.recordings, "\(recording.title) on \(recording.channelName) failed: \(error)")
         } else {
@@ -389,6 +463,28 @@ final class Recorder: ObservableObject {
     }
 
     // MARK: Conflicts
+
+    /// Back to back on another channel: when everything in the way is a recording whose
+    /// window ends where this one begins, wait for that moment, end those recordings exactly
+    /// then and take over their connection, without tuning in early and without asking.
+    private func handOver(to id: UUID) async {
+        guard let app, let recording = recordings.first(where: { $0.id == id }) else { return }
+        let blockers = app.tuners.blockers(for: recording.channelId, as: .recording(id))
+        guard !blockers.isEmpty else { return }
+        var previous: [Recording] = []
+        for owner in blockers.flatMap(\.owners) {
+            guard case .recording(let otherID) = owner, let other = recordings.first(where: { $0.id == otherID }),
+                  other.status == .recording, other.recordEnd <= recording.recordStart.addingTimeInterval(1) else { return }
+            previous.append(other)
+        }
+        AppLog.info(.recordings, "\(recording.title) takes over from \(previous.map(\.title).joined(separator: ", ")) at \(recording.recordStart.formatted(date: .omitted, time: .standard))")
+        while let current = recordings.first(where: { $0.id == id }), current.status == .scheduled, Date() < current.recordStart {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        for other in previous where recordings.first(where: { $0.id == other.id })?.status == .recording {
+            finish(other.id, error: nil)
+        }
+    }
 
     /// Asks before taking the connection from the player or another recording. Without an
     /// answer within a minute the recording starts (it was planned for a reason).
@@ -452,6 +548,18 @@ final class Recorder: ObservableObject {
             n += 1
         }
         return name
+    }
+}
+
+extension Recorder.PlanResult {
+    /// Tells the user when planning was refused or shortened padding; silent otherwise.
+    @MainActor
+    func present() {
+        switch self {
+        case .planned(nil): break
+        case .planned(let notice?): Prompt.inform(title: String(localized: "Aufnahme geplant"), message: notice)
+        case .refused(let message): Prompt.inform(title: String(localized: "Aufnahme nicht möglich"), message: message)
+        }
     }
 }
 

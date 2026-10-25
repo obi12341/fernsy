@@ -188,8 +188,8 @@ struct RecordCapsule: View {
         Button {
             if let existing {
                 recorder.stop(existing.id)
-            } else if let warning = recorder.schedule(entry, on: channel) {
-                Prompt.inform(title: String(localized: "Aufnahme geplant"), message: warning)
+            } else {
+                recorder.schedule(entry, on: channel).present()
             }
         } label: {
             HStack(spacing: 5) {

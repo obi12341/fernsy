@@ -978,6 +978,16 @@
         }
       }
     },
+    "Aufnahme nicht möglich": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t Record"
+          }
+        }
+      }
+    },
     "Aufnahme · bis %@": {
       "localizations": {
         "en": {
@@ -1390,6 +1400,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Decode errors"
+          }
+        }
+      }
+    },
+    "Dein Zugang erlaubt %lld Stream(s) gleichzeitig, deshalb ist weniger Puffer möglich:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account allows %lld stream(s) at a time, so less extra time is possible:"
           }
         }
       }
@@ -2792,6 +2812,22 @@
         }
       }
     },
+    "Nachlauf von „%@“ verkürzt auf %lld Min.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Nachlauf von „%1$@“ verkürzt auf %2$lld Min."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record after for “%@” shortened to %lld min."
+          }
+        }
+      }
+    },
     "Name": {
       "localizations": {
         "en": {
@@ -4090,6 +4126,22 @@
         }
       }
     },
+    "Vorlauf von „%@“ verkürzt auf %lld Min.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Vorlauf von „%1$@“ verkürzt auf %2$lld Min."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record before for “%@” shortened to %lld min."
+          }
+        }
+      }
+    },
     "Warnung": {
       "localizations": {
         "en": {
@@ -4624,6 +4676,22 @@
         }
       }
     },
+    "„%@“ (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "„%1$@“ (%2$@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” (%@)"
+          }
+        }
+      }
+    },
     "„%@“ beenden und aufnehmen": {
       "localizations": {
         "en": {
@@ -4666,18 +4734,18 @@
         }
       }
     },
-    "„%@“ überschneidet sich mit der Aufnahme „%@“. Dein Zugang erlaubt %lld Stream(s) gleichzeitig – Fernsy fragt beim Start nach, welche Aufnahme laufen soll.": {
+    "„%@“ läuft zur selben Zeit wie %@. Dein Zugang erlaubt %lld Stream(s) gleichzeitig. Entferne eine dieser Aufnahmen, um diese Sendung aufzunehmen.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "new",
-            "value": "„%1$@“ überschneidet sich mit der Aufnahme „%2$@“. Dein Zugang erlaubt %3$lld Stream(s) gleichzeitig – Fernsy fragt beim Start nach, welche Aufnahme laufen soll."
+            "value": "„%1$@“ läuft zur selben Zeit wie %2$@. Dein Zugang erlaubt %3$lld Stream(s) gleichzeitig. Entferne eine dieser Aufnahmen, um diese Sendung aufzunehmen."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "“%@” overlaps with the recording “%@”. Your account allows %lld stream(s) at a time – Fernsy asks when it starts which recording should run."
+            "value": "“%@” is on at the same time as %@. Your account allows %lld stream(s) at a time. Remove one of these recordings to record this show."
           }
         }
       }

@@ -92,7 +92,7 @@ struct ChannelListView: View {
                     while app.channel(id) == nil { try? await Task.sleep(for: .milliseconds(200)) }
                     await app.epg.load(id, client: app.client)
                     let upcoming = (app.epg.guide(id).entries ?? []).filter { $0.start > Date() }
-                    if upcoming.count > 1, let channel = app.channel(id) { recorder.schedule(upcoming[1], on: channel) }
+                    if upcoming.count > 1, let channel = app.channel(id) { recorder.schedule(upcoming[1], on: channel).present() }
                 }
             }
             // IPTV_TESTINFO=<channel id> opens that channel's "Senderinfo".
