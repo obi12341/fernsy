@@ -26,12 +26,19 @@ private struct DetailContent: View {
     let showInGuide: (() -> Void)?
 
     var body: some View {
-        let now = Date()
+        // Redrawn every full minute: current show, remaining time and the following shows
+        // (with their buttons) move on while the pane stays open.
+        TimelineView(.everyMinute) { context in
+            content(now: LiveClock.now(context.date))
+        }
+    }
+
+    private func content(now: Date) -> some View {
         let entries = (guide.entries ?? []).filter { $0.end > now }
         let current = entries.first { $0.start <= now }
         let upcoming = Array(entries.filter { $0.start >= (current?.end ?? now) }.prefix(4))
         let offline = app.offlineChannels.contains(channel.id)
-        ScrollView {
+        return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 actions
@@ -41,7 +48,7 @@ private struct DetailContent: View {
                         .foregroundStyle(Theme.warning)
                 }
                 if let current {
-                    NowCard(channel: channel, entry: current)
+                    NowCard(channel: channel, entry: current, now: now)
                 } else if guide.entries != nil {
                     Text("Keine Programmdaten").font(.callout).foregroundStyle(.secondary)
                 } else {
@@ -111,6 +118,7 @@ private struct DetailContent: View {
 private struct NowCard: View {
     let channel: LiveChannel
     let entry: EPGEntry
+    let now: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -124,8 +132,8 @@ private struct NowCard: View {
             }
             Text(verbatim: entry.title).font(.headline)
             HStack(spacing: 8) {
-                ProgressBar(value: entry.progress, height: 4)
-                Text("noch \(max(1, Int(entry.end.timeIntervalSinceNow / 60))) Min.")
+                ProgressBar(value: entry.progress(at: now), height: 4)
+                Text("noch \(max(1, Int(entry.end.timeIntervalSince(now) / 60))) Min.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize()
