@@ -120,7 +120,8 @@ final class PictureInPictureStage {
     }
 
     /// PiP ended: the layer goes back into the player.
-    func end() {
+    /// `sink`: the engine's video sink, flushed once the layer is back in the player window.
+    func end(flushing sink: VideoSink) {
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = nil
         if let layer {
@@ -131,7 +132,7 @@ final class PictureInPictureStage {
             CATransaction.commit()
             // Back in the player window the layer stays black until its queue is flushed;
             // the session refills it right away.
-            layer.flush()
+            sink.flush()
         }
         stage?.orderOut(nil)
         stage = nil
@@ -195,7 +196,7 @@ final class PictureInPictureStage {
 /// Animated loading picture for the PiP window. The PiP window mirrors only the display layer's
 /// video frames (no sublayers, no system spinner for sample-buffer sources), so while a new item
 /// loads the card renders frames itself – the last picture darkened, a rotating spinner and the
-/// title – and enqueues them into the layer's video renderer. The frames keep the size of the
+/// title – and enqueues them into the layer's video renderer (through the engine's video sink). The frames keep the size of the
 /// last picture: a change of the frame size makes the system misplace its PiP mirror (see
 /// `PictureInPictureStage.refit()`). The card runs on its own queue and is stopped synchronously
 /// right before the playback session sends its first frame, so the renderer never gets frames
@@ -203,7 +204,7 @@ final class PictureInPictureStage {
 final class PictureInPictureLoadingCard: @unchecked Sendable {
     private static let fps = 10
 
-    private let renderer: AVSampleBufferVideoRenderer
+    private let sink: VideoSink
     private let queue = DispatchQueue(label: "pip.loading-card", qos: .userInitiated)
     private let imageContext = CIContext()
     // queue only:
@@ -218,8 +219,8 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
     private var pool: CVPixelBufferPool?
     private var format: CMVideoFormatDescription?
 
-    init(renderer: AVSampleBufferVideoRenderer) {
-        self.renderer = renderer
+    init(sink: VideoSink) {
+        self.sink = sink
     }
 
     /// `last` is the picture shown now; the card is drawn on it, darkened, at its size.
@@ -281,7 +282,8 @@ final class PictureInPictureLoadingCard: @unchecked Sendable {
 
     private func tick() {
         guard timer != nil, let sample = render() else { return }
-        if renderer.isReadyForMoreMediaData { renderer.enqueue(sample) }
+        // Ten frames a second for a still picture: the queue never fills up.
+        _ = sink.enqueue(sample)
         frame += 1
     }
 

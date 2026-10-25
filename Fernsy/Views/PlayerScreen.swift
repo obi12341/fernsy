@@ -429,7 +429,7 @@ struct PlayerScreen: View {
         }
         controller.onRestore = {
             app.isPictureInPictureActive = false
-            pipStage.end()
+            pipStage.end(flushing: engine.videoSink)
             engine.displayLayer.videoGravity = .resize
             playerWindow?.makeKeyAndOrderFront(nil)
             NSApp.activate()
@@ -437,7 +437,7 @@ struct PlayerScreen: View {
         }
         controller.onClosed = {
             app.isPictureInPictureActive = false
-            pipStage.end()
+            pipStage.end(flushing: engine.videoSink)
             engine.displayLayer.videoGravity = .resize
             guard let window = playerWindow else { return }
             window.orderFront(nil)

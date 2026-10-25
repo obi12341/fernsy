@@ -63,6 +63,10 @@ final class PlaybackSession {
         case clearSubtitles
         /// The selected audio track currently delivers nothing (source-side gap).
         case audioGap(Bool)
+        /// The video decoder needs a flush and a key frame (sleep/wake, display change, broken data).
+        case decoderNeedsFlush(String)
+        /// The audio renderer suggests a refill (output device changed, renderer failed).
+        case audioNeedsRefill
         case ended
         /// `retry`: a live reconnect may help (network drop), as opposed to e.g. an offline channel.
         case failed(String, retry: Bool)
@@ -79,8 +83,9 @@ final class PlaybackSession {
     /// Tuner: streams handed to the output (video, every audio track, DVB subtitles).
     private var keptStreams: Set<Int32> = []
     private let startPosition: Double
-    private let videoRenderer: AVSampleBufferVideoRenderer
-    private let audioRenderer: AVSampleBufferAudioRenderer
+    /// The renderers' receivers; nil for the headless tuner, which never outputs anything.
+    private let videoSink: VideoSink?
+    private let audioSink: AudioSink?
     private let sync: AVSampleBufferRenderSynchronizer
     private let onEvent: (Event) -> Void
 
@@ -134,6 +139,11 @@ final class PlaybackSession {
     private var stats = PlaybackStats()
     private var framesPresented = 0
     private var lateDrops = 0
+    /// Frames the video renderer could not decode (counted from enqueue results).
+    private var decodeFailures = 0
+    /// One recovery or refill request per flush (the output threads only).
+    private var videoRecoveryRequested = false
+    private var audioRefillRequested = false
     private var lastStatsAt = Date()
     private var lastStatsFrames = 0
     private var lastStatsBytes: Int64 = 0
@@ -189,14 +199,14 @@ final class PlaybackSession {
     private var sentVideo = false
 
     init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
-         videoRenderer: AVSampleBufferVideoRenderer, audioRenderer: AVSampleBufferAudioRenderer,
+         videoSink: VideoSink?, audioSink: AudioSink?,
          synchronizer: AVSampleBufferRenderSynchronizer, onEvent: @escaping (Event) -> Void) {
         self.url = url
         self.trackRequest = tracks
         self.mode = mode
         self.startPosition = startPosition
-        self.videoRenderer = videoRenderer
-        self.audioRenderer = audioRenderer
+        self.videoSink = videoSink
+        self.audioSink = audioSink
         self.sync = synchronizer
         self.onEvent = onEvent
         switch mode {
@@ -231,7 +241,7 @@ final class PlaybackSession {
     /// Headless live ingest for a tuner: no renderers are ever used.
     convenience init(tunerURL: URL, output: TunerOutput, onEvent: @escaping (Event) -> Void) {
         self.init(url: tunerURL, mode: .tuner(output), startPosition: 0,
-                  videoRenderer: AVSampleBufferVideoRenderer(), audioRenderer: AVSampleBufferAudioRenderer(),
+                  videoSink: nil, audioSink: nil,
                   synchronizer: AVSampleBufferRenderSynchronizer(), onEvent: onEvent)
     }
 
@@ -1263,7 +1273,8 @@ final class PlaybackSession {
                 if let ctx { avcodec_flush_buffers(ctx) }
                 ffs_deint_free(&deint)
                 lastPTS = nil
-                videoRenderer.flush()
+                videoSink?.flush()
+                videoRecoveryRequested = false
             case .eof(let s):
                 guard s == mySerial else { continue }
                 decode(nil)
@@ -1347,16 +1358,29 @@ final class PlaybackSession {
                     continue
                 }
             }
-            if !videoRenderer.isReadyForMoreMediaData {
-                Thread.sleep(forTimeInterval: 0.004)
-                continue
-            }
             if !sentVideo {
                 sentVideo = true
                 beforeFirstVideo?()
             }
-            videoRenderer.enqueue(sample)
-            if let lastPicture, let image = CMSampleBufferGetImageBuffer(sample) { lastPicture.set(image) }
+            // Taken before the hand-over: the receiver takes the sample.
+            let image = lastPicture != nil ? CMSampleBufferGetImageBuffer(sample) : nil
+            // Paced above (at most 0.3 s ahead), so the queue stays short without readiness checks.
+            switch videoSink?.enqueue(sample) {
+            case .needsFlush(let reason)?:
+                // Once per flush: the engine resumes from the next key frame.
+                if !videoRecoveryRequested {
+                    videoRecoveryRequested = true
+                    emit(.decoderNeedsFlush(reason))
+                }
+                return
+            case .decodeFailures(let count)?:
+                lock.lock()
+                decodeFailures += count
+                lock.unlock()
+            default:
+                break
+            }
+            if let lastPicture, let image { lastPicture.set(image) }
             lock.lock()
             videoEnqueuedUntil = max(videoEnqueuedUntil, sec + duration)
             framesPresented += 1
@@ -1434,7 +1458,7 @@ final class PlaybackSession {
             let count = ffs_resample(resampler, f, outChannels, &data)
             guard count > 0, let data else { return }
             #if DEBUG
-            if Self.logAudioLevel { meter.add(data, frames: Int(count), channels: Int(outChannels), rate: f.pointee.sample_rate, renderer: audioRenderer) }
+            if Self.logAudioLevel { meter.add(data, frames: Int(count), channels: Int(outChannels), rate: f.pointee.sample_rate) }
             #endif
 
             let rate = f.pointee.sample_rate
@@ -1484,7 +1508,8 @@ final class PlaybackSession {
                 nextPTS = nil
                 block.removeAll(keepingCapacity: true)
                 blockFrames = 0
-                audioRenderer.flush()
+                audioSink?.flush()
+                audioRefillRequested = false
             case .eof(let s):
                 guard s == mySerial else { continue }
                 decode(nil)
@@ -1509,7 +1534,7 @@ final class PlaybackSession {
         private var peaks: [Float] = []
         private var frames = 0
 
-        func add(_ data: UnsafePointer<UInt8>, frames count: Int, channels: Int, rate: Int32, renderer: AVSampleBufferAudioRenderer) {
+        func add(_ data: UnsafePointer<UInt8>, frames count: Int, channels: Int, rate: Int32) {
             if peaks.count != channels { peaks = Array(repeating: 0, count: channels) }
             data.withMemoryRebound(to: Float.self, capacity: count * channels) { samples in
                 for i in 0..<(count * channels) { peaks[i % channels] = max(peaks[i % channels], abs(samples[i])) }
@@ -1517,7 +1542,7 @@ final class PlaybackSession {
             frames += count
             guard frames >= Int(rate) else { return }
             let db = peaks.map { $0 > 0 ? String(format: "%.0f", 20 * log10($0)) : "-inf" }.joined(separator: " ")
-            debugLog("[test] audio peak dB [\(db)] renderer status=\(renderer.status.rawValue) volume=\(renderer.volume) muted=\(renderer.isMuted)")
+            debugLog("[test] audio peak dB [\(db)]")
             peaks = Array(repeating: 0, count: channels)
             frames = 0
         }
@@ -1562,11 +1587,11 @@ final class PlaybackSession {
                     continue
                 }
             }
-            if !audioRenderer.isReadyForMoreMediaData {
-                Thread.sleep(forTimeInterval: 0.005)
-                continue
+            // Paced above (at most 1 s ahead), so the queue stays short without readiness checks.
+            if case .suggestsFlush? = audioSink?.enqueue(sample), !audioRefillRequested {
+                audioRefillRequested = true
+                emit(.audioNeedsRefill)
             }
-            audioRenderer.enqueue(sample)
             lock.lock()
             audioEnqueuedUntil = max(audioEnqueuedUntil, sec + duration)
             lock.unlock()
@@ -1722,6 +1747,7 @@ final class PlaybackSession {
             let demuxed = min(hasVideo ? videoDemuxedUntil : .infinity, hasAudio ? audioDemuxedUntil : .infinity)
             stats.bufferSeconds = demuxed.isFinite ? max(0, demuxed - now) : 0
             stats.droppedFrames = lateDrops
+            stats.decodeFailures = decodeFailures
             stats.audioAhead = audioEnqueuedUntil.isFinite ? audioEnqueuedUntil - now : -1
             let net = source.netStats
             stats.networkBufferBytes = net.unreadBytes
