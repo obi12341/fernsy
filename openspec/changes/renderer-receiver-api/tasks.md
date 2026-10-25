@@ -14,7 +14,7 @@
 
 ## 3. Checkpoint 2
 
-- [ ] 3.1 On the demo server, check:
+- [x] 3.1 On the demo server, check:
   - timeshift (pause, rewind, back to live);
   - reconnect (`IPTV_TESTNET`);
   - a recording played while still recording;
@@ -22,11 +22,15 @@
   - the Dolby Vision fallback, if the demo media contains it (otherwise note it);
   - `IPTV_TESTFLUSHREQUIRED` (the picture continues, the log shows recovery);
   - `IPTV_TESTDECODEFAIL` (the counter in the info overlay).
-- [ ] 3.2 Compare the CPU load of the player before and after (`top -pid` over 60 s, live channel) to document that there is no regression.
+
+  Result: all passed. The demo media is H.264 only, so the Dolby Vision fallback moves to the Jellyfin test in 4.1. A recording played while recording starts at 7–9 fps for the first seconds; `main` does the same (6.7 fps), so this is not caused by the receivers.
+- [x] 3.2 Compare the CPU load of the player before and after (`top -pid` over 60 s, live channel) to document that there is no regression.
+
+  Result: channel 101, 60 s at 25 fps: `main` 11.2 %, this branch 10.9 %.
 
 ## 4. Checkpoint 3 and wrap-up
 
-- [ ] 4.1 A nightly from this branch is not possible (nightly = main). Build a signed test DMG for the user locally with the Apple Development identity (`build-dmg.sh`; its smoke test launches the app for a moment, so only while the user's Fernsy is closed). The user tests: Jellyfin direct and transcode, sleep/wake, AirPods/output change, a long live session. Keep this task open until the user confirms.
+- [ ] 4.1 A nightly from this branch is not possible (nightly = main). Build a signed test DMG for the user locally with the Apple Development identity (`build-dmg.sh`; its smoke test launches the app for a moment, so only while the user's Fernsy is closed). The user tests: Jellyfin direct and transcode (including a Dolby Vision title), sleep/wake, AirPods/output change, a long live session. Keep this task open until the user confirms.
 - [ ] 4.2 `openspec validate renderer-receiver-api --strict` and `openspec validate --specs --strict`.
 
 ## Workflow follow-up
