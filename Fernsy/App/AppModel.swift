@@ -88,14 +88,21 @@ final class AppModel: ObservableObject {
     @Published private(set) var credentials: XtreamCredentials? {
         didSet {
             if credentials?.accountKey != oldValue?.accountKey {
+                loadSavedConnectionLimit()
                 recorder.activate(accountKey: credentials?.accountKey)
                 loadVisibility()
             }
         }
     }
     @Published private(set) var account: AccountInfo? {
-        didSet { updateConnectionLimit() }
+        didSet {
+            saveConnectionLimit()
+            updateConnectionLimit()
+        }
     }
+    /// The stream limit the provider last reported for this account (`connections.json`), used
+    /// until `account` answers again.
+    private var savedConnectionLimit: Int?
 
     @Published private(set) var liveCategories: [XCategory] = []
     @Published private(set) var movieCategories: [XCategory] = []
@@ -199,6 +206,7 @@ final class AppModel: ObservableObject {
         #if DEBUG
         debugBootstrap()
         #endif
+        loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
     }
@@ -208,11 +216,44 @@ final class AppModel: ObservableObject {
     }
 
     private func updateConnectionLimit() {
-        var limit = max(1, account?.maxConnections ?? 1)
+        var limit = max(1, account?.maxConnections ?? savedConnectionLimit ?? 1)
+        var source = account?.maxConnections != nil ? "provider" : savedConnectionLimit != nil ? "saved" : "default"
         #if DEBUG
-        if let forced = ProcessInfo.processInfo.environment["IPTV_MAXCONN"].flatMap(Int.init) { limit = forced }
+        if let forced = ProcessInfo.processInfo.environment["IPTV_MAXCONN"].flatMap(Int.init) { limit = forced; source = "IPTV_MAXCONN" }
         #endif
+        guard limit != tuners.limit || source != connectionLimitSource else { return }
+        connectionLimitSource = source
+        AppLog.info(.app, "stream limit \(limit) (\(source))")
+        guard limit != tuners.limit else { return }
         tuners.limit = limit
+        recorder.rebalance()
+    }
+
+    private var connectionLimitSource = ""
+
+    private var connectionLimitFile: URL? { cacheDirectory?.appendingPathComponent("connections.json") }
+
+    private func loadSavedConnectionLimit() {
+        savedConnectionLimit = connectionLimitFile.flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode(Int.self, from: $0) }
+        updateConnectionLimit()
+    }
+
+    private func saveConnectionLimit() {
+        guard let limit = account?.maxConnections, limit != savedConnectionLimit, let file = connectionLimitFile,
+              let data = try? JSONEncoder().encode(limit) else { return }
+        try? data.write(to: file, options: .atomic)
+        savedConnectionLimit = limit
+    }
+
+    /// Asks the provider for the account again (stream limit, expiry); a failed request keeps
+    /// what is known.
+    private func refreshAccount(_ client: XtreamClient) async {
+        #if DEBUG
+        // IPTV_TESTCATALOGFAIL=1 makes this fail too, as if the provider were unreachable.
+        if ProcessInfo.processInfo.environment["IPTV_TESTCATALOGFAIL"] != nil { return }
+        #endif
+        if let info = try? await client.account() { account = info }
     }
 
     /// Development login from IPTV_SERVER/IPTV_USER/IPTV_PASS. Takes precedence over the
@@ -248,15 +289,19 @@ final class AppModel: ObservableObject {
                 }
             }
         }
-        if let spec = env["IPTV_TESTRECORD"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 3 || spec.count == 5 {
-            // IPTV_TESTRECORD=<channel>:<starts in s>:<seconds>[:<before min>:<after min>]: a show
-            // recorded without padding, or with the given padding.
+        if let list = env["IPTV_TESTRECORD"] {
+            // IPTV_TESTRECORD=<channel>:<starts in s>:<seconds>[:<before min>:<after min>],…: shows
+            // recorded without padding, or with the given padding, planned in this order.
+            let specs = list.split(separator: ",").map { $0.split(separator: ":").compactMap { Double($0) } }.filter { $0.count == 3 || $0.count == 5 }
             Task {
                 while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                guard let channel = channel(Int(spec[0])) else { return }
-                let start = Date().addingTimeInterval(spec[1])
-                let entry = EPGEntry(id: "test", title: "Test \(Int(spec[0]))", description: "", start: start, end: start.addingTimeInterval(spec[2]))
-                recorder.schedule(entry, on: channel, padding: spec.count == 5 ? (spec[3] * 60, spec[4] * 60) : (0, 0))
+                let now = Date()
+                for (n, spec) in specs.enumerated() {
+                    guard let channel = channel(Int(spec[0])) else { continue }
+                    let start = now.addingTimeInterval(spec[1])
+                    let entry = EPGEntry(id: "test\(n)", title: "Test \(n + 1) \(Int(spec[0]))", description: "", start: start, end: start.addingTimeInterval(spec[2]))
+                    recorder.schedule(entry, on: channel, padding: spec.count == 5 ? (spec[3] * 60, spec[4] * 60) : (0, 0))
+                }
             }
         }
         if let spec = env["IPTV_TESTPADDING"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 3 {
@@ -312,6 +357,7 @@ final class AppModel: ObservableObject {
         if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
         if env["IPTV_NAMETEST"] == "1" { ChannelName.selfTest() }
+        if env["IPTV_PLANTEST"] == "1" { RecordingPlan.selfTest() }
         if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
         if let spec = env["IPTV_TESTRESUME"] {
             // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run.
@@ -462,7 +508,7 @@ final class AppModel: ObservableObject {
             await loadFromCache(dir)
         }
         if account == nil {
-            Task { account = try? await client.account() }
+            Task { await refreshAccount(client) }
         }
         startPeriodicRefresh()
 
@@ -498,6 +544,8 @@ final class AppModel: ObservableObject {
             isLoading = false
         }
 
+        // The package may have changed (stream limit).
+        Task { await refreshAccount(client) }
         let started = Date()
         do {
             #if DEBUG

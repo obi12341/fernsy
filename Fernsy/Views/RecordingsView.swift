@@ -222,9 +222,7 @@ struct RecordButton: View {
                 .help(existing.status == .recording ? "Aufnahme beenden" : "Geplante Aufnahme entfernen")
             } else {
                 Button("Aufnehmen", systemImage: "record.circle") {
-                    if let warning = recorder.schedule(entry, on: channel) {
-                        Prompt.inform(title: String(localized: "Aufnahme geplant"), message: warning)
-                    }
+                    recorder.schedule(entry, on: channel).present()
                 }
                 .help("Diese Sendung aufnehmen (Fernsy muss dafür geöffnet sein)")
             }
