@@ -8,6 +8,22 @@
 **Reason**: The spoken "Nimm das in Fernsy auf" has no schema in Siri AI; the record action keeps using the onscreen channel.
 **Migration**: Replaced by "Onscreen channel for actions".
 
+## MODIFIED Requirements
+
+### Requirement: Channels as indexed entities
+Visible channels SHALL be app entities in the Spotlight semantic index, so Siri resolves spoken
+channel names, with favourites and recently watched as suggested values. Hidden channels and
+adult channels (per Settings) SHALL NOT be indexed or resolved, and the index SHALL follow
+catalog and visibility changes.
+
+#### Scenario: Spoken name
+- **WHEN** the user tells Siri "Öffne das Zweite in Fernsy"
+- **THEN** Siri resolves the channel named ZDF
+
+#### Scenario: Hidden channel
+- **WHEN** a channel is hidden in Fernsy
+- **THEN** Siri cannot switch to it and Spotlight does not list it
+
 ## ADDED Requirements
 
 ### Requirement: Shortcuts and Spotlight actions
