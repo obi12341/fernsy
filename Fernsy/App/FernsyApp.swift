@@ -80,6 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
 
     @MainActor
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        LoginItem.detectLaunch()
+    }
+
+    @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [MenuBarSupport.enabledKey: true])
         let info = Bundle.main.infoDictionary
@@ -93,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let window = note.object as? NSWindow else { return }
             MainActor.assumeIsolated { MenuBarSupport.windowDidOpen(window) }
         })
+        if LoginItem.launchedAtLogin { MenuBarSupport.startWithoutWindow() }
         #if DEBUG
         // IPTV_TESTCLOSE=<s>: close every window after that many seconds (menu bar mode).
         if let delay = ProcessInfo.processInfo.environment["IPTV_TESTCLOSE"].flatMap(Double.init) {

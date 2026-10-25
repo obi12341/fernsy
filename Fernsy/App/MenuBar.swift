@@ -115,13 +115,14 @@ enum MenuBarSupport {
     }
 
     static func windowDidOpen(_ window: NSWindow) {
-        guard window.canBecomeMain, NSApp.activationPolicy() != .regular else { return }
+        guard !isStartingWithoutWindow, window.canBecomeMain, NSApp.activationPolicy() != .regular else { return }
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
     }
 
     /// Brings the library window back, or opens a new one when it was closed.
     static func showLibrary(_ openWindow: OpenWindowAction) {
+        startWithoutWindowUntil = nil
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
         if let existing = NSApp.windows.first(where: {
@@ -131,6 +132,26 @@ enum MenuBarSupport {
             existing.makeKeyAndOrderFront(nil)
         } else {
             openWindow(id: "library")
+        }
+    }
+
+    // MARK: Opened at login
+
+    private static var startWithoutWindowUntil: Date?
+    private static var isStartingWithoutWindow: Bool { startWithoutWindowUntil.map { Date() < $0 } ?? false }
+
+    /// Opened at login: closes the library window SwiftUI opens at launch, also when it appears a
+    /// moment later. With the menu bar item Fernsy then runs there without a Dock icon.
+    static func startWithoutWindow() {
+        startWithoutWindowUntil = Date().addingTimeInterval(3)
+        if isEnabled { NSApp.setActivationPolicy(.accessory) }
+        for delay in [0, 0.1, 0.3, 0.6, 1, 2] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard isStartingWithoutWindow else { return }
+                for window in NSApp.windows where window.identifier?.rawValue.hasPrefix("library") == true && window.isVisible {
+                    window.close()
+                }
+            }
         }
     }
 }

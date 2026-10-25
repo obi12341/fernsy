@@ -450,6 +450,7 @@ private struct RecordingSettings: View {
     @AppStorage(Recorder.padAfterKey) private var padAfter = 10
     @AppStorage(MenuBarSupport.enabledKey) private var showsMenuBarItem = true
     @AppStorage(Recorder.keepAwakeHoursKey) private var keepAwakeHours = 6
+    @StateObject private var loginItem = LoginItem()
 
     var body: some View {
         Form {
@@ -487,8 +488,19 @@ private struct RecordingSettings: View {
             }
             Section {
                 Toggle("Symbol in der Menüleiste", isOn: $showsMenuBarItem)
+                Toggle("Beim Anmelden öffnen", isOn: Binding(
+                    get: { loginItem.status != .off },
+                    set: { loginItem.setEnabled($0) }))
+                if loginItem.status == .requiresApproval {
+                    LabeledContent {
+                        Button("Anmeldeobjekte öffnen …") { loginItem.openSystemSettings() }
+                    } label: {
+                        Text("macOS muss das Öffnen beim Anmelden noch erlauben.")
+                            .foregroundStyle(.orange)
+                    }
+                }
             } footer: {
-                Text("Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter.")
+                Text("Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter. Beim Anmelden geöffnet, startet Fernsy ohne Fenster, damit geplante Aufnahmen stattfinden.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -496,6 +508,8 @@ private struct RecordingSettings: View {
         .formStyle(.grouped)
         .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
+        .onAppear { loginItem.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in loginItem.refresh() }
     }
 }
 

@@ -199,6 +199,12 @@ Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environmen
 skip the keychain. Further debug-only switches (`IPTV_AUTOPLAY`, `IPTV_SCENE`, `IPTV_WINDOW`,
 `IPTV_TESTNET`, …) are documented where they are read.
 
+"Beim Anmelden öffnen" (Settings › Aufnahmen) registers Fernsy with `SMAppService.mainApp`;
+opened at login (Apple Event `keyAELaunchedAsLogInItem`), Fernsy closes its library window and
+runs in the menu bar (`LoginItem`, `MenuBarSupport.startWithoutWindow`). Debug builds never
+register a login item: `IPTV_TESTLOGINITEM=<enabled|approval|off>` fakes the status macOS
+reports, `IPTV_TESTLOGINLAUNCH=1` starts as if opened at login.
+
 Every build writes an event log (`Fernsy/App/AppLog.swift`): levels error, warning, info and
 detail, one category per area. It is kept in memory and in `current.log` and `previous.log`
 (this launch and the previous one, 4 MB each at most) under
