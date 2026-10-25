@@ -2,11 +2,11 @@
 
 ### Requirement: Player overlay
 The player's controls SHALL appear as one glass panel at the bottom, with a caption at the
-top left (channel logo, name, tags and current show; for films title and details) and,
-while the channel is recorded, a red "Aufnahme · bis HH:MM" mark at the top right. The
-panel holds the timeline, play/pause with ±10 s (films also ±60 s), volume, one menu for
-audio and subtitle tracks, technical info, Picture in Picture and full screen; for live TV
-also the channel list (L). The overlay follows the system appearance.
+top left (channel logo, name, tags and current show; for films title and details) and, while
+the channel is recorded, a red "Aufnahme · bis HH:MM" mark at the top right. The panel holds
+the timeline, play/pause with ±10 s (films ±60 s too), volume, an audio and subtitle menu,
+technical info, Picture in Picture, full screen and, for live TV, the channel list (L). It
+follows the system appearance.
 
 #### Scenario: Recording while watching
 - **WHEN** the channel being watched is recorded until 22:55
