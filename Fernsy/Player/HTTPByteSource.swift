@@ -117,7 +117,6 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         config.timeoutIntervalForResource = .infinity
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
-        config.httpShouldUsePipelining = false
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 1
         queue.qualityOfService = .userInitiated

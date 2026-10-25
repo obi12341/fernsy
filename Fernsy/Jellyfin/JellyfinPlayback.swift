@@ -179,7 +179,9 @@ final class JellyfinPlayback: ObservableObject {
         let previous = playSessionId
         // Text subtitles are shown by the player (from the server's SRT); only bitmap ones are burnt in.
         let burnIn = subtitleIndex.flatMap { index in streams.first { $0.index == index } }.map { $0.isTextSubtitleStream != true } ?? false
-        Task {
+        // Strong on purpose: the task outlives a stopped playback long enough to stop the
+        // transcode it started on the server; the callbacks below stay weak.
+        Task { [self] in
             if previous != nil { try? await store.call { client, _ in try await client.stopTranscode(playSessionId: previous) } }
             do {
                 let itemId = item.id, sourceId = mediaSourceId, audio = audioIndex, subtitle = burnIn ? subtitleIndex : nil
