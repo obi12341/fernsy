@@ -496,8 +496,10 @@ private struct YouthProtectionSettings: View {
         Form {
             Section {
                 Toggle("Erwachsenen-Kategorien anzeigen", isOn: $app.showAdult)
+                Toggle("Erwachsenen-Sender unter „Zuletzt gesehen“ anzeigen", isOn: $app.showAdultInRecent)
+                    .disabled(!app.showAdult)
             } footer: {
-                Text("Fernsy erkennt Erwachsenen-Kategorien am Namen und blendet sie samt ihren Inhalten aus. Das ist keine Kindersicherung.")
+                Text("Fernsy erkennt Erwachsenen-Kategorien am Namen und blendet sie samt ihren Inhalten aus. Das ist keine Kindersicherung. Unter „Zuletzt gesehen“ erscheinen Erwachsenen-Sender nur, wenn beides eingeschaltet ist.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

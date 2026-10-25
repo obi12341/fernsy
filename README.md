@@ -222,6 +222,10 @@ schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog r
 the rows and the detail pane only (to see a show change without waiting for one);
 `IPTV_EPGRECHECK=<s>` sets how often a visible row checks its programme (default 5 min) and
 `IPTV_EPGSTALE=1` treats every programme as stale, so each check downloads it again.
+Youth protection, in memory only: `IPTV_TESTADULT=<id,…>` treats channels as adult (the demo
+has none), `IPTV_RECENT=<id,…>` sets "Zuletzt gesehen", `IPTV_SHOWADULT=0|1` and
+`IPTV_ADULTRECENT=0|1` set both settings, `IPTV_TESTUNRECENT=<id>` removes a channel from
+the history like the context menu.
 Guide: `IPTV_TESTNOEPG=<id>` gives that channel no listings, `IPTV_GUIDEDAY=<n>` and
 `IPTV_GUIDETIME=<hh:mm>` jump to a day and time, `IPTV_GUIDESELECT=<id>:<n>` selects that
 channel's n-th upcoming show.

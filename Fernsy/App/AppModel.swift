@@ -128,7 +128,22 @@ final class AppModel: ObservableObject {
         didSet { updateVisibleCounts() }
     }
     @Published var showAdult: Bool {
-        didSet { UserDefaults.standard.set(showAdult, forKey: "library.showAdult") }
+        didSet {
+            #if DEBUG
+            if debugSettingsInMemory { return }
+            #endif
+            UserDefaults.standard.set(showAdult, forKey: "library.showAdult")
+        }
+    }
+    /// Adult channels also appear in "Zuletzt gesehen" (Youth protection; only while
+    /// `showAdult` is on).
+    @Published var showAdultInRecent: Bool {
+        didSet {
+            #if DEBUG
+            if debugSettingsInMemory { return }
+            #endif
+            UserDefaults.standard.set(showAdultInRecent, forKey: "library.showAdultInRecent")
+        }
     }
 
     @Published var nowPlaying: PlayItem? {
@@ -181,6 +196,7 @@ final class AppModel: ObservableObject {
         favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
         recentChannels = Self.skipKeychain ? [] : (UserDefaults.standard.array(forKey: "live.recent") as? [Int] ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
+        showAdultInRecent = UserDefaults.standard.bool(forKey: "library.showAdultInRecent")
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         recorder.app = self
         #if DIRECT_DISTRIBUTION
@@ -270,6 +286,8 @@ final class AppModel: ObservableObject {
 
     #if DEBUG
     private var debugFavoritesInMemory = false
+    private var debugSettingsInMemory = false
+    private var debugAdultChannels: Set<Int> = []
 
     /// Development hook: IPTV_SERVER/IPTV_USER/IPTV_PASS log in without the keychain,
     /// IPTV_AUTOPLAY=live:<id> | movie:<id> starts playback once the catalog is loaded,
@@ -309,6 +327,24 @@ final class AppModel: ObservableObject {
             // touching the shared defaults of an installed Fernsy).
             DispatchQueue.main.asyncAfter(deadline: .now() + spec[0]) { [recorder] in
                 recorder.applyPadding(before: spec[1] * 60, after: spec[2] * 60)
+            }
+        }
+        // Youth protection tests, in memory only (the demo has no adult channels):
+        // IPTV_TESTADULT=<id,…> treats channels as adult, IPTV_RECENT=<id,…> sets "Zuletzt
+        // gesehen", IPTV_SHOWADULT / IPTV_ADULTRECENT=0|1 set both settings,
+        // IPTV_TESTUNRECENT=<id> removes a channel from the history 3 s after the catalog loaded.
+        if let list = env["IPTV_TESTADULT"] { debugAdultChannels = Set(list.split(separator: ",").compactMap { Int($0) }) }
+        if let list = env["IPTV_RECENT"] { recentChannels = list.split(separator: ",").compactMap { Int($0) } }
+        if env["IPTV_SHOWADULT"] != nil || env["IPTV_ADULTRECENT"] != nil {
+            debugSettingsInMemory = true
+            if let value = env["IPTV_SHOWADULT"] { showAdult = value == "1" }
+            if let value = env["IPTV_ADULTRECENT"] { showAdultInRecent = value == "1" }
+        }
+        if let id = env["IPTV_TESTUNRECENT"].flatMap(Int.init) {
+            Task {
+                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
+                try? await Task.sleep(for: .seconds(3))
+                removeRecent(id)
             }
         }
         if let list = env["IPTV_FAVORITES"] {
@@ -653,6 +689,15 @@ final class AppModel: ObservableObject {
         return Self.adultMarkers.contains { name.contains($0) }
     }
 
+    /// Marked as adult by the provider, or in a category detected as adult
+    /// (`adultCategories`: the ids of those live categories).
+    func isAdult(_ channel: LiveChannel, adultCategories: Set<String>) -> Bool {
+        #if DEBUG
+        if debugAdultChannels.contains(channel.id) { return true }
+        #endif
+        return channel.isAdult || adultCategories.contains(channel.categoryId ?? "")
+    }
+
     func visibleCategories(_ list: [XCategory]) -> [XCategory] {
         showAdult ? list : list.filter { !isAdultCategory($0) }
     }
@@ -721,6 +766,12 @@ final class AppModel: ObservableObject {
         list.insert(channelId, at: 0)
         recentChannels = Array(list.prefix(Self.recentLimit))
         // Test runs (no keychain) keep it in memory: they share the installed app's defaults.
+        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: "live.recent") }
+    }
+
+    /// Context menu: takes a channel out of "Zuletzt gesehen".
+    func removeRecent(_ channelId: Int) {
+        recentChannels.removeAll { $0 == channelId }
         if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: "live.recent") }
     }
 

@@ -1108,6 +1108,16 @@
         }
       }
     },
+    "Aus „Zuletzt gesehen“ entfernen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Recently Watched"
+          }
+        }
+      }
+    },
     "Ausblenden": {
       "localizations": {
         "en": {
@@ -1744,6 +1754,16 @@
         }
       }
     },
+    "Erwachsenen-Sender unter „Zuletzt gesehen“ anzeigen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show adult channels in Recently Watched"
+          }
+        }
+      }
+    },
     "Favorit": {
       "localizations": {
         "en": {
@@ -1814,12 +1834,12 @@
         }
       }
     },
-    "Fernsy erkennt Erwachsenen-Kategorien am Namen und blendet sie samt ihren Inhalten aus. Das ist keine Kindersicherung.": {
+    "Fernsy erkennt Erwachsenen-Kategorien am Namen und blendet sie samt ihren Inhalten aus. Das ist keine Kindersicherung. Unter „Zuletzt gesehen“ erscheinen Erwachsenen-Sender nur, wenn beides eingeschaltet ist.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fernsy detects adult categories by their name and hides them along with their content. This is not a parental lock."
+            "value": "Fernsy detects adult categories by their name and hides them along with their content. This is not a parental lock. Adult channels appear in Recently Watched only when both are on."
           }
         }
       }

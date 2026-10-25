@@ -7,7 +7,6 @@ extension AppModel {
 
     /// `includeHidden`: also the channels the user has hidden (Edit mode).
     func filteredChannels(categoryID: String, query: String, includeHidden: Bool = false) -> [LiveChannel] {
-        let hidden = hiddenCategoryIDs(liveCategories)
         var list: [LiveChannel]
         switch categoryID {
         case allCategoryID: list = channels
@@ -15,7 +14,11 @@ extension AppModel {
         case recentChannelsID: list = recentChannels.compactMap(channel)
         default: list = channelsByCategory[categoryID] ?? []
         }
-        if !showAdult { list = list.filter { !$0.isAdult && !hidden.contains($0.categoryId ?? "") } }
+        // Adult channels: hidden everywhere unless shown, and in "Zuletzt gesehen" unless allowed there too.
+        if !showAdult || (categoryID == recentChannelsID && !showAdultInRecent) {
+            let adultCategories = Set(liveCategories.filter(isAdultCategory).map(\.id))
+            list = list.filter { !isAdult($0, adultCategories: adultCategories) }
+        }
         if !includeHidden { list = list.filter { !isHidden($0) } }
         let needle = makeSearchKey(query)
         if !needle.isEmpty { list = list.filter { $0.searchKey.contains(needle) } }
