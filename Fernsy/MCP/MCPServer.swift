@@ -172,8 +172,13 @@ final class MCPServer: ObservableObject {
             AppLog.info(.mcp, "\(clientName): \(name)")
             let result: [String: Any]
             do {
-                let value = try await tools.call(name, arguments)
-                result = ["content": [["type": "text", "text": Self.text(value)]], "structuredContent": value, "isError": false]
+                var value = try await tools.call(name, arguments)
+                var content: [[String: Any]] = []
+                if let image = value.removeValue(forKey: MCPTools.imageKey) as? Data {
+                    content.append(["type": "image", "mimeType": "image/jpeg", "data": image.base64EncodedString()])
+                }
+                content.append(["type": "text", "text": Self.text(value)])
+                result = ["content": content, "structuredContent": value, "isError": false]
             } catch {
                 AppLog.warning(.mcp, "\(name) failed: \(error.localizedDescription)")
                 result = ["content": [["type": "text", "text": error.localizedDescription]], "isError": true]

@@ -2,24 +2,24 @@ import AVFoundation
 import CoreMedia
 import CoreVideo
 
-// FFmpeg custom-I/O trampolines (must be plain C function pointers).
+// FFmpeg custom-I/O trampolines (must be plain C function pointers; FrameGrabber uses them too).
 /// Gives the C callbacks a concrete class to point at.
-private final class SourceBox {
+final class SourceBox {
     let source: ByteSource
     init(_ source: ByteSource) { self.source = source }
 }
 
-private func ioRead(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafeMutablePointer<UInt8>?, _ size: Int32) -> Int32 {
+func ioRead(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafeMutablePointer<UInt8>?, _ size: Int32) -> Int32 {
     guard let opaque, let buf else { return Int32(ffs_error_eio()) }
     return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.read(into: buf, size: Int(size))
 }
 
-private func ioSeek(_ opaque: UnsafeMutableRawPointer?, _ offset: Int64, _ whence: Int32) -> Int64 {
+func ioSeek(_ opaque: UnsafeMutableRawPointer?, _ offset: Int64, _ whence: Int32) -> Int64 {
     guard let opaque else { return -1 }
     return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.seek(offset: offset, whence: whence)
 }
 
-private func ioInterrupt(_ opaque: UnsafeMutableRawPointer?) -> Int32 {
+func ioInterrupt(_ opaque: UnsafeMutableRawPointer?) -> Int32 {
     guard let opaque else { return 0 }
     return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.isCancelled ? 1 : 0
 }

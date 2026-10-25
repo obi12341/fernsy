@@ -292,7 +292,13 @@ owned by `JellyfinPlayback.autoplayAt`, reached through the weak `AppModel.jelly
 `item_info` adds `previous_*`/`next_*` neighbours and `list_episodes` lists seasons or one season's
 episodes (both from `Shows/{id}/Episodes`, specials only next to specials). The end of a Jellyfin
 item is reported as a stop right away (`JellyfinPlayback.reportEnd`), so Next Up moves on while
-the countdown runs; `JF_TESTCANCELNEXT=1` cancels the countdown at the end. A changed tool list
+the countdown runs; `JF_TESTCANCELNEXT=1` cancels the countdown at the end.
+Scene search: `snapshot` encodes `PlayerEngine.lastPicture`; `frames` runs `FrameGrabber` (own
+FFmpeg context over a fresh `FileByteSource`, `TimeshiftBuffer` reader or Jellyfin direct-stream
+`HTTPByteSource`; keyframe per tile, corrupt ones skipped) and `StillImage.contactSheet`;
+`get_subtitles` returns a Jellyfin text track via `subtitleSRT`. Images go out as MCP image
+content (`MCPTools.imageKey`), JPEG through ImageIO. IPTV films and episodes are refused by
+`frames` (second stream). A changed tool list
 reaches Claude Desktop only after the extension is installed again. Debug builds keep
 everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
 token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
