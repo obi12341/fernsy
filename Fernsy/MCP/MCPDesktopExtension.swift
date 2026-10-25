@@ -78,12 +78,11 @@ enum MCPDesktopExtension {
     // MARK: Contents
 
     static func manifest(token: String, icon: Bool) throws -> Data {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         var manifest: [String: Any] = [
             "manifest_version": "0.3",
             "name": "fernsy",
             "display_name": "Fernsy",
-            "version": version,
+            "version": semanticVersion,
             "description": "Your IPTV and Jellyfin player on this Mac: program guide, recently watched, recordings and playback.",
             "author": ["name": "mobilistics GmbH", "url": "https://www.fernsy.app"],
             "homepage": "https://www.fernsy.app",
@@ -93,24 +92,33 @@ enum MCPDesktopExtension {
                 "mcp_config": [
                     "command": "node",
                     "args": ["${__dirname}/server/index.js"],
-                    "env": ["FERNSY_ENDPOINT": MCPServer.endpoint, "FERNSY_TOKEN": "${user_config.access_token}"],
+                    // The token goes in directly: Claude Desktop does not apply the default of a
+                    // sensitive user_config field and then never starts the server.
+                    "env": ["FERNSY_ENDPOINT": MCPServer.endpoint, "FERNSY_TOKEN": token],
                 ],
             ],
             "tools": MCPTools.definitions.map { ["name": $0["name"] ?? "", "description": $0["description"] ?? ""] },
-            "user_config": [
-                "access_token": [
-                    "type": "string",
-                    "title": "Access token",
-                    "description": "From Fernsy › Settings › Assistants",
-                    "sensitive": true,
-                    "required": true,
-                    "default": token,
-                ],
-            ],
             "compatibility": ["platforms": ["darwin"], "runtimes": ["node": ">=18.0.0"]],
         ]
         if icon { manifest["icon"] = "icon.png" }
         return try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+    }
+
+    /// The manifest needs x.y.z: the app version padded, or 0.0.<build> for nightlies
+    /// ("nightly-2026-10-25") and other non-numeric versions.
+    static var semanticVersion: String {
+        let info = Bundle.main.infoDictionary
+        var version = info?["CFBundleShortVersionString"] as? String ?? ""
+        #if DEBUG
+        // IPTV_MCPVERSION=<version>: pretend the app has this version (e.g. a nightly's).
+        if let fake = ProcessInfo.processInfo.environment["IPTV_MCPVERSION"] { version = fake }
+        #endif
+        let parts = version.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        if (1...3).contains(parts.count), parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isASCII) && Int($0) != nil }) {
+            return (parts.map { String(Int($0)!) } + Array(repeating: "0", count: 3 - parts.count)).joined(separator: ".")
+        }
+        let build = (info?["CFBundleVersion"] as? String).flatMap { Int($0) } ?? 0
+        return "0.0.\(build)"
     }
 
     private static func iconPNG() -> Data? {
