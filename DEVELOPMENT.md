@@ -282,7 +282,9 @@ token from Settings (keychain). It needs `com.apple.security.network.server` (re
 MCP server on 127.0.0.1 for the user's own AI assistant, off by default). Requests with an
 `Origin` header or a foreign `Host` are refused. Tools: `MCPTools.definitions`. `now_playing` reads the open player's `PlayerEngine` (`AppModel.playerEngine`,
 weak, set by `PlayerScreen`) for position, duration, remaining time and state; `item_info` and
-`recently_watched` add runtimes (Jellyfin ticks, the resume store, `get_vod_info`'s duration). Debug builds keep
+`recently_watched` add runtimes (Jellyfin ticks, the resume store, `get_vod_info`'s duration).
+`get_log` and `playback_diagnostics` read the redacted event log (`AppLog.query`) and the player's
+`PlaybackStats`; the log leaves the app only through this local server, when it is on. Debug builds keep
 everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
 token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
 "Zu Claude Desktop hinzufügen …" builds a desktop extension (`MCPDesktopExtension`, `.mcpb`

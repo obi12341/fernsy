@@ -232,3 +232,21 @@ final class AppLog: @unchecked Sendable {
     }
     #endif
 }
+
+extension AppLog {
+    /// A filtered slice of the current or previous run, oldest first: at least `minimum`, in
+    /// `categories` (all when empty), since `since`, containing `query`; the newest `limit` of
+    /// those. Entries are redacted already when they are added.
+    func query(previous: Bool = false, minimum: LogLevel = .info, categories: Set<LogCategory> = [],
+               since: Date? = nil, query: String = "", limit: Int = 200) -> (entries: [LogEntry], truncated: Bool) {
+        let source = previous ? previousRun() : entries(after: nil)
+        let needle = query.lowercased()
+        let matching = source.filter { entry in
+            entry.level >= minimum
+                && (categories.isEmpty || categories.contains(entry.category))
+                && (since.map { entry.date >= $0 } ?? true)
+                && (needle.isEmpty || entry.message.lowercased().contains(needle))
+        }
+        return (Array(matching.suffix(limit)), matching.count > limit)
+    }
+}
