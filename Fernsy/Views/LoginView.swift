@@ -674,14 +674,19 @@ private struct MCPSettingsForm: View {
             }
             Section {
                 LabeledContent {
+                    Button("Zu Claude Desktop hinzufügen …") { MCPDesktopExtension.addToClaude(token: mcp.token) }
+                } label: {
+                    Text("Als Erweiterung installieren")
+                }
+                LabeledContent {
                     Button("Eintrag kopieren") { copy(claudeDesktop) }
                 } label: {
-                    Text("Unter „mcpServers“ in claude_desktop_config.json einfügen")
+                    Text("Manuell einrichten")
                 }
             } header: {
                 Text(verbatim: "Claude Desktop")
             } footer: {
-                Text("Claude Desktop verbindet sich über mcp-remote und braucht dafür Node.js. Die Datei öffnest du in Claude unter Einstellungen › Entwickler › Konfiguration bearbeiten.")
+                Text("Claude Desktop zeigt einen Installationsdialog; danach kann Claude Fernsy nutzen. Nach „Neu erzeugen“ füge Fernsy erneut hinzu. Manuell: den Eintrag unter „mcpServers“ in claude_desktop_config.json einfügen (braucht Node.js).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -56,8 +56,21 @@ final class MCPServer: ObservableObject {
         }
         #endif
         tokenBox.value = token
+        MCPDesktopExtension.cleanUp()
         if isEnabled { start() }
         #if DEBUG
+        // IPTV_MCPBUNDLE=1: builds the desktop extension at launch and logs where (in the container).
+        if env["IPTV_MCPBUNDLE"] == "1", let url = try? MCPDesktopExtension.build(token: token) {
+            debugLog("[test] desktop extension at \(url.path)")
+        }
+        // IPTV_MCPADDCLAUDE=<s>: runs "Zu Claude Desktop hinzufügen …" after s seconds.
+        if let delay = env["IPTV_MCPADDCLAUDE"].flatMap(Double.init) {
+            let token = token
+            Task {
+                try? await Task.sleep(for: .seconds(delay))
+                MCPDesktopExtension.addToClaude(token: token)
+            }
+        }
         // IPTV_MCPREGEN=<s>: creates a new token after s seconds, as the Settings button does.
         if let delay = env["IPTV_MCPREGEN"].flatMap(Double.init) {
             Task {

@@ -752,6 +752,16 @@
         }
       }
     },
+    "Als Erweiterung installieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install as an extension"
+          }
+        }
+      }
+    },
     "Als Nächstes": {
       "localizations": {
         "en": {
@@ -1408,12 +1418,22 @@
         }
       }
     },
-    "Claude Desktop verbindet sich über mcp-remote und braucht dafür Node.js. Die Datei öffnest du in Claude unter Einstellungen › Entwickler › Konfiguration bearbeiten.": {
+    "Claude Desktop wurde nicht gefunden. Sichere die Erweiterung und öffne sie später mit Claude Desktop.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude Desktop connects through mcp-remote, which needs Node.js. Open the file in Claude under Settings › Developer › Edit Config."
+            "value": "Claude Desktop was not found. Save the extension and open it with Claude Desktop later."
+          }
+        }
+      }
+    },
+    "Claude Desktop zeigt einen Installationsdialog; danach kann Claude Fernsy nutzen. Nach „Neu erzeugen“ füge Fernsy erneut hinzu. Manuell: den Eintrag unter „mcpServers“ in claude_desktop_config.json einfügen (braucht Node.js).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Desktop shows an install dialog; after that, Claude can use Fernsy. After \"Regenerate\", add Fernsy again. Manually: paste the entry under \"mcpServers\" in claude_desktop_config.json (needs Node.js)."
           }
         }
       }
@@ -2902,6 +2922,16 @@
         }
       }
     },
+    "Manuell einrichten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set up manually"
+          }
+        }
+      }
+    },
     "Markiere Sender mit dem Stern, per Rechtsklick oder mit ⌘D. Sie erscheinen dann hier.": {
       "localizations": {
         "en": {
@@ -4170,16 +4200,6 @@
         }
       }
     },
-    "Unter „mcpServers“ in claude_desktop_config.json einfügen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste under \"mcpServers\" in claude_desktop_config.json"
-          }
-        }
-      }
-    },
     "Untertitel": {
       "localizations": {
         "en": {
@@ -4618,6 +4638,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Connection timed out"
+          }
+        }
+      }
+    },
+    "Zu Claude Desktop hinzufügen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Claude Desktop …"
           }
         }
       }
