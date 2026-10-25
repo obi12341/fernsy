@@ -29,6 +29,12 @@ struct PlayerScreen: View {
     @State private var zapTarget: (channel: LiveChannel, number: Int)?
     @State private var zapTask: Task<Void, Never>?
     @State private var osdHideTask: Task<Void, Never>?
+    // The channel list over the picture (live TV, L).
+    @State private var showsChannelList = false
+    @State private var listCategory = allCategoryID
+    @State private var listHighlight: Int?
+    @State private var listHideTask: Task<Void, Never>?
+    private static let channelListWidth: CGFloat = 340
 
     private let resumeTimer = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
 
@@ -36,7 +42,8 @@ struct PlayerScreen: View {
         ZStack {
             Color.black
 
-            VideoSurface(engine: engine, onKeyDown: handleKey, onMouseActivity: showControls, onDoubleClick: toggleFullScreen)
+            VideoSurface(engine: engine, onKeyDown: handleKey, onMouseActivity: showControls, onDoubleClick: toggleFullScreen,
+                         onClick: { if showsChannelList { closeChannelList() } })
 
             if let text = engine.subtitleText {
                 VStack {
@@ -68,7 +75,8 @@ struct PlayerScreen: View {
                 ChannelOSD(channel: osd.channel, number: osd.number, isPending: zapTarget != nil)
                     .id(osd.channel.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.leading, 24)
+                    // Beside the channel list while it is open.
+                    .padding(.leading, showsChannelList ? Self.channelListWidth + 40 : 24)
                     .padding(.top, 40)
                     .transition(.opacity.combined(with: .move(edge: .leading)))
                     .allowsHitTesting(false)
@@ -85,7 +93,8 @@ struct PlayerScreen: View {
 
             if controlsVisible, let item = app.nowPlaying {
                 PlayerControls(engine: engine, progress: engine.progress, item: item, entries: epg,
-                               showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil, onZap: zap, onFullScreen: toggleFullScreen,
+                               showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil && !showsChannelList, onZap: zap, onFullScreen: toggleFullScreen,
+                               onChannelList: toggleChannelList,
                                onActivity: showControls,
                                recordingEnd: liveChannelID.flatMap { recorder.active(on: $0)?.recordEnd },
                                canRecord: liveChannelID != nil,
@@ -93,6 +102,18 @@ struct PlayerScreen: View {
                                onDragging: { dragging in activeDrags = max(0, activeDrags + (dragging ? 1 : -1)) },
                                pipPossible: pipPossible && [.playing, .paused, .buffering].contains(engine.status), onPictureInPicture: { pip?.toggle() })
                     .transition(.opacity)
+            }
+
+            if showsChannelList, let playing = liveChannelID {
+                PlayerChannelList(categoryID: $listCategory, highlighted: listHighlight, playingID: playing,
+                                  onTune: tuneFromList, onActivity: restartChannelListTimer)
+                    .containerRelativeFrame(.horizontal) { width, _ in min(Self.channelListWidth, width * 0.45) }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .padding(.leading, 16)
+                    .padding(.top, 40)
+                    // Clear of the control panel (timeline, programme line and buttons).
+                    .padding(.bottom, controlsVisible ? 200 : 24)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
             }
 
             if showInfo {
@@ -112,6 +133,36 @@ struct PlayerScreen: View {
             showControls()
             #if DEBUG
             if ProcessInfo.processInfo.environment["IPTV_SHOWINFO"] != nil { showInfo = true }
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTCHANNELLIST"] {
+                // IPTV_TESTCHANNELLIST=<s>[:<key>,…]: opens the channel list after s seconds, then
+                // feeds the keys (down, up, pagedown, return, esc, l, category:<id>) one per second
+                // through the screen's own key handling; no events reach the system.
+                let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
+                let start = Double(parts[0]) ?? 5
+                let keys = parts.count > 1 ? parts[1].split(separator: ",").map(String.init) : []
+                DispatchQueue.main.asyncAfter(deadline: .now() + start) { toggleChannelList() }
+                for (i, key) in keys.enumerated() {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + start + 1 + Double(i)) {
+                        AppLog.detail(.player, "[test] key \(key)")
+                        if key.hasPrefix("category:") {
+                            listCategory = String(key.dropFirst("category:".count))
+                            listHighlight = PlayerChannelList.channels(listCategory, app: app).first?.id
+                            restartChannelListTimer()
+                            return
+                        }
+                        let codes: [String: UInt16] = ["down": 125, "up": 126, "pagedown": 121, "return": 36, "esc": 53, "l": 37]
+                        guard let code = codes[key] else { return }
+                        if showsChannelList, handleChannelListKey(code) { return }
+                        // Closed: the same keys as without the list.
+                        switch key {
+                        case "down": zap(1)
+                        case "up": zap(-1)
+                        case "l": toggleChannelList()
+                        default: break
+                        }
+                    }
+                }
+            }
             if ProcessInfo.processInfo.environment["IPTV_TESTZAP"] != nil {
                 for i in 0..<3 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 6 + Double(i) * 0.15) {
@@ -492,11 +543,84 @@ struct PlayerScreen: View {
         showOSD(current, autoHide: true)
     }
 
+    // MARK: Channel list
+
+    private func toggleChannelList() {
+        if showsChannelList { closeChannelList(); return }
+        guard case .live(let id, let categoryId)? = app.nowPlaying?.kind else { return }
+        listCategory = categoryId ?? allCategoryID
+        listHighlight = id
+        withAnimation(.easeOut(duration: 0.2)) { showsChannelList = true }
+        AppLog.detail(.player, "channel list opened (\(listCategory))")
+        restartChannelListTimer()
+    }
+
+    private func closeChannelList() {
+        listHideTask?.cancel()
+        withAnimation(.easeIn(duration: 0.2)) { showsChannelList = false }
+        AppLog.detail(.player, "channel list closed")
+    }
+
+    /// Closes the list after 10 s without interaction with it.
+    private func restartChannelListTimer() {
+        listHideTask?.cancel()
+        listHideTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled, showsChannelList else { return }
+            closeChannelList()
+        }
+    }
+
+    /// Keys while the list is open: ↑/↓ and Page Up/Down move the highlight, Return tunes,
+    /// L and Esc close it. Other keys keep their meaning.
+    private func handleChannelListKey(_ keyCode: UInt16) -> Bool {
+        switch keyCode {
+        case 126: moveListHighlight(by: -1)
+        case 125: moveListHighlight(by: 1)
+        case 116: moveListHighlight(by: -8)
+        case 121: moveListHighlight(by: 8)
+        case 36, 76: // return, enter
+            if let id = listHighlight, let channel = PlayerChannelList.channels(listCategory, app: app).first(where: { $0.id == id }) {
+                tuneFromList(channel)
+            }
+        case 53, 37: closeChannelList() // escape, L
+        default: return false
+        }
+        if showsChannelList { restartChannelListTimer() }
+        return true
+    }
+
+    private func moveListHighlight(by offset: Int) {
+        let list = PlayerChannelList.channels(listCategory, app: app)
+        guard !list.isEmpty else { return }
+        let index = list.firstIndex { $0.id == listHighlight }.map { $0 + offset } ?? 0
+        listHighlight = list[min(max(index, 0), list.count - 1)].id
+        AppLog.detail(.player, "channel list highlight \(listHighlight ?? 0)")
+    }
+
+    /// Tunes like zapping, with the banner; the list stays open and follows the channel.
+    private func tuneFromList(_ channel: LiveChannel) {
+        listHighlight = channel.id
+        restartChannelListTimer()
+        guard channel.id != liveChannelID else { return }
+        zapTask?.cancel()
+        zapTarget = nil
+        AppLog.detail(.player, "channel list tunes \(channel.id)")
+        app.play(channel)
+        if let entry = app.neighbor(of: channel.id, categoryId: channel.categoryId, offset: 0) {
+            showOSD(entry, autoHide: true)
+        }
+    }
+
     // MARK: Keyboard
 
     private func handleKey(_ event: NSEvent) -> Bool {
         let live = engine.isLive
         let shift = event.modifierFlags.contains(.shift)
+        if showsChannelList, handleChannelListKey(event.keyCode) {
+            showControls()
+            return true
+        }
         switch event.keyCode {
         case 49: // space
             engine.togglePause()
@@ -523,6 +647,7 @@ struct PlayerScreen: View {
             case "p": pip?.toggle()
             case "i": showInfo.toggle()
             case "r" where live: toggleRecording()
+            case "l" where live: toggleChannelList()
             case "m": engine.isMuted.toggle()
             case "+": engine.volume = min(1, engine.volume + 0.05)
             case "-": engine.volume = max(0, engine.volume - 0.05)
@@ -635,6 +760,7 @@ struct PlayerControls: View {
     let showsTitle: Bool
     let onZap: (Int) -> Void
     let onFullScreen: () -> Void
+    var onChannelList: () -> Void = {}
     let onActivity: () -> Void
     /// Live: the end of the recording running on this channel; nil when none runs.
     var recordingEnd: Date? = nil
@@ -778,6 +904,7 @@ struct PlayerControls: View {
             if item.isLive {
                 roundButton("chevron.up", help: "Vorheriger Sender (↑)") { onZap(-1) }
                 roundButton("chevron.down", help: "Nächster Sender (↓)") { onZap(1) }
+                roundButton("list.bullet", help: "Senderliste (L)") { onChannelList() }
                 Divider().frame(height: 20).padding(.horizontal, 4)
             }
             let seekable = !item.isLive || engine.isTimeshift

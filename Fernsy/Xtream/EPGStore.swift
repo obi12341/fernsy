@@ -109,6 +109,16 @@ final class EPGStore {
         Task.detached(priority: .utility) { Self.write(cached, to: file) }
     }
 
+    /// For a visible row: loads the programme, then keeps it fresh until the caller is
+    /// cancelled (the row disappears).
+    func keepFresh(_ channelId: Int, client: XtreamClient?) async {
+        await load(channelId, client: client)
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(Self.recheckInterval))
+            if !Task.isCancelled, needsRefresh(channelId) { await load(channelId, client: client) }
+        }
+    }
+
     /// Whether the channel's programme should be downloaded again (for rows that stay visible).
     func needsRefresh(_ channelId: Int) -> Bool {
         !Self.isFresh(guide(channelId))

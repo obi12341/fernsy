@@ -217,16 +217,7 @@ struct ChannelRow: View {
         .opacity(hidden ? 0.42 : 1)
         .frame(minHeight: 50)
         .padding(.vertical, 2)
-        .task(id: channel.id) {
-            await app.epg.load(channel.id, client: app.client)
-            // While the row stays visible its programme stays fresh; the task ends with the row.
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(EPGStore.recheckInterval))
-                if !Task.isCancelled, app.epg.needsRefresh(channel.id) {
-                    await app.epg.load(channel.id, client: app.client)
-                }
-            }
-        }
+        .task(id: channel.id) { await app.epg.keepFresh(channel.id, client: app.client) }
     }
 
     @ViewBuilder
