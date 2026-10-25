@@ -30,8 +30,8 @@
 
 ## 4. Checkpoint 3 and wrap-up
 
-- [ ] 4.1 A nightly from this branch is not possible (nightly = main). Build a signed test DMG for the user locally with the Apple Development identity (`build-dmg.sh`; its smoke test launches the app for a moment, so only while the user's Fernsy is closed). The user tests: Jellyfin direct and transcode (including a Dolby Vision title), sleep/wake, AirPods/output change, a long live session. Keep this task open until the user confirms.
-- [ ] 4.2 `openspec validate renderer-receiver-api --strict` and `openspec validate --specs --strict`.
+- [x] 4.1 A nightly from this branch is not possible (nightly = main). Build a signed test DMG for the user locally with the Apple Development identity (`build-dmg.sh`; its smoke test launches the app for a moment, so only while the user's Fernsy is closed). The user tests: Jellyfin direct and transcode (including a Dolby Vision title), sleep/wake, AirPods/output change, a long live session. Keep this task open until the user confirms.
+- [x] 4.2 `openspec validate renderer-receiver-api --strict` and `openspec validate --specs --strict`.
 
 ## Workflow follow-up
 
