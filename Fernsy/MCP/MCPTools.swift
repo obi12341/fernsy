@@ -68,6 +68,15 @@ final class MCPTools {
             "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>"],
         ], required: ["item_id"], readOnly: true),
         tool("stop_playback", "Stop playback and close the player.", [:], readOnly: false),
+        tool("pause", "Pause what plays (live TV keeps receiving and continues behind live).", [:], readOnly: false),
+        tool("resume", "Resume paused playback.", [:], readOnly: false),
+        tool("seek", "Seek in what plays. Pass exactly one target. Live TV can only be rewound within its buffer (see now_playing's rewind fields).", [
+            "by_seconds": ["type": "number", "description": "Relative jump, negative = back"],
+            "to_position": ["type": "string", "description": "Seconds or h:mm:ss within a film, episode, Jellyfin item or recording"],
+            "to_time": ["type": "string", "format": "date-time", "description": "Clock time within the live buffer"],
+            "to_show_start": ["type": "boolean", "description": "Start of the current live show, as far as the buffer reaches"],
+            "to_live": ["type": "boolean", "description": "Back to the live edge"],
+        ], readOnly: false),
         tool("get_log", "Fernsy's event log (redacted: no credentials or tokens), oldest first. Use it to explain errors, stutter, reconnects or failed recordings.", [
             "level": ["type": "string", "enum": ["error", "warning", "info", "detail"], "description": "Minimum level (default info)"],
             "category": ["type": "string", "enum": LogCategory.allCases.map(\.rawValue)],
@@ -102,6 +111,9 @@ final class MCPTools {
         case "now_playing": return nowPlaying()
         case "item_info": return try await itemInfo(args)
         case "get_log": return getLog(args)
+        case "pause": return try await setPaused(true)
+        case "resume": return try await setPaused(false)
+        case "seek": return try await seek(args)
         case "playback_diagnostics": return playbackDiagnostics()
         case "stop_playback": return stopPlayback()
         default: throw ToolError("Unknown tool \(name)")
@@ -385,6 +397,21 @@ final class MCPTools {
             if item.isLive {
                 value["follows_live"] = progress.followsLive
                 if !progress.followsLive { value["behind_live_seconds"] = Int(progress.behindLive) }
+                value["timeshift"] = engine.isTimeshift
+                if engine.isTimeshift {
+                    let rewind = max(0, progress.position - progress.liveStart)
+                    value["rewind_available_seconds"] = Int(rewind)
+                    value["rewind_available"] = Self.clock(rewind)
+                    value["buffer_seconds"] = Int(max(0, progress.liveEnd - progress.liveStart))
+                    value["buffer_limit_minutes"] = UserDefaults.standard.integer(forKey: AppModel.timeshiftMinutesKey)
+                    if let wall = engine.wallTime(of: progress.position) ?? progress.wallClock {
+                        let bufferStart = engine.wallTime(of: progress.liveStart) ?? wall.addingTimeInterval(-rewind)
+                        value["buffer_starts_at"] = Self.iso(bufferStart)
+                        if case .live(let id, _) = item.kind, let show = entries(id).first(where: { $0.start <= wall && $0.end > wall }) {
+                            value["show_start_in_buffer"] = show.start >= bufferStart
+                        }
+                    }
+                }
             } else if progress.duration > 0 {
                 value.merge(Self.timing(position: progress.position, duration: progress.duration, running: engine.status == .playing)) { $1 }
             } else {
@@ -477,6 +504,80 @@ final class MCPTools {
             throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
         }
         return value
+    }
+
+    // MARK: Player control
+
+    private func playingEngine() throws -> PlayerEngine {
+        guard app.nowPlaying != nil, let engine = app.playerEngine else { throw ToolError("Nothing is playing.") }
+        return engine
+    }
+
+    /// `now_playing` once the player has settled (left buffering, at most 1.5 s).
+    private func settled(_ extra: [String: Any] = [:]) async -> [String: Any] {
+        for _ in 0..<15 {
+            if let engine = app.playerEngine, engine.status != .buffering, engine.status != .loading { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return nowPlaying().merging(extra) { $1 }
+    }
+
+    private func setPaused(_ paused: Bool) async throws -> [String: Any] {
+        let engine = try playingEngine()
+        engine.setPaused(paused)
+        AppLog.info(.mcp, paused ? "paused" : "resumed")
+        return await settled()
+    }
+
+    private func seek(_ args: [String: Any]) async throws -> [String: Any] {
+        let engine = try playingEngine()
+        let targets = ["by_seconds", "to_position", "to_time", "to_show_start", "to_live"].filter { args[$0] != nil && args[$0] as? Bool != false }
+        guard targets.count == 1 else { throw ToolError("Pass exactly one of by_seconds, to_position, to_time, to_show_start, to_live.") }
+        let progress = engine.progress
+        let isLive = app.nowPlaying?.isLive == true
+        if isLive && !engine.isTimeshift { throw ToolError("This channel plays without timeshift and cannot be rewound.") }
+        let requested: Double
+        switch targets[0] {
+        case "by_seconds":
+            guard let delta = (args["by_seconds"] as? NSNumber)?.doubleValue else { throw ToolError("by_seconds must be a number") }
+            requested = progress.position + delta
+            engine.seek(by: delta)
+        case "to_position":
+            guard !isLive else { throw ToolError("Live TV has no position; use by_seconds, to_time or to_show_start.") }
+            let text = (args["to_position"] as? String) ?? (args["to_position"] as? NSNumber)?.stringValue ?? ""
+            guard let target = Double(text) ?? Self.seconds(text) else { throw ToolError("to_position must be seconds or h:mm:ss") }
+            requested = target
+            engine.seek(to: target)
+        case "to_live":
+            guard isLive else { throw ToolError("Only live TV has a live edge.") }
+            engine.goLive()
+            AppLog.info(.mcp, "seek to live")
+            return await settled()
+        default:
+            guard isLive, let wall = engine.wallTime(of: progress.position) ?? progress.wallClock else {
+                throw ToolError("to_time and to_show_start work for live TV with timeshift.")
+            }
+            let targetTime: Date
+            if targets[0] == "to_time" {
+                guard let text = args["to_time"] as? String else { throw ToolError("to_time must be an ISO 8601 time") }
+                targetTime = try Self.date(text)
+            } else {
+                guard case .live(let id, _)? = app.nowPlaying?.kind,
+                      let show = entries(id).first(where: { $0.start <= wall && $0.end > wall }) else { throw ToolError("No program data for the current show.") }
+                targetTime = show.start
+            }
+            let delta = targetTime.timeIntervalSince(wall)
+            requested = progress.position + delta
+            engine.seek(by: delta)
+        }
+        AppLog.info(.mcp, "seek \(targets[0])")
+        let result = await settled()
+        let reached = engine.progress.position
+        guard abs(reached - requested) > 2 else { return result }
+        let reason = isLive
+            ? (requested < reached ? "The buffer only reaches back to \(result["buffer_starts_at"] as? String ?? "its start")." : "Seeking forward stops at the live edge.")
+            : (requested < reached ? "The start is at 0:00:00." : "The end is at \(Self.clock(engine.progress.duration)).")
+        return result.merging(["limited": true, "limit_reason": reason]) { $1 }
     }
 
     // MARK: Diagnostics
