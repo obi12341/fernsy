@@ -20,7 +20,9 @@ final class MCPTools {
         time zone. Find channel ids with find_channels; shows have a show_id ("<channel>:<start \
         epoch>") that schedule_recording takes. The guide is loaded per channel, so search_program \
         searches favourites and recently watched channels unless you pass channel_ids (at most 50). \
-        Recordings follow the account's stream limit: a refused result explains why.
+        Recordings follow the account's stream limit: a refused result explains why. After a \
+        Jellyfin episode ends, now_playing names the next one and when it starts by itself; \
+        item_info and list_episodes give episode ids to play.
         """
 
     nonisolated static let channelLimit = FernsyActions.channelLimit
@@ -64,9 +66,13 @@ final class MCPTools {
             "item_id": ["type": "string"],
         ], required: ["item_id"], readOnly: false),
         tool("now_playing", "What Fernsy's player plays right now, with position, duration, remaining time, end time and paused state; for live TV how far behind live and the current show.", [:], readOnly: true),
-        tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode.", [
+        tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode, and for Jellyfin episodes the previous and next episode.", [
             "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>"],
         ], required: ["item_id"], readOnly: true),
+        tool("list_episodes", "Seasons of a Jellyfin series, or the episodes of one season with item ids, runtime and watched state.", [
+            "series_id": ["type": "string", "description": "jellyfin:<series id>, or an episode's jellyfin:<item id>"],
+            "season": ["type": "integer", "description": "Season number (0 = specials); without it the seasons are listed"],
+        ], required: ["series_id"], readOnly: true),
         tool("stop_playback", "Stop playback and close the player.", [:], readOnly: false),
         tool("pause", "Pause what plays (live TV keeps receiving and continues behind live).", [:], readOnly: false),
         tool("resume", "Resume paused playback.", [:], readOnly: false),
@@ -110,6 +116,7 @@ final class MCPTools {
         case "play": return try await play(args)
         case "now_playing": return nowPlaying()
         case "item_info": return try await itemInfo(args)
+        case "list_episodes": return try await listEpisodes(args)
         case "get_log": return getLog(args)
         case "pause": return try await setPaused(true)
         case "resume": return try await setPaused(false)
@@ -394,6 +401,12 @@ final class MCPTools {
             case .idle: "idle"
             case .failed(let message): "failed: \(message)"
             }
+            if engine.status == .ended, let playback = app.jellyfinPlayback, let next = playback.nextEpisode {
+                var upcoming = neighbourJSON(next, prefix: "next").reduce(into: [String: Any]()) { $0[String($1.key.dropFirst(5))] = $1.value }
+                if let at = playback.autoplayAt { upcoming["starts_in_seconds"] = max(0, Int(at.timeIntervalSinceNow.rounded(.up))) }
+                else if playback.autoplayCancelled { upcoming["autoplay_cancelled"] = true }
+                value["next"] = upcoming
+            }
             if item.isLive {
                 value["follows_live"] = progress.followsLive
                 if !progress.followsLive { value["behind_live_seconds"] = Int(progress.behindLive) }
@@ -491,6 +504,16 @@ final class MCPTools {
             if let episode = item.indexNumber { value["episode"] = episode }
             if let year = item.productionYear { value["year"] = year }
             if let plot = item.overview, !plot.isEmpty { value["plot"] = plot }
+            if item.type == "Episode", let seriesId = item.seriesId {
+                let episodes = try await seriesEpisodes(seriesId)
+                // Specials only neighbour specials; regular episodes skip season 0.
+                let isSpecial = item.parentIndexNumber == 0
+                let run = episodes.filter { ($0.parentIndexNumber == 0) == isSpecial }
+                if let index = run.firstIndex(where: { $0.id == item.id }) {
+                    if index > 0 { value.merge(neighbourJSON(run[index - 1], prefix: "previous")) { $1 } }
+                    if index + 1 < run.count { value.merge(neighbourJSON(run[index + 1], prefix: "next")) { $1 } }
+                }
+            }
         case ("recording", 2):
             guard let id = UUID(uuidString: parts[1]), let recording = app.recorder.recordings.first(where: { $0.id == id }) else {
                 throw ToolError("No recording with this id")
@@ -502,6 +525,57 @@ final class MCPTools {
                                      position: app.resumePosition("recording.\(id.uuidString)"))) { $1 }
         default:
             throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
+        }
+        return value
+    }
+
+    /// A series' episodes ordered by season and episode number.
+    private func seriesEpisodes(_ seriesId: String) async throws -> [JFItem] {
+        let episodes = try await app.jellyfin.call { try await $0.seriesEpisodes(userId: $1, seriesId: seriesId) }
+        return episodes.sorted { ($0.parentIndexNumber ?? 0, $0.indexNumber ?? 0) < ($1.parentIndexNumber ?? 0, $1.indexNumber ?? 0) }
+    }
+
+    private func neighbourJSON(_ item: JFItem, prefix: String) -> [String: Any] {
+        var value: [String: Any] = ["\(prefix)_item_id": "jellyfin:\(item.id)", "\(prefix)_title": item.name]
+        if let season = item.parentIndexNumber { value["\(prefix)_season"] = season }
+        if let episode = item.indexNumber { value["\(prefix)_episode"] = episode }
+        return value
+    }
+
+    private func listEpisodes(_ args: [String: Any]) async throws -> [String: Any] {
+        guard let raw = args["series_id"] as? String, !raw.isEmpty else { throw ToolError("series_id is required") }
+        let parts = raw.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 ? parts[0] == "jellyfin" : true else {
+            throw ToolError("list_episodes is only available for Jellyfin series (jellyfin:<id>).")
+        }
+        guard app.hasJellyfin else { throw ToolError("No Jellyfin account") }
+        let id = parts.last!
+        let item = try await app.jellyfin.call { try await $0.item(userId: $1, id: id) }
+        let seriesId: String
+        switch item.type {
+        case "Series": seriesId = item.id
+        case "Episode", "Season": guard let series = item.seriesId else { fallthrough }; seriesId = series
+        default: throw ToolError("\(item.name) is not a series or an episode")
+        }
+        let episodes = try await seriesEpisodes(seriesId)
+        var value: [String: Any] = ["series_id": "jellyfin:\(seriesId)", "series": item.seriesName ?? item.name]
+        if let season = (args["season"] as? NSNumber)?.intValue {
+            let list = episodes.filter { $0.parentIndexNumber == season }
+            guard !list.isEmpty else { throw ToolError("No season \(season) in \(item.seriesName ?? item.name)") }
+            value["season"] = season
+            value["episodes"] = list.map { episode -> [String: Any] in
+                var entry = jellyfinJSON(episode)
+                entry["title"] = episode.name
+                if let number = episode.indexNumber { entry["episode"] = number }
+                entry["played"] = episode.userData?.played ?? false
+                return entry
+            }
+        } else {
+            let seasons = Dictionary(grouping: episodes) { $0.parentIndexNumber ?? 0 }
+            value["seasons"] = seasons.keys.sorted().map { number -> [String: Any] in
+                let list = seasons[number] ?? []
+                return ["season": number, "episodes": list.count, "played": list.filter { $0.userData?.played == true }.count]
+            }
         }
         return value
     }

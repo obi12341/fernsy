@@ -202,6 +202,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var playerTuner: LiveTuner?
     /// The player window's engine while it is open (position and state for MCP `now_playing`).
     weak var playerEngine: PlayerEngine?
+    /// The Jellyfin item that plays, for MCP (next episode and its countdown).
+    weak var jellyfinPlayback: JellyfinPlayback?
 
     let epg = EPGStore()
     let tuners = TunerPool()

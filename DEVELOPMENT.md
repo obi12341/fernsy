@@ -286,7 +286,14 @@ weak, set by `PlayerScreen`) for position, duration, remaining time and state; `
 `get_log` and `playback_diagnostics` read the redacted event log (`AppLog.query`) and the player's
 `PlaybackStats`; the log leaves the app only through this local server, when it is on.
 `pause`, `resume` and `seek` drive the open player's `PlayerEngine` with the app's own limits;
-`now_playing` reports the timeshift range of a live channel (`rewind_available_seconds`, `buffer_starts_at`). Debug builds keep
+`now_playing` reports the timeshift range of a live channel (`rewind_available_seconds`, `buffer_starts_at`).
+After a Jellyfin episode `now_playing` names the `next` one and its countdown (`starts_in_seconds`,
+owned by `JellyfinPlayback.autoplayAt`, reached through the weak `AppModel.jellyfinPlayback`);
+`item_info` adds `previous_*`/`next_*` neighbours and `list_episodes` lists seasons or one season's
+episodes (both from `Shows/{id}/Episodes`, specials only next to specials). The end of a Jellyfin
+item is reported as a stop right away (`JellyfinPlayback.reportEnd`), so Next Up moves on while
+the countdown runs; `JF_TESTCANCELNEXT=1` cancels the countdown at the end. A changed tool list
+reaches Claude Desktop only after the extension is installed again. Debug builds keep
 everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
 token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
 "Zu Claude Desktop hinzufügen …" builds a desktop extension (`MCPDesktopExtension`, `.mcpb`

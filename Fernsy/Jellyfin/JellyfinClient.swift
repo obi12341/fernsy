@@ -285,6 +285,12 @@ struct JellyfinClient {
         return String(decoding: data, as: UTF8.self)
     }
 
+    /// Every episode of a series, all seasons and specials (for neighbours and episode lists).
+    func seriesEpisodes(userId: String, seriesId: String) async throws -> [JFItem] {
+        let page: JFItemsPage = try await get("Shows/\(seriesId)/Episodes", ["userId": userId, "fields": "PremiereDate"])
+        return page.items
+    }
+
     /// The episode after `episodeId` in the series' order, if any.
     func nextEpisode(userId: String, seriesId: String, after episodeId: String) async throws -> JFItem? {
         let page: JFItemsPage = try await get("Shows/\(seriesId)/Episodes", ["userId": userId, "startItemId": episodeId, "limit": "2"])

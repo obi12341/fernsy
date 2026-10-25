@@ -10,8 +10,14 @@ final class JellyfinPlayback: ObservableObject {
     enum Method { case direct, transcode }
 
     let item: JFItem
-    @Published private(set) var nextEpisode: JFItem?
+    @Published private(set) var nextEpisode: JFItem? {
+        didSet { startAutoplayIfDue() }
+    }
+    /// When the next episode starts after the end (the countdown), nil while none runs.
+    @Published private(set) var autoplayAt: Date?
+    @Published private(set) var autoplayCancelled = false
     private(set) var method: Method = .direct
+    static let autoplayDelay: TimeInterval = 10
 
     private let store: JellyfinStore
     private let engine: PlayerEngine
@@ -24,6 +30,8 @@ final class JellyfinPlayback: ObservableObject {
     /// Text subtitles fetched from the server, kept for stream restarts.
     private var loadedCues: (index: Int, cues: [SubtitleCue])?
     private var reportedStart = false
+    /// The end was reported as a stop; closing the player does not report again.
+    private var endReported = false
     private var stopped = false
     private var timer: Timer?
     private var observers: Set<AnyCancellable> = []
@@ -123,9 +131,10 @@ final class JellyfinPlayback: ObservableObject {
         stopped = true
         timer?.invalidate()
         observers.removeAll()
-        let ended = engine.status == .ended
-        let position = ended ? (duration ?? engine.progress.position) : engine.progress.position
-        report(.stopped, position: position)
+        if !endReported {
+            let ended = engine.status == .ended
+            report(.stopped, position: ended ? (duration ?? engine.progress.position) : engine.progress.position)
+        }
         if method == .transcode {
             let session = playSessionId, store = store
             Task { try? await store.call { client, _ in try await client.stopTranscode(playSessionId: session) } }
@@ -329,11 +338,49 @@ final class JellyfinPlayback: ObservableObject {
                 self.reportedStart = true
                 self.report(.start)
                 self.startTimer()
+            } else if status == .ended {
+                self.reportEnd()
+            } else if status == .playing && self.endReported {
+                // Played on after the end (seeked back): a new play session on the server.
+                self.endReported = false
+                self.autoplayAt = nil
+                self.autoplayCancelled = false
+                self.report(.start)
+                AppLog.detail(.jellyfin, "playing again after the end")
             }
         }.store(in: &observers)
         engine.$isPaused.removeDuplicates().dropFirst().sink { [weak self] _ in
             self?.report(.progress)
         }.store(in: &observers)
+    }
+
+    /// The item played to its end: the server learns it now (played mark, Next Up), not only
+    /// when the player closes, and the countdown to the next episode starts.
+    private func reportEnd() {
+        guard reportedStart, !endReported else { return }
+        endReported = true
+        report(.stopped, position: duration ?? engine.progress.position)
+        AppLog.info(.jellyfin, "ended: stop reported at the end")
+        startAutoplayIfDue()
+        #if DEBUG
+        // JF_TESTCANCELNEXT=1: the user cancels the countdown right away.
+        if ProcessInfo.processInfo.environment["JF_TESTCANCELNEXT"] == "1" { cancelAutoplay() }
+        #endif
+        let store = store, id = item.id
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            await store.refreshAfterPlayback(id)
+        }
+    }
+
+    private func startAutoplayIfDue() {
+        guard endReported, nextEpisode != nil, autoplayAt == nil, !autoplayCancelled else { return }
+        autoplayAt = Date().addingTimeInterval(Self.autoplayDelay)
+    }
+
+    func cancelAutoplay() {
+        autoplayCancelled = true
+        autoplayAt = nil
     }
 
     private func startTimer() {
