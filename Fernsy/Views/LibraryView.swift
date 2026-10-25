@@ -84,7 +84,10 @@ struct LibraryView: View {
             path = NavigationPath()
             search.setQuery(new)
         }
-        .onAppear { search.attach(app: app, jellyfin: jellyfin, recorder: recorder) }
+        .onAppear {
+            search.attach(app: app, jellyfin: jellyfin, recorder: recorder)
+            PlayerWindow.openWindow = openWindow
+        }
         .onChange(of: section) { _, new in if new != .live { editingLive = false } }
         // Signing in or out of one account: stay on a section that still exists.
         .onChange(of: availableSections, initial: true) { _, available in

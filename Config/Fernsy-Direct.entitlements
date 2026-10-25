@@ -8,6 +8,8 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
 	<!-- Sparkle's installer XPC services (Fernsy Direct only; the App Store build has none). -->
