@@ -22,7 +22,7 @@
 ## 4. Verification
 
 - [ ] 4.1 This change's own commits carry trailers where they make sense; the workflow itself is internal, so there is none for it. Push, run a nightly (`gh workflow run`), and check that its GitHub text and appcast look right.
-- [ ] 4.2 Edit the 1.1.1 release text by hand (`gh release edit v1.1.1`) with the user-visible points.
+- [x] 4.2 Edit the 1.1.1 release text by hand (`gh release edit v1.1.1`) with the user-visible points.
 - [x] 4.3 `openspec validate release-notes-from-commits --strict` and `openspec validate --specs --strict`.
 
 ## Workflow follow-up
