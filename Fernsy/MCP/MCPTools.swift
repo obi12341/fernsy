@@ -11,6 +11,7 @@ final class MCPTools {
     }
 
     private unowned let app: AppModel
+    private var actions: FernsyActions { FernsyActions(app: app) }
 
     init(app: AppModel) { self.app = app }
 
@@ -22,8 +23,7 @@ final class MCPTools {
         Recordings follow the account's stream limit: a refused result explains why.
         """
 
-    /// Upper bound for one search or listing over channels.
-    static let channelLimit = 50
+    nonisolated static let channelLimit = FernsyActions.channelLimit
 
     // MARK: Definitions
 
@@ -95,11 +95,10 @@ final class MCPTools {
 
     // MARK: Channels and guide
 
-    /// Channels the app shows: hidden ones and adult content (per Settings) left out.
-    private var visibleChannels: [LiveChannel] { app.filteredChannels(categoryID: allCategoryID, query: "") }
+    private var visibleChannels: [LiveChannel] { actions.visibleChannels }
 
     private func visibleChannel(_ id: Int) throws -> LiveChannel {
-        guard let channel = visibleChannels.first(where: { $0.id == id }) else { throw ToolError("No visible channel with id \(id)") }
+        guard let channel = actions.visibleChannel(id) else { throw ToolError("No visible channel with id \(id)") }
         return channel
     }
 
@@ -132,24 +131,9 @@ final class MCPTools {
         return value
     }
 
-    /// Loads the guides (cache first), waiting at most `timeout` seconds; slower channels keep
-    /// what they have (the quick now/next answer, or nothing).
-    private func loadGuides(_ ids: [Int], timeout: TimeInterval = 20) async {
-        guard let client = app.client else { return }
-        let epg = app.epg
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                await withTaskGroup(of: Void.self) { loads in
-                    for id in ids { loads.addTask { @MainActor in await epg.load(id, client: client) } }
-                }
-            }
-            group.addTask { try? await Task.sleep(for: .seconds(timeout)) }
-            await group.next()
-            group.cancelAll()
-        }
-    }
+    private func loadGuides(_ ids: [Int], timeout: TimeInterval = 20) async { await actions.loadGuides(ids, timeout: timeout) }
 
-    private func entries(_ channelId: Int) -> [EPGEntry] { app.epg.guide(channelId).entries ?? [] }
+    private func entries(_ channelId: Int) -> [EPGEntry] { actions.entries(channelId) }
 
     private func showJSON(_ entry: EPGEntry, on channel: LiveChannel) -> [String: Any] {
         var value: [String: Any] = [
@@ -170,23 +154,20 @@ final class MCPTools {
             let visible = Dictionary(uniqueKeysWithValues: visibleChannels.map { ($0.id, $0) })
             return Array(ids.compactMap { visible[$0] }.prefix(Self.channelLimit))
         }
-        var seen = Set<Int>()
-        let list = (app.filteredChannels(categoryID: favoriteChannelsID, query: "") + app.filteredChannels(categoryID: recentChannelsID, query: ""))
-            .filter { seen.insert($0.id).inserted }
+        let list = actions.favoritesAndRecent()
         guard !list.isEmpty else { throw ToolError("No favourite or recently watched channels; pass channel_ids (see find_channels).") }
-        return Array(list.prefix(Self.channelLimit))
+        return list
     }
 
     private func whatsOn(_ args: [String: Any]) async throws -> [String: Any] {
         let channels = try scope(args)
         await loadGuides(channels.map(\.id))
-        let now = Date()
         return ["channels": channels.map { channel -> [String: Any] in
-            let list = entries(channel.id).filter { $0.end > now }.sorted { $0.start < $1.start }
+            let (current, next) = actions.nowAndNext(channel.id)
             var value = channelJSON(channel)
-            if let current = list.first(where: { $0.start <= now }) { value["now"] = showJSON(current, on: channel) }
-            if let next = list.first(where: { $0.start > now }) { value["next"] = showJSON(next, on: channel) }
-            if list.isEmpty { value["note"] = "No program data" }
+            if let current { value["now"] = showJSON(current, on: channel) }
+            if let next { value["next"] = showJSON(next, on: channel) }
+            if current == nil && next == nil { value["note"] = "No program data" }
             return value
         }]
     }
@@ -208,22 +189,14 @@ final class MCPTools {
     }
 
     private func searchProgram(_ args: [String: Any]) async throws -> [String: Any] {
-        let needle = makeSearchKey((args["query"] as? String ?? "").trimmingCharacters(in: .whitespaces))
-        guard !needle.isEmpty else { throw ToolError("query is required") }
+        let query = args["query"] as? String ?? ""
+        guard !makeSearchKey(query.trimmingCharacters(in: .whitespaces)).isEmpty else { throw ToolError("query is required") }
         let channels = try scope(args)
         let from = try (args["from"] as? String).map(Self.date) ?? Date()
         let to = try (args["to"] as? String).map(Self.date) ?? .distantFuture
-        await loadGuides(channels.map(\.id), timeout: 30)
-        var hits: [(EPGEntry, LiveChannel)] = []
-        for channel in channels {
-            for entry in entries(channel.id) where entry.end > from && entry.start < to
-                && (makeSearchKey(entry.title).contains(needle) || makeSearchKey(entry.description).contains(needle)) {
-                hits.append((entry, channel))
-            }
-        }
-        hits.sort { $0.0.start < $1.0.start }
+        let hits = await actions.searchGuide(query, on: channels, from: from, to: to)
         return ["searched_channels": channels.map { ["id": $0.id, "name": $0.displayName] },
-                "shows": hits.prefix(100).map { showJSON($0.0, on: $0.1) }]
+                "shows": hits.prefix(100).map { showJSON($0.entry, on: $0.channel) }]
     }
 
     // MARK: History
@@ -303,11 +276,10 @@ final class MCPTools {
             throw ToolError("No show on \(channel.displayName) starts at \(Self.iso(start)); check get_program.")
         }
         guard entry.end > Date() else { throw ToolError("„\(entry.title)“ has already ended.") }
-        switch app.recorder.schedule(entry, on: channel) {
+        switch actions.schedule(entry, on: channel) {
         case .refused(let reason):
             return ["result": "refused", "reason": reason]
-        case .planned(let notice):
-            let recording = app.recorder.recordings.first { $0.matches(channelId: channelId, entry: entry) && $0.isUpcomingOrRunning }
+        case .planned(let recording, let notice):
             var value: [String: Any] = ["result": notice == nil ? "planned" : "planned_with_shortened_padding"]
             if let notice { value["notice"] = notice }
             if let recording { value["recording"] = recordingJSON(recording) }
@@ -335,12 +307,10 @@ final class MCPTools {
         case ("live", 2):
             guard let id = Int(parts[1]) else { throw ToolError("Bad channel id") }
             let channel = try visibleChannel(id)
-            let blocking = app.recordingsBlocking(id)
-            if let first = blocking.first {
+            if case .blocked(let first) = actions.playChannel(channel) {
                 return ["result": "blocked",
                         "reason": "„\(first.title)“ is being recorded on \(first.channelName) and the account allows \(app.tuners.limit) stream(s). Playing \(channel.displayName) would end that recording; nothing was changed."]
             }
-            app.play(channel)
         case ("movie", 2):
             guard app.showsIPTVMovies, let id = Int(parts[1]), let movie = app.movies.first(where: { $0.id == id }) else { throw ToolError("No IPTV film with this id") }
             app.play(movie)
@@ -386,9 +356,7 @@ final class MCPTools {
     }
 
     private func stopPlayback() -> [String: Any] {
-        guard app.nowPlaying != nil else { return ["result": "nothing_playing"] }
-        app.nowPlaying = nil
-        PlayerWindow.close()
+        guard actions.stopPlayback() else { return ["result": "nothing_playing"] }
         AppLog.info(.mcp, "stopped playback")
         return ["result": "stopped"]
     }
