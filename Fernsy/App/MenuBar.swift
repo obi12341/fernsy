@@ -129,7 +129,9 @@ enum MenuBarSupport {
         startWithoutWindowUntil = nil
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
-        if let existing = NSApp.windows.first(where: {
+        if let hidden = LibraryWindows.takeHidden() {
+            hidden.makeKeyAndOrderFront(nil)
+        } else if let existing = NSApp.windows.first(where: {
             $0.identifier?.rawValue.hasPrefix("library") == true && $0.canBecomeMain && ($0.isVisible || $0.isMiniaturized)
         }) {
             existing.deminiaturize(nil)
