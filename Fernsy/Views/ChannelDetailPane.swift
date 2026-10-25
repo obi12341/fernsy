@@ -226,6 +226,9 @@ struct ChannelMenu: View {
             app.toggleFavorite("live:\(channel.id)")
         }
         .keyboardShortcut("d", modifiers: .command)
+        if app.recentChannels.contains(channel.id) {
+            Button("Aus „Zuletzt gesehen“ entfernen") { app.removeRecent(channel.id) }
+        }
         if let running = recorder.active(on: channel.id) {
             Divider()
             Button("Aufnahme beenden") { recorder.stop(running.id) }
