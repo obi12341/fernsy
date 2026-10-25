@@ -135,6 +135,7 @@ struct PlayerScreen: View {
         .navigationTitle(app.nowPlaying?.title ?? "Wiedergabe")
         .onAppear {
             app.playerEngine = engine
+            PlayerWindow.appeared()
             setUpPictureInPicture()
             load(app.nowPlaying)
             showControls()

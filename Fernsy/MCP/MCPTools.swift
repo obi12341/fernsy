@@ -683,10 +683,39 @@ enum PlayerWindow {
         NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("player") == true }
     }
 
+    /// A player window opened by `show` comes to the front once it appears (`appeared()`).
+    private static var pendingFront = false
+
+    /// Playback started from outside Fernsy (MCP, Siri): the player comes in front of every
+    /// window without activating Fernsy, so the user's app keeps keyboard focus. A new window of
+    /// a background app would otherwise open behind the active app's windows.
     static func show(_ app: AppModel) {
-        guard !app.isPictureInPictureActive, window?.isVisible != true else { return }
+        guard !app.isPictureInPictureActive else { return }
         NSApp.setActivationPolicy(.regular)
+        if let window, window.isVisible || window.isMiniaturized {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            orderFront()
+            AppLog.detail(.app, "player window brought to the front")
+            return
+        }
+        pendingFront = true
         open("player")
+    }
+
+    /// Called by the player when its window appears.
+    static func appeared() {
+        guard pendingFront else { return }
+        pendingFront = false
+        orderFront()
+        AppLog.detail(.app, "new player window brought to the front")
+    }
+
+    /// SwiftUI orders a new window in after onAppear, and starting playback reorders an existing
+    /// one; a single call is undone by that, so it repeats briefly.
+    private static func orderFront() {
+        for delay in [0, 0.15, 0.4] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { window?.orderFrontRegardless() }
+        }
     }
 
     static func close() {
