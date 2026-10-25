@@ -50,17 +50,32 @@ count (`git rev-list --count`); neither is written back to the project.
   Only when both work does it publish the release "Fernsy X.Y" with `Fernsy.dmg` and
   `Fernsy-X.Y.dmg`. Submitting for review stays a manual step in App Store Connect. A release
   created by hand in the GitHub web interface keeps its text and gets the DMGs attached.
-  Otherwise `RELEASE_NOTES.md`, if present, becomes the release text. The website's download
-  button links to `releases/latest/download/Fernsy.dmg`.
+  Otherwise the release text comes from the commits (see "Release notes" below). The website's
+  download button links to `releases/latest/download/Fernsy.dmg`.
 - **Nightly.** Every night at 02:00 UTC, if main changed, it builds the notarized DMG. It
   replaces the single pre-release "Nightly" (tag `nightly`) with `Fernsy-Nightly.dmg`. A
   nightly has no release version: it is `nightly-<commit date>` with the commit count as build
-  number, and the text lists the changes since the last release. Nightlies
+  number, and the text lists the release notes and all commits since the last release. Nightlies
   are the same app (bundle ID, data) and install over Fernsy. Pre-releases never become
   "latest".
 - **Manual runs:**
   - `gh workflow run release.yml` builds a nightly now;
   - `-f channel=appstore-test` archives and exports the App Store build without uploading it.
+
+**Release notes.** A commit with a change users notice ends with one sentence per language
+as trailers, next to `Co-Authored-By`:
+
+```
+Release-Note-de: Aufnahmen lassen sich während einer Aufnahme wieder öffnen.
+Release-Note-en: Recordings open again while a recording runs.
+```
+
+Internal commits (task marks, archives, CI, refactoring, specs) carry none. A commit may carry
+several pairs. `scripts/release-notes.sh` collects them since the previous release tag (for a
+nightly: since the last one), oldest first, without duplicates. They become the German and
+English sections of the release text and Sparkle's update notes in both languages
+(`scripts/appcast-notes.py`). If a release range has no trailers, the run shows a warning and
+uses the commit subjects instead, without "Mark …", "Archive …" and merges.
 
 The DMG steps are:
 1. build LGPL FFmpeg, cached;

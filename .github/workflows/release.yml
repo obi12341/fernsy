@@ -203,6 +203,14 @@ jobs:
             cp "$DMG" "out/Fernsy-$VERSION.dmg"
           fi
 
+      # Release notes from the Release-Note-de/-en commit trailers (scripts/release-notes.sh);
+      # they travel to the publish job in the artifact.
+      - name: Release notes
+        env:
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: scripts/release-notes.sh "$CHANNEL" "$SHA" out/notes
+
       # Sparkle feed for the in-app updater of the DMG build. generate_appcast only signs the
       # DMG when the app's SUPublicEDKey matches the private key, which is checked here.
       - name: Appcast
@@ -222,24 +230,21 @@ jobs:
           mkdir -p "$RUNNER_TEMP/sparkle" && tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
           if [ "$CHANNEL" = "nightly" ]; then
             TAG=nightly; NAME=Fernsy-Nightly.dmg
-            SINCE=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA" 2>/dev/null || true)
           else
             TAG="$GITHUB_REF_NAME"; NAME="Fernsy-$VERSION.dmg"
-            SINCE=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$SHA^" 2>/dev/null || true)
           fi
           FEED="$RUNNER_TEMP/feed"
           mkdir -p "$FEED"
           cp "out/$NAME" "$FEED/"
-          # Short notes for Sparkle's window; the full text is on the release page.
-          {
+          # Short notes for Sparkle's window; the full text is on the release page. German goes
+          # through generate_appcast, English is added afterwards (scripts/appcast-notes.py).
+          html() {
             echo "<ul>"
-            if [ "$CHANNEL" = "release" ] && [ -f RELEASE_NOTES.md ]; then
-              grep -E '^[-*] ' RELEASE_NOTES.md | sed -E 's/^[-*] //'
-            else
-              git log --format='%s' "${SINCE:+$SINCE..}$SHA" | head -30
-            fi | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's#.*#<li>&</li>#'
+            head -30 "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's#.*#<li>&</li>#'
             echo "</ul>"
-          } > "$FEED/${NAME%.dmg}.html"
+          }
+          html out/notes/notes-de.txt > "$FEED/${NAME%.dmg}.html"
+          html out/notes/notes-en.txt > "$RUNNER_TEMP/notes-en.html"
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle/bin/generate_appcast" --ed-key-file - \
             --download-url-prefix "https://github.com/obi12341/fernsy/releases/download/$TAG/" \
             --full-release-notes-url "https://github.com/obi12341/fernsy/releases/tag/$TAG" \
@@ -248,6 +253,7 @@ jobs:
             echo "::error::The appcast is unsigned: SUPublicEDKey in the app does not match SPARKLE_ED_PRIVATE_KEY"
             exit 1
           fi
+          python3 scripts/appcast-notes.py out/appcast.xml "$RUNNER_TEMP/notes-en.html"
           grep -o '<sparkle:version>[^<]*\|<sparkle:shortVersionString>[^<]*\|enclosure url="[^"]*"' out/appcast.xml
 
       - uses: actions/upload-artifact@v7
@@ -381,10 +387,19 @@ jobs:
               # Created by hand in the web interface: keep its title and text.
               gh release upload "$TAG" out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" $APPCAST --clobber
             else
-              if [ -f RELEASE_NOTES.md ]; then NOTES=RELEASE_NOTES.md; else
-                NOTES="$RUNNER_TEMP/notes.md"
-                printf 'Fernsy %s for Macs with Apple silicon (macOS 27 or later). Signed with Developer ID and notarized by Apple.\n' "$VERSION" > "$NOTES"
-              fi
+              # Notes from the commit trailers (dmg job, scripts/release-notes.sh).
+              NOTES="$RUNNER_TEMP/notes.md"
+              {
+                echo "## Neu in Fernsy $VERSION"
+                echo
+                sed 's/^/- /' out/notes/notes-de.txt
+                echo
+                echo "## What's new"
+                echo
+                sed 's/^/- /' out/notes/notes-en.txt
+                echo
+                printf 'Fernsy %s for Macs with Apple silicon (macOS 27 or later). Signed with Developer ID and notarized by Apple.\n' "$VERSION"
+              } > "$NOTES"
               gh release create "$TAG" --title "Fernsy $VERSION" --notes-file "$NOTES" --latest \
                 out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" $APPCAST
             fi
@@ -395,6 +410,19 @@ jobs:
               echo "Test build of \`main\` at $(git log -1 --format='%h, %cd' --date=format:'%Y-%m-%d %H:%M UTC' "$SHA")."
               echo "Signed with Developer ID and notarized by Apple. Installs over Fernsy and uses the same data."
               echo
+              # Trailer notes on top when the commits have some; testers also get every commit.
+              if [ ! -f out/notes/notes-de.fallback ] && [ -s out/notes/notes-de.txt ]; then
+                echo "## Neu"
+                echo
+                sed 's/^/- /' out/notes/notes-de.txt
+                echo
+              fi
+              if [ ! -f out/notes/notes-en.fallback ] && [ -s out/notes/notes-en.txt ]; then
+                echo "## What's new"
+                echo
+                sed 's/^/- /' out/notes/notes-en.txt
+                echo
+              fi
               echo "Changes since ${LAST:-the beginning}:"
               echo
               git log --format='- %s (%h)' "${LAST:+$LAST..}$SHA" | head -60

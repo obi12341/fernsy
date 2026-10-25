@@ -19,3 +19,22 @@ This repo uses OpenSpec (`openspec/`) to keep behavior and decisions traceable.
   `openspec/specs/` in sync. Releases (App Store builds, DMGs) are built from `main`.
   Commit, merge and push only when the user agrees.
 - Build, release and debug switches: see README.md.
+
+## Release notes in commits
+
+Release texts and Sparkle's update notes are collected from commit trailers
+(`scripts/release-notes.sh`); there is no manual step at release time.
+
+- A commit with a change users notice (new behavior, a fix they would see) ends with one
+  sentence per language in plain user words, next to `Co-Authored-By`. Both languages are
+  required; several pairs are fine for several points.
+- Internal commits carry none: task marks, archives, CI, refactoring, specs, docs.
+- Example:
+
+  ```
+  Make Recordings selectable in the sidebar while a recording runs
+
+  Release-Note-de: „Aufnahmen“ in der Seitenleiste lässt sich während einer Aufnahme wieder anklicken.
+  Release-Note-en: "Recordings" in the sidebar can be clicked again while a recording runs.
+  Co-Authored-By: …
+  ```
