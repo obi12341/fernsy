@@ -69,18 +69,25 @@ if [ "$SIGN_IDENTITY" != "-" ]; then
 fi
 codesign --verify --deep --strict "$SPARKLE"
 codesign --verify --deep --strict "$APP"
-if [ "$SIGN_IDENTITY" != "-" ] && ! codesign -dv "$APP" 2>&1 | grep -q "flags=.*runtime"; then
+# Read codesign's output first: with pipefail, grep -q can end the pipe early and codesign's
+# SIGPIPE fails the check at random.
+SIGNATURE=$(codesign -dv "$APP" 2>&1)
+ENTITLEMENTS=$(codesign -d --entitlements - "$APP" 2>/dev/null)
+if [ "$SIGN_IDENTITY" != "-" ] && ! grep -q "flags=.*runtime" <<< "$SIGNATURE"; then
     echo "The app is not signed with the hardened runtime"; exit 1
 fi
-if [ "$SIGN_IDENTITY" != "-" ] && codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "get-task-allow"; then
+if [ "$SIGN_IDENTITY" != "-" ] && grep -q "get-task-allow" <<< "$ENTITLEMENTS"; then
     echo "The app still requests com.apple.security.get-task-allow"; exit 1
 fi
 APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")
 
 echo "▸ Smoke test (libraries load from the bundle only)"
-FERNSY_NO_KEYCHAIN=1 DYLD_PRINT_LIBRARIES=1 "$APP/Contents/MacOS/Fernsy" > "$BUILD/launch.log" 2>&1 &
+# The loaded libraries come from lsof: dyld ignores DYLD_PRINT_LIBRARIES in a signed build
+# (hardened runtime without get-task-allow) on a Mac with SIP on.
+FERNSY_NO_KEYCHAIN=1 "$APP/Contents/MacOS/Fernsy" > /dev/null 2>&1 &
 PID=$!
 sleep 3
+lsof -p "$PID" -Fn 2>/dev/null | sed -n 's/^n//p' > "$BUILD/launch.log" || true
 kill "$PID" 2>/dev/null || true
 wait "$PID" 2>/dev/null || true
 if grep -q "/opt/homebrew\|/usr/local\|Vendor/ffmpeg" "$BUILD/launch.log"; then
