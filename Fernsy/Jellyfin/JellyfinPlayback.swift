@@ -25,7 +25,7 @@ final class JellyfinPlayback: ObservableObject {
     private var playSessionId: String?
     /// Jellyfin stream indices of the current choice (nil audio = the player's default).
     private var audioIndex: Int?
-    private var subtitleIndex: Int?
+    private(set) var subtitleIndex: Int?
     private var fellBack = false
     /// Text subtitles fetched from the server, kept for stream restarts.
     private var loadedCues: (index: Int, cues: [SubtitleCue])?
