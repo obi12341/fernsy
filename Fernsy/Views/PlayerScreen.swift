@@ -1112,6 +1112,9 @@ struct StatsOverlay: View {
             row("Reconnects", reconnectText)
             row("Pufferungen", "\(stats.rebuffers)")
             row("Verworfen", String(localized: "\(stats.droppedFrames) Frames") + (stats.duplicatesDropped > 0 ? " · " + String(localized: "\(stats.duplicatesDropped) Duplikate") : ""))
+            if stats.decodeFailures > 0 {
+                row("Decodierfehler", String(localized: "\(stats.decodeFailures) Frames"))
+            }
         }
     }
 

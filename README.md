@@ -247,6 +247,16 @@ picture rendered into the video until its first frame (`IPTV_TESTSWITCH=<s>:<liv
 starts an item the way the main window does, `IPTV_TESTSLOWSTART=<s>` delays every start,
 `IPTV_TESTNOVIDEO=1` treats later items as radio, which ends PiP).
 
+The renderers are fed through their macOS 27 receivers (`Fernsy/Player/RendererSinks.swift`).
+Every enqueue reports when the video decoder needs a flush (after sleep/wake, a display or GPU
+change, or broken data): the player then resumes at the current position from the next key
+frame, and gives up after three recoveries in 30 s. Frames that failed to decode are counted
+in the technical info ("Decodierfehler"). A suggested audio flush (output device changed)
+refills the audio. Test switches:
+- `IPTV_TESTFLUSHREQUIRED=<s>[:<count>]` simulates "needs a flush" s seconds after the first
+  frame, count times, 3 s apart;
+- `IPTV_TESTDECODEFAIL=<n>` reports n failed frames after 5 s.
+
 The toolbar search searches everything at once – channels, films, series, recordings and the
 Jellyfin libraries – from a local index (`Fernsy/App/SearchIndex.swift`, rebuilt in the
 background when a source changes; about 20 ms per query for 50,000 entries). Only Live TV's Edit

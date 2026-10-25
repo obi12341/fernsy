@@ -4,13 +4,13 @@
 
 - [x] 1.1 Add `Fernsy/Player/RendererSinks.swift`: `VideoSink` and `AudioSink` with lock, `enqueue`, `flush` and (video) `flushRemovingImage`, plus the event forwarding. Verify: the debug build compiles.
 - [x] 1.2 `PlayerEngine`: create the receivers instead of using `addRenderer`, and do load/stop flushes through the sinks. `PlaybackSession`: sinks instead of renderers, `enqueueImmediately` in both output loops without readiness polling; the tuner gets no sinks. Loading card and the PiP flush through the sink. Verify: debug and release builds without deprecation warnings in the player files.
-- [ ] 1.3 **Checkpoint 1** (demo server, only when the user's Fernsy is closed): a live channel and a film play with sound and lip sync; PiP in and out; the loading card on zapping. Screenshots of the player window, and the log. On failure: stop, report, and record the reason in design.md.
+- [x] 1.3 **Checkpoint 1** (demo server, only when the user's Fernsy is closed): a live channel and a film play with sound and lip sync; PiP in and out; the loading card on zapping. Screenshots of the player window, and the log. On failure: stop, report, and record the reason in design.md.
 
 ## 2. Recovery
 
-- [ ] 2.1 Handle the results: video flush-required → `recoverVideo()` (rate-limited, giving up after 3 attempts in 30 s with a status); decode failures → counter in the technical info and a rate-limited log; audio suggested flush → refill (replaces the notification). Consume the rendering events.
-- [ ] 2.2 Debug switches `IPTV_TESTFLUSHREQUIRED=<s>` and `IPTV_TESTDECODEFAIL=<n>`; README.
-- [ ] 2.3 Strings (de + en) for "Decodierfehler" and the give-up status; no stale keys.
+- [x] 2.1 Handle the results: video flush-required → `recoverVideo()` (rate-limited, giving up after 3 attempts in 30 s with a status); decode failures → counter in the technical info and a rate-limited log; audio suggested flush → refill (replaces the notification). Consume the rendering events.
+- [x] 2.2 Debug switches `IPTV_TESTFLUSHREQUIRED=<s>` and `IPTV_TESTDECODEFAIL=<n>`; README.
+- [x] 2.3 Strings (de + en) for "Decodierfehler" and the give-up status; no stale keys.
 
 ## 3. Checkpoint 2
 

@@ -1344,6 +1344,16 @@
         }
       }
     },
+    "Das Bild konnte nicht wiederhergestellt werden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The picture could not be restored."
+          }
+        }
+      }
+    },
     "Das Protokoll ist leer.": {
       "localizations": {
         "en": {
@@ -1360,6 +1370,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bit rate"
+          }
+        }
+      }
+    },
+    "Decoder neu gestartet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoder restarted"
+          }
+        }
+      }
+    },
+    "Decodierfehler": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decode errors"
           }
         }
       }

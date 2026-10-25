@@ -28,6 +28,9 @@ final class VideoSink: @unchecked Sendable {
         let ready = CMReadySampleBuffer<CMSampleBuffer.DynamicContent>(unsafeBuffer: sample)
         lock.lock()
         defer { lock.unlock() }
+        #if DEBUG
+        if let simulated = simulatedOutcome() { return simulated }
+        #endif
         switch receiver.enqueueImmediately(ready) {
         case .enqueued: return .enqueued
         case .enqueuedWithDecodeFailures(let errors): return .decodeFailures(errors.count)
@@ -44,6 +47,35 @@ final class VideoSink: @unchecked Sendable {
         defer { lock.unlock() }
         receiver.flush()
     }
+
+    #if DEBUG
+    // Test switches, counted from the first frame:
+    // IPTV_TESTFLUSHREQUIRED=<s>[:<count>] reports "needs a flush" after s seconds (count times,
+    // 3 s apart) – the engine recovers, and gives up after three in 30 s;
+    // IPTV_TESTDECODEFAIL=<n> reports n frames that failed to decode, 5 s after the first frame.
+    private var testStart: Date?
+    private var testFlushes = 0
+    private var testDecodeFailReported = false
+
+    private func simulatedOutcome() -> Outcome? {
+        let env = ProcessInfo.processInfo.environment
+        let start = testStart ?? Date()
+        testStart = start
+        let elapsed = Date().timeIntervalSince(start)
+        if let spec = env["IPTV_TESTFLUSHREQUIRED"]?.split(separator: ":").compactMap({ Double($0) }), let first = spec.first {
+            let count = spec.count > 1 ? Int(spec[1]) : 1
+            if testFlushes < count, elapsed >= first + Double(testFlushes) * 3 {
+                testFlushes += 1
+                return .needsFlush("[test] simulated decoder restart \(testFlushes)/\(count)")
+            }
+        }
+        if let n = env["IPTV_TESTDECODEFAIL"].flatMap(Int.init), !testDecodeFailReported, elapsed >= 5 {
+            testDecodeFailReported = true
+            return .decodeFailures(n)
+        }
+        return nil
+    }
+    #endif
 
     /// Flush and remove the frame on screen (stopping playback). The receiver's variant is
     /// async; it runs on its own and nothing is enqueued meanwhile (the session is stopped).

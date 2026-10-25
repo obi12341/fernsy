@@ -788,16 +788,33 @@ final class PlayerEngine: ObservableObject {
         if let last = recoveries.last, now.timeIntervalSince(last) < 2 { return }
         guard recoveries.count < 3 else {
             AppLog.error(.player, "video decoder keeps failing (\(reason)), giving up")
+            halt()
             status = .failed(String(localized: "Das Bild konnte nicht wiederhergestellt werden."))
-            endActivity()
             return
         }
         recoveries.append(now)
         AppLog.warning(.player, "video decoder needs a restart (\(reason)), resuming at \(Int(progress.position)) s")
-        if !currentIsLive || isTimeshift {
+        if isTimeshift && progress.followsLive {
+            // Watching live: stay live.
+            goLive()
+        } else if !currentIsLive || isTimeshift {
             seek(to: progress.position)
         } else {
             reconnect(reason: String(localized: "Decoder neu gestartet"))
+        }
+    }
+
+    /// Stops the session but keeps the last frame on screen (under a status card).
+    private func halt() {
+        generation += 1
+        endActivity()
+        let synchronizer = synchronizer
+        let audioSink = audioSink
+        controlQueue.async { [weak self] in
+            self?.session?.stop()
+            self?.session = nil
+            synchronizer.setRate(0, time: .zero)
+            audioSink.flush()
         }
     }
 
