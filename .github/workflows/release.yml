@@ -1,4 +1,4 @@
-# Builds Fernsy outside the user's Mac (see README › Release).
+# Builds Fernsy outside the user's Mac (see DEVELOPMENT.md › Release).
 #   tag vX.Y / vX.Y.Z on main → release "Fernsy X.Y" with the notarized DMG, and the App Store
 #                               build uploaded to App Store Connect (submitting stays manual)
 #   every night (main changed) → the notarized DMG on the rolling pre-release "Nightly"
@@ -103,7 +103,7 @@ jobs:
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing repository secrets: ${missing[*]} (see README › Release)"
+            echo "::error::Missing repository secrets: ${missing[*]} (see DEVELOPMENT.md › Release)"
             exit 1
           fi
 
@@ -222,7 +222,7 @@ jobs:
           SHA: ${{ needs.prepare.outputs.sha }}
         run: |
           if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
-            echo "::warning::SPARKLE_ED_PRIVATE_KEY is not set: no appcast.xml, the in-app updater finds nothing (README › Updates)"
+            echo "::warning::SPARKLE_ED_PRIVATE_KEY is not set: no appcast.xml, the in-app updater finds nothing (DEVELOPMENT.md › Updates)"
             exit 0
           fi
           curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
@@ -285,7 +285,7 @@ jobs:
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing repository secrets: ${missing[*]} (see README › Release)"
+            echo "::error::Missing repository secrets: ${missing[*]} (see DEVELOPMENT.md › Release)"
             exit 1
           fi
 
