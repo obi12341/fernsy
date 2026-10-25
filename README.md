@@ -95,7 +95,10 @@ controls.
   search field, sorted by source.
 - **Menu bar.** Running and upcoming recordings at a glance, even without an open window.
 - **Works with your AI assistant.** Ask Claude what's on tonight, schedule recordings or switch
-  channels in plain words. Fernsy's optional MCP server stays on your Mac.
+  channels in plain words. Fernsy's optional MCP server stays on your Mac and is added to Claude
+  Desktop with one click.
+- **Siri, Shortcuts and Spotlight.** "Open ZDF in Fernsy" or "Search Tatort in Fernsy" with
+  Siri; switching channels, what's on and recording as actions in the Shortcuts app and Spotlight.
 
 ## Privacy
 
