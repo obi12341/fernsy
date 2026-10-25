@@ -70,7 +70,7 @@ final class MCPTools {
             "item_id": ["type": "string"],
         ], required: ["item_id"], readOnly: false),
         tool("now_playing", "What Fernsy's player plays right now, with position, duration, remaining time, end time and paused state; for live TV how far behind live and the current show.", [:], readOnly: true),
-        tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode, and for Jellyfin episodes the previous and next episode.", [
+        tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode; for Jellyfin items the audio and subtitle tracks, and for episodes the previous and next episode.", [
             "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>"],
         ], required: ["item_id"], readOnly: true),
         tool("list_episodes", "Seasons of a Jellyfin series, or the episodes of one season with item ids, runtime and watched state.", [
@@ -94,9 +94,9 @@ final class MCPTools {
             "to": ["type": "string", "description": "Seconds or h:mm:ss (live: ISO clock time); default: the end"],
             "count": ["type": "integer", "minimum": 4, "maximum": 48, "description": "Number of stills (default 24)"],
         ], readOnly: true),
-        tool("get_subtitles", "The text subtitles of a Jellyfin item with start and end times, for finding a scene by what is said. Lists the text subtitle tracks and names the one returned.", [
+        tool("get_subtitles", "The text subtitles of a Jellyfin item with start and end times, for finding a scene by what is said. Choose the track from item_info's subtitle_tracks (forced tracks only cover foreign-language parts).", [
             "item_id": ["type": "string", "description": "jellyfin:<id>; default: the Jellyfin item that plays"],
-            "language": ["type": "string", "description": "Language code (e.g. ger, eng) or part of the track title"],
+            "track": ["type": "integer", "description": "Subtitle track index from item_info's subtitle_tracks; default: the track that plays, or the only text track"],
             "from": ["type": "string", "description": "Seconds or h:mm:ss"],
             "to": ["type": "string", "description": "Seconds or h:mm:ss"],
         ], readOnly: true),
@@ -524,6 +524,9 @@ final class MCPTools {
             if let episode = item.indexNumber { value["episode"] = episode }
             if let year = item.productionYear { value["year"] = year }
             if let plot = item.overview, !plot.isEmpty { value["plot"] = plot }
+            let streams = item.mediaSources?.first?.mediaStreams ?? []
+            value["audio_tracks"] = streams.filter { $0.type == "Audio" }.map(trackJSON)
+            value["subtitle_tracks"] = streams.filter { $0.type == "Subtitle" }.map(trackJSON)
             if item.type == "Episode", let seriesId = item.seriesId {
                 let episodes = try await seriesEpisodes(seriesId)
                 // Specials only neighbour specials; regular episodes skip season 0.
@@ -553,6 +556,20 @@ final class MCPTools {
     private func seriesEpisodes(_ seriesId: String) async throws -> [JFItem] {
         let episodes = try await app.jellyfin.call { try await $0.seriesEpisodes(userId: $1, seriesId: seriesId) }
         return episodes.sorted { ($0.parentIndexNumber ?? 0, $0.indexNumber ?? 0) < ($1.parentIndexNumber ?? 0, $1.indexNumber ?? 0) }
+    }
+
+    /// An audio or subtitle track as item_info lists it (and get_subtitles names it).
+    private func trackJSON(_ stream: JFMediaStream) -> [String: Any] {
+        var value: [String: Any] = [
+            "index": stream.index ?? -1, "title": stream.displayTitle ?? stream.title ?? "",
+            "default": stream.isDefault == true, "external": stream.isExternal == true,
+        ]
+        if let language = stream.language { value["language"] = language }
+        if stream.type == "Subtitle" {
+            value["forced"] = stream.isForced == true || MediaNames.titleSaysForced(stream.title) || MediaNames.titleSaysForced(stream.displayTitle)
+            value["text"] = stream.isTextSubtitleStream == true
+        }
+        return value
     }
 
     private func neighbourJSON(_ item: JFItem, prefix: String) -> [String: Any] {
@@ -770,31 +787,35 @@ final class MCPTools {
         guard !text.isEmpty else {
             throw ToolError(subtitleStreams.isEmpty ? "\(item.name) has no subtitles." : "\(item.name) has only image subtitles (no text subtitles).")
         }
+        let list = { () -> String in
+            let data = (try? JSONSerialization.data(withJSONObject: text.map(self.trackJSON), options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
+            return String(decoding: data, as: UTF8.self)
+        }
         let chosen: JFMediaStream
-        if let wanted = (args["language"] as? String)?.lowercased(), !wanted.isEmpty {
-            guard let match = text.first(where: { $0.language?.lowercased() == wanted })
-                    ?? text.first(where: { MediaNames.languageCode($0.language) == MediaNames.languageCode(wanted) && $0.language != nil })
-                    ?? text.first(where: { ($0.displayTitle ?? $0.title ?? "").lowercased().contains(wanted) }) else {
-                throw ToolError("No text subtitle track matches \(wanted).")
+        if let wanted = (args["track"] as? NSNumber)?.intValue {
+            guard let match = text.first(where: { $0.index == wanted }) else {
+                throw ToolError("Track \(wanted) is not a text subtitle track of \(item.name). Text tracks: \(list())")
             }
             chosen = match
         } else if let playing = app.jellyfinPlayback, playing.item.id == item.id, let index = playing.subtitleIndex,
                   let match = text.first(where: { $0.index == index }) {
             chosen = match
-        } else {
+        } else if text.count == 1 {
             chosen = text[0]
+        } else {
+            throw ToolError("\(item.name) has \(text.count) text subtitle tracks; pass track with one of these indexes: \(list())")
         }
-        let srt = try await app.jellyfin.call { client, _ in try await client.subtitleSRT(itemId: item.id, mediaSourceId: sourceId, index: chosen.index!) }
+        let srt: String
+        do {
+            srt = try await app.jellyfin.call { client, _ in try await client.subtitleSRT(itemId: item.id, mediaSourceId: sourceId, index: chosen.index!) }
+        } catch let error as URLError where error.code == .timedOut {
+            throw ToolError("The Jellyfin server is still preparing these subtitles (it extracts them from the file on the first request). Try again in a minute.")
+        }
         let from = try (args["from"] as? String ?? (args["from"] as? NSNumber)?.stringValue).map { try Self.position($0) } ?? 0
         let to = try (args["to"] as? String ?? (args["to"] as? NSNumber)?.stringValue).map { try Self.position($0) } ?? .infinity
         let cues = SRTParser.parse(srt).filter { $0.end >= from && $0.start <= to }
-        let track = { (s: JFMediaStream) -> [String: Any] in
-            var value: [String: Any] = ["index": s.index ?? -1, "title": s.displayTitle ?? s.title ?? "", "external": s.isExternal == true]
-            if let language = s.language { value["language"] = language }
-            return value
-        }
         return [
-            "item_id": itemId, "title": item.name, "tracks": text.map(track), "track": track(chosen), "count": cues.count,
+            "item_id": itemId, "title": item.name, "track": trackJSON(chosen), "count": cues.count,
             "cues": cues.map { ["start": Self.clock($0.start), "end": Self.clock($0.end),
                                 "start_seconds": ($0.start * 10).rounded() / 10, "end_seconds": ($0.end * 10).rounded() / 10, "text": $0.text] },
         ]

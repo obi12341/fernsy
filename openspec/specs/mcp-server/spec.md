@@ -284,25 +284,39 @@ live channels without a buffer, it SHALL answer with an error that explains why.
 ### Requirement: Subtitles as text
 The server SHALL offer `get_subtitles` for Jellyfin items. It returns the cues of one text
 subtitle track with start and end times (seconds and h:mm:ss), optionally limited to a time
-range, and lists the item's text subtitle tracks, naming the one returned. Without `item_id`
-it SHALL use the Jellyfin item that plays.
+range, and names the track returned. Without `item_id` it SHALL use the Jellyfin item that
+plays. The server's first preparation of an embedded track SHALL be waited for up to about two
+minutes; if that is not enough, the error SHALL say to try again shortly.
 
 #### Scenario: Whole film
-- **WHEN** the assistant calls `get_subtitles` for a Jellyfin film with a German text subtitle track
+- **WHEN** the assistant calls `get_subtitles` for a Jellyfin film with one German text subtitle track
 - **THEN** the answer contains every cue of that track with its times and names the track
 
 #### Scenario: Time range
 - **WHEN** the assistant calls `get_subtitles` with from 1:10:00 and to 1:20:00
 - **THEN** only cues within that range are returned
 
+#### Scenario: Slow first extraction
+- **WHEN** the server needs 30 seconds to prepare an embedded track
+- **THEN** `get_subtitles` waits and returns the cues
+
 ### Requirement: Subtitle track choice
-`get_subtitles` SHALL select the track by `language` (language code or part of the title) when
-given, otherwise the track that plays, otherwise the first text track. When the item has only
-image subtitles or none, or is not a Jellyfin item, it SHALL answer with an error that says so.
+`get_subtitles` SHALL return the track given by `track` (an index from `item_info`). Without
+`track` it SHALL use the subtitle track that plays, or the only text track; with several text
+tracks it SHALL answer with an error that lists them. When the item has only image subtitles
+or none, or is not a Jellyfin item, it SHALL answer with an error that says so.
 
 #### Scenario: By language
-- **WHEN** a film has German and English text tracks and the assistant passes `language: "eng"`
+- **WHEN** a film has German and English text tracks and the assistant passes the index of the English track from `item_info`
 - **THEN** the English cues are returned
+
+#### Scenario: Chosen track
+- **WHEN** a film has a forced and a full German track and the assistant passes the full track's index
+- **THEN** the full track's cues are returned
+
+#### Scenario: Several tracks, none chosen
+- **WHEN** the film has several text tracks, none plays, and the assistant passes no `track`
+- **THEN** the answer is an error listing the text tracks with their indexes and flags
 
 #### Scenario: Only image subtitles
 - **WHEN** the item has only PGS subtitles
@@ -320,3 +334,11 @@ embedding the image data again.
 #### Scenario: Image next to text
 - **WHEN** the assistant calls `snapshot` or `frames`
 - **THEN** the result's content holds one JPEG image and one text part, and the structured content holds the times but no image data
+
+### Requirement: Tracks in item_info
+`item_info` for a Jellyfin item SHALL list its audio and subtitle tracks with index, language,
+title and whether each is forced, default, external and text (or image).
+
+#### Scenario: Track list
+- **WHEN** the assistant calls `item_info` for a film with a forced German, a full German and an English subtitle track
+- **THEN** the answer lists the three tracks with their indexes, and only the first is marked forced
