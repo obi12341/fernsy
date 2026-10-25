@@ -330,7 +330,7 @@ private struct AccountsSettings: View {
 
     var body: some View {
         Form {
-            Section("IPTV") {
+            Section {
                 if let creds = app.credentials {
                     LabeledContent("Server", value: creds.server)
                     LabeledContent("Benutzer", value: creds.username)
@@ -343,6 +343,8 @@ private struct AccountsSettings: View {
                     if let updated = app.lastUpdated {
                         LabeledContent("Katalog aktualisiert", value: updated.formatted(date: .abbreviated, time: .shortened))
                     }
+                    Toggle("Filme", isOn: $app.showsIPTVMovies)
+                    Toggle("Serien", isOn: $app.showsIPTVSeries)
                     HStack {
                         Button("Katalog aktualisieren") { Task { await app.loadCatalog(forceRefresh: true) } }
                             .disabled(app.isLoading)
@@ -351,6 +353,14 @@ private struct AccountsSettings: View {
                     }
                 } else {
                     Button("IPTV-Konto hinzufügen …") { addingAccount = .iptv }
+                }
+            } header: {
+                Text("IPTV")
+            } footer: {
+                if app.credentials != nil {
+                    Text("Ausgeschaltete Bereiche werden nicht geladen und nicht durchsucht. Favoriten und Fortsetzen-Positionen bleiben erhalten.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             Section("Jellyfin") {

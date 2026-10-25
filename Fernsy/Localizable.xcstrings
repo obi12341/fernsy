@@ -1178,6 +1178,16 @@
         }
       }
     },
+    "Ausgeschaltete Bereiche werden nicht geladen und nicht durchsucht. Favoriten und Fortsetzen-Positionen bleiben erhalten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sections that are switched off are not loaded or searched. Favorites and resume positions are kept."
+          }
+        }
+      }
+    },
     "Ausgewählte Einträge kopieren, ohne Auswahl alle gezeigten": {
       "localizations": {
         "en": {

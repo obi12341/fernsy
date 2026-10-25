@@ -238,6 +238,9 @@ Youth protection, in memory only: `IPTV_TESTADULT=<id,…>` treats channels as a
 has none), `IPTV_RECENT=<id,…>` sets "Zuletzt gesehen", `IPTV_SHOWADULT=0|1` and
 `IPTV_ADULTRECENT=0|1` set both settings, `IPTV_TESTUNRECENT=<id>` removes a channel from
 the history like the context menu.
+IPTV films and series (Settings › Konten), in memory only: `IPTV_SHOWMOVIES=0|1` and
+`IPTV_SHOWSERIES=0|1` set both switches, `IPTV_TESTSWITCHMEDIA=<s>:<movies|series>:<0|1>,…`
+flips them s seconds after the live catalog loaded, as the Settings switches do.
 Guide: `IPTV_TESTNOEPG=<id>` gives that channel no listings, `IPTV_GUIDEDAY=<n>` and
 `IPTV_GUIDETIME=<hh:mm>` jump to a day and time, `IPTV_GUIDESELECT=<id>:<n>` selects that
 channel's n-th upcoming show.
