@@ -376,6 +376,16 @@
         }
       }
     },
+    "%lld Stunden vor einer Aufnahme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld hours before a recording"
+          }
+        }
+      }
+    },
     "%lld Titel": {
       "localizations": {
         "de": {
@@ -468,6 +478,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 hour"
+          }
+        }
+      }
+    },
+    "1 Stunde vor einer Aufnahme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 hour before a recording"
           }
         }
       }
@@ -1454,6 +1474,16 @@
         }
       }
     },
+    "Der Mac geht während Aufnahmen und vor geplanten Aufnahmen nicht von selbst in den Ruhezustand. Zuklappen im Akkubetrieb oder „Ruhezustand“ im Apple-Menü verhindert das nicht.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Mac does not go to sleep on its own during recordings and before scheduled ones. This does not prevent closing the lid on battery or choosing Sleep in the Apple menu."
+          }
+        }
+      }
+    },
     "Der Sender ist beim Anbieter derzeit offline.": {
       "localizations": {
         "en": {
@@ -1844,6 +1874,16 @@
         }
       }
     },
+    "Fernsy hält den Mac nicht wach. Geht er in den Ruhezustand, bricht eine laufende Aufnahme ab.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy does not keep the Mac awake. If it goes to sleep, a running recording stops."
+          }
+        }
+      }
+    },
     "Fernsy installiert das Update, sobald keine Aufnahme mehr läuft oder in der nächsten halben Stunde beginnt. Beim Beenden von Fernsy wird es sofort installiert.": {
       "localizations": {
         "en": {
@@ -2178,6 +2218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show in Guide"
+          }
+        }
+      }
+    },
+    "Immer, solange eine Aufnahme geplant ist": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Always while a recording is scheduled"
           }
         }
       }
@@ -2722,6 +2772,16 @@
         }
       }
     },
+    "Mac wach halten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Mac awake"
+          }
+        }
+      }
+    },
     "Markiere Sender mit dem Stern, per Rechtsklick oder mit ⌘D. Sie erscheinen dann hier.": {
       "localizations": {
         "en": {
@@ -2772,12 +2832,12 @@
         }
       }
     },
-    "Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter; der Mac bleibt während Aufnahmen wach.": {
+    "Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "With the menu bar item, Fernsy keeps running there after all windows are closed; the Mac stays awake during recordings."
+            "value": "With the menu bar icon, Fernsy keeps running there after you close all windows."
           }
         }
       }

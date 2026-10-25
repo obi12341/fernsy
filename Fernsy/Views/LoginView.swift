@@ -449,6 +449,7 @@ private struct RecordingSettings: View {
     @AppStorage(Recorder.padBeforeKey) private var padBefore = 10
     @AppStorage(Recorder.padAfterKey) private var padAfter = 10
     @AppStorage(MenuBarSupport.enabledKey) private var showsMenuBarItem = true
+    @AppStorage(Recorder.keepAwakeHoursKey) private var keepAwakeHours = 6
 
     var body: some View {
         Form {
@@ -472,9 +473,22 @@ private struct RecordingSettings: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                Picker("Mac wach halten", selection: $keepAwakeHours) {
+                    ForEach(Recorder.keepAwakeChoices, id: \.self) { hours in
+                        Text(Self.keepAwakeLabel(hours)).tag(hours)
+                    }
+                }
+            } footer: {
+                Text(keepAwakeHours < 0
+                     ? "Fernsy hält den Mac nicht wach. Geht er in den Ruhezustand, bricht eine laufende Aufnahme ab."
+                     : "Der Mac geht während Aufnahmen und vor geplanten Aufnahmen nicht von selbst in den Ruhezustand. Zuklappen im Akkubetrieb oder „Ruhezustand“ im Apple-Menü verhindert das nicht.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Toggle("Symbol in der Menüleiste", isOn: $showsMenuBarItem)
             } footer: {
-                Text("Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter; der Mac bleibt während Aufnahmen wach.")
+                Text("Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -482,6 +496,17 @@ private struct RecordingSettings: View {
         .formStyle(.grouped)
         .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+extension RecordingSettings {
+    static func keepAwakeLabel(_ hours: Int) -> LocalizedStringKey {
+        switch hours {
+        case ..<0: "Aus"
+        case 0: "Immer, solange eine Aufnahme geplant ist"
+        case 1: "1 Stunde vor einer Aufnahme"
+        default: "\(hours) Stunden vor einer Aufnahme"
+        }
     }
 }
 
