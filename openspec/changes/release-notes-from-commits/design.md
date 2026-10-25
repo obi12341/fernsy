@@ -69,8 +69,8 @@ Rejected:
 ### 3. Output
 
 - **GitHub release:** "## Neu in Fernsy X.Y.Z" with the German notes as a list, then
-  "## What's new" with the English ones, then the existing short line about signing and
-  notarization.
+  "## What's new" with the English ones. The former standard line about signing and
+  notarization is dropped: it tells users nothing.
   - A release drafted by hand keeps its text, as before.
   - `RELEASE_NOTES.md` is no longer read, so there is one source.
 - **Sparkle:** `generate_appcast` writes the appcast with the German HTML as before. Then a

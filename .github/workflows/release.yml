@@ -397,8 +397,6 @@ jobs:
                 echo "## What's new"
                 echo
                 sed 's/^/- /' out/notes/notes-en.txt
-                echo
-                printf 'Fernsy %s for Macs with Apple silicon (macOS 27 or later). Signed with Developer ID and notarized by Apple.\n' "$VERSION"
               } > "$NOTES"
               gh release create "$TAG" --title "Fernsy $VERSION" --notes-file "$NOTES" --latest \
                 out/Fernsy.dmg "out/Fernsy-$VERSION.dmg" $APPCAST
@@ -408,7 +406,7 @@ jobs:
             NOTES="$RUNNER_TEMP/nightly.md"
             {
               echo "Test build of \`main\` at $(git log -1 --format='%h, %cd' --date=format:'%Y-%m-%d %H:%M UTC' "$SHA")."
-              echo "Signed with Developer ID and notarized by Apple. Installs over Fernsy and uses the same data."
+              echo "Installs over Fernsy and uses the same data."
               echo
               # Trailer notes on top when the commits have some; testers also get every commit.
               if [ ! -f out/notes/notes-de.fallback ] && [ -s out/notes/notes-de.txt ]; then

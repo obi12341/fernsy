@@ -10,7 +10,7 @@
 
 ## 2. Release text and Sparkle
 
-- [x] 2.1 `publish`: release text with "Neu in Fernsy X.Y.Z", "What's new" and the signing line. A release drafted by hand stays unchanged. Stop reading `RELEASE_NOTES.md`. Nightly: trailer notes on top of the commit list.
+- [x] 2.1 `publish`: release text with "Neu in Fernsy X.Y.Z", "What's new", without the former signing line. A release drafted by hand stays unchanged. Stop reading `RELEASE_NOTES.md`. Nightly: trailer notes on top of the commit list.
 - [x] 2.2 `Appcast`: German notes in `<archive>.html`. Check whether `generate_appcast` 2.10 takes localized `<archive>.<lang>.html`; otherwise add `<description xml:lang="en">` with a Python step after generation. Verify locally with the throwaway key and the test DMG from earlier: the appcast has both descriptions with `xml:lang`, still parses, and the signature is unchanged.
 
 ## 3. Rule and documentation
