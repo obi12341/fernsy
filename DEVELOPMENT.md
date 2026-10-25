@@ -296,7 +296,9 @@ the countdown runs; `JF_TESTCANCELNEXT=1` cancels the countdown at the end.
 Scene search: `snapshot` encodes `PlayerEngine.lastPicture`; `frames` runs `FrameGrabber` (own
 FFmpeg context over a fresh `FileByteSource`, `TimeshiftBuffer` reader or Jellyfin direct-stream
 `HTTPByteSource`; keyframe per tile, corrupt ones skipped) and `StillImage.contactSheet`;
-`get_subtitles` returns a Jellyfin text track via `subtitleSRT`. Images go out as MCP image
+`get_subtitles` returns the Jellyfin text track the assistant picked from `item_info`'s
+`subtitle_tracks` (default: the playing or the only text track) via `subtitleSRT`, which has its
+own 120 s timeout because the server extracts an embedded track on the first request. Images go out as MCP image
 content (`MCPTools.imageKey`), JPEG through ImageIO. IPTV films and episodes are refused by
 `frames` (second stream). A changed tool list
 reaches Claude Desktop only after the extension is installed again. Debug builds keep

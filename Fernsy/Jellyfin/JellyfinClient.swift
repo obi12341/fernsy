@@ -41,6 +41,15 @@ struct JellyfinClient {
         return URLSession(configuration: config)
     }()
 
+    /// Subtitle files: on the first request the server extracts an embedded track from the whole
+    /// file before it sends anything, which can take well over the usual 20 s.
+    private static let slowSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 120
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
+
     /// Server JSON is PascalCase; our models are camelCase.
     static let decoder: JSONDecoder = {
         let d = JSONDecoder()
@@ -67,7 +76,8 @@ struct JellyfinClient {
 
     // MARK: Requests
 
-    private func request(_ method: String, _ path: String, query: [String: String] = [:], body: Data? = nil) async throws -> Data {
+    private func request(_ method: String, _ path: String, query: [String: String] = [:], body: Data? = nil,
+                         session: URLSession = JellyfinClient.session) async throws -> Data {
         guard var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
             throw JellyfinError.invalidURL
         }
@@ -81,7 +91,7 @@ struct JellyfinClient {
             req.httpBody = body
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        let (data, response) = try await Self.session.data(for: req)
+        let (data, response) = try await session.data(for: req)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 401 { throw JellyfinError.unauthorized }
         guard (200..<300).contains(status) else { throw JellyfinError.http(status) }
@@ -281,7 +291,7 @@ struct JellyfinClient {
 
     /// A text subtitle stream converted to SRT by the server (embedded or external).
     func subtitleSRT(itemId: String, mediaSourceId: String, index: Int) async throws -> String {
-        let data = try await request("GET", "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(index)/0/Stream.srt")
+        let data = try await request("GET", "Videos/\(itemId)/\(mediaSourceId)/Subtitles/\(index)/0/Stream.srt", session: Self.slowSession)
         return String(decoding: data, as: UTF8.self)
     }
 
