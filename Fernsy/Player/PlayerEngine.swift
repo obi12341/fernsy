@@ -493,6 +493,13 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
+    /// Timeshift: the clock time of a buffer position, read from the buffer itself (the published
+    /// `progress.wallClock` follows a seek only a moment later).
+    func wallTime(of position: Double) -> Date? {
+        guard isTimeshift else { return nil }
+        return tuner?.buffer.wallTime(of: position)
+    }
+
     func seek(by delta: Double) {
         seek(to: progress.position + delta)
     }

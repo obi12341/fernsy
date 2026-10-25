@@ -284,7 +284,9 @@ MCP server on 127.0.0.1 for the user's own AI assistant, off by default). Reques
 weak, set by `PlayerScreen`) for position, duration, remaining time and state; `item_info` and
 `recently_watched` add runtimes (Jellyfin ticks, the resume store, `get_vod_info`'s duration).
 `get_log` and `playback_diagnostics` read the redacted event log (`AppLog.query`) and the player's
-`PlaybackStats`; the log leaves the app only through this local server, when it is on. Debug builds keep
+`PlaybackStats`; the log leaves the app only through this local server, when it is on.
+`pause`, `resume` and `seek` drive the open player's `PlayerEngine` with the app's own limits;
+`now_playing` reports the timeshift range of a live channel (`rewind_available_seconds`, `buffer_starts_at`). Debug builds keep
 everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
 token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
 "Zu Claude Desktop hinzufügen …" builds a desktop extension (`MCPDesktopExtension`, `.mcpb`
