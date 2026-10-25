@@ -34,7 +34,12 @@
     </div>
     <span class="note">For Macs with Apple silicon · macOS 27 or later</span>
   </div>
-  <div class="frame"><img src="../assets/en-player-live.webp" alt="Live TV in the player: current show, timeshift timeline and a running recording" width="1280" height="720" fetchpriority="high"></div>
+  <div class="frame video">
+    <video controls preload="none" playsinline poster="../assets/en-fernsy-video-poster.jpg" width="1920" height="1080" aria-label="Video: Fernsy – the Mac odyssey">
+      <source src="../assets/en-fernsy-video.mp4" type="video/mp4">
+    </video>
+    <button class="play" type="button" aria-label="Play video" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
+  </div>
 </section>
 
 <section class="gallery wrap" aria-label="Views">
@@ -153,6 +158,24 @@
 </div></footer>
 
 <script>
+// Hero video: the script swaps the browser's controls for a start button until the first
+// play. Without it the video keeps its controls and still loads nothing before Play.
+(function () {
+  var frame = document.querySelector(".frame.video");
+  if (!frame) return;
+  var video = frame.querySelector("video");
+  var play = frame.querySelector(".play");
+  video.controls = false;
+  play.hidden = false;
+  play.addEventListener("click", function () {
+    play.hidden = true;
+    video.controls = true;
+    var started = video.play();
+    if (started && started.catch) started.catch(function () {});
+    video.focus();
+  });
+})();
+
 // Gallery tabs: without this script every view is shown one below the other.
 (function () {
   document.documentElement.classList.remove("no-js");
