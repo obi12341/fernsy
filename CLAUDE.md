@@ -18,7 +18,8 @@ This repo uses OpenSpec (`openspec/`) to keep behavior and decisions traceable.
   code. Only then merge into `main` and push – `main` always has code and
   `openspec/specs/` in sync. Releases (App Store builds, DMGs) are built from `main`.
   Commit, merge and push only when the user agrees.
-- Build, release and debug switches: see README.md.
+- Build, release and debug switches: see DEVELOPMENT.md. README.md is the product page for
+  new users (keep developer content out of it; see the project-readme spec).
 
 ## Release notes in commits
 
