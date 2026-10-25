@@ -242,6 +242,7 @@ extension LogCategory {
         case .guide: String(localized: "Programm")
         case .jellyfin: String(localized: "Jellyfin")
         case .pip: String(localized: "Bild-in-Bild")
+        case .mcp: String(localized: "Assistenten")
         }
     }
 }

@@ -276,6 +276,14 @@ second). Live playback never jumps
 on its own: the backlog a provider sends on connect is played (still "LIVE"), and when playback
 later falls clearly further behind, it leaves the live state instead of skipping ahead.
 
+The MCP server (`Fernsy/MCP/`, Settings › Assistenten) answers MCP over Streamable HTTP on
+`http://127.0.0.1:52323/mcp` (debug builds: port 52324), JSON responses only, with the bearer
+token from Settings (keychain). It needs `com.apple.security.network.server` (review note: local
+MCP server on 127.0.0.1 for the user's own AI assistant, off by default). Requests with an
+`Origin` header or a foreign `Host` are refused. Tools: `MCPTools.definitions`. Debug builds keep
+everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
+token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
+
 Picture in Picture (button in the controls, key P) uses the system's PiP with the player's
 display layer; subtitles are not shown in the PiP window. macOS mirrors a sample-buffer PiP
 source unscaled (FB22411168), so while PiP runs the layer lives in an invisible window that

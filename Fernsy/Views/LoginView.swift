@@ -289,7 +289,7 @@ struct JellyfinSignInForm: View {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case accounts, playback, recordings, youthProtection
+    case accounts, playback, recordings, youthProtection, assistants
     var id: String { rawValue }
 }
 
@@ -310,6 +310,9 @@ struct SettingsView: View {
             YouthProtectionSettings()
                 .tabItem { Label("Jugendschutz", systemImage: "hand.raised") }
                 .tag(SettingsTab.youthProtection)
+            AssistantSettings()
+                .tabItem { Label("Assistenten", systemImage: "bubble.left.and.text.bubble.right") }
+                .tag(SettingsTab.assistants)
         }
         .frame(width: 560)
     }
@@ -617,5 +620,89 @@ private struct MinutesField: View {
                 Stepper("", value: clamped, in: 0...60).labelsHidden()
             }
         }
+    }
+}
+
+/// Settings › Assistenten: the local MCP server for Claude and other assistants.
+private struct AssistantSettings: View {
+    @EnvironmentObject private var app: AppModel
+
+    var body: some View { MCPSettingsForm(mcp: app.mcp) }
+}
+
+private struct MCPSettingsForm: View {
+    @ObservedObject var mcp: MCPServer
+
+    private var claudeCode: String {
+        "claude mcp add --transport http fernsy \(MCPServer.endpoint) --header \"Authorization: Bearer \(mcp.token)\""
+    }
+
+    private var claudeDesktop: String {
+        """
+        "fernsy": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote", "\(MCPServer.endpoint)", "--header", "Authorization: Bearer \(mcp.token)", "--transport", "http-only"]
+        }
+        """
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("MCP-Server", isOn: $mcp.isEnabled)
+                LabeledContent("Status") { statusText }
+                LabeledContent("Adresse") { Text(verbatim: MCPServer.endpoint).textSelection(.enabled) }
+                LabeledContent("Zugangsschlüssel") {
+                    HStack {
+                        Button("Kopieren") { copy(mcp.token) }
+                        Button("Neu erzeugen") { mcp.regenerateToken() }
+                    }
+                }
+            } footer: {
+                Text("Claude und andere Assistenten können das Programm und den Verlauf lesen, Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                LabeledContent {
+                    Button("Befehl kopieren") { copy(claudeCode) }
+                } label: {
+                    Text("Im Terminal ausführen")
+                }
+            } header: {
+                Text(verbatim: "Claude Code")
+            }
+            Section {
+                LabeledContent {
+                    Button("Eintrag kopieren") { copy(claudeDesktop) }
+                } label: {
+                    Text("Unter „mcpServers“ in claude_desktop_config.json einfügen")
+                }
+            } header: {
+                Text(verbatim: "Claude Desktop")
+            } footer: {
+                Text("Claude Desktop verbindet sich über mcp-remote und braucht dafür Node.js. Die Datei öffnest du in Claude unter Einstellungen › Entwickler › Konfiguration bearbeiten.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private var statusText: some View {
+        switch mcp.status {
+        case .off: Text("Aus").foregroundStyle(.secondary)
+        case .starting: Text("Startet …").foregroundStyle(.secondary)
+        case .running: Text("Bereit").foregroundStyle(.green)
+        case .failed(let message): Text("Fehler: \(message)").foregroundStyle(.red)
+        }
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 }

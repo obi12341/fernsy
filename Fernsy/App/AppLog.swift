@@ -28,7 +28,7 @@ enum LogLevel: Int, Comparable, CaseIterable, Sendable {
 }
 
 enum LogCategory: String, CaseIterable, Sendable {
-    case app, player, network, tuner, timeshift, recordings, catalog, guide, jellyfin, pip
+    case app, player, network, tuner, timeshift, recordings, catalog, guide, jellyfin, pip, mcp
 }
 
 struct LogEntry: Identifiable, Sendable {

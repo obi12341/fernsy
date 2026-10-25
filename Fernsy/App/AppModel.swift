@@ -198,6 +198,8 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
+    /// The local MCP server (Settings › Assistenten); created after launch.
+    private(set) lazy var mcp = MCPServer(app: self)
     #if DIRECT_DISTRIBUTION
     /// Sparkle updates of the DMG build ("Fernsy Direct" target only).
     private(set) var updater: Updater!
@@ -254,6 +256,7 @@ final class AppModel: ObservableObject {
         #if DEBUG
         debugBootstrap()
         #endif
+        Task { @MainActor in _ = self.mcp }
         loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
@@ -918,7 +921,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Running recordings that hold the connections the player would need for `channelId`.
-    private func recordingsBlocking(_ channelId: Int) -> [Recording] {
+    func recordingsBlocking(_ channelId: Int) -> [Recording] {
         let blockers = tuners.blockers(for: channelId, as: .player)
         return recorder.recordings.filter { r in
             r.status == .recording && blockers.contains { $0.owners.contains(.recording(r.id)) }

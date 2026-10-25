@@ -862,6 +862,16 @@
         }
       }
     },
+    "Assistenten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistants"
+          }
+        }
+      }
+    },
     "Audio": {
       "localizations": {
         "en": {
@@ -1238,6 +1248,16 @@
         }
       }
     },
+    "Befehl kopieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Command"
+          }
+        }
+      }
+    },
     "Beim Anmelden öffnen": {
       "localizations": {
         "en": {
@@ -1284,6 +1304,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Area"
+          }
+        }
+      }
+    },
+    "Bereit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready"
           }
         }
       }
@@ -1374,6 +1404,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Until %@"
+          }
+        }
+      }
+    },
+    "Claude Desktop verbindet sich über mcp-remote und braucht dafür Node.js. Die Datei öffnest du in Claude unter Einstellungen › Entwickler › Konfiguration bearbeiten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Desktop connects through mcp-remote, which needs Node.js. Open the file in Claude under Settings › Developer › Edit Config."
+          }
+        }
+      }
+    },
+    "Claude und andere Assistenten können das Programm und den Verlauf lesen, Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude and other assistants can read the guide and your history, schedule recordings and play shows. Only programs on this Mac with the access token can connect, and only while Fernsy is open."
           }
         }
       }
@@ -1714,6 +1764,16 @@
         }
       }
     },
+    "Eintrag kopieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Entry"
+          }
+        }
+      }
+    },
     "Einträge dieses oder des vorigen Programmstarts zeigen": {
       "localizations": {
         "en": {
@@ -1850,6 +1910,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Error"
+          }
+        }
+      }
+    },
+    "Fehler: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error: %@"
           }
         }
       }
@@ -2248,6 +2318,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show in Guide"
+          }
+        }
+      }
+    },
+    "Im Terminal ausführen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run in Terminal"
           }
         }
       }
@@ -2802,6 +2882,16 @@
         }
       }
     },
+    "MCP-Server": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP Server"
+          }
+        }
+      }
+    },
     "Mac wach halten": {
       "localizations": {
         "en": {
@@ -3030,6 +3120,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sign In Again …"
+          }
+        }
+      }
+    },
+    "Neu erzeugen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regenerate"
           }
         }
       }
@@ -3840,12 +3940,32 @@
         }
       }
     },
+    "Startet …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting …"
+          }
+        }
+      }
+    },
     "Startzeit": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Startup"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
           }
         }
       }
@@ -4046,6 +4166,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Jellyfin server was found at this address."
+          }
+        }
+      }
+    },
+    "Unter „mcpServers“ in claude_desktop_config.json einfügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste under \"mcpServers\" in claude_desktop_config.json"
           }
         }
       }
@@ -4508,6 +4638,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jump to a time"
+          }
+        }
+      }
+    },
+    "Zugangsschlüssel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Access Token"
           }
         }
       }
