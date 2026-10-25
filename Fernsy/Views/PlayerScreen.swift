@@ -134,6 +134,7 @@ struct PlayerScreen: View {
         .frame(minWidth: 480, minHeight: 270)
         .navigationTitle(app.nowPlaying?.title ?? "Wiedergabe")
         .onAppear {
+            app.playerEngine = engine
             setUpPictureInPicture()
             load(app.nowPlaying)
             showControls()
@@ -244,6 +245,7 @@ struct PlayerScreen: View {
         .onChange(of: app.nowPlaying) { _, item in load(item) }
         .onReceive(pip?.$isPossible.eraseToAnyPublisher() ?? Just(false).eraseToAnyPublisher()) { pipPossible = $0 }
         .onDisappear {
+            if app.playerEngine === engine { app.playerEngine = nil }
             zapTask?.cancel()
             zapTarget = nil
             osd = nil

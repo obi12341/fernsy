@@ -63,7 +63,10 @@ final class MCPTools {
         tool("play", "Play an item in Fernsy's player: live:<channel id> (switches channels), movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>. Never ends a running recording.", [
             "item_id": ["type": "string"],
         ], required: ["item_id"], readOnly: false),
-        tool("now_playing", "What Fernsy's player plays right now.", [:], readOnly: true),
+        tool("now_playing", "What Fernsy's player plays right now, with position, duration, remaining time, end time and paused state; for live TV how far behind live and the current show.", [:], readOnly: true),
+        tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode.", [
+            "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>"],
+        ], required: ["item_id"], readOnly: true),
         tool("stop_playback", "Stop playback and close the player.", [:], readOnly: false),
     ]
 
@@ -88,6 +91,7 @@ final class MCPTools {
         case "cancel_recording": return try cancelRecording(args)
         case "play": return try await play(args)
         case "now_playing": return nowPlaying()
+        case "item_info": return try await itemInfo(args)
         case "stop_playback": return stopPlayback()
         default: throw ToolError("Unknown tool \(name)")
         }
@@ -217,7 +221,10 @@ final class MCPTools {
                 let position = app.resumePosition("movie.\(movie.id)")
                 guard position > 0 else { return nil }
                 var value: [String: Any] = ["item_id": "movie:\(movie.id)", "title": movie.name, "position_seconds": Int(position)]
-                if let fraction = app.resumeFraction("movie.\(movie.id)") { value["progress_percent"] = Int(fraction * 100) }
+                if let fraction = app.resumeFraction("movie.\(movie.id)") {
+                    value["progress_percent"] = Int(fraction * 100)
+                    value.merge(Self.runtime(duration: position / fraction, position: position)) { $1 }
+                }
                 return value
             }
         if app.hasJellyfin {
@@ -234,6 +241,8 @@ final class MCPTools {
         }
         var value: [String: Any] = ["item_id": "jellyfin:\(item.id)", "title": title, "type": item.type]
         if let percent = item.userData?.playedPercentage { value["progress_percent"] = Int(percent) }
+        value.merge(Self.runtime(duration: item.runTimeTicks.map { Double($0) / 10_000_000 },
+                                 position: item.userData?.playbackPositionTicks.map { Double($0) / 10_000_000 })) { $1 }
         return value
     }
 
@@ -352,7 +361,121 @@ final class MCPTools {
         case .recording(let id): value["item_id"] = "recording:\(id.uuidString)"
         case .jellyfin(let id, _, _): value["item_id"] = "jellyfin:\(id)"
         }
+        if let engine = app.playerEngine {
+            let progress = engine.progress
+            value["state"] = switch engine.status {
+            case .playing: "playing"
+            case .paused: "paused"
+            case .buffering, .loading: "buffering"
+            case .ended: "ended"
+            case .idle: "idle"
+            case .failed(let message): "failed: \(message)"
+            }
+            if item.isLive {
+                value["follows_live"] = progress.followsLive
+                if !progress.followsLive { value["behind_live_seconds"] = Int(progress.behindLive) }
+            } else if progress.duration > 0 {
+                value.merge(Self.timing(position: progress.position, duration: progress.duration, running: engine.status == .playing)) { $1 }
+            } else {
+                value["position_seconds"] = Int(progress.position)
+                value["position"] = Self.clock(progress.position)
+            }
+        }
         return value
+    }
+
+    /// Position, duration and what is left, as seconds and h:mm:ss, plus the end time while it plays.
+    static func timing(position: Double, duration: Double, running: Bool) -> [String: Any] {
+        let remaining = max(0, duration - position)
+        var value: [String: Any] = [
+            "position_seconds": Int(position), "position": clock(position),
+            "duration_seconds": Int(duration), "duration": clock(duration),
+            "remaining_seconds": Int(remaining), "remaining": clock(remaining),
+        ]
+        if running { value["ends_at"] = iso(Date().addingTimeInterval(remaining)) }
+        return value
+    }
+
+    /// Runtime and, once started, what is left.
+    static func runtime(duration: Double?, position: Double?) -> [String: Any] {
+        guard let duration, duration > 0 else { return [:] }
+        var value: [String: Any] = ["runtime_seconds": Int(duration), "runtime": clock(duration)]
+        if let position, position > 0 {
+            value["position"] = clock(position)
+            value["remaining_seconds"] = Int(max(0, duration - position))
+            value["remaining"] = clock(max(0, duration - position))
+        }
+        return value
+    }
+
+    static func clock(_ seconds: Double) -> String {
+        let total = Int(max(0, seconds))
+        return String(format: "%d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
+    }
+
+    private func itemInfo(_ args: [String: Any]) async throws -> [String: Any] {
+        guard let itemId = args["item_id"] as? String else { throw ToolError("item_id is required") }
+        let parts = itemId.split(separator: ":", maxSplits: 2).map(String.init)
+        var value: [String: Any] = ["item_id": itemId]
+        switch (parts.first, parts.count) {
+        case ("movie", 2):
+            let adultMovies = Set(app.movieCategories.filter(app.isAdultCategory).map(\.id))
+            guard app.showsIPTVMovies, let id = Int(parts[1]), let movie = app.movies.first(where: { $0.id == id }),
+                  app.showAdult || (!movie.isAdult && !adultMovies.contains(movie.categoryId ?? "")) else { throw ToolError("No IPTV film with this id") }
+            value["type"] = "film"
+            value["title"] = movie.name
+            let details = try? await app.client?.movieDetails(id)
+            if let plot = details?.plot, !plot.isEmpty { value["plot"] = plot }
+            if let genre = details?.genre { value["genre"] = genre }
+            if let date = details?.releaseDate { value["release_date"] = date }
+            let position = app.resumePosition("movie.\(id)")
+            let duration = details?.duration.flatMap(Self.seconds) ?? app.resumeFraction("movie.\(id)").map { position / $0 }
+            value.merge(Self.runtime(duration: duration, position: position)) { $1 }
+        case ("episode", 3):
+            guard app.showsIPTVSeries, let seriesId = Int(parts[1]), let show = app.series.first(where: { $0.id == seriesId }),
+                  let client = app.client else { throw ToolError("No IPTV series with this id") }
+            let info = try await client.seriesInfo(seriesId)
+            guard let episode = info.seasons.values.joined().first(where: { $0.id == parts[2] }) else { throw ToolError("No episode \(parts[2]) in \(show.name)") }
+            value["type"] = "episode"
+            value["series"] = show.name
+            value["season"] = episode.season
+            value["episode"] = episode.number
+            value["title"] = episode.title
+            if let plot = episode.plot, !plot.isEmpty { value["plot"] = plot }
+            value.merge(Self.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition("episode.\(episode.id)"))) { $1 }
+        case ("jellyfin", 2):
+            guard app.hasJellyfin else { throw ToolError("No Jellyfin account") }
+            let item = try await app.jellyfin.call { try await $0.item(userId: $1, id: parts[1]) }
+            value.merge(jellyfinJSON(item)) { $1 }
+            value["title"] = item.name
+            if let series = item.seriesName { value["series"] = series }
+            if let season = item.parentIndexNumber { value["season"] = season }
+            if let episode = item.indexNumber { value["episode"] = episode }
+            if let year = item.productionYear { value["year"] = year }
+            if let plot = item.overview, !plot.isEmpty { value["plot"] = plot }
+        case ("recording", 2):
+            guard let id = UUID(uuidString: parts[1]), let recording = app.recorder.recordings.first(where: { $0.id == id }) else {
+                throw ToolError("No recording with this id")
+            }
+            value.merge(recordingJSON(recording)) { $1 }
+            value["type"] = "recording"
+            if !recording.description.isEmpty { value["plot"] = recording.description }
+            value.merge(Self.runtime(duration: recording.recordEnd.timeIntervalSince(recording.recordStart),
+                                     position: app.resumePosition("recording.\(id.uuidString)"))) { $1 }
+        default:
+            throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
+        }
+        return value
+    }
+
+    /// "01:52:10", "112 min" or "6730" (as providers deliver it) in seconds.
+    static func seconds(_ text: String) -> Double? {
+        let parts = text.split(separator: ":").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        if parts.count == 3 { return parts[0] * 3600 + parts[1] * 60 + parts[2] }
+        if parts.count == 2 { return parts[0] * 60 + parts[1] }
+        let digits = text.prefix { $0.isNumber }
+        guard let number = Double(digits), number > 0 else { return nil }
+        return text.contains("min") ? number * 60 : number
     }
 
     private func stopPlayback() -> [String: Any] {

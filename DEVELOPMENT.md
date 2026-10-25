@@ -280,7 +280,9 @@ The MCP server (`Fernsy/MCP/`, Settings › Assistenten) answers MCP over Stream
 `http://127.0.0.1:52323/mcp` (debug builds: port 52324), JSON responses only, with the bearer
 token from Settings (keychain). It needs `com.apple.security.network.server` (review note: local
 MCP server on 127.0.0.1 for the user's own AI assistant, off by default). Requests with an
-`Origin` header or a foreign `Host` are refused. Tools: `MCPTools.definitions`. Debug builds keep
+`Origin` header or a foreign `Host` are refused. Tools: `MCPTools.definitions`. `now_playing` reads the open player's `PlayerEngine` (`AppModel.playerEngine`,
+weak, set by `PlayerScreen`) for position, duration, remaining time and state; `item_info` and
+`recently_watched` add runtimes (Jellyfin ticks, the resume store, `get_vod_info`'s duration). Debug builds keep
 everything in memory: `IPTV_MCP=1` switches the server on, `IPTV_MCPTOKEN=<token>` sets the
 token, `IPTV_MCPREGEN=<s>` creates a new token after s seconds.
 "Zu Claude Desktop hinzufügen …" builds a desktop extension (`MCPDesktopExtension`, `.mcpb`
