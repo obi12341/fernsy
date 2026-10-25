@@ -354,6 +354,12 @@ queries once the catalog is loaded, one every 4 s.
 
 The player window moves when the picture is dragged (`VideoSurfaceView.mouseDown` hands single
 clicks to `performDrag`); a click still shows the controls, a double-click toggles full screen.
+While the player is in full screen, `LibraryWindows` orders the library windows out, so
+activating Fernsy (⌘-Tab, Dock) switches to the full-screen Space instead of showing the library
+on the desktop (macOS only switches Spaces when the app has no window on the current one). They
+come back behind the player when it leaves full screen or closes; `showLibrary` (menu bar, Siri)
+takes a hidden one instead of opening a second. `IPTV_TESTFS=1` enters, leaves and re-enters
+full screen.
 
 ## License
 

@@ -247,6 +247,8 @@ struct PlayerScreen: View {
         .onReceive(pip?.$isPossible.eraseToAnyPublisher() ?? Just(false).eraseToAnyPublisher()) { pipPossible = $0 }
         .onDisappear {
             if app.playerEngine === engine { app.playerEngine = nil }
+            // Closed in full screen: no exit notification comes.
+            LibraryWindows.restore(below: nil)
             zapTask?.cancel()
             zapTarget = nil
             osd = nil
@@ -281,10 +283,16 @@ struct PlayerScreen: View {
         .task(id: liveChannelID) { await refreshEPG() }
         // Track the real window state so the button icon also follows the green button, Esc and ⌃⌘F.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { note in
-            if (note.object as? NSWindow) === playerWindow { isFullScreen = true }
+            if (note.object as? NSWindow) === playerWindow {
+                isFullScreen = true
+                LibraryWindows.hideForFullScreen()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { note in
-            if (note.object as? NSWindow) === playerWindow { isFullScreen = false }
+            if (note.object as? NSWindow) === playerWindow {
+                isFullScreen = false
+                LibraryWindows.restore(below: playerWindow)
+            }
         }
         .animation(.easeInOut(duration: 0.25), value: audioBadge)
     }
