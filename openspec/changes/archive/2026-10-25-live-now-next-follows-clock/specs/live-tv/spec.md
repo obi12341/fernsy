@@ -1,13 +1,12 @@
 ## MODIFIED Requirements
 
 ### Requirement: Channel list with now and next
-The Live TV section SHALL show the channels of the selected category as rows with number,
-logo, tagged name, the current show with progress, the next show, and status marks.
-Selecting a channel SHALL show a detail pane on the right with "Play", the favourite toggle,
-the current show with remaining time and "Record", and the following shows, each with
-"Record" or "Scheduled". In a narrow window the pane moves below the list. Rows and pane
-SHALL follow the clock: within a minute of a show change they show the new current and next
-show.
+The Live TV section SHALL show the selected category's channels as rows with number, logo,
+tagged name, current show with progress, next show and status marks. Selecting a channel SHALL
+show a detail pane (below the list in a narrow window) with "Play", the favourite toggle, the
+current show with remaining time and "Record", and the following shows, each with "Record" or
+"Scheduled". Rows and pane SHALL follow the clock, showing a new show within a minute of its
+start.
 
 #### Scenario: Selecting a channel
 - **WHEN** the user selects a channel in the list
