@@ -20,6 +20,7 @@ final class VideoSurfaceView: NSView {
     var onKeyDown: ((NSEvent) -> Bool)?
     var onMouseActivity: (() -> Void)?
     var onDoubleClick: (() -> Void)?
+    var onClick: (() -> Void)?
 
     private var tracking: NSTrackingArea?
 
@@ -99,6 +100,7 @@ final class VideoSurfaceView: NSView {
         if event.clickCount == 2 {
             onDoubleClick?()
         } else {
+            onClick?()
             // Dragging the picture moves the window (AppKit moves it only if the pointer moves;
             // a plain click returns at mouse-up). Not `mouseDownCanMoveWindow`: AppKit would then
             // take the press itself, and the double-click would no longer reach this view.
@@ -116,6 +118,7 @@ struct VideoSurface: NSViewRepresentable {
     var onKeyDown: (NSEvent) -> Bool
     var onMouseActivity: () -> Void
     var onDoubleClick: () -> Void
+    var onClick: () -> Void = {}
 
     func makeNSView(context: Context) -> VideoSurfaceView {
         let view = VideoSurfaceView()
@@ -128,5 +131,6 @@ struct VideoSurface: NSViewRepresentable {
         view.onKeyDown = onKeyDown
         view.onMouseActivity = onMouseActivity
         view.onDoubleClick = onDoubleClick
+        view.onClick = onClick
     }
 }

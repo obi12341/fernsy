@@ -2552,6 +2552,16 @@
         }
       }
     },
+    "Keine Sender": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Channels"
+          }
+        }
+      }
+    },
     "Keine abspielbaren Spuren gefunden": {
       "localizations": {
         "en": {
@@ -3510,12 +3520,32 @@
         }
       }
     },
+    "Senderliste (L)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel List (L)"
+          }
+        }
+      }
+    },
     "Senderliste oder Programmraster": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Channel list or program guide"
+          }
+        }
+      }
+    },
+    "Senderliste schließen (L, Esc)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close Channel List (L, Esc)"
           }
         }
       }
