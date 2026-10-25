@@ -298,7 +298,11 @@ phrases in code and English ones in `Fernsy/AppShortcuts.xcstrings`; the actions
 `FernsyActions`, shared with the MCP tools. Debug builds neither index nor donate unless
 `IPTV_SIRIINDEX=1`. `IPTV_TESTINTENT=<step>|…` runs the intents' actions once the catalog is
 loaded and logs the answers (`query:<text>`, `suggested`, `play:<id>`, `whatson`, `find:<text>`,
-`record[:<id>]`, `recordshow:<channel>:<epoch>`, `stop`).
+`record[:<id>]`, `recordshow:<channel>:<epoch>`, `stop`, `open:<id>`, `search:<text>`).
+Siri AI (macOS 27) ignores App Shortcut phrases by voice and only uses schema intents: Fernsy has
+`OpenChannelIntent` (`.system.open`, opening a channel plays it) and `SearchFernsyIntent`
+(`.system.searchInApp`, fills the library's search). Everything else is for MCP, Shortcuts and
+Spotlight.
 
 Picture in Picture (button in the controls, key P) uses the system's PiP with the player's
 display layer; subtitles are not shown in the PiP window. macOS mirrors a sample-buffer PiP

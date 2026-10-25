@@ -2106,6 +2106,16 @@
         }
       }
     },
+    "Fernsy sucht nach „%@“.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy is searching for \"%@\"."
+          }
+        }
+      }
+    },
     "Fernsy zeigt jetzt %@.": {
       "localizations": {
         "en": {

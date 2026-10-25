@@ -196,6 +196,8 @@ final class AppModel: ObservableObject {
     @Published var isPictureInPictureActive = false
     /// Set from outside the library window (menu bar): the section it should show.
     @Published var requestedSection: LibrarySection?
+    /// A search to show in the library's toolbar search (Siri's "Suche … in Fernsy").
+    @Published var requestedSearch: String?
     /// The tuner the player watches live TV through (shared with recordings of that channel).
     @Published private(set) var playerTuner: LiveTuner?
 
@@ -407,6 +409,8 @@ final class AppModel: ObservableObject {
                     case "record": line = await IntentActions.recordNow(channelId: Int(arg)).text
                     case "recordshow": line = await IntentActions.record(showId: arg).text
                     case "stop": line = await IntentActions.stop().text
+                    case "open": line = await IntentActions.play(channelId: Int(arg) ?? 0).text
+                    case "search": line = IntentActions.search(arg).text
                     default: line = "unknown step"
                     }
                     debugLog("[test] intent \(step): \(line)")

@@ -45,11 +45,15 @@ struct MenuBarContent: View {
 
 struct MenuBarLabel: View {
     @ObservedObject var recorder: Recorder
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let recording = recorder.recordings.contains { $0.status == .recording }
         Image(nsImage: Self.symbol(recording: recording))
             .accessibilityLabel(recording ? Text("Fernsy – Aufnahme läuft") : Text(verbatim: "Fernsy"))
+            // The label lives as long as the menu bar item, also with every window closed: its
+            // openWindow still works when the library's has gone with its window.
+            .onAppear { PlayerWindow.menuBarOpenWindow = openWindow }
     }
 
     /// The TV symbol in the menu bar's text colour, with a red dot while recording. Not a
