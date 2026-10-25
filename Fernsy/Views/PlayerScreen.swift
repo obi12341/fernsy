@@ -429,7 +429,7 @@ struct PlayerScreen: View {
         }
         controller.onRestore = {
             app.isPictureInPictureActive = false
-            pipStage.end()
+            pipStage.end(flushing: engine.videoSink)
             engine.displayLayer.videoGravity = .resize
             playerWindow?.makeKeyAndOrderFront(nil)
             NSApp.activate()
@@ -437,7 +437,7 @@ struct PlayerScreen: View {
         }
         controller.onClosed = {
             app.isPictureInPictureActive = false
-            pipStage.end()
+            pipStage.end(flushing: engine.videoSink)
             engine.displayLayer.videoGravity = .resize
             guard let window = playerWindow else { return }
             window.orderFront(nil)
@@ -1112,6 +1112,9 @@ struct StatsOverlay: View {
             row("Reconnects", reconnectText)
             row("Pufferungen", "\(stats.rebuffers)")
             row("Verworfen", String(localized: "\(stats.droppedFrames) Frames") + (stats.duplicatesDropped > 0 ? " · " + String(localized: "\(stats.duplicatesDropped) Duplikate") : ""))
+            if stats.decodeFailures > 0 {
+                row("Decodierfehler", String(localized: "\(stats.decodeFailures) Frames"))
+            }
         }
     }
 

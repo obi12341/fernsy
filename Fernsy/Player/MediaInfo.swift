@@ -35,6 +35,8 @@ struct PlaybackStats: Equatable {
     var bufferSeconds = 0.0
     var bitrateMbps = 0.0
     var droppedFrames = 0
+    /// Frames the video renderer could not decode.
+    var decodeFailures = 0
     /// Seconds of decoded audio queued in the renderer ahead of the clock.
     var audioAhead = 0.0
     /// Received from the network but not yet demuxed.

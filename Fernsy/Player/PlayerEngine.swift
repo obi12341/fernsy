@@ -160,16 +160,23 @@ final class PlayerEngine: ObservableObject {
 
     let progress = PlaybackProgress()
     let bufferHistory = BufferHistory()
-    let displayLayer = AVSampleBufferDisplayLayer()
+    let displayLayer: AVSampleBufferDisplayLayer
 
     /// While Picture in Picture runs: the loading picture shown until a new item's first frame.
-    private(set) lazy var loadingCard = PictureInPictureLoadingCard(renderer: displayLayer.sampleBufferRenderer)
+    private(set) lazy var loadingCard = PictureInPictureLoadingCard(sink: videoSink)
     let lastPicture = LastPicture()
     #if DEBUG
     private var debugOpenedItems = 0
     #endif
-    private let audioRenderer = AVSampleBufferAudioRenderer()
-    private let synchronizer = AVSampleBufferRenderSynchronizer()
+    private let audioRenderer: AVSampleBufferAudioRenderer
+    private let synchronizer: AVSampleBufferRenderSynchronizer
+    /// The renderers' receivers (macOS 27): every enqueue and flush goes through them.
+    let videoSink: VideoSink
+    private let audioSink: AudioSink
+    private var sinkEvents: [Task<Void, Never>] = []
+    /// Recent automatic video recoveries (rate limit, give up after three in 30 s).
+    private var recoveries: [Date] = []
+    private var lastDecodeFailures = 0
     private let controlQueue = DispatchQueue(label: "player.control", qos: .userInitiated)
     private var session: PlaybackSession? // controlQueue only
 
@@ -194,32 +201,37 @@ final class PlayerEngine: ObservableObject {
     private var startedAt: Date?
     private var cues: [SubtitleCue] = []
     private var activity: NSObjectProtocol?
-    private var flushObserver: NSObjectProtocol?
 
     init() {
         let stored = UserDefaults.standard.object(forKey: "player.volume") as? Float
         volume = stored ?? 1.0
+        let displayLayer = AVSampleBufferDisplayLayer()
+        let audioRenderer = AVSampleBufferAudioRenderer()
+        let synchronizer = AVSampleBufferRenderSynchronizer()
+        self.displayLayer = displayLayer
+        self.audioRenderer = audioRenderer
+        self.synchronizer = synchronizer
+        videoSink = VideoSink(receiver: synchronizer.sampleBufferReceiver(adding: displayLayer.sampleBufferRenderer))
+        audioSink = AudioSink(receiver: synchronizer.sampleBufferReceiver(adding: audioRenderer))
 
         displayLayer.videoGravity = .resize // the view sizes the layer to the exact display aspect
         displayLayer.preventsDisplaySleepDuringVideoPlayback = true
         displayLayer.backgroundColor = NSColor.black.cgColor
         audioRenderer.volume = volume
 
-        synchronizer.addRenderer(displayLayer.sampleBufferRenderer)
-        synchronizer.addRenderer(audioRenderer)
         synchronizer.delaysRateChangeUntilHasSufficientMediaData = false
 
-        flushObserver = NotificationCenter.default.addObserver(
-            forName: .AVSampleBufferAudioRendererWasFlushedAutomatically, object: audioRenderer, queue: .main
-        ) { [weak self] _ in
-            // Output device changed: refill audio from the current position.
-            guard let self, !self.currentIsLive || self.isTimeshift, self.status == .playing || self.status == .paused else { return }
-            self.seek(to: self.progress.position)
-        }
+        // Problems reported after enqueuing stopped (e.g. while paused); during playback the
+        // enqueue results report them (session events).
+        let engine = WeakEngine(self)
+        sinkEvents.append(videoSink.observeEvents(
+            needsFlush: { reason in DispatchQueue.main.async { engine.value?.recoverVideo(reason) } },
+            decodeFailures: { count in DispatchQueue.main.async { AppLog.warning(.player, "\(count) video frames could not be decoded") } }))
+        sinkEvents.append(audioSink.observeEvents { DispatchQueue.main.async { engine.value?.refillAudio() } })
     }
 
     deinit {
-        if let flushObserver { NotificationCenter.default.removeObserver(flushObserver) }
+        sinkEvents.forEach { $0.cancel() }
         let s = session
         controlQueue.async { s?.stop() }
     }
@@ -240,6 +252,7 @@ final class PlayerEngine: ObservableObject {
         externalCues = nil
         reconnectAttempts = 0
         restarts = 0
+        recoveries = []
         bufferHistory.reset()
         start(url: url, mode: .network(isLive: isLive), startAt: startAt)
     }
@@ -273,6 +286,7 @@ final class PlayerEngine: ObservableObject {
         externalCues = nil
         reconnectAttempts = 0
         restarts = 0
+        recoveries = []
         bufferHistory.reset()
         start(url: url, mode: .file(FileByteSource(url: url, isGrowing: isGrowing)), startAt: startAt)
     }
@@ -285,6 +299,7 @@ final class PlayerEngine: ObservableObject {
         externalCues = nil
         reconnectAttempts = 0
         restarts = 0
+        recoveries = []
         bufferHistory.reset()
         self.tuner = tuner
         isTimeshift = true
@@ -360,9 +375,10 @@ final class PlayerEngine: ObservableObject {
         subtitleBitmap = nil
         progress.buffered = 0
         beginActivity()
+        lastDecodeFailures = 0 // each session counts from zero
 
-        let videoRenderer = displayLayer.sampleBufferRenderer
-        let audioRenderer = audioRenderer
+        let videoSink = videoSink
+        let audioSink = audioSink
         let tracks = trackRequest
         let synchronizer = synchronizer
         let loadingCard = loadingCard
@@ -373,11 +389,11 @@ final class PlayerEngine: ObservableObject {
             self.session?.stop()
             self.session = nil
             synchronizer.setRate(0, time: .zero)
-            videoRenderer.flush()
-            audioRenderer.flush()
+            videoSink.flush()
+            audioSink.flush()
             let session = PlaybackSession(
                 url: url, mode: mode, startPosition: startAt, tracks: tracks,
-                videoRenderer: videoRenderer, audioRenderer: audioRenderer, synchronizer: synchronizer
+                videoSink: videoSink, audioSink: audioSink, synchronizer: synchronizer
             ) { [weak self] event in
                 self?.handle(event, generation: gen)
             }
@@ -408,15 +424,15 @@ final class PlayerEngine: ObservableObject {
         media = nil
         currentURL = nil
         endActivity()
-        let videoRenderer = displayLayer.sampleBufferRenderer
-        let audioRenderer = audioRenderer
+        let videoSink = videoSink
+        let audioSink = audioSink
         let synchronizer = synchronizer
         controlQueue.async { [weak self] in
             self?.session?.stop()
             self?.session = nil
             synchronizer.setRate(0, time: .zero)
-            videoRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
-            audioRenderer.flush()
+            videoSink.flushRemovingImage()
+            audioSink.flush()
         }
     }
 
@@ -634,6 +650,10 @@ final class PlayerEngine: ObservableObject {
             // Every ten seconds is enough to follow a stream's health.
             guard Date() >= nextStatsLog else { break }
             nextStatsLog = Date().addingTimeInterval(10)
+            if s.decodeFailures > lastDecodeFailures {
+                AppLog.warning(.player, "\(s.decodeFailures - lastDecodeFailures) video frames could not be decoded")
+                lastDecodeFailures = s.decodeFailures
+            }
             AppLog.detail(.player, "stats \(s.videoCodec) \(s.resolution) \(String(format: "%.2f", s.frameRate))fps decoder=\(s.decoder) fmt=\(s.pixelFormat) deint=\(s.deinterlace) \(s.dynamicRange) audio=\(s.audio) buffer=\(String(format: "%.1f", s.bufferSeconds))s rate=\(String(format: "%.1f", s.bitrateMbps))Mbit drops=\(s.droppedFrames) audioAhead=\(String(format: "%.2f", s.audioAhead))s net=\(s.networkBufferBytes / 1024)KB reconnects=\(s.seamlessReconnects) dups=\(s.duplicatesDropped) rebuffers=\(s.rebuffers) pos=\(String(format: "%.1f", progress.position))")
         case .failed(let message, let retry):
             // The outcome (reconnect or failure) is logged where it is decided.
@@ -717,6 +737,10 @@ final class PlayerEngine: ObservableObject {
             subtitleBitmap = nil
         case .audioGap(let missing):
             isAudioMissing = missing
+        case .decoderNeedsFlush(let reason):
+            recoverVideo(reason)
+        case .audioNeedsRefill:
+            refillAudio()
         case .ended:
             if currentIsLive {
                 reconnect(reason: String(localized: "Stream beendet"))
@@ -753,6 +777,52 @@ final class PlayerEngine: ObservableObject {
                 endActivity()
             }
         }
+    }
+
+    /// The video decoder needs a flush and a key frame: resume at the current position, which
+    /// flushes and restarts decoding there (live: from the buffer, or by reconnecting).
+    private func recoverVideo(_ reason: String) {
+        guard status == .playing || status == .paused || status == .buffering, currentURL != nil else { return }
+        let now = Date()
+        recoveries.removeAll { now.timeIntervalSince($0) > 30 }
+        if let last = recoveries.last, now.timeIntervalSince(last) < 2 { return }
+        guard recoveries.count < 3 else {
+            AppLog.error(.player, "video decoder keeps failing (\(reason)), giving up")
+            halt()
+            status = .failed(String(localized: "Das Bild konnte nicht wiederhergestellt werden."))
+            return
+        }
+        recoveries.append(now)
+        AppLog.warning(.player, "video decoder needs a restart (\(reason)), resuming at \(Int(progress.position)) s")
+        if isTimeshift && progress.followsLive {
+            // Watching live: stay live.
+            goLive()
+        } else if !currentIsLive || isTimeshift {
+            seek(to: progress.position)
+        } else {
+            reconnect(reason: String(localized: "Decoder neu gestartet"))
+        }
+    }
+
+    /// Stops the session but keeps the last frame on screen (under a status card).
+    private func halt() {
+        generation += 1
+        endActivity()
+        let synchronizer = synchronizer
+        let audioSink = audioSink
+        controlQueue.async { [weak self] in
+            self?.session?.stop()
+            self?.session = nil
+            synchronizer.setRate(0, time: .zero)
+            audioSink.flush()
+        }
+    }
+
+    /// The audio output changed (or its renderer failed): refill audio from the current position.
+    private func refillAudio() {
+        guard !currentIsLive || isTimeshift, status == .playing || status == .paused else { return }
+        AppLog.info(.player, "audio output changed, refilling at \(Int(progress.position)) s")
+        seek(to: progress.position)
     }
 
     /// A controller gave up recovering (e.g. the Jellyfin session could not be renewed).
@@ -822,3 +892,9 @@ func debugLog(_ message: String) {
     FileHandle.standardError.write(Data(("\(t) " + message + "\n").utf8))
 }
 #endif
+
+/// A weak engine reference the receivers' event tasks can carry; it is only read on the main queue.
+private final class WeakEngine: @unchecked Sendable {
+    weak var value: PlayerEngine?
+    init(_ value: PlayerEngine) { self.value = value }
+}
