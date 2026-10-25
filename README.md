@@ -218,7 +218,10 @@ key). `IPTV_NAMETEST=1` runs its examples, `IPTV_TESTINFO=<channel id>` opens a 
 info, `IPTV_LIVEMODE=list|guide` picks the Live TV view for one run.
 Live TV: `IPTV_SELECT=<id>` selects a channel (detail pane), `IPTV_TESTSCHEDULE=1` then
 schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog refresh fail
-(the provider-unreachable notice over the cached list).
+(the provider-unreachable notice over the cached list). `IPTV_CLOCKOFFSET=<s>` shifts "now" in
+the rows and the detail pane only (to see a show change without waiting for one);
+`IPTV_EPGRECHECK=<s>` sets how often a visible row checks its programme (default 5 min) and
+`IPTV_EPGSTALE=1` treats every programme as stale, so each check downloads it again.
 Guide: `IPTV_TESTNOEPG=<id>` gives that channel no listings, `IPTV_GUIDEDAY=<n>` and
 `IPTV_GUIDETIME=<hh:mm>` jump to a day and time, `IPTV_GUIDESELECT=<id>:<n>` selects that
 channel's n-th upcoming show.

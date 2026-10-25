@@ -109,9 +109,26 @@ final class EPGStore {
         Task.detached(priority: .utility) { Self.write(cached, to: file) }
     }
 
+    /// Whether the channel's programme should be downloaded again (for rows that stay visible).
+    func needsRefresh(_ channelId: Int) -> Bool {
+        !Self.isFresh(guide(channelId))
+    }
+
+    /// How often a visible row asks `needsRefresh` (`IPTV_EPGRECHECK=<s>` in debug builds).
+    static var recheckInterval: TimeInterval {
+        #if DEBUG
+        if let seconds = ProcessInfo.processInfo.environment["IPTV_EPGRECHECK"].flatMap(Double.init) { return seconds }
+        #endif
+        return 5 * 60
+    }
+
     /// Re-download when half a day old, or when the programme no longer reaches a day
     /// ahead (unless the server simply has no more: then an hour is enough).
+    /// `IPTV_EPGSTALE=1` treats every programme as stale in debug builds.
     private static func isFresh(_ guide: ChannelGuide) -> Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["IPTV_EPGSTALE"] == "1" { return false }
+        #endif
         guard let fetchedAt = guide.fetchedAt else { return false }
         let age = Date().timeIntervalSince(fetchedAt)
         if age > 12 * 3600 { return false }

@@ -322,10 +322,12 @@ struct EPGEntry: Identifiable, Decodable {
         return decoded
     }
 
-    var progress: Double {
+    var progress: Double { progress(at: Date()) }
+
+    func progress(at date: Date) -> Double {
         let total = end.timeIntervalSince(start)
         guard total > 0 else { return 0 }
-        return min(1, max(0, Date().timeIntervalSince(start) / total))
+        return min(1, max(0, date.timeIntervalSince(start) / total))
     }
 }
 

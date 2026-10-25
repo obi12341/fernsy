@@ -214,7 +214,16 @@ struct ChannelRow: View {
         .opacity(hidden ? 0.42 : 1)
         .frame(minHeight: 50)
         .padding(.vertical, 2)
-        .task(id: channel.id) { await app.epg.load(channel.id, client: app.client) }
+        .task(id: channel.id) {
+            await app.epg.load(channel.id, client: app.client)
+            // While the row stays visible its programme stays fresh; the task ends with the row.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(EPGStore.recheckInterval))
+                if !Task.isCancelled, app.epg.needsRefresh(channel.id) {
+                    await app.epg.load(channel.id, client: app.client)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -237,7 +246,14 @@ private struct NowNextLine: View {
     let offline: Bool
 
     var body: some View {
-        let now = Date()
+        // Redrawn every full minute, so current and next show move on without a scroll.
+        TimelineView(LiveClock.everyMinute) { context in
+            line(now: LiveClock.now(context.date))
+        }
+    }
+
+    @ViewBuilder
+    private func line(now: Date) -> some View {
         let entries = guide.entries ?? []
         let current = entries.first { $0.start <= now && $0.end > now }
         let next = entries.first { $0.start >= (current?.end ?? now) }
@@ -265,9 +281,27 @@ private struct NowNextLine: View {
                 }
             }
             .font(.callout)
-            ProgressBar(value: current?.progress ?? 0, tint: recording ? Theme.record : Color.primary.opacity(0.5))
+            ProgressBar(value: current?.progress(at: now) ?? 0, tint: recording ? Theme.record : Color.primary.opacity(0.5))
                 .opacity(current == nil || offline ? 0 : 1)
         }
+    }
+}
+
+/// "Now" for the Live TV rows and the detail pane. In debug builds `IPTV_CLOCKOFFSET=<s>`
+/// shifts it (only there), to test a show change without waiting for one.
+enum LiveClock {
+    #if DEBUG
+    private static let offset = ProcessInfo.processInfo.environment["IPTV_CLOCKOFFSET"].flatMap(Double.init) ?? 0
+    #else
+    private static let offset: Double = 0
+    #endif
+
+    static func now(_ date: Date = Date()) -> Date { date.addingTimeInterval(offset) }
+
+    /// Every full minute, counted in seconds rather than by the calendar: `.everyMinute`
+    /// stalls in the hour that repeats when daylight saving time ends.
+    static var everyMinute: PeriodicTimelineSchedule {
+        .periodic(from: Date(timeIntervalSince1970: (Date().timeIntervalSince1970 / 60).rounded(.down) * 60), by: 60)
     }
 }
 
