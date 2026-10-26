@@ -93,6 +93,16 @@ struct RecordingRow: View {
                     .foregroundStyle(outcome.failed ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                     .help(outcome.text)
                 }
+                if let gaps = gapsNote {
+                    Label {
+                        Text(verbatim: gaps.text).lineLimit(1)
+                    } icon: {
+                        Image(systemName: "info.circle").foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help(gaps.help)
+                }
                 if recording.status == .recording {
                     TimelineView(.periodic(from: .now, by: 5)) { context in
                         ProgressBar(value: progress(at: context.date), tint: Theme.record)
@@ -195,6 +205,25 @@ struct RecordingRow: View {
         default:
             return nil
         }
+    }
+
+    /// Content the provider did not deliver: "Lücke 21:38 (1:41) – Anbieter hat zu wenig geliefert".
+    private var gapsNote: (text: String, help: String)? {
+        let gaps = recording.gaps
+        guard !gaps.isEmpty else { return nil }
+        let cause = String(localized: "Anbieter hat zu wenig geliefert")
+        let single = gaps.map { String(localized: "Lücke \($0.at.formatted(date: .omitted, time: .shortened)) (\(Self.duration($0.seconds)))") }
+        let help = single.joined(separator: "\n") + "\n" + cause
+        if gaps.count > 2 {
+            let total = Self.duration(gaps.reduce(0) { $0 + $1.seconds })
+            return (String(localized: "\(gaps.count) Lücken, insgesamt \(total) – \(cause)"), help)
+        }
+        return (single.joined(separator: ", ") + " – " + cause, help)
+    }
+
+    private static func duration(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds.rounded())
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 
     private func progress(at date: Date) -> Double {

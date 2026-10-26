@@ -221,7 +221,9 @@ final class PlaybackSession {
             liveTimeline = true
             tunerOutput = output
             timeshift = nil
-            source = HTTPByteSource(url: url, isLive: true)
+            let http = HTTPByteSource(url: url, isLive: true)
+            http.contentClock = { [weak output] in output?.contentTime }
+            source = http
         case .buffer(let buffer):
             isLive = false
             liveTimeline = true
@@ -250,6 +252,13 @@ final class PlaybackSession {
     /// Network counters of the source (for a tuner: its connection).
     var networkStats: (HTTPByteSource.NetStats, Int64) {
         (source.netStats, source.totalBytesReceived)
+    }
+
+    /// Tuner: the connection's health and a recovery via another server (watchdog queue).
+    func observeConnection(health: @escaping (HTTPByteSource.Health) -> Void, recovered: @escaping () -> Void) {
+        guard let http = source as? HTTPByteSource else { return }
+        http.onHealth = health
+        http.onRecovered = recovered
     }
 
     /// Tuner: how much the slowest consumer still has ahead (stall detection).
@@ -1794,7 +1803,9 @@ final class PlaybackSession {
     /// IPTV_TESTNET="drop:15,stall:40,close:60": kill the connection / stall the socket / end the
     /// download as if the server had closed it cleanly, at those seconds after start – the live
     /// reconnect and, for films, continuing an interrupted download. "forbid:<s>": the next
-    /// reconnect to the edge gets a 403; "flaky:<s>": drops now and 6 s after the reconnect.
+    /// reconnect to the edge gets a 403; "flaky:<s>": drops now and 6 s after the reconnect;
+    /// "trickle:<s>": the connection delivers only IPTV_TRICKLEKBIT kbit/s (default 300) until the
+    /// next reconnect.
     private func scheduleNetworkTest() {
         guard let spec = ProcessInfo.processInfo.environment["IPTV_TESTNET"] else { return }
         for item in spec.split(separator: ",") {
@@ -1810,6 +1821,9 @@ final class PlaybackSession {
                 case "close": http.debugCloseConnection()
                 case "forbid": http.debugForbidNextEdge()
                 case "flaky": http.debugFlakyEdge()
+                case "trickle":
+                    let kbit = ProcessInfo.processInfo.environment["IPTV_TRICKLEKBIT"].flatMap(Double.init) ?? 300
+                    http.debugTrickle(kbit: kbit)
                 default: http.debugStallConnection()
                 }
             }

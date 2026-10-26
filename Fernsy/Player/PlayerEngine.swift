@@ -120,6 +120,7 @@ final class PlayerEngine: ObservableObject {
             default: break
             }
             guard status != oldValue else { return }
+            noteUnhealthyStall()
             switch status {
             case .failed(let message):
                 logStallEnd("failed")
@@ -193,6 +194,19 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var isTimeshift = false
     private var tuner: LiveTuner?
     private var tunerState: AnyCancellable?
+    private var tunerHealth: AnyCancellable?
+    private var tunerRecovery: AnyCancellable?
+    /// Live: how the tuner's connection delivers (the status card names the provider only
+    /// when it is slow, silent or being replaced).
+    @Published private(set) var connectionHealth: HTTPByteSource.Health = .ok {
+        didSet { noteUnhealthyStall() }
+    }
+    /// When the picture last waited while the connection was slow, silent or being replaced:
+    /// the note after a server switch only follows a stall the user saw.
+    private var unhealthyStallAt = Date.distantPast
+    /// Live: another provider server ended a stall; shown for a few seconds.
+    @Published private(set) var showsServerSwitchNote = false
+    private var serverSwitchNoteHide: DispatchWorkItem?
     static var liveLead: Double { PlaybackSession.liveLead }
     private var reconnectAttempts = 0 {
         didSet { if reconnectAttempt != reconnectAttempts { reconnectAttempt = reconnectAttempts } }
@@ -323,12 +337,42 @@ final class PlayerEngine: ObservableObject {
         tunerState = publisher.sink { [weak self] state in
             self?.tunerChanged(state)
         }
+        let (health, recovered) = MainActor.assumeIsolated { (tuner.$health, tuner.$recoveredAt) }
+        tunerHealth = health.sink { [weak self] health in
+            guard let self, self.connectionHealth != health else { return }
+            #if DEBUG
+            debugLog("[health] \(health)")
+            #endif
+            self.connectionHealth = health
+        }
+        tunerRecovery = recovered.dropFirst().compactMap { $0 }.sink { [weak self] _ in
+            self?.showServerSwitchNote()
+        }
         guard state != .unsupported else { return }
         start(url: tuner.url, mode: .buffer(tuner.buffer), startAt: -1)
     }
 
+    private func noteUnhealthyStall() {
+        if status == .buffering && connectionHealth != .ok { unhealthyStallAt = Date() }
+    }
+
+    private func showServerSwitchNote() {
+        guard Date().timeIntervalSince(unhealthyStallAt) < 60 else { return }
+        AppLog.info(.player, "note: another provider server delivers smoothly again")
+        serverSwitchNoteHide?.cancel()
+        showsServerSwitchNote = true
+        let hide = DispatchWorkItem { [weak self] in self?.showsServerSwitchNote = false }
+        serverSwitchNoteHide = hide
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: hide)
+    }
+
     private func detachTuner() {
         tunerState = nil
+        tunerHealth = nil
+        tunerRecovery = nil
+        connectionHealth = .ok
+        serverSwitchNoteHide?.cancel()
+        showsServerSwitchNote = false
         tuner = nil
         isTimeshift = false
         progress.liveStart = 0

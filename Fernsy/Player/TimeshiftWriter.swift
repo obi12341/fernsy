@@ -9,6 +9,8 @@ protocol TunerOutput: AnyObject {
     func streamsOpened(_ fmt: UnsafeMutablePointer<AVFormatContext>, kept: [Int32], clock: Int32, tappedAudio: Bool) -> Bool
     /// The caller still owns the packet.
     func packet(_ pkt: UnsafeMutablePointer<AVPacket>, input: Int32, timeBase: AVRational)
+    /// Buffer time of the newest packet of the clock stream written (any thread).
+    var contentTime: Double? { get }
 }
 
 private func writeToBuffer(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafePointer<UInt8>?, _ size: Int32) -> Int32 {
@@ -42,6 +44,10 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
     }
 
     private var outputs: [Output] = []
+    /// `contentTime`, behind its own lock: the connection's watchdog reads it while a write may
+    /// hold `lock` on the disk.
+    private let timeLock = NSLock()
+    private var newestClockTime: Double?
     /// Input stream index of the current connection → output index.
     private var mapping: [Int32: Int] = [:]
     private var clockInput: Int32 = -1
@@ -76,6 +82,11 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
         }
         lock.unlock()
         buffer.close()
+    }
+
+    var contentTime: Double? {
+        timeLock.lock(); defer { timeLock.unlock() }
+        return newestClockTime
     }
 
     var isFailed: Bool {
@@ -186,6 +197,11 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
         guard started else { return }
         outputs[out].lastDTS = dts90
         outputs[out].last = time
+        if isClock {
+            timeLock.lock()
+            newestClockTime = time
+            timeLock.unlock()
+        }
         if ffs_mux_write(muxer, pkt, Int32(out), timeBase, resync ? 1 : 0) < 0 {
             AppLog.warning(.timeshift, "write failed for stream \(out) at \(String(format: "%.2f", time))")
         }

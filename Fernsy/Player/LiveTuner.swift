@@ -21,6 +21,10 @@ final class LiveTuner: ObservableObject {
     nonisolated let url: URL
     nonisolated let buffer: TimeshiftBuffer
     @Published private(set) var state: State = .connecting
+    /// How the current connection delivers (for the player's status card).
+    @Published private(set) var health: HTTPByteSource.Health = .ok
+    /// Set each time a reconnect via the load balancer ended slow or silent delivery.
+    @Published private(set) var recoveredAt: Date?
 
     /// Recordings keep a tuner trying for as long as they run; the player alone gives up
     /// after a few attempts like before.
@@ -28,7 +32,7 @@ final class LiveTuner: ObservableObject {
     /// The provider reported the channel offline (true) or it delivers again (false).
     var onOffline: ((Bool) -> Void)?
 
-    private let writer: TimeshiftWriter
+    nonisolated private let writer: TimeshiftWriter
     nonisolated private let holder = SessionHolder()
     private let control = DispatchQueue(label: "tuner.control", qos: .userInitiated)
     private var generation = 0
@@ -64,6 +68,9 @@ final class LiveTuner: ObservableObject {
         }
     }
 
+    /// Buffer time of the newest content received (recording gaps).
+    nonisolated var contentTime: Double? { writer.contentTime }
+
     /// Seconds the player still has ahead of its position (stall detection on the connection).
     nonisolated func reportPlaybackAhead(_ seconds: Double) {
         holder.session?.reportPlaybackAhead(seconds)
@@ -71,6 +78,7 @@ final class LiveTuner: ObservableObject {
 
     private func connect() {
         generation += 1
+        health = .ok
         let gen = generation
         let url = url, writer = writer, holder = holder
         control.async { [weak self] in
@@ -79,9 +87,24 @@ final class LiveTuner: ObservableObject {
             let session = PlaybackSession(tunerURL: url, output: writer) { [weak self] event in
                 MainActor.assumeIsolated { self?.handle(event, generation: gen) }
             }
+            session.observeConnection(health: { [weak self] health in
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.connectionChanged(health, generation: gen) } }
+            }, recovered: { [weak self] in
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.connectionRecovered(generation: gen) } }
+            })
             holder.session = session
             session.start()
         }
+    }
+
+    private func connectionChanged(_ health: HTTPByteSource.Health, generation gen: Int) {
+        guard gen == generation, health != self.health else { return }
+        self.health = health
+    }
+
+    private func connectionRecovered(generation gen: Int) {
+        guard gen == generation else { return }
+        recoveredAt = Date()
     }
 
     private func handle(_ event: PlaybackSession.Event, generation gen: Int) {

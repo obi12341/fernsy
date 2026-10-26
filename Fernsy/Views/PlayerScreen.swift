@@ -19,6 +19,8 @@ struct PlayerScreen: View {
     @State private var pipStage = PictureInPictureStage()
     @State private var epg: [EPGEntry] = []
     @State private var loadedItem: PlayItem?
+    /// Live playback has been buffering for a second (short stalls stay a plain spinner).
+    @State private var stallCardVisible = false
     @EnvironmentObject private var jellyfin: JellyfinStore
     /// The Jellyfin item playing (direct/transcode, progress reports, next episode).
     @State private var jellyfinPlayback: JellyfinPlayback?
@@ -85,6 +87,19 @@ struct PlayerScreen: View {
                     .padding(.leading, showsChannelList ? Self.channelListWidth + 40 : 24)
                     .padding(.top, 40)
                     .transition(.opacity.combined(with: .move(edge: .leading)))
+                    .allowsHitTesting(false)
+            }
+
+            if engine.showsServerSwitchNote {
+                Label("Ein anderer Server des Anbieters liefert wieder flüssig.", systemImage: "checkmark.circle.fill")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 9)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .environment(\.colorScheme, .dark)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 40)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                     .allowsHitTesting(false)
             }
 
@@ -281,6 +296,12 @@ struct PlayerScreen: View {
             if hasVideo == false, app.isPictureInPictureActive { pip?.restore() }
         }
         .task(id: liveChannelID) { await refreshEPG() }
+        .task(id: engine.status == .buffering && loadedItem?.isLive == true) {
+            stallCardVisible = false
+            guard engine.status == .buffering, loadedItem?.isLive == true else { return }
+            try? await Task.sleep(for: .seconds(1))
+            if !Task.isCancelled { stallCardVisible = true }
+        }
         // Track the real window state so the button icon also follows the green button, Esc and ⌃⌘F.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { note in
             if (note.object as? NSWindow) === playerWindow {
@@ -295,6 +316,7 @@ struct PlayerScreen: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: audioBadge)
+        .animation(.easeInOut(duration: 0.25), value: engine.showsServerSwitchNote)
     }
 
     private struct AudioBadge: Equatable {
@@ -681,6 +703,26 @@ struct PlayerScreen: View {
 
     // MARK: Status
 
+    /// Why live playback stalls, when Fernsy has evidence for it: no network on the Mac, or the
+    /// channel's connection delivers too slowly, nothing, or is being replaced. Nil while the
+    /// connection is healthy (the plain spinner then).
+    private var stallCard: (symbol: String, title: String, detail: String)? {
+        if !app.isNetworkAvailable {
+            return ("wifi.slash", String(localized: "Keine Internetverbindung"),
+                    String(localized: "Fernsy spielt weiter, sobald das Netz zurück ist."))
+        }
+        switch engine.connectionHealth {
+        case .ok:
+            return nil
+        case .reconnecting(loadBalancer: true):
+            return ("tortoise", String(localized: "Der Sender kommt zu langsam vom Anbieter"),
+                    String(localized: "Fernsy wechselt zu einem anderen Server des Anbieters …"))
+        case .slow, .silent, .reconnecting:
+            return ("tortoise", String(localized: "Der Sender kommt zu langsam vom Anbieter"),
+                    String(localized: "Fernsy wartet auf Daten …"))
+        }
+    }
+
     @ViewBuilder
     private var statusOverlay: some View {
         switch engine.status {
@@ -707,6 +749,23 @@ struct PlayerScreen: View {
                     }
                 }
                 .foregroundStyle(.white)
+                .padding(.horizontal, 26).padding(.vertical, 18)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .environment(\.colorScheme, .dark)
+                .allowsHitTesting(false)
+            } else if stallCardVisible, let card = stallCard {
+                VStack(spacing: 10) {
+                    Image(systemName: card.symbol).font(.system(size: 22, weight: .semibold))
+                    Text(card.title).font(.callout.weight(.semibold))
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small).tint(.white)
+                        Text(card.detail)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                }
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, 26).padding(.vertical, 18)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .environment(\.colorScheme, .dark)
