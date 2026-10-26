@@ -26,6 +26,8 @@ final class TVModel: ObservableObject {
     /// player's engine and connection, so clicking it continues full screen (design E).
     @Published private(set) var previewing: LiveChannel?
     private var previewSound = false
+    /// Where the playing channel was started from: the player's channel strip zaps through it.
+    var zapSource: LiveSource = .all
     /// The engine's mute state outside the preview (debug builds start muted).
     private var baseMuted = false
     /// Launched with stored credentials: the sign-in at launch shows progress, not the welcome screen.
@@ -167,6 +169,7 @@ final class TVModel: ObservableObject {
 
     func stop() {
         guard let playing else { return }
+        AppLog.info(.player, "stop channel \(playing.id)")
         engine.stop()
         tuners.release(playing.id, owner: .player)
         self.playing = nil

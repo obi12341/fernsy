@@ -54,12 +54,26 @@ final class GuideUITests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.6)
         }
         let id = focused.identifier
-        remote.press(.select)
-        let record = app.sheets.buttons["Record"].firstMatch
-        XCTAssertTrue(record.waitForExistence(timeout: 5), "no record dialog:\n\(app.debugDescription)")
-        XCTAssertTrue(waitFor { record.hasFocus } || { remote.press(.up); return waitFor { record.hasFocus } }())
-        remote.press(.select)
+        // Scheduled by an earlier run (recordings stay in the simulator's Caches): unschedule first.
+        if app.buttons[id].value as? String == "scheduled" { choose("Don’t Record", app) }
+        choose("Record", app)
         XCTAssertTrue(waitFor { app.buttons[id].value as? String == "scheduled" }, "\(id) is not marked as scheduled")
+        choose("Don’t Record", app)
+        XCTAssertTrue(waitFor { app.buttons[id].value as? String != "scheduled" }, "\(id) is still scheduled")
+    }
+
+    /// Clicks the focused show and picks `title` in its dialog.
+    private func choose(_ title: String, _ app: XCUIApplication) {
+        XCUIRemote.shared.press(.select)
+        let button = app.sheets.buttons[title].firstMatch
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "no “\(title)” in the dialog:\n\(app.debugDescription)")
+        // The dialog lays its buttons out in a column or, with two, side by side.
+        for direction in [XCUIRemote.Button.up, .right, .up, .right] where !waitFor(1.5, { button.hasFocus }) {
+            XCUIRemote.shared.press(direction)
+        }
+        XCTAssertTrue(waitFor { button.hasFocus }, "“\(title)” has no focus:\n\(app.debugDescription)")
+        XCUIRemote.shared.press(.select)
+        XCTAssertTrue(waitFor { !button.exists }, "the dialog stayed open")
     }
 
     /// The focused show is running when the next cell in its row starts after now.

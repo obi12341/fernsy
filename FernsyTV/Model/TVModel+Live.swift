@@ -1,4 +1,5 @@
 import FernsyCore
+import FernsyPlayer
 import Foundation
 
 /// The live lists of Apple TV, with the Mac's rules (LiveRules): favourites, recently watched,
@@ -109,6 +110,34 @@ extension TVModel {
         case .all: channels.filter { !isHidden($0) }
         case .category(let id): channels.filter { $0.categoryId == id && !isHidden($0) }
         }
+    }
+
+    /// The strip's channels: the zap source's visible ones, starting at the playing channel
+    /// (the whole list if the source has none left, as zapping on the Mac).
+    var zapChannels: [LiveChannel] {
+        var list = channels(for: zapSource)
+        if list.isEmpty { list = channels(for: .all) }
+        guard let playing, let index = list.firstIndex(where: { $0.id == playing.id }) else { return list }
+        return Array(list[index...] + list[..<index])
+    }
+
+    /// Zapping to `channel`: when a recording holds the connection it needs, asks first, as the
+    /// Mac does; the recording stops only if the user agrees.
+    func zap(to channel: LiveChannel) async {
+        let held = tuners.blockers(for: channel.id, as: .player).flatMap(\.owners).compactMap { owner -> Recording? in
+            guard case .recording(let id) = owner else { return nil }
+            return recorder.recordings.first { $0.id == id && $0.status == .recording }
+        }
+        if let recording = held.first {
+            let stop = await ask(
+                title: String(localized: "“\(recording.title)” Is Being Recorded"),
+                message: String(localized: "Your account allows \(maxConnections) stream(s) at a time. Switching to \(channel.displayName) stops the recording."),
+                confirm: String(localized: "Stop Recording and Switch"), cancel: String(localized: "Keep Recording"),
+                timeout: 60, timeoutAnswer: false)
+            guard stop else { return }
+            for recording in held { recorder.stop(recording.id) }
+        }
+        play(channel)
     }
 
     /// The upcoming shows after the current one, once the guide is loaded.

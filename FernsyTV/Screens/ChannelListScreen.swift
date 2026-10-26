@@ -23,7 +23,7 @@ struct ChannelListScreen: View {
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         ForEach(Array(list.enumerated()), id: \.element.id) { index, channel in
-                            ChannelRowButton(channel: channel, number: index + 1, guide: model.guide.guide(channel.id))
+                            ChannelRowButton(channel: channel, number: index + 1, source: current, guide: model.guide.guide(channel.id))
                                 .focused($focusedChannel, equals: channel.id)
                         }
                         if list.isEmpty { EmptySource(source: current) }
@@ -193,11 +193,15 @@ private struct ChannelRowButton: View {
     @EnvironmentObject private var model: TVModel
     let channel: LiveChannel
     let number: Int
+    let source: TVModel.LiveSource
     /// Observed, so the row shows the show once the guide arrives.
     @ObservedObject var guide: ChannelGuide
 
     var body: some View {
-        Button { model.play(channel) } label: {
+        Button {
+            model.zapSource = source
+            model.play(channel)
+        } label: {
             ChannelRowLabel(channel: channel, number: number, show: model.currentShow(on: channel),
                             favorite: model.isFavorite(channel), recording: model.activeRecording(on: channel) != nil)
         }

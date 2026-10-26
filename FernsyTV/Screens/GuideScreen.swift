@@ -116,6 +116,7 @@ struct GuideScreen: View {
     private func select(_ show: EPGEntry, on channel: LiveChannel) {
         let now = Date()
         if show.start <= now && now < show.end {
+            model.zapSource = current
             model.play(channel)
         } else if show.start > now {
             asked = (show, channel)

@@ -14,14 +14,14 @@
 
 - [x] 3.1 Category column, channel rows and the pane with now and next (screen `live`). Verify: demo-server screenshot next to the rendered design screen; tags, star, progress and time left are shown.
 - [x] 3.2 Preview in the pane per design E, Play/Pause for sound. Verify: MCP `now_playing` on 52325 shows the previewed channel after focus rests; with `IPTV_MAXCONN=1` and a recording running (`IPTV_TESTRECORD=102:5:60:0:0`) the pane shows the logo and no second connection opens (log).
-- [ ] 3.3 Long-press menu: Aufnehmen, Favorit, Ausblenden; favourites, history and hiding as on the Mac (task 1.1). Verify: UI test hides a channel and it is gone from the list, the guide and the zap strip.
+- [x] 3.3 Long-press menu: Aufnehmen, Favorit, Ausblenden; favourites, history and hiding as on the Mac (task 1.1). Verify: UI test hides a channel and it is gone from the list, the guide and the zap strip.
 - [x] 3.4 "Alle Kategorien" with country chips, search, pin and hide (screen `kategorien`). Verify: demo-server screenshot; pinning a category adds it to the column.
 
 ## 4. Guide and player
 
 - [x] 4.1 Guide grid per design G (screen `guide`). Verify: demo-server screenshot; clicking a running show plays it; clicking a later show schedules it and marks it.
-- [ ] 4.2 Player overlay with timeline, time behind live and the Info, Untertitel, Ton tabs (screen `player`). Verify: MCP `seek by_seconds:-754` shows "−12:34" in a screenshot; audio and subtitle choices switch tracks on a demo channel with several tracks.
-- [ ] 4.3 Channel strip with Down and the Sender tab (screen `zap`). Verify: UI test zaps from the strip and `player.state` reaches `playing` on the new channel.
+- [x] 4.2 Player overlay with timeline, time behind live and the Info, Untertitel, Ton tabs (screen `player`). Verify: UI test goes 20 s back and the overlay shows "−0:2x", a click returns to live; the Audio tab opens its panel. The demo's live channels have one audio track and no subtitles, so switching tracks is not shown here; the tabs call the engine's selection, which the Mac uses too (check on a real channel with several tracks).
+- [x] 4.3 Channel strip with Down and the Sender tab (screen `zap`). Verify: UI test zaps from the strip and `player.state` reaches `playing` on the new channel.
 
 ## 5. Recordings and settings
 

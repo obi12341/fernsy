@@ -23,6 +23,16 @@
         }
       }
     },
+    "%lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
     "%lld channels": {
       "localizations": {
         "de": {
@@ -39,6 +49,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "noch %lld Min."
+          }
+        }
+      }
+    },
+    "%lld · On now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld · läuft"
           }
         }
       }
@@ -93,6 +113,16 @@
         }
       }
     },
+    "Audio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton"
+          }
+        }
+      }
+    },
     "Back: Live TV": {
       "localizations": {
         "de": {
@@ -103,12 +133,42 @@
         }
       }
     },
+    "Buffer since %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puffer seit %@"
+          }
+        }
+      }
+    },
+    "Channels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender"
+          }
+        }
+      }
+    },
     "Channels you watch appear here.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Hier erscheinen die Sender, die du schaust."
+          }
+        }
+      }
+    },
+    "Click: Back to Live": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken: zu Live"
           }
         }
       }
@@ -243,12 +303,32 @@
         }
       }
     },
+    "Info": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Info"
+          }
+        }
+      }
+    },
     "IPTV Account": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "IPTV-Zugang"
+          }
+        }
+      }
+    },
+    "Keep Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter aufnehmen"
           }
         }
       }
@@ -313,6 +393,16 @@
         }
       }
     },
+    "Next %@ %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danach %1$@ %2$@"
+          }
+        }
+      }
+    },
     "No channels.": {
       "localizations": {
         "de": {
@@ -369,6 +459,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "JETZT · %@"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
           }
         }
       }
@@ -493,6 +593,16 @@
         }
       }
     },
+    "Recording · until %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme · bis %@"
+          }
+        }
+      }
+    },
     "Recordings": {
       "localizations": {
         "de": {
@@ -583,6 +693,46 @@
         }
       }
     },
+    "Stop Recording and Switch": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme beenden und umschalten"
+          }
+        }
+      }
+    },
+    "Subtitles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel"
+          }
+        }
+      }
+    },
+    "Swipe down: Channels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach unten wischen: Sender"
+          }
+        }
+      }
+    },
+    "This channel has one audio track.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Sender hat eine Tonspur."
+          }
+        }
+      }
+    },
     "Today": {
       "localizations": {
         "de": {
@@ -669,6 +819,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Daten findest du in der E-Mail deines Anbieters unter „Xtream Codes“. Sie werden im Schlüsselbund gesichert."
+          }
+        }
+      }
+    },
+    "Your account allows %lld stream(s) at a time. Switching to %@ stops the recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Zugang erlaubt %1$lld Stream(s) gleichzeitig. Wenn du zu %2$@ umschaltest, endet die Aufnahme."
+          }
+        }
+      }
+    },
+    "“%@” Is Being Recorded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ wird aufgenommen"
           }
         }
       }

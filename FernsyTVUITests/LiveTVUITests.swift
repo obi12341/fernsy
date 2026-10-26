@@ -58,6 +58,24 @@ final class LiveTVUITests: XCTestCase {
         XCTAssertTrue(hide.hasFocus, "Hide has no focus")
         XCUIRemote.shared.press(.select)
         XCTAssertTrue(app.buttons[id].waitForNonExistence(timeout: 5), "\(id) is still listed")
+
+        // Not in the guide either, and not in the player's channel strip.
+        let channelId = id.dropFirst("channel.".count)
+        XCUIRemote.shared.press(.menu)
+        XCUIRemote.shared.press(.right)
+        let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
+        XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "guide.\(channelId).")).firstMatch.exists,
+                       "the hidden channel is in the guide")
+        XCUIRemote.shared.press(.left)
+        let next = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        for _ in 0..<3 where !next.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 1) }
+        XCUIRemote.shared.press(.select)
+        XCTAssertTrue(app.descendants(matching: .any)["player.state"].waitForExistence(timeout: 15))
+        XCUIRemote.shared.press(.down)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'strip.'")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["strip.\(channelId)"].exists, "the hidden channel is in the strip")
     }
 }
 
