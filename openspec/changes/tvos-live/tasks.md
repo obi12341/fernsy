@@ -19,7 +19,7 @@
 
 ## 4. Guide and player
 
-- [ ] 4.1 Guide grid per design G (screen `guide`). Verify: demo-server screenshot; clicking a running show plays it; clicking a later show schedules it and marks it.
+- [x] 4.1 Guide grid per design G (screen `guide`). Verify: demo-server screenshot; clicking a running show plays it; clicking a later show schedules it and marks it.
 - [ ] 4.2 Player overlay with timeline, time behind live and the Info, Untertitel, Ton tabs (screen `player`). Verify: MCP `seek by_seconds:-754` shows "−12:34" in a screenshot; audio and subtitle choices switch tracks on a demo channel with several tracks.
 - [ ] 4.3 Channel strip with Down and the Sender tab (screen `zap`). Verify: UI test zaps from the strip and `player.state` reaches `playing` on the new channel.
 

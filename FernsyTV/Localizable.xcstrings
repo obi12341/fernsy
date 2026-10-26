@@ -3,6 +3,26 @@
   "strings": {
     "": {},
     "%@": {},
+    "%@ · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@. Records only while Fernsy is open.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@. Nimmt nur auf, solange Fernsy geöffnet ist."
+          }
+        }
+      }
+    },
     "%lld channels": {
       "localizations": {
         "de": {
@@ -109,6 +129,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicken: Einschalten"
+          }
+        }
+      }
+    },
+    "Don’t Record": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht aufnehmen"
           }
         }
       }
@@ -249,6 +279,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Live-TV, Programm, Filme und Serien von deinem Anbieter (Xtream Codes)."
+          }
+        }
+      }
+    },
+    "Loading programme …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programm wird geladen …"
           }
         }
       }
@@ -543,6 +583,26 @@
         }
       }
     },
+    "Today": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute"
+          }
+        }
+      }
+    },
+    "Tomorrow": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morgen"
+          }
+        }
+      }
+    },
     "Try the Demo": {
       "localizations": {
         "de": {
@@ -589,6 +649,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Womit möchtest du dich verbinden? Weitere Konten kannst du später in den Einstellungen hinzufügen."
+          }
+        }
+      }
+    },
+    "Yesterday": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestern"
           }
         }
       }

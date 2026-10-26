@@ -44,7 +44,7 @@ struct MainTabs: View {
     var body: some View {
         TabView(selection: $selection) {
             SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
-            SwiftUI.Tab(value: Tab.guide) { PendingScreen(title: "Guide") } label: { Text("Guide") }
+            SwiftUI.Tab(value: Tab.guide) { GuideScreen() } label: { Text("Guide") }
             SwiftUI.Tab(value: Tab.recordings) { PendingScreen(title: "Recordings") } label: { Text("Recordings") }
             SwiftUI.Tab(value: Tab.settings) { PendingScreen(title: "Settings") } label: {
                 Label("Settings", systemImage: "gearshape").labelStyle(.iconOnly)
