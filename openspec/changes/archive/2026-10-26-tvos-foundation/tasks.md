@@ -24,7 +24,7 @@
 
 ## 5. CI and docs
 
-- [ ] 5.1 `tests.yml`: FFmpeg from the cache or built (three slices), the Apple TV app built for the simulator, the UI test (design H); `release.yml` jobs use the new frameworks. Verify: a push of the branch runs green; a manual `appstore-test` run of `release.yml` on the branch exports the App Store build with the embedded frameworks.
+- [x] 5.1 `tests.yml`: FFmpeg from the cache or built (three slices), the Apple TV app built for the simulator, the UI test (design H); `release.yml` jobs use the new frameworks. Verify: a push of the branch runs green; a manual `appstore-test` run of `release.yml` on the branch exports the App Store build with the embedded frameworks.
 - [x] 5.2 DEVELOPMENT.md: section "Apple TV" (targets and identities, `tv-run.sh`, debug switches, MCP port 52325, screenshots via `simctl io`, where the screens live and which slots the designs replace, what the simulator cannot show). Update the FFmpeg section for the XCFrameworks. Verify: the section exists and names every switch and the screen slots.
 - [x] 5.3 `openspec validate --all --strict` exits 0; Mac Debug, Direct, Release and the Apple TV Debug build have 0 warnings; `scripts/test.sh --tvos-sim` passes.
 
