@@ -30,9 +30,11 @@ some details), new behavior on the Mac.
 
 ### A. Shared live state moves into `FernsyCore`
 
-Favourites, recently watched channels, pinned categories and hidden categories and channels
-move from the Mac app into `FernsyCore` as small per-account stores with the same stored format
-(so the Mac keeps its data). Both apps read them; the Mac's views keep their behavior.
+The rules and stored formats for favourites, recently watched channels, hidden categories and
+channels, the adult-category detection and the zap order move from the Mac app into
+`FernsyCore` with the same stored keys and files (so the Mac keeps its data). Both apps use
+them; the Mac's views keep their behavior. Pinned categories are new: a small per-account file
+(`pinned.json`, like `visibility.json`) in `FernsyCore`, used only by the Apple TV app for now.
 Rejected: a second copy in `FernsyTV` (the rules, e.g. "channels of a hidden category are
 hidden everywhere", would drift apart).
 

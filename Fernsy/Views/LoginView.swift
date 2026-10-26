@@ -1,4 +1,5 @@
 import FernsyCore
+import FernsyPlayer
 import SwiftUI
 
 enum AccountKind: String, CaseIterable, Identifiable {

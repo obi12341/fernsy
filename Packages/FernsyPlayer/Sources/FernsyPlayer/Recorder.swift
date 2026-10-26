@@ -1,46 +1,44 @@
-import AppKit
 import FernsyCore
-import FernsyPlayer
 import Foundation
 
-struct Recording: Codable, Identifiable, Equatable {
-    enum Status: String, Codable {
+public struct Recording: Codable, Identifiable, Equatable, Sendable {
+    public enum Status: String, Codable, Sendable {
         case scheduled, recording, done, failed, skipped, missed
     }
 
-    let id: UUID
-    let channelId: Int
-    var channelName: String
-    var title: String
-    var description: String
+    public let id: UUID
+    public let channelId: Int
+    public var channelName: String
+    public var title: String
+    public var description: String
     /// The show's times; the recording runs from `start - padBefore` to `end + padAfter`.
-    var start: Date
-    var end: Date
-    var padBefore: TimeInterval
-    var padAfter: TimeInterval
+    public var start: Date
+    public var end: Date
+    public var padBefore: TimeInterval
+    public var padAfter: TimeInterval
     /// Padding follows Settings while scheduled (planned from program data). False for
     /// recordings without program data and for explicitly given padding.
-    var followsPaddingSettings = true
-    var status: Status
-    var fileName: String?
-    var error: String?
-    var bytes: Int64?
+    public var followsPaddingSettings = true
+    public var status: Status
+    public var fileName: String?
+    public var error: String?
+    public var bytes: Int64?
     /// Seconds taken off the padding so the recordings fit the account's streams
     /// (`Recorder.rebalance`); the configured padding stays, so it comes back when the
     /// neighbour goes.
-    var clipBefore: TimeInterval = 0
-    var clipAfter: TimeInterval = 0
+    public var clipBefore: TimeInterval = 0
+    public var clipAfter: TimeInterval = 0
     /// Content the provider did not deliver (10 s or more each), saved as each gap closes.
-    var gaps: [Gap] = []
+    public var gaps: [Gap] = []
 
-    typealias Gap = RecordingGap
+    public typealias Gap = RecordingGap
 
-    var recordStart: Date { start.addingTimeInterval(-padBefore + clipBefore) }
-    var recordEnd: Date { end.addingTimeInterval(padAfter - clipAfter) }
+    public var recordStart: Date { start.addingTimeInterval(-padBefore + clipBefore) }
+    public var recordEnd: Date { end.addingTimeInterval(padAfter - clipAfter) }
 
-    var isUpcomingOrRunning: Bool { status == .scheduled || status == .recording }
+    public var isUpcomingOrRunning: Bool { status == .scheduled || status == .recording }
 
-    func matches(channelId: Int, entry: EPGEntry) -> Bool {
+    public func matches(channelId: Int, entry: EPGEntry) -> Bool {
         self.channelId == channelId && abs(start.timeIntervalSince(entry.start)) < 60 && title == entry.title
     }
 }
@@ -51,9 +49,28 @@ extension Recording {
         case followsPaddingSettings, status, fileName, error, bytes, clipBefore, clipAfter, gaps
     }
 
+    public init(id: UUID, channelId: Int, channelName: String, title: String, description: String, start: Date, end: Date,
+                padBefore: TimeInterval, padAfter: TimeInterval, followsPaddingSettings: Bool = true, status: Status,
+                fileName: String? = nil, error: String? = nil, bytes: Int64? = nil) {
+        self.id = id
+        self.channelId = channelId
+        self.channelName = channelName
+        self.title = title
+        self.description = description
+        self.start = start
+        self.end = end
+        self.padBefore = padBefore
+        self.padAfter = padAfter
+        self.followsPaddingSettings = followsPaddingSettings
+        self.status = status
+        self.fileName = fileName
+        self.error = error
+        self.bytes = bytes
+    }
+
     /// Lists written before `followsPaddingSettings` existed: their scheduled entries follow
     /// the settings.
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
         channelId = try c.decode(Int.self, forKey: .channelId)
@@ -75,43 +92,63 @@ extension Recording {
     }
 }
 
-/// Scheduled and finished recordings of the signed-in account, and the recordings in
-/// progress. Recordings run inside the app: Fernsy has to be open (the Mac is kept awake
-/// while one runs or is about to start).
+/// What the recorder needs from the app it runs in: connections, questions, storage and
+/// keeping the device awake.
 @MainActor
-final class Recorder: ObservableObject {
-    @Published private(set) var recordings: [Recording] = []
+public protocol RecorderHost: AnyObject {
+    var tuners: TunerPool { get }
+    func liveURL(_ channelId: Int) -> URL?
+    /// Plays the channel in the player, taking over the player's connection.
+    func playForRecording(_ channelId: Int)
+    /// A yes/no question; answers `timeoutAnswer` by itself after `timeout` seconds.
+    func ask(title: String, message: String, confirm: String, cancel: String, timeout: TimeInterval, timeoutAnswer: Bool) async -> Bool
+    /// Folder of the account's recordings list (`recordings.json`).
+    func recordingsStore(accountKey: String) -> URL
+    /// Folder the recording files are written to.
+    var recordingsFolder: URL { get }
+    /// Removes a deleted recording's file (the Mac moves it to the trash).
+    func removeRecordingFile(_ url: URL)
+    /// Holds the device awake with this reason, or lets it sleep again (nil).
+    func keepAwake(reason: String?)
+}
 
-    weak var app: AppModel?
+/// When the device is kept awake for recordings.
+public enum KeepAwakePolicy: Equatable, Sendable {
+    case never
+    /// Only while a recording runs.
+    case whileRecording
+    /// While one runs or the next starts within this many hours (nil: any scheduled one).
+    case ahead(hours: Int?)
+}
+
+/// Scheduled and finished recordings of the signed-in account, and the recordings in
+/// progress. Recordings run inside the app: Fernsy has to be open (the host keeps the device
+/// awake while one runs or is about to start).
+@MainActor
+public final class Recorder: ObservableObject {
+    @Published public private(set) var recordings: [Recording] = []
+
+    public weak var host: RecorderHost?
+    /// Read whenever the plan changes; the Mac follows its keep-awake setting.
+    public var keepAwakePolicy: () -> KeepAwakePolicy = { .whileRecording }
     private var storeURL: URL?
     private var copiers: [UUID: RecordingCopier] = [:]
     private var gapTrackers: [UUID: GapTracker] = [:]
     private var gapTimer: Timer?
     private var starting: Set<UUID> = []
     private var timer: Timer?
-    private var activity: NSObjectProtocol?
     private var activityReason: String?
 
     /// Connect this early, so the recording has data from its first second.
-    static let tuneAhead: TimeInterval = 20
-    static let padBeforeKey = "recording.padBefore"
-    static let padAfterKey = "recording.padAfter"
-    /// Hours before a scheduled recording from which the Mac is kept from idle sleep:
-    /// 0 keeps it awake while any recording is scheduled, -1 never (not even while recording).
-    static let keepAwakeHoursKey = "recording.keepAwakeHours"
-    static let keepAwakeChoices = [-1, 1, 3, 6, 12, 24, 0]
+    public static let tuneAhead: TimeInterval = 20
+    public static let padBeforeKey = "recording.padBefore"
+    public static let padAfterKey = "recording.padAfter"
 
     private var defaultsObserver: NSObjectProtocol?
     private var appliedPadding: (before: TimeInterval, after: TimeInterval) = (0, 0)
 
-    init() {
-        UserDefaults.standard.register(defaults: [Self.padBeforeKey: 10, Self.padAfterKey: 10, Self.keepAwakeHoursKey: 6])
-        #if DEBUG
-        // IPTV_AWAKEHOURS=<hours|0|off>: the keep-awake setting for this run, in memory only.
-        if let value = ProcessInfo.processInfo.environment["IPTV_AWAKEHOURS"] {
-            debugKeepAwakeHours = value == "off" ? -1 : Int(value)
-        }
-        #endif
+    public init() {
+        UserDefaults.standard.register(defaults: [Self.padBeforeKey: 10, Self.padAfterKey: 10])
         appliedPadding = (padBefore, padAfter)
         defaultsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -126,7 +163,7 @@ final class Recorder: ObservableObject {
 
     /// Settings changed: scheduled recordings planned from program data take the new padding.
     /// Running and finished recordings keep their window.
-    func applyPadding(before: TimeInterval, after: TimeInterval) {
+    public func applyPadding(before: TimeInterval, after: TimeInterval) {
         appliedPadding = (before, after)
         var changed = false
         for i in recordings.indices where recordings[i].status == .scheduled && recordings[i].followsPaddingSettings {
@@ -142,26 +179,17 @@ final class Recorder: ObservableObject {
         tick()
     }
 
-    /// ~/Movies/Fernsy (the real one, not the sandbox container's); debug builds use
-    /// ~/Movies/Fernsy Dev, next to the installed app's recordings.
-    static var folder: URL {
-        let home = getpwuid(getuid()).flatMap { $0.pointee.pw_dir.map { String(cString: $0) } } ?? NSHomeDirectory()
-        #if DEBUG
-        let name = "Movies/Fernsy Dev"
-        #else
-        let name = "Movies/Fernsy"
-        #endif
-        return URL(fileURLWithPath: home, isDirectory: true).appendingPathComponent(name, isDirectory: true)
-    }
+    private var folder: URL? { host?.recordingsFolder }
 
-    func fileURL(_ recording: Recording) -> URL? {
-        recording.fileName.map { Self.folder.appendingPathComponent($0) }
+    public func fileURL(_ recording: Recording) -> URL? {
+        guard let folder else { return nil }
+        return recording.fileName.map { folder.appendingPathComponent($0) }
     }
 
     // MARK: Account
 
     /// Loads the recordings of `accountKey` (nil: signed out, everything stops).
-    func activate(accountKey: String?) {
+    public func activate(accountKey: String?) {
         stopAll(reason: nil)
         timer?.invalidate()
         timer = nil
@@ -170,8 +198,7 @@ final class Recorder: ObservableObject {
         recordings = []
         storeURL = nil
         guard let accountKey else { updateActivity(); return }
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("Fernsy/\(accountKey)", isDirectory: true)
+        guard let dir = host?.recordingsStore(accountKey: accountKey) else { return }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         storeURL = dir.appendingPathComponent("recordings.json")
         if let data = storeURL.flatMap({ try? Data(contentsOf: $0) }),
@@ -182,7 +209,7 @@ final class Recorder: ObservableObject {
                 if r.status == .recording {
                     r.status = fileURL(r).map { FileManager.default.fileExists(atPath: $0.path) } == true ? .done : .failed
                     r.bytes = fileURL(r).flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path)[.size] as? Int64 }
-                    if r.fileName == nil { r.error = String(localized: "No data from the channel") }
+                    if r.fileName == nil { r.error = String(localized: "No data from the channel", bundle: .module) }
                 }
                 return r
             }
@@ -216,21 +243,21 @@ final class Recorder: ObservableObject {
 
     // MARK: Queries
 
-    func recording(channelId: Int, entry: EPGEntry) -> Recording? {
+    public func recording(channelId: Int, entry: EPGEntry) -> Recording? {
         recordings.last { $0.matches(channelId: channelId, entry: entry) && $0.status != .skipped }
     }
 
     /// The recording running on this channel right now.
-    func active(on channelId: Int) -> Recording? {
+    public func active(on channelId: Int) -> Recording? {
         recordings.first { $0.channelId == channelId && $0.status == .recording }
     }
 
-    var hasActiveOrUpcoming: Bool {
+    public var hasActiveOrUpcoming: Bool {
         recordings.contains { $0.status == .recording || ($0.status == .scheduled && $0.recordStart < Date().addingTimeInterval(24 * 3600)) }
     }
 
     /// Whether a recording's file is still being written; read by the player's demux thread.
-    nonisolated static func isGrowing(_ id: UUID) -> Bool {
+    public nonisolated static func isGrowing(_ id: UUID) -> Bool {
         growingLock.lock(); defer { growingLock.unlock() }
         return growingIDs.contains(id)
     }
@@ -250,19 +277,19 @@ final class Recorder: ObservableObject {
     private var padBefore: TimeInterval { Double(UserDefaults.standard.integer(forKey: Self.padBeforeKey)) * 60 }
     private var padAfter: TimeInterval { Double(UserDefaults.standard.integer(forKey: Self.padAfterKey)) * 60 }
 
-    enum PlanResult {
+    public enum PlanResult {
         /// Planned; the notice names paddings shortened for it.
         case planned(notice: String?)
         /// Not planned: the shows would need more streams than the account has.
         case refused(String)
     }
 
-    private var limit: Int { app?.tuners.limit ?? 1 }
+    private var limit: Int { host?.tuners.limit ?? 1 }
 
     /// Plans a show (running or future), unless the shows' own times would need more streams
     /// than the account allows.
     @discardableResult
-    func schedule(_ entry: EPGEntry, on channel: LiveChannel, padding: (before: TimeInterval, after: TimeInterval)? = nil) -> PlanResult {
+    public func schedule(_ entry: EPGEntry, on channel: LiveChannel, padding: (before: TimeInterval, after: TimeInterval)? = nil) -> PlanResult {
         if let existing = recording(channelId: channel.id, entry: entry), existing.isUpcomingOrRunning { return .planned(notice: nil) }
         let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel, title: entry.title,
                                   description: entry.description, start: entry.start, end: entry.end,
@@ -274,11 +301,11 @@ final class Recorder: ObservableObject {
     /// Player: records the show that is on now (from its start, as far as the timeshift
     /// buffer reaches back), or the next two hours without programme data.
     @discardableResult
-    func recordNow(_ channel: LiveChannel, entry: EPGEntry?) -> PlanResult {
+    public func recordNow(_ channel: LiveChannel, entry: EPGEntry?) -> PlanResult {
         if let entry { return schedule(entry, on: channel) }
         let now = Date()
         let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel,
-                                  title: String(localized: "Recording \(now.formatted(date: .abbreviated, time: .shortened))"),
+                                  title: String(localized: "Recording \(now.formatted(date: .abbreviated, time: .shortened))", bundle: .module),
                                   description: "", start: now, end: now.addingTimeInterval(2 * 3600),
                                   padBefore: 0, padAfter: 0, followsPaddingSettings: false, status: .scheduled)
         return plan(recording)
@@ -290,9 +317,9 @@ final class Recorder: ObservableObject {
         let inTheWay = RecordingPlan.blockers(for: planItem(recording), among: others, limit: limit, now: Date())
             .compactMap { id in recordings.first { $0.id == id } }
         guard inTheWay.isEmpty else {
-            let names = inTheWay.map { String(localized: "“\($0.title)” (\($0.channelName))") }.joined(separator: ", ")
+            let names = inTheWay.map { String(localized: "“\($0.title)” (\($0.channelName))", bundle: .module) }.joined(separator: ", ")
             AppLog.info(.recordings, "refused \(recording.title) on \(recording.channelName): overlaps \(names) with \(limit) stream(s)")
-            return .refused(String(localized: "“\(recording.title)” is on at the same time as \(names). Your account allows \(limit) stream(s) at a time. Remove one of these recordings to record this show."))
+            return .refused(String(localized: "“\(recording.title)” is on at the same time as \(names). Your account allows \(limit) stream(s) at a time. Remove one of these recordings to record this show.", bundle: .module))
         }
         recordings.append(recording)
         let previous = rebalance()
@@ -302,17 +329,17 @@ final class Recorder: ObservableObject {
         for r in recordings where r.isUpcomingOrRunning {
             let old = previous[r.id] ?? (before: 0, after: 0)
             if r.clipAfter > old.after {
-                lines.append(String(localized: "Record after for “\(r.title)” shortened to \(Int(((r.padAfter - r.clipAfter) / 60).rounded())) min."))
+                lines.append(String(localized: "Record after for “\(r.title)” shortened to \(Int(((r.padAfter - r.clipAfter) / 60).rounded())) min.", bundle: .module))
             }
             if r.clipBefore > old.before {
-                lines.append(String(localized: "Record before for “\(r.title)” shortened to \(Int(((r.padBefore - r.clipBefore) / 60).rounded())) min."))
+                lines.append(String(localized: "Record before for “\(r.title)” shortened to \(Int(((r.padBefore - r.clipBefore) / 60).rounded())) min.", bundle: .module))
             }
         }
         if let planned = recordings.first(where: { $0.id == recording.id }) {
             AppLog.info(.recordings, "planned \(planned.title) on \(planned.channelName): \(Self.window(planned))")
         }
         guard !lines.isEmpty else { return .planned(notice: nil) }
-        let notice = String(localized: "Your account allows \(limit) stream(s) at a time, so less extra time is possible:") + "\n" + lines.joined(separator: "\n")
+        let notice = String(localized: "Your account allows \(limit) stream(s) at a time, so less extra time is possible:", bundle: .module) + "\n" + lines.joined(separator: "\n")
         return .planned(notice: notice)
     }
 
@@ -320,7 +347,7 @@ final class Recorder: ObservableObject {
     /// `RecordingPlan`), after any change to the plan, the padding or the limit. Returns the
     /// clips from before, so planning can say what got shorter.
     @discardableResult
-    func rebalance() -> [UUID: (before: TimeInterval, after: TimeInterval)] {
+    public func rebalance() -> [UUID: (before: TimeInterval, after: TimeInterval)] {
         let previous = Dictionary(uniqueKeysWithValues: recordings.map { ($0.id, (before: $0.clipBefore, after: $0.clipAfter)) })
         let now = Date()
         let windows = RecordingPlan.windows(for: recordings.filter(\.isUpcomingOrRunning).map(planItem), limit: limit, now: now)
@@ -355,7 +382,7 @@ final class Recorder: ObservableObject {
     }
 
     /// Stops a running recording now (keeping what was recorded) or drops a scheduled one.
-    func stop(_ id: UUID) {
+    public func stop(_ id: UUID) {
         guard let recording = recordings.first(where: { $0.id == id }) else { return }
         switch recording.status {
         case .recording: finish(id, error: nil)
@@ -365,16 +392,16 @@ final class Recorder: ObservableObject {
     }
 
     /// Removes a recording from the list and moves its file to the trash.
-    func delete(_ id: UUID) {
+    public func delete(_ id: UUID) {
         guard let recording = recordings.first(where: { $0.id == id }) else { return }
         if recording.status == .recording { finish(id, error: nil) }
-        if let url = fileURL(recording) { try? FileManager.default.trashItem(at: url, resultingItemURL: nil) }
+        if let url = fileURL(recording) { host?.removeRecordingFile(url) }
         recordings.removeAll { $0.id == id }
         rebalance()
         save()
     }
 
-    func unschedule(channelId: Int, entry: EPGEntry) {
+    public func unschedule(channelId: Int, entry: EPGEntry) {
         guard let recording = recording(channelId: channelId, entry: entry) else { return }
         stop(recording.id)
     }
@@ -393,9 +420,9 @@ final class Recorder: ObservableObject {
                 finish(recording.id, error: nil)
             case .recording:
                 // The connection is gone for good (offline channel, account blocked).
-                if let tuner = app?.tuners.tuner(recording.channelId), !tuner.isActive {
+                if let tuner = host?.tuners.tuner(recording.channelId), !tuner.isActive {
                     let reason: String
-                    if case .failed(let message) = tuner.state { reason = message } else { reason = String(localized: "Connection lost") }
+                    if case .failed(let message) = tuner.state { reason = message } else { reason = String(localized: "Connection lost", bundle: .module) }
                     finish(recording.id, error: reason)
                 }
             default:
@@ -406,7 +433,7 @@ final class Recorder: ObservableObject {
     }
 
     private func begin(_ recording: Recording) {
-        guard let app, !starting.contains(recording.id), let url = app.client?.liveURL(recording.channelId) else { return }
+        guard let host, let folder, !starting.contains(recording.id), let url = host.liveURL(recording.channelId) else { return }
         starting.insert(recording.id)
         Task {
             defer { starting.remove(recording.id) }
@@ -417,7 +444,7 @@ final class Recorder: ObservableObject {
                 return
             }
             guard recordings.first(where: { $0.id == recording.id })?.status == .scheduled else { return }
-            let tuner = app.tuners.acquire(recording.channelId, url: url, owner: .recording(recording.id))
+            let tuner = host.tuners.acquire(recording.channelId, url: url, owner: .recording(recording.id))
             // Running from now on, with or without data: the list shows it waiting, and it can be
             // stopped. Waits for the start time and the first data (so the file starts on a
             // keyframe) until the window ends; the tuner keeps reconnecting meanwhile.
@@ -434,10 +461,10 @@ final class Recorder: ObservableObject {
                 finish(recording.id, error: tuner.state == .unsupported ? PlayerError.unsupported.localizedDescription : nil)
                 return
             }
-            let name = Self.fileName(for: recording)
+            let name = Self.fileName(for: recording, in: folder)
             do {
-                try FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
-                let copier = try RecordingCopier(buffer: tuner.buffer, from: entry.offset, to: Self.folder.appendingPathComponent(name))
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let copier = try RecordingCopier(buffer: tuner.buffer, from: entry.offset, to: folder.appendingPathComponent(name))
                 copiers[recording.id] = copier
                 gapTrackers[recording.id] = GapTracker()
                 update(recording.id) { $0.fileName = name }
@@ -454,7 +481,7 @@ final class Recorder: ObservableObject {
         let now = Date()
         for id in Array(gapTrackers.keys) {
             guard let recording = recordings.first(where: { $0.id == id }),
-                  let content = app?.tuners.tuner(recording.channelId)?.contentTime,
+                  let content = host?.tuners.tuner(recording.channelId)?.contentTime,
                   let gap = gapTrackers[id]?.sample(wall: now, content: content) else { continue }
             add(gap, to: recording)
         }
@@ -472,7 +499,7 @@ final class Recorder: ObservableObject {
 
     private func finish(_ id: UUID, error: String?) {
         guard let recording = recordings.first(where: { $0.id == id }) else { return }
-        let tuner = app?.tuners.tuner(recording.channelId)
+        let tuner = host?.tuners.tuner(recording.channelId)
         if var tracker = gapTrackers.removeValue(forKey: id), let gap = tracker.finish() { add(gap, to: recording) }
         if let copier = copiers.removeValue(forKey: id) {
             copier.onFinish = { [weak self, weak copier] in
@@ -485,14 +512,14 @@ final class Recorder: ObservableObject {
             copier.finish(at: tuner?.buffer.endOffset ?? 0)
         }
         // Waited the whole time (or was stopped while waiting) without any data.
-        let error = recording.fileName == nil ? error ?? String(localized: "No data from the channel") : error
+        let error = recording.fileName == nil ? error ?? String(localized: "No data from the channel", bundle: .module) : error
         update(id) {
             $0.status = error == nil ? .done : .failed
             $0.error = error
             // A recording stopped early ends now.
             if Date() < $0.recordEnd { $0.end = max($0.start, Date()); $0.padAfter = 0; $0.clipAfter = 0 }
         }
-        app?.tuners.release(recording.channelId, owner: .recording(id))
+        host?.tuners.release(recording.channelId, owner: .recording(id))
         rebalance()
         if let error {
             AppLog.error(.recordings, "\(recording.title) on \(recording.channelName) failed: \(error)")
@@ -502,14 +529,14 @@ final class Recorder: ObservableObject {
     }
 
     /// App quit or sign-out: everything recorded so far is kept.
-    func stopAll(reason: String?) {
+    public func stopAll(reason: String?) {
         for recording in recordings where recording.status == .recording {
             finish(recording.id, error: reason)
         }
     }
 
     /// Writes out running recordings before the app quits.
-    func flushForTermination() {
+    public func flushForTermination() {
         let running = Array(copiers.values)
         stopAll(reason: nil)
         for copier in running { copier.waitUntilDone() }
@@ -521,8 +548,8 @@ final class Recorder: ObservableObject {
     /// window ends where this one begins, wait for that moment, end those recordings exactly
     /// then and take over their connection, without tuning in early and without asking.
     private func handOver(to id: UUID) async {
-        guard let app, let recording = recordings.first(where: { $0.id == id }) else { return }
-        let blockers = app.tuners.blockers(for: recording.channelId, as: .recording(id))
+        guard let host, let recording = recordings.first(where: { $0.id == id }) else { return }
+        let blockers = host.tuners.blockers(for: recording.channelId, as: .recording(id))
         guard !blockers.isEmpty else { return }
         var previous: [Recording] = []
         for owner in blockers.flatMap(\.owners) {
@@ -542,8 +569,8 @@ final class Recorder: ObservableObject {
     /// Asks before taking the connection from the player or another recording. Without an
     /// answer within a minute the recording starts (it was planned for a reason).
     private func resolveConflicts(for recording: Recording) async -> Bool {
-        guard let app else { return false }
-        let blockers = app.tuners.blockers(for: recording.channelId, as: .recording(recording.id))
+        guard let host else { return false }
+        let blockers = host.tuners.blockers(for: recording.channelId, as: .recording(recording.id))
         guard !blockers.isEmpty else { return true }
         let blockingRecordings = recordings.filter { r in
             r.status == .recording && blockers.contains { $0.owners.contains(.recording(r.id)) }
@@ -553,63 +580,48 @@ final class Recorder: ObservableObject {
         let message: String
         let confirm: String
         if let other = blockingRecordings.first {
-            message = String(localized: "“\(other.title)” is being recorded on \(other.channelName). Your account allows only \(app.tuners.limit) stream(s) at a time.")
-            confirm = String(localized: "Stop “\(other.title)” and Record")
+            message = String(localized: "“\(other.title)” is being recorded on \(other.channelName). Your account allows only \(host.tuners.limit) stream(s) at a time.", bundle: .module)
+            confirm = String(localized: "Stop “\(other.title)” and Record", bundle: .module)
         } else {
-            message = String(localized: "To record, Fernsy switches to \(recording.channelName), because your account allows only \(app.tuners.limit) stream(s) at a time.")
-            confirm = String(localized: "Switch and Record")
+            message = String(localized: "To record, Fernsy switches to \(recording.channelName), because your account allows only \(host.tuners.limit) stream(s) at a time.", bundle: .module)
+            confirm = String(localized: "Switch and Record", bundle: .module)
         }
-        let accepted = await Prompt.ask(
-            title: String(localized: "Recording “\(recording.title)” Is Starting"),
-            message: message + "\n\n" + String(localized: "Without an answer, the recording starts in one minute."),
-            confirm: confirm, cancel: String(localized: "Skip Recording"), timeout: 60, timeoutAnswer: true)
+        let accepted = await host.ask(
+            title: String(localized: "Recording “\(recording.title)” Is Starting", bundle: .module),
+            message: message + "\n\n" + String(localized: "Without an answer, the recording starts in one minute.", bundle: .module),
+            confirm: confirm, cancel: String(localized: "Skip Recording", bundle: .module), timeout: 60, timeoutAnswer: true)
         guard accepted else { return false }
         for other in blockingRecordings { finish(other.id, error: nil) }
-        if playerBlocks, let channel = app.channel(recording.channelId) {
-            app.play(channel, force: true)
-        }
+        if playerBlocks { host.playForRecording(recording.channelId) }
         return true
     }
 
-    // MARK: Keeping the Mac awake
+    // MARK: Keeping the device awake
 
-    private var debugKeepAwakeHours: Int?
-
-    private var keepAwakeHours: Int {
-        debugKeepAwakeHours ?? UserDefaults.standard.integer(forKey: Self.keepAwakeHoursKey)
-    }
-
-    /// Holds an activity against idle sleep while a recording runs or the next one starts within
-    /// the set hours. Its reason names that recording, so `pmset -g assertions` explains it.
+    /// Keeps the device awake while a recording runs or, by the policy, the next one starts
+    /// soon. The reason names that recording (on the Mac, `pmset -g assertions` explains it).
     private func updateActivity() {
-        let hours = keepAwakeHours
+        let policy = keepAwakePolicy()
         let reason: String?
-        if hours < 0 {
+        if policy == .never {
             reason = nil
         } else if let running = recordings.first(where: { $0.status == .recording }) {
             reason = "Recording: \(running.title)"
-        } else {
-            let limit = hours == 0 ? Date.distantFuture : Date().addingTimeInterval(Double(hours) * 3600)
+        } else if case .ahead(let hours) = policy {
+            let limit = hours.map { Date().addingTimeInterval(Double($0) * 3600) } ?? Date.distantFuture
             let next = recordings.filter { $0.status == .scheduled && $0.recordStart < limit }.min { $0.recordStart < $1.recordStart }
             reason = next.map { "Recording scheduled: \($0.title) at \($0.recordStart.formatted(date: .abbreviated, time: .shortened))" }
+        } else {
+            reason = nil
         }
         guard reason != activityReason else { return }
-        if let activity {
-            ProcessInfo.processInfo.endActivity(activity)
-            self.activity = nil
-        }
         activityReason = reason
-        if let reason {
-            activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .suddenTerminationDisabled], reason: reason)
-            AppLog.info(.recordings, "keeping the Mac awake (\(hours < 1 ? "always" : "\(hours) h")): \(reason)")
-        } else {
-            AppLog.info(.recordings, hours < 0 ? "keep-awake off" : "the Mac may sleep again")
-        }
+        host?.keepAwake(reason: reason)
     }
 
     // MARK: Files
 
-    private static func fileName(for recording: Recording) -> String {
+    private static func fileName(for recording: Recording, in folder: URL) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd HH.mm"
@@ -625,64 +637,3 @@ final class Recorder: ObservableObject {
         return name
     }
 }
-
-extension Recorder.PlanResult {
-    /// Tells the user when planning was refused or shortened padding; silent otherwise.
-    @MainActor
-    func present() {
-        switch self {
-        case .planned(nil): break
-        case .planned(let notice?): Prompt.inform(title: String(localized: "Recording Scheduled"), message: notice)
-        case .refused(let message): Prompt.inform(title: String(localized: "Can’t Record"), message: message)
-        }
-    }
-}
-
-/// App-modal questions shown as a sheet on the frontmost window.
-@MainActor
-enum Prompt {
-    private static var busy = false
-
-    /// `timeout`: answers `timeoutAnswer` by itself after that many seconds.
-    static func ask(title: String, message: String, confirm: String, cancel: String,
-                    timeout: TimeInterval? = nil, timeoutAnswer: Bool = false) async -> Bool {
-        while busy { try? await Task.sleep(for: .milliseconds(200)) }
-        busy = true
-        defer { busy = false }
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = message
-        alert.addButton(withTitle: confirm)
-        alert.addButton(withTitle: cancel)
-        AppActivation.activate()
-        let window = NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible && $0.styleMask.contains(.titled) && $0.attachedSheet == nil }
-        return await withCheckedContinuation { continuation in
-            var answered = false
-            let finish: (Bool) -> Void = { answer in
-                guard !answered else { return }
-                answered = true
-                continuation.resume(returning: answer)
-            }
-            if let window {
-                alert.beginSheetModal(for: window) { response in finish(response == .alertFirstButtonReturn) }
-                if let timeout {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-                        guard !answered else { return }
-                        window.endSheet(alert.window, returnCode: timeoutAnswer ? .alertFirstButtonReturn : .alertSecondButtonReturn)
-                    }
-                }
-            } else {
-                // No window open: decide by the timeout answer, without blocking anything.
-                if timeout != nil { finish(timeoutAnswer) } else { finish(alert.runModal() == .alertFirstButtonReturn) }
-            }
-        }
-    }
-
-    static func inform(title: String, message: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = message
-        if let window = NSApp.keyWindow { alert.beginSheetModal(for: window) } else { alert.runModal() }
-    }
-}
-

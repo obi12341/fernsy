@@ -1,4 +1,5 @@
 import FernsyCore
+import FernsyPlayer
 import SwiftUI
 
 /// Recordings: running, scheduled and finished, filtered by the category column.

@@ -1,4 +1,5 @@
 import FernsyCore
+import FernsyPlayer
 import SwiftUI
 
 /// Programme grid: one row per channel, time runs horizontally. The channel column and

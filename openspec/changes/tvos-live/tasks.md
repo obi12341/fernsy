@@ -2,8 +2,8 @@
 
 ## 1. Shared code
 
-- [ ] 1.1 Favourites, recently watched channels, pinned categories and hidden categories and channels move from the Mac app into `FernsyCore` (design A), same stored keys and format, with tests. Verify: `scripts/test.sh --tvos-sim` passes; a Mac dev run (`scripts/dev-run.sh IPTV_AUTOPLAY=live:101`) shows the same favourites, hidden items and pins as before the move.
-- [ ] 1.2 The recorder moves into `FernsyPlayer` behind a platform protocol, the Mac keeps its AppKit parts (design B). Verify: Mac regression `IPTV_TESTRECORD=101:5:60:0:0` records and plays on the demo server; with `IPTV_MAXCONN=1` the stream-limit question appears as before; Debug, Direct and Release builds with 0 warnings.
+- [x] 1.1 Favourites, recently watched channels, hidden categories and channels, adult detection and the zap order move from the Mac app into `FernsyCore`, plus the new pinned categories (design A), same stored keys and format, with tests. Verify: `scripts/test.sh --tvos-sim` passes; a Mac dev run (`scripts/dev-run.sh IPTV_AUTOPLAY=live:101`) shows the same favourites, hidden items and pins as before the move.
+- [x] 1.2 The recorder moves into `FernsyPlayer` behind a platform protocol, the Mac keeps its AppKit parts (design B). Verify: Mac regression `IPTV_TESTRECORD=101:5:60:0:0` records and plays on the demo server; with `IPTV_MAXCONN=1` the stream-limit question appears as before; Debug, Direct and Release builds with 0 warnings.
 
 ## 2. Frame and sign-in
 

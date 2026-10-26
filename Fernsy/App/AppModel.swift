@@ -129,7 +129,7 @@ final class AppModel: ObservableObject {
     /// instead of naming the provider.
     @Published private(set) var isNetworkAvailable = true
     private let pathMonitor = NWPathMonitor()
-    static let recentLimit = 20
+    static let recentLimit = LiveRules.recentLimit
     /// Hidden live categories and channels of the signed-in account.
     @Published private(set) var visibility = ChannelVisibility() {
         didSet { updateVisibleCounts() }
@@ -215,6 +215,8 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
+    /// Held against idle sleep for recordings (`keepAwake(reason:)`).
+    var recordingActivity: NSObjectProtocol?
     /// The local MCP server (Settings › Assistenten); created after launch.
     private(set) lazy var mcp = MCPServer(app: self)
     #if DIRECT_DISTRIBUTION
@@ -242,14 +244,16 @@ final class AppModel: ObservableObject {
     private var logSecrets: Set<AnyCancellable> = []
 
     init() {
-        favorites = Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? [])
-        recentChannels = Self.skipKeychain ? [] : (UserDefaults.standard.array(forKey: "live.recent") as? [Int] ?? [])
+        favorites = Set(UserDefaults.standard.stringArray(forKey: LiveRules.favoritesKey) ?? [])
+        recentChannels = Self.skipKeychain ? [] : (UserDefaults.standard.array(forKey: LiveRules.recentKey) as? [Int] ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         showAdultInRecent = UserDefaults.standard.bool(forKey: "library.showAdultInRecent")
         showsIPTVMovies = UserDefaults.standard.object(forKey: "library.iptvMovies") as? Bool ?? true
         showsIPTVSeries = UserDefaults.standard.object(forKey: "library.iptvSeries") as? Bool ?? true
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
-        recorder.app = self
+        recorder.host = self
+        Recorder.registerMacDefaults()
+        recorder.keepAwakePolicy = Recorder.macKeepAwakePolicy
         #if DIRECT_DISTRIBUTION
         updater = Updater(recorder: recorder)
         #endif
@@ -857,12 +861,7 @@ final class AppModel: ObservableObject {
 
     // MARK: Adult filter
 
-    private static let adultMarkers = ["xxx", "adult", "+18", "18+", "for adults", "erotik"]
-
-    func isAdultCategory(_ category: XCategory) -> Bool {
-        let name = category.name.lowercased()
-        return Self.adultMarkers.contains { name.contains($0) }
-    }
+    func isAdultCategory(_ category: XCategory) -> Bool { LiveRules.isAdultCategory(category) }
 
     /// Marked as adult by the provider, or in a category detected as adult
     /// (`adultCategories`: the ids of those live categories).
@@ -879,9 +878,7 @@ final class AppModel: ObservableObject {
 
     // MARK: Hidden categories and channels
 
-    func isHidden(_ channel: LiveChannel) -> Bool {
-        visibility.hiddenChannels.contains(channel.id) || visibility.hiddenCategories.contains(channel.categoryId ?? "")
-    }
+    func isHidden(_ channel: LiveChannel) -> Bool { visibility.isHidden(channel) }
 
     func isCategoryHidden(_ id: String) -> Bool { visibility.hiddenCategories.contains(id) }
 
@@ -945,17 +942,15 @@ final class AppModel: ObservableObject {
     func isFavorite(_ key: String) -> Bool { favorites.contains(key) }
 
     private func noteRecent(_ channelId: Int) {
-        var list = recentChannels.filter { $0 != channelId }
-        list.insert(channelId, at: 0)
-        recentChannels = Array(list.prefix(Self.recentLimit))
+        recentChannels = LiveRules.noting(channelId, in: recentChannels)
         // Test runs (no keychain) keep it in memory: they share the installed app's defaults.
-        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: "live.recent") }
+        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: LiveRules.recentKey) }
     }
 
     /// Context menu: takes a channel out of "Zuletzt gesehen".
     func removeRecent(_ channelId: Int) {
         recentChannels.removeAll { $0 == channelId }
-        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: "live.recent") }
+        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: LiveRules.recentKey) }
     }
 
     func toggleFavorite(_ key: String) {
@@ -963,7 +958,7 @@ final class AppModel: ObservableObject {
         #if DEBUG
         if debugFavoritesInMemory { return }
         #endif
-        UserDefaults.standard.set(Array(favorites), forKey: "library.favorites")
+        UserDefaults.standard.set(Array(favorites), forKey: LiveRules.favoritesKey)
     }
 
     // MARK: Playback
@@ -1096,8 +1091,7 @@ final class AppModel: ObservableObject {
     /// Channels the player zaps through, hidden ones included: the category the channel was
     /// started from, or everything if that category has no visible channel.
     private func zapOrder(categoryId: String?) -> [LiveChannel] {
-        let list = categoryId.flatMap { channelsByCategory[$0] } ?? []
-        return list.contains { !isHidden($0) } ? list : channels
+        LiveRules.zapOrder(category: categoryId.flatMap { channelsByCategory[$0] }, all: channels, isHidden: isHidden)
     }
 
     /// The visible channels the player zaps through.
@@ -1108,20 +1102,7 @@ final class AppModel: ObservableObject {
     /// The visible channel `offset` steps away from `channelId` (wrapping), with its 1-based
     /// number. From a hidden channel it steps to the visible ones around its place.
     func neighbor(of channelId: Int, categoryId: String?, offset: Int) -> (channel: LiveChannel, number: Int)? {
-        let order = zapOrder(categoryId: categoryId)
-        let list = order.filter { !isHidden($0) }
-        guard !list.isEmpty else { return nil }
-        let index: Int
-        if let current = list.firstIndex(where: { $0.id == channelId }) {
-            index = current + offset
-        } else {
-            guard offset != 0, let position = order.firstIndex(where: { $0.id == channelId }) else { return nil }
-            // Visible channels before the hidden one: the next one down has this index.
-            let before = order[..<position].filter { !isHidden($0) }.count
-            index = offset > 0 ? before + offset - 1 : before + offset
-        }
-        let next = (index % list.count + list.count) % list.count
-        return (list[next], next + 1)
+        LiveRules.neighbor(of: channelId, in: zapOrder(categoryId: categoryId), offset: offset, isHidden: isHidden)
     }
 
     func channel(_ id: Int) -> LiveChannel? {

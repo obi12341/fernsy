@@ -94,9 +94,9 @@ account's limit does not allow; then the pane shows the channel's logo and progr
 
 ### Requirement: Channel actions on Apple TV
 A long press on a channel row SHALL offer Aufnehmen (or stop the recording), adding to or
-removing from the favourites, and hiding the channel. Favourites, recently watched channels,
-hidden channels and categories, and pinned categories SHALL behave as in the Mac app and be
-kept per account on the Apple TV. Categories marked as adult content SHALL stay hidden, as
+removing from the favourites, and hiding the channel. Favourites, recently watched channels
+and hidden channels and categories SHALL behave as in the Mac app and be kept on the Apple TV;
+pinned categories SHALL be kept per account. Categories marked as adult content SHALL stay hidden, as
 with the Mac app's default setting; the Apple TV app has no setting to show them.
 
 #### Scenario: Hiding a channel

@@ -33,8 +33,9 @@ films, series, Jellyfin, search) follows in `tvos-library`.
   guide, with padding, stored where tvOS may delete them, and only while Fernsy is open. The
   Aufnahmen tab shows running, scheduled, finished and failed recordings and plays them.
 - Settings: accounts, add account, Wiedergabe, Aufnahmen (padding), Protokoll and the version.
-- Favourites, hidden and pinned categories and channels, and recently watched channels work
-  on Apple TV as on the Mac and are kept per account on the Apple TV.
+- Favourites, hidden categories and channels, and recently watched channels work on Apple TV
+  as on the Mac and are kept on the Apple TV. Pinning a category into the category column is
+  new and exists only on Apple TV for now (the Mac's column has fixed entries only).
 
 ## Capabilities
 

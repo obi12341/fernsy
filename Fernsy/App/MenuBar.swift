@@ -1,3 +1,4 @@
+import FernsyPlayer
 import SwiftUI
 
 /// Menu bar item: Fernsy keeps running there (for recordings) when all windows are closed.
