@@ -173,6 +173,11 @@ Select, waits for the player's accessibility value `playing`, presses Back and c
 is shown with the same channel focused. Placeholder screens expose accessibility identifiers
 (`channel.<id>`, `player.state`) that the designed screens keep.
 
+`scripts/tv-uitest.sh` runs it, locally and in CI, with `-collect-test-diagnostics never` and a
+2-minute limit per test. Pitfall: without that flag a failing UI test makes `xcodebuild` run
+`simctl diagnose` afterwards, which took more than 6 minutes with no output, so a failure looked
+like a hang. A plain `xcodebuild test` also rebuilds everything first.
+
 ### H. CI
 
 `tests.yml` gets a job that restores or builds FFmpeg (cache key: the script's hash, now with

@@ -10,15 +10,28 @@ server and the debug switches. The product description is in [README.md](README.
 
 ## Build
 
-FFmpeg is not checked in. Build it once (LGPL, decode-only, arm64; needs the Xcode Metal
-toolchain: `xcodebuild -downloadComponent MetalToolchain`):
+FFmpeg is not checked in. Build it once (LGPL, decode plus the MPEG-TS muxer, arm64; needs the
+Xcode Metal toolchain: `xcodebuild -downloadComponent MetalToolchain` and, for the Apple TV
+slices, the tvOS SDK):
 
 ```sh
-scripts/build-ffmpeg.sh        # → Vendor/ffmpeg
+scripts/build-ffmpeg.sh                  # macOS, tvOS and tvOS simulator, about 10 min
+PLATFORMS=macos scripts/build-ffmpeg.sh  # only the Mac slice
 ```
 
-Then open `Fernsy.xcodeproj` or build from the command line. A build phase
-(`scripts/embed-ffmpeg.sh`) copies and signs the libraries into the app.
+It writes one XCFramework of dynamic framework bundles per library (avutil, swresample,
+swscale, avcodec, avformat, avfilter) to `Packages/FernsyPlayer/Frameworks/`, the headers to
+`Packages/FernsyPlayer/Sources/CFFShim/include/`, and `BUILDINFO.txt` (source URL and configure
+lines per platform, the LGPL source offer) with `COPYING.LGPLv2.1`. All of it is git-ignored.
+Configure refuses to continue when a GPL or nonfree component would be enabled. Frameworks, not
+loose dylibs: tvOS accepts nothing else, and the user can still replace them (LGPL).
+
+The package `Packages/FernsyPlayer` (depends on `Packages/FernsyCore`) holds playback: the C
+bridge `CFFShim`, the FFmpeg binary targets and the `FernsyPlayer` library (byte sources,
+session, tuner and pool, timeshift buffer and writer, audio tap, renderers, `PlayerEngine`). Its
+strings use `bundle: .module` and its own catalog. The video surface and picture in picture
+stay in each app. Both app targets link `FernsyPlayer` and embed the six frameworks with
+"Embed Frameworks" (signed on copy). Then open `Fernsy.xcodeproj` or build from the command line.
 
 ## Release
 
@@ -391,13 +404,81 @@ come back behind the player when it leaves full screen or closes; `showLibrary` 
 takes a hidden one instead of opening a second. `IPTV_TESTFS=1` enters, leaves and re-enters
 full screen.
 
+### Apple TV
+
+The target "Fernsy TV" (tvOS 27, arm64, sources in `FernsyTV/`) is the Apple TV app. It links
+`FernsyCore` and `FernsyPlayer` like the Mac app and has the same bundle ids (universal
+purchase): Release `de.mobilistics.fernsy` ("Fernsy"), Debug `de.mobilistics.fernsy.dev`
+("Fernsy Dev", icon with the DEV band). Icons: `swift scripts/make-tv-icons.swift`, a stand-in
+built from the Mac icon. It is not shipped yet.
+
+`TVModel` (`FernsyTV/Model/TVModel.swift`) is everything the screens read: the account
+(sign-in via `XtreamClient`, keychain via `CredentialStore`), the live categories and channels
+(a JSON cache in Caches, which tvOS may delete), the guide (`EPGStore`) and playback
+(`TunerPool`, `PlayerEngine`; timeshift capped at 30 minutes in Caches). tvOS has no lasting
+local storage, so there are no recordings.
+
+**Screen slots.** `FernsyTV/Screens/` has deliberately plain placeholders that the designed
+screens replace one by one, without touching the model:
+
+| Slot | Shows | Reads from `TVModel` |
+|---|---|---|
+| `RootScreen` | switches between the others | `signIn`, `playing` |
+| `SignInScreen` | server, username, password | `signIn(_:)`, `signIn` (state and error) |
+| `ChannelListScreen` | channels by category with the show that runs now | `categories`, `channels(in:)`, `loadGuide(for:)`, `currentShow(on:)`, `guide`, `play(_:)` |
+| `PlayerScreen` | the picture full screen with an overlay | `playing`, `engine` (state), `togglePause()`, `skip(by:)`, `goLive()`, `stop()` |
+
+The picture comes from `FernsyTV/Player/TVVideoSurface.swift`, which hosts the engine's display
+layer. Keep the accessibility identifiers the UI test uses: `channel.<id>` on each channel row
+and `player.state` on the player, its value `playing`, `paused` or `loading`. Remote in the
+placeholder player: Play/Pause pauses, Left −10 s, Right +10 s, Down back to live, Back closes.
+
+**Run it.** `scripts/tv-run.sh` builds at background priority, boots the "Apple TV 4K (3rd
+generation)" simulator (tvOS 27 runtime: `xcodebuild -downloadPlatform tvOS`), shows it
+(Xcode 27.1 shows booted simulators in its own window), installs and launches Fernsy Dev with the
+demo account. `KEY=value` arguments go into the app's environment and replace the defaults;
+`--no-build` skips the build, `--log <file>` sets the log (default `build/tv-run.log`, emptied
+per run):
+
+```sh
+scripts/tv-run.sh --log build/devtest/tv.log IPTV_AUTOPLAY=live:101
+xcrun simctl io <device> screenshot shot.png    # screenshot of the simulator only
+```
+
+Debug builds behave like the Mac dev build: `IPTV_SERVER`, `IPTV_USER`, `IPTV_PASS` sign in
+without the keychain (`FERNSY_NO_KEYCHAIN=1` keeps it out entirely); they start muted
+(`IPTV_SOUND=1` for sound); streams only from the demo worker, `127.0.0.1` or `localhost` unless
+`IPTV_ALLOWREAL=1`; `IPTV_AUTOPLAY=live:<id>` plays a channel once the catalog is loaded. The
+player's test switches (`IPTV_TESTNET`, `IPTV_TRICKLEMORE`, `IPTV_TRICKLEKBIT`,
+`IPTV_TESTSTALL`, `IPTV_TESTNODATA`, `IPTV_TESTNOVIDEO`, `IPTV_TESTSLOWSTART`,
+`IPTV_TESTNOCONTINUE`, `IPTV_TESTCLOCK`, `IPTV_TESTJUMP`, `IPTV_LIVELEAD`, `IPTV_AUDIOLEVEL`) are
+read in `FernsyPlayer` and work the same on both platforms.
+
+**Debug MCP.** With `IPTV_MCP=1` and `IPTV_MCPTOKEN=<token>` (tv-run sets the token `test`) a
+debug build listens on `http://127.0.0.1:52325/mcp` (the simulator shares the Mac's network):
+`play`, `stop_playback`, `seek`, `now_playing`, `playback_diagnostics`, `snapshot`, `get_log`
+(`FernsyTV/Debug/TVTools.swift`). Release builds have no listener.
+
+**UI test.** `scripts/tv-uitest.sh` builds the app and "Fernsy TV UITests" and runs them on the
+simulator (about 30 s): Down to a channel, Select, the player reaches `playing`, Back returns to
+the list with the same channel focused. It passes `-collect-test-diagnostics never`; without it a
+failing test makes `xcodebuild` run `simctl diagnose` for many minutes, which looks like a hang.
+At the end of each test Xcode quits the app, so the simulator shows the home screen.
+
+**What the simulator cannot show.** VideoToolbox hardware decoding fails there (the log says
+`hwaccel initialisation returned error`) and FFmpeg decodes in software, with occasional
+artefacts; check picture and performance on a real Apple TV. Right after a relaunch the demo
+server may close connections for about 20 s.
+
 ### Tests and FernsyCore
 
 Fernsy's platform-independent logic lives in the local package `Packages/FernsyCore` (macOS and
 tvOS), linked by both app targets: Xtream models, client and EPG store, channel names, Jellyfin
 models and JSON decoder, the recording plan and gap tracker, the slow-delivery rule
 (`DeliveryMonitor`, used by `HTTPByteSource`), content history, track choice, media info and the
-app log. Code that needs AppKit, SwiftUI views, FFmpeg or the keychain stays in the app. Public
+app log, the keychain wrapper (`CredentialStore`) and the MCP HTTP server and JSON-RPC
+dispatcher. FFmpeg code is in `Packages/FernsyPlayer` (see Build), so these tests never need
+FFmpeg; code that needs AppKit or SwiftUI views stays in the app. Public
 API is `public`; package strings use `String(localized: …, bundle: .module)` and live in the
 package's own `Resources/Localizable.xcstrings`.
 

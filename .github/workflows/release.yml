@@ -137,7 +137,9 @@ jobs:
         id: ffmpeg-cache
         uses: actions/cache/restore@v6
         with:
-          path: Vendor/ffmpeg
+          path: |
+            Packages/FernsyPlayer/Frameworks
+            Packages/FernsyPlayer/Sources/CFFShim/include/lib*
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       - name: Build FFmpeg (LGPL)
@@ -149,7 +151,9 @@ jobs:
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: Vendor/ffmpeg
+          path: |
+            Packages/FernsyPlayer/Frameworks
+            Packages/FernsyPlayer/Sources/CFFShim/include/lib*
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       - name: Import the Developer ID certificate
@@ -318,7 +322,9 @@ jobs:
         id: ffmpeg-cache
         uses: actions/cache/restore@v6
         with:
-          path: Vendor/ffmpeg
+          path: |
+            Packages/FernsyPlayer/Frameworks
+            Packages/FernsyPlayer/Sources/CFFShim/include/lib*
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       - name: Build FFmpeg (LGPL)
@@ -329,7 +335,9 @@ jobs:
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: Vendor/ffmpeg
+          path: |
+            Packages/FernsyPlayer/Frameworks
+            Packages/FernsyPlayer/Sources/CFFShim/include/lib*
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
       # Apple's cloud signing through the API key (Admin role): no certificates or profiles
