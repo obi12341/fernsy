@@ -199,6 +199,30 @@ Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environmen
 skip the keychain. Further debug-only switches (`IPTV_AUTOPLAY`, `IPTV_SCENE`, `IPTV_WINDOW`,
 `IPTV_TESTNET`, …) are documented where they are read.
 
+### Dev build next to the installed app
+
+Debug builds are "Fernsy Dev": bundle id `de.mobilistics.fernsy.dev`, an icon with a "DEV"
+band (`swift scripts/make-dev-icon.swift` after icon changes), the product name stays
+`Fernsy`. They have their own container (`~/Library/Containers/de.mobilistics.fernsy.dev`),
+defaults, keychain service and system registrations, and record into `~/Movies/Fernsy Dev`, so
+they never see or change the installed app's accounts, settings or recordings. On top:
+
+- Quiet: they start muted (`IPTV_SOUND=1` for sound), never store the volume, and never come
+  to the front (`AppActivation`; `IPTV_ACTIVATE=1` to allow it). Window screenshots by window
+  id work behind other windows.
+- Xtream streams (live, films, episodes, catch-up) only from the demo worker, `127.0.0.1` or
+  `localhost`; anything else fails with "Debug-Build: echte Anbieter nur mit
+  IPTV_ALLOWREAL=1" before a request is made (`PlayerError.debugAllows`). Catalog and EPG
+  requests stay allowed.
+- `scripts/dev-run.sh [--no-build] [--log <file>] [KEY=value …]` builds at background priority
+  (`taskpolicy -b`) and starts the dev build with `open -g` against the demo server.
+- `scripts/dev-copy-prod.sh --list | --account <n> | --settings` copies an account folder of
+  the installed app (as `copied-<n>`, scheduled and running recordings set to skipped) or an
+  allow-list of settings into the dev container; it only reads the installed app's container
+  and copies no keychain items. `IPTV_COPIEDACCOUNT=copied-<n>` opens such a copy offline:
+  cached catalog and recordings list, no requests, no streams. Recording files stay in
+  `~/Movies/Fernsy` and are not played from a copy.
+
 "Beim Anmelden öffnen" (Settings › Aufnahmen) registers Fernsy with `SMAppService.mainApp`;
 opened at login (Apple Event `keyAELaunchedAsLogInItem`), Fernsy closes its library window and
 runs in the menu bar (`LoginItem`, `MenuBarSupport.startWithoutWindow`). Debug builds never

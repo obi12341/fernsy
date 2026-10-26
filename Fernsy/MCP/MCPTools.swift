@@ -1030,7 +1030,7 @@ enum PlayerWindow {
     /// one; a single call is undone by that, so it repeats briefly.
     private static func orderFront() {
         for delay in [0, 0.15, 0.4] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { window?.orderFrontRegardless() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { AppActivation.orderFrontRegardless(window) }
         }
     }
 
@@ -1041,7 +1041,7 @@ enum PlayerWindow {
     /// Brings the library window to the front, or opens one (Fernsy may run in the menu bar).
     static func showLibrary() {
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
+        AppActivation.activate()
         if let hidden = LibraryWindows.takeHidden() {
             hidden.makeKeyAndOrderFront(nil)
             AppLog.detail(.app, "hidden library window brought to the front")

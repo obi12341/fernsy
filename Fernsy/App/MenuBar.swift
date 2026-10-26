@@ -121,14 +121,14 @@ enum MenuBarSupport {
     static func windowDidOpen(_ window: NSWindow) {
         guard !isStartingWithoutWindow, window.canBecomeMain, NSApp.activationPolicy() != .regular else { return }
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
+        AppActivation.activate()
     }
 
     /// Brings the library window back, or opens a new one when it was closed.
     static func showLibrary(_ openWindow: OpenWindowAction) {
         startWithoutWindowUntil = nil
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
+        AppActivation.activate()
         if let hidden = LibraryWindows.takeHidden() {
             hidden.makeKeyAndOrderFront(nil)
         } else if let existing = NSApp.windows.first(where: {

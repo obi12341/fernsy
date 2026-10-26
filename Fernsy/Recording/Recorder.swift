@@ -133,10 +133,16 @@ final class Recorder: ObservableObject {
         tick()
     }
 
-    /// ~/Movies/Fernsy (the real one, not the sandbox container's).
+    /// ~/Movies/Fernsy (the real one, not the sandbox container's); debug builds use
+    /// ~/Movies/Fernsy Dev, next to the installed app's recordings.
     static var folder: URL {
         let home = getpwuid(getuid()).flatMap { $0.pointee.pw_dir.map { String(cString: $0) } } ?? NSHomeDirectory()
-        return URL(fileURLWithPath: home, isDirectory: true).appendingPathComponent("Movies/Fernsy", isDirectory: true)
+        #if DEBUG
+        let name = "Movies/Fernsy Dev"
+        #else
+        let name = "Movies/Fernsy"
+        #endif
+        return URL(fileURLWithPath: home, isDirectory: true).appendingPathComponent(name, isDirectory: true)
     }
 
     func fileURL(_ recording: Recording) -> URL? {
@@ -613,7 +619,7 @@ enum Prompt {
         alert.informativeText = message
         alert.addButton(withTitle: confirm)
         alert.addButton(withTitle: cancel)
-        NSApp.activate()
+        AppActivation.activate()
         let window = NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible && $0.styleMask.contains(.titled) && $0.attachedSheet == nil }
         return await withCheckedContinuation { continuation in
             var answered = false

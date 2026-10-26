@@ -504,7 +504,7 @@ struct PlayerScreen: View {
             pipStage.end(flushing: engine.videoSink)
             engine.displayLayer.videoGravity = .resize
             playerWindow?.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            AppActivation.activate()
             showControls()
         }
         controller.onClosed = {

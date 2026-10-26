@@ -321,6 +321,7 @@ final class AppModel: ObservableObject {
     /// keychain, which a freshly built debug binary may not read without a password prompt.
     private static var debugCredentials: XtreamCredentials? {
         #if DEBUG
+        if let copied = XtreamCredentials.copied { return copied }
         let env = ProcessInfo.processInfo.environment
         guard let server = env["IPTV_SERVER"], let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
         return XtreamCredentials(server: server, username: user, password: pass)
@@ -647,6 +648,10 @@ final class AppModel: ObservableObject {
         if channels.isEmpty && movies.isEmpty && series.isEmpty {
             await loadFromCache(dir)
         }
+        #if DEBUG
+        // A copied account is shown from its cache only: no credentials, no requests.
+        if client.credentials.isCopied { return }
+        #endif
         if account == nil {
             Task { await refreshAccount(client) }
         }

@@ -288,7 +288,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Dev";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/Fernsy.entitlements;
 				CODE_SIGN_IDENTITY = "-";
@@ -303,7 +303,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(FFMPEG_PREFIX)/include";
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
+				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 mobilistics";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -320,7 +320,7 @@
 					"-lswresample",
 					"-lswscale",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
+				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
@@ -375,7 +375,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Dev";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Config/Fernsy-Direct.entitlements";
 				CODE_SIGN_IDENTITY = "-";
@@ -390,7 +390,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(FFMPEG_PREFIX)/include";
 				INFOPLIST_FILE = "Config/Info-Direct.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
+				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 mobilistics";
 				INFOPLIST_PREPROCESS = NO;
@@ -408,7 +408,7 @@
 					"-lswresample",
 					"-lswscale",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
+				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.dev;
 				PRODUCT_NAME = Fernsy;
 				SPARKLE_PUBLIC_ED_KEY = "jOhtmmUX0BOx1oTRsWehQWehmSWuahwKdjzD++0Bjec=";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DIRECT_DISTRIBUTION $(inherited)";
