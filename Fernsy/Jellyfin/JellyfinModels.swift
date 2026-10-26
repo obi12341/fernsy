@@ -160,11 +160,11 @@ enum JellyfinError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .notJellyfin: return String(localized: "Unter dieser Adresse wurde kein Jellyfin-Server gefunden.")
-        case .unauthorized: return String(localized: "Die Jellyfin-Sitzung ist abgelaufen.")
-        case .wrongCredentials: return String(localized: "Benutzername oder Passwort ist falsch.")
-        case .http(let code): return String(localized: "Der Jellyfin-Server antwortet mit HTTP \(code).")
-        case .invalidURL: return String(localized: "Die Serveradresse ist ungültig.")
+        case .notJellyfin: return String(localized: "No Jellyfin server was found at this address.")
+        case .unauthorized: return String(localized: "The Jellyfin session has expired.")
+        case .wrongCredentials: return String(localized: "Username or password is wrong.")
+        case .http(let code): return String(localized: "The Jellyfin server answers with HTTP \(code).")
+        case .invalidURL: return String(localized: "The server address is not valid.")
         }
     }
 }

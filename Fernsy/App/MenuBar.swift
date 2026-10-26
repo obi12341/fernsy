@@ -11,28 +11,28 @@ struct MenuBarContent: View {
         let next = recorder.recordings.filter { $0.status == .scheduled }.min { $0.start < $1.start }
 
         if running.isEmpty && next == nil {
-            Text("Keine Aufnahmen geplant")
+            Text("No recordings scheduled")
         }
         ForEach(running) { recording in
             Menu("● \(recording.title) – \(recording.channelName)") {
-                Text("Bis \(recording.recordEnd.formatted(date: .omitted, time: .shortened))")
-                Button("Aufnahme beenden") { recorder.stop(recording.id) }
+                Text("Until \(recording.recordEnd.formatted(date: .omitted, time: .shortened))")
+                Button("Stop Recording") { recorder.stop(recording.id) }
             }
         }
         if let next {
-            Text("Nächste: \(next.title) – \(Self.when(next.start))")
+            Text("Next: \(next.title) – \(Self.when(next.start))")
         }
         Divider()
-        Button("Fernsy öffnen") { MenuBarSupport.showLibrary(openWindow) }
-        Button("Aufnahmen anzeigen") {
+        Button("Open Fernsy") { MenuBarSupport.showLibrary(openWindow) }
+        Button("Show Recordings") {
             app.requestedSection = .recordings
             MenuBarSupport.showLibrary(openWindow)
         }
         Divider()
         if !running.isEmpty {
-            Text("Fernsy beenden stoppt die laufende Aufnahme")
+            Text("Quitting Fernsy stops the running recording")
         }
-        Button("Fernsy beenden") { NSApp.terminate(nil) }
+        Button("Quit Fernsy") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
 
@@ -50,7 +50,7 @@ struct MenuBarLabel: View {
     var body: some View {
         let recording = recorder.recordings.contains { $0.status == .recording }
         Image(nsImage: Self.symbol(recording: recording))
-            .accessibilityLabel(recording ? Text("Fernsy – Aufnahme läuft") : Text(verbatim: "Fernsy"))
+            .accessibilityLabel(recording ? Text("Fernsy – recording") : Text(verbatim: "Fernsy"))
             // The label lives as long as the menu bar item, also with every window closed: its
             // openWindow still works when the library's has gone with its window.
             .onAppear { PlayerWindow.menuBarOpenWindow = openWindow }

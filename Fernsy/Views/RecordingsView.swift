@@ -17,26 +17,26 @@ struct RecordingsView: View {
         Group {
             if (showUpcoming ? running.count + scheduled.count : 0) + (showFinished ? finished.count : 0) == 0 {
                 ContentUnavailableView {
-                    Label("Keine Aufnahmen", systemImage: "record.circle")
+                    Label("No Recordings", systemImage: "record.circle")
                 } description: {
-                    Text("Wähle im Programm eine Sendung und klicke auf „Aufnehmen“, oder drücke im Player R. Aufnahmen laufen, solange Fernsy geöffnet ist.")
+                    Text("Select a show in the guide and click “Record”, or press R in the player. Recordings run while Fernsy is open.")
                 }
             } else {
                 List {
                     if showUpcoming && !running.isEmpty {
-                        Section("Läuft") { ForEach(running) { RecordingRow(recording: $0) } }
+                        Section("Recording") { ForEach(running) { RecordingRow(recording: $0) } }
                     }
                     if showUpcoming && !scheduled.isEmpty {
-                        Section("Geplant") { ForEach(scheduled) { RecordingRow(recording: $0) } }
+                        Section("Scheduled") { ForEach(scheduled) { RecordingRow(recording: $0) } }
                     }
                     if showFinished && !finished.isEmpty {
-                        Section("Aufgenommen") { ForEach(finished) { RecordingRow(recording: $0) } }
+                        Section("Recorded") { ForEach(finished) { RecordingRow(recording: $0) } }
                     }
                 }
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Label("Aufnahmen laufen nur, solange Fernsy geöffnet ist – auch mit geschlossenen Fenstern über das Menüleistensymbol.",
+            Label("Recordings only run while Fernsy is open – also with all windows closed, via the menu bar icon.",
                   systemImage: "info.circle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -44,16 +44,16 @@ struct RecordingsView: View {
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 .background(.bar)
         }
-        .navigationTitle("Aufnahmen")
+        .navigationTitle("Recordings")
         .toolbar {
             ToolbarItem {
                 Button {
                     try? FileManager.default.createDirectory(at: Recorder.folder, withIntermediateDirectories: true)
                     NSWorkspace.shared.open(Recorder.folder)
                 } label: {
-                    Label("Im Finder zeigen", systemImage: "folder")
+                    Label("Show in Finder", systemImage: "folder")
                 }
-                .help("Aufnahme-Ordner im Finder öffnen")
+                .help("Open the recordings folder in Finder")
             }
         }
     }
@@ -75,7 +75,7 @@ struct RecordingRow: View {
                     Text(timeText).monospacedDigit()
                     if recording.padBefore > 0 || recording.padAfter > 0 {
                         Text(verbatim: "·")
-                        Text("Aufnahme \(recording.recordStart.formatted(date: .omitted, time: .shortened))–\(recording.recordEnd.formatted(date: .omitted, time: .shortened))")
+                        Text("Recording \(recording.recordStart.formatted(date: .omitted, time: .shortened))–\(recording.recordEnd.formatted(date: .omitted, time: .shortened))")
                             .monospacedDigit()
                     }
                     if let detail { Text(verbatim: "·"); Text(detail) }
@@ -118,15 +118,15 @@ struct RecordingRow: View {
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { if canPlay { app.play(recording) } }
         .contextMenu {
-            if canPlay { Button("Abspielen") { app.play(recording) } }
+            if canPlay { Button("Play") { app.play(recording) } }
             if let url = recorder.fileURL(recording), FileManager.default.fileExists(atPath: url.path) {
-                Button("Im Finder zeigen") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
             }
             Divider()
             switch recording.status {
-            case .recording: Button("Aufnahme beenden") { recorder.stop(recording.id) }
-            case .scheduled: Button("Aufnahme entfernen", role: .destructive) { recorder.stop(recording.id) }
-            default: Button("In den Papierkorb legen", role: .destructive) { recorder.delete(recording.id) }
+            case .recording: Button("Stop Recording") { recorder.stop(recording.id) }
+            case .scheduled: Button("Remove Recording", role: .destructive) { recorder.stop(recording.id) }
+            default: Button("Move to Trash", role: .destructive) { recorder.delete(recording.id) }
             }
         }
     }
@@ -152,23 +152,23 @@ struct RecordingRow: View {
     private var actions: some View {
         HStack(spacing: 8) {
             if canPlay {
-                Button("Abspielen", systemImage: "play.fill") { app.play(recording) }
+                Button("Play", systemImage: "play.fill") { app.play(recording) }
                     .labelStyle(.iconOnly)
-                    .help("Abspielen")
+                    .help("Play")
             }
             switch recording.status {
             case .recording:
-                Button("Beenden", systemImage: "stop.fill") { recorder.stop(recording.id) }
+                Button("Quit", systemImage: "stop.fill") { recorder.stop(recording.id) }
                     .labelStyle(.iconOnly)
-                    .help("Aufnahme beenden")
+                    .help("Stop Recording")
             case .scheduled:
-                Button("Entfernen", systemImage: "xmark") { recorder.stop(recording.id) }
+                Button("Remove", systemImage: "xmark") { recorder.stop(recording.id) }
                     .labelStyle(.iconOnly)
-                    .help("Geplante Aufnahme entfernen")
+                    .help("Remove scheduled recording")
             default:
-                Button("Löschen", systemImage: "trash") { recorder.delete(recording.id) }
+                Button("Delete", systemImage: "trash") { recorder.delete(recording.id) }
                     .labelStyle(.iconOnly)
-                    .help("In den Papierkorb legen")
+                    .help("Move to Trash")
             }
         }
         .buttonStyle(.borderless)
@@ -176,14 +176,14 @@ struct RecordingRow: View {
 
     private var timeText: String {
         let day = Calendar.current.isDateInToday(recording.start)
-            ? String(localized: "Heute")
+            ? String(localized: "Today")
             : recording.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
         return "\(day) \(recording.start.formatted(date: .omitted, time: .shortened)) – \(recording.end.formatted(date: .omitted, time: .shortened))"
     }
 
     private var detail: String? {
         switch recording.status {
-        case .recording where recording.fileName == nil: return String(localized: "Wartet auf den Sender …")
+        case .recording where recording.fileName == nil: return String(localized: "Waiting for the channel…")
         case .skipped, .missed: return nil
         case .failed where recording.bytes == nil: return nil
         default: return recording.bytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) }
@@ -195,11 +195,11 @@ struct RecordingRow: View {
         switch recording.status {
         case .failed:
             let cause = recording.error.map { " · \($0)" } ?? ""
-            return ("exclamationmark.triangle.fill", String(localized: "fehlgeschlagen") + cause, true)
+            return ("exclamationmark.triangle.fill", String(localized: "failed") + cause, true)
         case .missed:
-            return ("minus.circle", String(localized: "verpasst · Fernsy war nicht geöffnet"), false)
+            return ("minus.circle", String(localized: "missed · Fernsy was not open"), false)
         case .skipped:
-            return ("minus.circle", String(localized: "ausgelassen"), false)
+            return ("minus.circle", String(localized: "skipped"), false)
         case .done where recording.error != nil:
             return ("exclamationmark.triangle.fill", recording.error ?? "", true)
         default:
@@ -211,12 +211,12 @@ struct RecordingRow: View {
     private var gapsNote: (text: String, help: String)? {
         let gaps = recording.gaps
         guard !gaps.isEmpty else { return nil }
-        let cause = String(localized: "Anbieter hat zu wenig geliefert")
-        let single = gaps.map { String(localized: "Lücke \($0.at.formatted(date: .omitted, time: .shortened)) (\(Self.duration($0.seconds)))") }
+        let cause = String(localized: "provider delivered too little")
+        let single = gaps.map { String(localized: "Gap \($0.at.formatted(date: .omitted, time: .shortened)) (\(Self.duration($0.seconds)))") }
         let help = single.joined(separator: "\n") + "\n" + cause
         if gaps.count > 2 {
             let total = Self.duration(gaps.reduce(0) { $0 + $1.seconds })
-            return (String(localized: "\(gaps.count) Lücken, insgesamt \(total) – \(cause)"), help)
+            return (String(localized: "\(gaps.count) gaps, \(total) in total – \(cause)"), help)
         }
         return (single.joined(separator: ", ") + " – " + cause, help)
     }
@@ -244,16 +244,16 @@ struct RecordButton: View {
         if entry.end > Date() {
             let existing = recorder.recording(channelId: channel.id, entry: entry).flatMap { $0.isUpcomingOrRunning ? $0 : nil }
             if let existing {
-                Button(existing.status == .recording ? "Aufnahme beenden" : "Aufnahme entfernen",
+                Button(existing.status == .recording ? "Stop Recording" : "Remove Recording",
                        systemImage: existing.status == .recording ? "stop.circle" : "xmark.circle") {
                     recorder.stop(existing.id)
                 }
-                .help(existing.status == .recording ? "Aufnahme beenden" : "Geplante Aufnahme entfernen")
+                .help(existing.status == .recording ? "Stop Recording" : "Remove scheduled recording")
             } else {
-                Button("Aufnehmen", systemImage: "record.circle") {
+                Button("Record", systemImage: "record.circle") {
                     recorder.schedule(entry, on: channel).present()
                 }
-                .help("Diese Sendung aufnehmen (Fernsy muss dafür geöffnet sein)")
+                .help("Record this show (Fernsy has to be open)")
             }
         }
     }

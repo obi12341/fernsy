@@ -373,7 +373,7 @@ final class RecordingCopier {
                 return
             case .lost:
                 lock.lock()
-                error = String(localized: "Aufnahme konnte nicht schnell genug geschrieben werden")
+                error = String(localized: "The recording could not be written fast enough")
                 lock.unlock()
                 return
             }

@@ -183,13 +183,13 @@ struct SearchResultsView: View {
             }
         }
         .onChange(of: results?.query) { _, _ in expanded = [] }
-        .navigationTitle("Suche")
+        .navigationTitle("Search")
     }
 
     @ViewBuilder
     private func groups(_ results: SearchResults) -> some View {
         if !results.channels.isEmpty {
-            header("Sender", source: .channels, total: results.channels.count, limit: Self.rowLimit)
+            header("Channels", source: .channels, total: results.channels.count, limit: Self.rowLimit)
             VStack(spacing: 2) {
                 ForEach(shown(results.channels, .channels, Self.rowLimit)) { channel in
                     Button { app.play(channel) } label: {
@@ -199,8 +199,8 @@ struct SearchResultsView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button("Abspielen") { app.play(channel) }
-                        Button(app.isFavorite("live:\(channel.id)") ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen") {
+                        Button("Play") { app.play(channel) }
+                        Button(app.isFavorite("live:\(channel.id)") ? "Remove from Favorites" : "Add to Favorites") {
                             app.toggleFavorite("live:\(channel.id)")
                         }
                     }
@@ -208,7 +208,7 @@ struct SearchResultsView: View {
             }
         }
         if !results.movies.isEmpty {
-            header("Filme", source: .movies, total: results.movies.count, limit: Self.posterLimit)
+            header("Movies", source: .movies, total: results.movies.count, limit: Self.posterLimit)
             LazyVGrid(columns: posterColumns, spacing: 24) {
                 ForEach(shown(results.movies, .movies, Self.posterLimit)) { movie in
                     NavigationLink(value: movie) {
@@ -217,13 +217,13 @@ struct SearchResultsView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button("Abspielen") { app.play(movie) }
+                        Button("Play") { app.play(movie) }
                     }
                 }
             }
         }
         if !results.series.isEmpty {
-            header("Serien", source: .series, total: results.series.count, limit: Self.posterLimit)
+            header("Series", source: .series, total: results.series.count, limit: Self.posterLimit)
             LazyVGrid(columns: posterColumns, spacing: 24) {
                 ForEach(shown(results.series, .series, Self.posterLimit)) { show in
                     NavigationLink(value: show) {
@@ -235,15 +235,15 @@ struct SearchResultsView: View {
             }
         }
         if !results.jellyfinFilms.isEmpty {
-            header("Jellyfin-Filme", source: .jellyfinFilms, total: results.jellyfinFilms.count, limit: Self.posterLimit)
+            header("Jellyfin Movies", source: .jellyfinFilms, total: results.jellyfinFilms.count, limit: Self.posterLimit)
             jellyfinGrid(shown(results.jellyfinFilms, .jellyfinFilms, Self.posterLimit))
         }
         if !results.jellyfinSeries.isEmpty {
-            header("Jellyfin-Serien", source: .jellyfinSeries, total: results.jellyfinSeries.count, limit: Self.posterLimit)
+            header("Jellyfin Series", source: .jellyfinSeries, total: results.jellyfinSeries.count, limit: Self.posterLimit)
             jellyfinGrid(shown(results.jellyfinSeries, .jellyfinSeries, Self.posterLimit))
         }
         if !results.recordings.isEmpty {
-            header("Aufnahmen", source: .recordings, total: results.recordings.count, limit: Self.rowLimit)
+            header("Recordings", source: .recordings, total: results.recordings.count, limit: Self.rowLimit)
             VStack(spacing: 6) {
                 ForEach(shown(results.recordings, .recordings, Self.rowLimit)) { RecordingRow(recording: $0) }
             }
@@ -266,7 +266,7 @@ struct SearchResultsView: View {
             Text("\(total)").foregroundStyle(.secondary).monospacedDigit()
             Spacer()
             if total > limit {
-                Button(expanded.contains(source) ? "Weniger anzeigen" : "Alle anzeigen (\(total))") {
+                Button(expanded.contains(source) ? "Show less" : "Show all (\(total))") {
                     if expanded.contains(source) { expanded.remove(source) } else { expanded.insert(source) }
                 }
                 .buttonStyle(.link)

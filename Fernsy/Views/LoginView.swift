@@ -14,8 +14,8 @@ struct LoginView: View {
                 .resizable()
                 .frame(width: 72, height: 72)
             VStack(spacing: 6) {
-                Text("Willkommen bei Fernsy").font(.largeTitle.weight(.semibold))
-                Text("Womit möchtest du dich verbinden?").foregroundStyle(.secondary)
+                Text("Welcome to Fernsy").font(.largeTitle.weight(.semibold))
+                Text("What would you like to connect to?").foregroundStyle(.secondary)
             }
             HStack(spacing: 12) {
                 AccountKindCard(kind: .iptv, selection: $kind)
@@ -28,7 +28,7 @@ struct LoginView: View {
             case .jellyfin: JellyfinSignInForm()
             }
             Spacer(minLength: 0)
-            Label("Fernsy sammelt keine Daten. Zugangsdaten bleiben im Schlüsselbund dieses Macs.", systemImage: "lock.fill")
+            Label("Fernsy collects no data. Credentials stay in this Mac’s keychain.", systemImage: "lock.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -72,11 +72,11 @@ private struct AccountKindCard: View {
                     .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(kind == .iptv ? "IPTV-Anbieter" : "Jellyfin-Server").font(.headline)
-                    Text(kind == .iptv ? "Xtream Codes" : "Eigener Medienserver")
+                    Text(kind == .iptv ? "IPTV Provider" : "Jellyfin Server").font(.headline)
+                    Text(kind == .iptv ? "Xtream Codes" : "Your own media server")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                    Text(kind == .iptv ? "Live-TV, Programm, Filme und Serien deines Anbieters" : "Filme und Serien von deinem eigenen Server")
+                    Text(kind == .iptv ? "Live TV, guide, films and series from your provider" : "Films and series from your own server")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -135,9 +135,9 @@ private struct SignInFields: View {
             }
             if field == .server, let error { ErrorLine(error: error) }
             FieldGroup(failed: field == .credentials) {
-                TextField("Benutzername", text: $username)
+                TextField("Username", text: $username)
                 Divider()
-                SecureField("Passwort", text: $password)
+                SecureField("Password", text: $password)
             }
             if field == .credentials || field == .general, let error { ErrorLine(error: error) }
         }
@@ -194,7 +194,7 @@ struct IPTVSignInForm: View {
                 if isWorking {
                     ProgressView().controlSize(.small).frame(width: 120)
                 } else {
-                    Text("Anmelden").frame(width: 120)
+                    Text("Sign In").frame(width: 120)
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -251,7 +251,7 @@ struct JellyfinSignInForm: View {
                 if isWorking {
                     ProgressView().controlSize(.small).frame(width: 120)
                 } else {
-                    Text("Anmelden").frame(width: 120)
+                    Text("Sign In").frame(width: 120)
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -299,19 +299,19 @@ struct SettingsView: View {
     var body: some View {
         TabView(selection: $tab) {
             AccountsSettings()
-                .tabItem { Label("Konten", systemImage: "person.crop.circle") }
+                .tabItem { Label("Accounts", systemImage: "person.crop.circle") }
                 .tag(SettingsTab.accounts)
             PlaybackSettings()
-                .tabItem { Label("Wiedergabe", systemImage: "play.rectangle") }
+                .tabItem { Label("Playback", systemImage: "play.rectangle") }
                 .tag(SettingsTab.playback)
             RecordingSettings()
-                .tabItem { Label("Aufnahmen", systemImage: "record.circle") }
+                .tabItem { Label("Recordings", systemImage: "record.circle") }
                 .tag(SettingsTab.recordings)
             YouthProtectionSettings()
-                .tabItem { Label("Jugendschutz", systemImage: "hand.raised") }
+                .tabItem { Label("Youth Protection", systemImage: "hand.raised") }
                 .tag(SettingsTab.youthProtection)
             AssistantSettings()
-                .tabItem { Label("Assistenten", systemImage: "bubble.left.and.text.bubble.right") }
+                .tabItem { Label("Assistants", systemImage: "bubble.left.and.text.bubble.right") }
                 .tag(SettingsTab.assistants)
         }
         .frame(width: 560)
@@ -336,32 +336,32 @@ private struct AccountsSettings: View {
             Section {
                 if let creds = app.credentials {
                     LabeledContent("Server", value: creds.server)
-                    LabeledContent("Benutzer", value: creds.username)
+                    LabeledContent("User", value: creds.username)
                     if let expires = app.account?.expiresAt {
-                        LabeledContent("Gültig bis", value: expires.formatted(date: .long, time: .omitted))
+                        LabeledContent("Valid until", value: expires.formatted(date: .long, time: .omitted))
                     }
                     if let max = app.account?.maxConnections {
-                        LabeledContent("Max. Verbindungen", value: String(max))
+                        LabeledContent("Max. connections", value: String(max))
                     }
                     if let updated = app.lastUpdated {
-                        LabeledContent("Katalog aktualisiert", value: updated.formatted(date: .abbreviated, time: .shortened))
+                        LabeledContent("Catalog updated", value: updated.formatted(date: .abbreviated, time: .shortened))
                     }
-                    Toggle("Filme", isOn: $app.showsIPTVMovies)
-                    Toggle("Serien", isOn: $app.showsIPTVSeries)
+                    Toggle("Movies", isOn: $app.showsIPTVMovies)
+                    Toggle("Series", isOn: $app.showsIPTVSeries)
                     HStack {
-                        Button("Katalog aktualisieren") { Task { await app.loadCatalog(forceRefresh: true) } }
+                        Button("Refresh Catalog") { Task { await app.loadCatalog(forceRefresh: true) } }
                             .disabled(app.isLoading)
                         Spacer()
-                        Button("Abmelden", role: .destructive) { app.logout() }
+                        Button("Sign Out", role: .destructive) { app.logout() }
                     }
                 } else {
-                    Button("IPTV-Konto hinzufügen …") { addingAccount = .iptv }
+                    Button("Add IPTV Account …") { addingAccount = .iptv }
                 }
             } header: {
                 Text("IPTV")
             } footer: {
                 if app.credentials != nil {
-                    Text("Ausgeschaltete Bereiche werden nicht geladen und nicht durchsucht. Favoriten und Fortsetzen-Positionen bleiben erhalten.")
+                    Text("Sections that are switched off are not loaded or searched. Favorites and resume positions are kept.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -369,22 +369,22 @@ private struct AccountsSettings: View {
             Section("Jellyfin") {
                 if let session = jellyfin.session {
                     LabeledContent("Server", value: "\(session.serverName) (Jellyfin \(session.version))")
-                    LabeledContent("Adresse", value: session.server)
-                    LabeledContent("Benutzer", value: session.userName)
+                    LabeledContent("Address", value: session.server)
+                    LabeledContent("User", value: session.userName)
                     if jellyfin.isExpired {
-                        Text("Die Sitzung ist abgelaufen.").foregroundStyle(.orange)
+                        Text("The session has expired.").foregroundStyle(.orange)
                     }
                     HStack {
-                        Button("Bibliothek aktualisieren") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }
+                        Button("Refresh Library") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }
                             .disabled(jellyfin.isLoading)
                         if jellyfin.isExpired {
-                            Button("Neu anmelden …") { addingAccount = .jellyfin }
+                            Button("Sign In Again …") { addingAccount = .jellyfin }
                         }
                         Spacer()
-                        Button("Abmelden", role: .destructive) { jellyfin.signOut() }
+                        Button("Sign Out", role: .destructive) { jellyfin.signOut() }
                     }
                 } else {
-                    Button("Jellyfin-Server hinzufügen …") { addingAccount = .jellyfin }
+                    Button("Add Jellyfin Server …") { addingAccount = .jellyfin }
                 }
             }
             #if DIRECT_DISTRIBUTION
@@ -401,7 +401,7 @@ private struct AccountsSettings: View {
                 case .jellyfin:
                     JellyfinSignInForm(prefillServer: jellyfin.session?.server, prefillUser: jellyfin.session?.userName) { addingAccount = nil }
                 }
-                Button("Abbrechen") { addingAccount = nil }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { addingAccount = nil }.keyboardShortcut(.cancelAction)
             }
             .padding(28)
         }
@@ -417,36 +417,36 @@ private struct PlaybackSettings: View {
     var body: some View {
         Form {
             Section {
-                Picker("Tonspur", selection: $audioLanguage) {
-                    Text("Systemsprache (\(SettingsView.languageName(SettingsView.systemLanguage)))").tag("")
+                Picker("Audio Track", selection: $audioLanguage) {
+                    Text("System Language (\(SettingsView.languageName(SettingsView.systemLanguage)))").tag("")
                     Divider()
                     ForEach(SettingsView.languages, id: \.self) { code in Text(SettingsView.languageName(code)).tag(code) }
                 }
-                Picker("Untertitel", selection: $subtitleMode) {
-                    Text("Aus").tag("off")
-                    Text("Nur erzwungene").tag("forced")
+                Picker("Subtitles", selection: $subtitleMode) {
+                    Text("Off").tag("off")
+                    Text("Forced Only").tag("forced")
                     Divider()
                     ForEach(SettingsView.languages, id: \.self) { code in Text(SettingsView.languageName(code)).tag(code) }
                 }
             } header: {
-                Text("Sprache & Untertitel")
+                Text("Language & Subtitles")
             } footer: {
-                Text("Gilt beim Start jeder Wiedergabe, wenn die Spur vorhanden ist. „Nur erzwungene“ zeigt Untertitel nur für fremdsprachige Stellen. Wählst du im Player andere Spuren für eine Serienfolge, merkt sich Fernsy das für die weiteren Folgen.")
+                Text("Applies when playback starts, if the track exists. “Forced only” shows subtitles only for foreign-language passages. If you pick other tracks in the player during a series episode, Fernsy keeps them for the following episodes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Section {
-                Picker("Zurückspulen bis", selection: $timeshiftMinutes) {
-                    Text("2 Minuten").tag(2)
-                    Text("15 Minuten").tag(15)
-                    Text("30 Minuten").tag(30)
-                    Text("1 Stunde").tag(60)
-                    Text("2 Stunden").tag(120)
+                Picker("Rewind up to", selection: $timeshiftMinutes) {
+                    Text("2 minutes").tag(2)
+                    Text("15 minutes").tag(15)
+                    Text("30 minutes").tag(30)
+                    Text("1 hour").tag(60)
+                    Text("2 hours").tag(120)
                 }
             } header: {
-                Text("Zeitversetzt")
+                Text("Time Shift")
             } footer: {
-                Text("Der Zwischenspeicher fürs Zurückspulen belegt bei HD-Sendern etwa 2–4 GB pro Stunde.")
+                Text("The rewind buffer takes about 2–4 GB per hour for HD channels.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -468,52 +468,52 @@ private struct RecordingSettings: View {
     var body: some View {
         Form {
             Section {
-                MinutesField("Vorlauf", value: $padBefore)
-                MinutesField("Nachlauf", value: $padAfter)
-                LabeledContent("Speicherort") {
+                MinutesField("Record before", value: $padBefore)
+                MinutesField("Record after", value: $padAfter)
+                LabeledContent("Location") {
                     HStack {
-                        Text("Filme › Fernsy").foregroundStyle(.secondary)
-                        Button("Im Finder zeigen") {
+                        Text("Movies › Fernsy").foregroundStyle(.secondary)
+                        Button("Show in Finder") {
                             try? FileManager.default.createDirectory(at: Recorder.folder, withIntermediateDirectories: true)
                             NSWorkspace.shared.open(Recorder.folder)
                         }
                     }
                 }
             } header: {
-                Text("Aufnahmen")
+                Text("Recordings")
             } footer: {
-                Text("Aufnahmen laufen nur, solange Fernsy geöffnet ist.")
+                Text("Recordings only run while Fernsy is open.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Section {
-                Picker("Mac wach halten", selection: $keepAwakeHours) {
+                Picker("Keep Mac awake", selection: $keepAwakeHours) {
                     ForEach(Recorder.keepAwakeChoices, id: \.self) { hours in
                         Text(Self.keepAwakeLabel(hours)).tag(hours)
                     }
                 }
             } footer: {
                 Text(keepAwakeHours < 0
-                     ? "Fernsy hält den Mac nicht wach. Geht er in den Ruhezustand, bricht eine laufende Aufnahme ab."
-                     : "Der Mac geht während Aufnahmen und vor geplanten Aufnahmen nicht von selbst in den Ruhezustand. Zuklappen im Akkubetrieb oder „Ruhezustand“ im Apple-Menü verhindert das nicht.")
+                     ? "Fernsy does not keep the Mac awake. If it goes to sleep, a running recording stops."
+                     : "The Mac does not go to sleep on its own during recordings and before scheduled ones. This does not prevent closing the lid on battery or choosing Sleep in the Apple menu.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Section {
-                Toggle("Symbol in der Menüleiste", isOn: $showsMenuBarItem)
-                Toggle("Beim Anmelden öffnen", isOn: Binding(
+                Toggle("Show in menu bar", isOn: $showsMenuBarItem)
+                Toggle("Open at Login", isOn: Binding(
                     get: { loginItem.status != .off },
                     set: { loginItem.setEnabled($0) }))
                 if loginItem.status == .requiresApproval {
                     LabeledContent {
-                        Button("Anmeldeobjekte öffnen …") { loginItem.openSystemSettings() }
+                        Button("Open Login Items …") { loginItem.openSystemSettings() }
                     } label: {
-                        Text("macOS muss das Öffnen beim Anmelden noch erlauben.")
+                        Text("macOS still has to allow opening at login.")
                             .foregroundStyle(.orange)
                     }
                 }
             } footer: {
-                Text("Mit dem Symbol in der Menüleiste läuft Fernsy nach dem Schließen aller Fenster dort weiter. Beim Anmelden geöffnet, startet Fernsy ohne Fenster, damit geplante Aufnahmen stattfinden.")
+                Text("With the menu bar icon, Fernsy keeps running there after you close all windows. Opened at login, Fernsy starts without a window so that scheduled recordings happen.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -529,10 +529,10 @@ private struct RecordingSettings: View {
 extension RecordingSettings {
     static func keepAwakeLabel(_ hours: Int) -> LocalizedStringKey {
         switch hours {
-        case ..<0: "Aus"
-        case 0: "Immer, solange eine Aufnahme geplant ist"
-        case 1: "1 Stunde vor einer Aufnahme"
-        default: "\(hours) Stunden vor einer Aufnahme"
+        case ..<0: "Off"
+        case 0: "Always while a recording is scheduled"
+        case 1: "1 hour before a recording"
+        default: "\(hours) hours before a recording"
         }
     }
 }
@@ -542,22 +542,22 @@ private struct YouthProtectionSettings: View {
 
     var body: some View {
         let detected: [(section: LocalizedStringKey, category: XCategory)] =
-            app.liveCategories.filter(app.isAdultCategory).map { ("Live-TV", $0) }
-            + app.movieCategories.filter(app.isAdultCategory).map { ("Filme", $0) }
-            + app.seriesCategories.filter(app.isAdultCategory).map { ("Serien", $0) }
+            app.liveCategories.filter(app.isAdultCategory).map { ("Live TV", $0) }
+            + app.movieCategories.filter(app.isAdultCategory).map { ("Movies", $0) }
+            + app.seriesCategories.filter(app.isAdultCategory).map { ("Series", $0) }
         Form {
             Section {
-                Toggle("Erwachsenen-Kategorien anzeigen", isOn: $app.showAdult)
-                Toggle("Erwachsenen-Sender unter „Zuletzt gesehen“ anzeigen", isOn: $app.showAdultInRecent)
+                Toggle("Show adult categories", isOn: $app.showAdult)
+                Toggle("Show adult channels in Recently Watched", isOn: $app.showAdultInRecent)
                     .disabled(!app.showAdult)
             } footer: {
-                Text("Fernsy erkennt Erwachsenen-Kategorien am Namen und blendet sie samt ihren Inhalten aus. Das ist keine Kindersicherung. Unter „Zuletzt gesehen“ erscheinen Erwachsenen-Sender nur, wenn beides eingeschaltet ist.")
+                Text("Fernsy detects adult categories by their name and hides them along with their content. This is not a parental lock. Adult channels appear in Recently Watched only when both are on.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Section {
                 if detected.isEmpty {
-                    Text("Keine erkannt").foregroundStyle(.secondary)
+                    Text("None detected").foregroundStyle(.secondary)
                 } else {
                     ForEach(detected.indices, id: \.self) { i in
                         LabeledContent {
@@ -571,7 +571,7 @@ private struct YouthProtectionSettings: View {
                     }
                 }
             } header: {
-                Text("Erkannte Kategorien (\(detected.count))")
+                Text("Detected categories (\(detected.count))")
             }
         }
         .formStyle(.grouped)
@@ -649,44 +649,44 @@ private struct MCPSettingsForm: View {
     var body: some View {
         Form {
             Section {
-                Toggle("MCP-Server", isOn: $mcp.isEnabled)
+                Toggle("MCP Server", isOn: $mcp.isEnabled)
                 LabeledContent("Status") { statusText }
-                LabeledContent("Adresse") { Text(verbatim: MCPServer.endpoint).textSelection(.enabled) }
-                LabeledContent("Zugangsschlüssel") {
+                LabeledContent("Address") { Text(verbatim: MCPServer.endpoint).textSelection(.enabled) }
+                LabeledContent("Access Token") {
                     HStack {
-                        Button("Kopieren") { copy(mcp.token) }
-                        Button("Neu erzeugen") { mcp.regenerateToken() }
+                        Button("Copy") { copy(mcp.token) }
+                        Button("Regenerate") { mcp.regenerateToken() }
                     }
                 }
             } footer: {
-                Text("Claude und andere Assistenten können das Programm, den Verlauf und Fernsys Protokoll lesen (ohne Zugangsdaten), Aufnahmen planen und Sendungen abspielen. Nur Programme auf diesem Mac mit dem Zugangsschlüssel können sich verbinden, und nur solange Fernsy geöffnet ist.")
+                Text("Claude and other assistants can read the guide, your history and Fernsy's log (without credentials), schedule recordings and play shows. Only programs on this Mac with the access token can connect, and only while Fernsy is open.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Section {
                 LabeledContent {
-                    Button("Befehl kopieren") { copy(claudeCode) }
+                    Button("Copy Command") { copy(claudeCode) }
                 } label: {
-                    Text("Im Terminal ausführen")
+                    Text("Run in Terminal")
                 }
             } header: {
                 Text(verbatim: "Claude Code")
             }
             Section {
                 LabeledContent {
-                    Button("Zu Claude Desktop hinzufügen …") { MCPDesktopExtension.addToClaude(token: mcp.token) }
+                    Button("Add to Claude Desktop …") { MCPDesktopExtension.addToClaude(token: mcp.token) }
                 } label: {
-                    Text("Als Erweiterung installieren")
+                    Text("Install as an extension")
                 }
                 LabeledContent {
-                    Button("Eintrag kopieren") { copy(claudeDesktop) }
+                    Button("Copy Entry") { copy(claudeDesktop) }
                 } label: {
-                    Text("Manuell einrichten")
+                    Text("Set up manually")
                 }
             } header: {
                 Text(verbatim: "Claude Desktop")
             } footer: {
-                Text("Claude Desktop zeigt einen Installationsdialog; danach kann Claude Fernsy nutzen. Nach „Neu erzeugen“ füge Fernsy erneut hinzu. Manuell: den Eintrag unter „mcpServers“ in claude_desktop_config.json einfügen (braucht Node.js).")
+                Text("Claude Desktop shows an install dialog; after that, Claude can use Fernsy. After \"Regenerate\", add Fernsy again. Manually: paste the entry under \"mcpServers\" in claude_desktop_config.json (needs Node.js).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -699,10 +699,10 @@ private struct MCPSettingsForm: View {
     @ViewBuilder
     private var statusText: some View {
         switch mcp.status {
-        case .off: Text("Aus").foregroundStyle(.secondary)
-        case .starting: Text("Startet …").foregroundStyle(.secondary)
-        case .running: Text("Bereit").foregroundStyle(.green)
-        case .failed(let message): Text("Fehler: \(message)").foregroundStyle(.red)
+        case .off: Text("Off").foregroundStyle(.secondary)
+        case .starting: Text("Starting …").foregroundStyle(.secondary)
+        case .running: Text("Ready").foregroundStyle(.green)
+        case .failed(let message): Text("Error: \(message)").foregroundStyle(.red)
         }
     }
 

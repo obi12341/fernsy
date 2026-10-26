@@ -4,7 +4,7 @@ import CoreSpotlight
 /// A live channel for Siri, Spotlight and Shortcuts. Only channels the app shows are offered
 /// (hidden ones and adult content per Settings left out).
 struct ChannelEntity: AppEntity, IndexedEntity {
-    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Sender")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Channels")
     static let defaultQuery = ChannelQuery()
 
     let id: Int
@@ -72,8 +72,8 @@ enum IntentSupport {
     /// "heute 20:15", "morgen 08:00" or the date.
     nonisolated static func when(_ date: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(date) { return String(localized: "heute \(time(date))") }
-        if calendar.isDateInTomorrow(date) { return String(localized: "morgen \(time(date))") }
+        if calendar.isDateInToday(date) { return String(localized: "today \(time(date))") }
+        if calendar.isDateInTomorrow(date) { return String(localized: "tomorrow \(time(date))") }
         return date.formatted(.dateTime.weekday(.wide).day().month().hour().minute())
     }
 }

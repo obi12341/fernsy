@@ -44,7 +44,7 @@ struct LibraryView: View {
                             // List finds no tag and the row cannot be selected.
                             Label(s.title, systemImage: s.icon)
                                 .badge(s == .recordings && runningRecordings > 0
-                                       ? Text("\(runningRecordings) läuft").foregroundStyle(Theme.record) : nil)
+                                       ? Text("\(runningRecordings) running").foregroundStyle(Theme.record) : nil)
                                 .tag(s)
                         }
                     }
@@ -96,24 +96,24 @@ struct LibraryView: View {
         .toolbar {
             if section == .live {
                 ToolbarItem {
-                    Picker("Ansicht", selection: $liveMode) {
-                        Label("Liste", systemImage: "list.bullet").tag(LiveMode.list)
-                        Label("Programm", systemImage: "calendar.day.timeline.left").tag(LiveMode.guide)
+                    Picker("View", selection: $liveMode) {
+                        Label("List", systemImage: "list.bullet").tag(LiveMode.list)
+                        Label("Guide", systemImage: "calendar.day.timeline.left").tag(LiveMode.guide)
                     }
                     .pickerStyle(.segmented)
-                    .help("Senderliste oder Programmraster")
+                    .help("Channel list or program guide")
                     .disabled(editingLive)
                 }
                 if editingLive {
                     ToolbarItem {
-                        Button("Alle einblenden") { app.showAllChannels() }
+                        Button("Show All") { app.showAllChannels() }
                             .disabled(!app.hasHiddenChannels)
-                            .help("Alle ausgeblendeten Kategorien und Sender wieder anzeigen")
+                            .help("Show all hidden categories and channels again")
                     }
                 }
                 ToolbarItem {
-                    Button(editingLive ? "Fertig" : "Bearbeiten") { setEditingLive(!editingLive) }
-                        .help("Kategorien und Sender aus- oder wieder einblenden")
+                    Button(editingLive ? "Done" : "Edit") { setEditingLive(!editingLive) }
+                        .help("Hide categories and channels or show them again")
                 }
             }
             ToolbarItem {
@@ -127,10 +127,10 @@ struct LibraryView: View {
                     if section.isJellyfin ? jellyfin.isLoading : app.isLoading {
                         ProgressView().controlSize(.small)
                     } else {
-                        Label("Aktualisieren", systemImage: "arrow.clockwise")
+                        Label("Refresh", systemImage: "arrow.clockwise")
                     }
                 }
-                .help(section.isJellyfin ? "Bibliothek vom Jellyfin-Server neu laden" : "Katalog vom Server neu laden")
+                .help(section.isJellyfin ? "Reload the library from the Jellyfin server" : "Reload the catalog from the server")
                 .disabled(section.isJellyfin ? jellyfin.isLoading : app.isLoading)
             }
         }
@@ -155,16 +155,16 @@ struct LibraryView: View {
             if !section.isJellyfin && app.channels.isEmpty && app.movies.isEmpty {
                 // Live TV's list shows its own placeholder rows while loading.
                 if app.isLoading && !(section == .live && effectiveLiveMode == .list) {
-                    ProgressView("Katalog wird geladen …")
+                    ProgressView("Loading catalog…")
                         .padding(32)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
                 } else if let error = app.loadError {
                     ContentUnavailableView {
-                        Label("Katalog nicht verfügbar", systemImage: "wifi.exclamationmark")
+                        Label("Catalog Unavailable", systemImage: "wifi.exclamationmark")
                     } description: {
                         Text(error)
                     } actions: {
-                        Button("Erneut versuchen") { Task { await app.loadCatalog(forceRefresh: true) } }
+                        Button("Try Again") { Task { await app.loadCatalog(forceRefresh: true) } }
                     }
                 }
             }
@@ -234,7 +234,7 @@ struct LibraryView: View {
     private var editFilter: Bool { section == .live && editingLive }
 
     private var searchPrompt: LocalizedStringKey {
-        editFilter ? "Sender suchen" : "Fernsy durchsuchen"
+        editFilter ? "Search Channels" : "Search Fernsy"
     }
 
     @ViewBuilder
@@ -306,10 +306,10 @@ struct LibraryView: View {
                 Text(host).foregroundStyle(.primary.opacity(0.7)).fontWeight(.medium).lineLimit(1)
             }
             if let account = app.account, let expires = account.expiresAt {
-                Text("Gültig bis \(expires.formatted(date: .abbreviated, time: .omitted))")
+                Text("Valid until \(expires.formatted(date: .abbreviated, time: .omitted))")
             }
             if let updated = app.lastUpdated {
-                Text("Stand \(updated.formatted(date: .omitted, time: .shortened))")
+                Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
             }
         }
         .font(.caption)
@@ -347,7 +347,7 @@ struct CategoryColumn: View {
                     if editing && hideable {
                         if app.isAdultCategory(row.category) {
                             // Youth protection is decided in Settings, not hidden here on the side.
-                            NameTag(text: String(localized: "JUGENDSCHUTZ"))
+                            NameTag(text: String(localized: "YOUTH PROTECTION"))
                         } else {
                             VisibilityToggle(hidden: row.hidden) { app.setCategory(row.category.id, hidden: !row.hidden) }
                         }
@@ -356,7 +356,7 @@ struct CategoryColumn: View {
                 .tag(row.category.id)
                 .contextMenu {
                     if hideable {
-                        Button(row.hidden ? "Einblenden" : "Ausblenden") { app.setCategory(row.category.id, hidden: !row.hidden) }
+                        Button(row.hidden ? "Unhide" : "Hide") { app.setCategory(row.category.id, hidden: !row.hidden) }
                     }
                 }
             }
@@ -367,7 +367,7 @@ struct CategoryColumn: View {
         }
         .safeAreaInset(edge: .top) {
             if section != .favorites && section != .recordings && section != .jellyfinHome {
-                TextField("Kategorien filtern", text: $filter)
+                TextField("Filter categories", text: $filter)
                     .textFieldStyle(.roundedBorder)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -375,7 +375,7 @@ struct CategoryColumn: View {
         }
         .safeAreaInset(edge: .bottom) {
             if editing && section == .live {
-                Text("Erwachsenen-Kategorien steuerst du in Einstellungen › Jugendschutz.")
+                Text("Adult categories are controlled in Settings › Youth Protection.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -426,36 +426,36 @@ struct CategoryColumn: View {
             let movies = app.showsIPTVMovies ? app.favorites.filter { $0.hasPrefix("movie:") }.count : 0
             let shows = app.showsIPTVSeries ? app.favorites.filter { $0.hasPrefix("series:") }.count : 0
             var rows = [
-                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Favoriten")), count: live + movies + shows),
-                Row(category: XCategory(id: "live", name: String(localized: "Sender")), count: live),
+                Row(category: XCategory(id: allCategoryID, name: String(localized: "All Favorites")), count: live + movies + shows),
+                Row(category: XCategory(id: "live", name: String(localized: "Channels")), count: live),
             ]
-            if app.showsIPTVMovies { rows.append(Row(category: XCategory(id: "movie", name: String(localized: "Filme")), count: movies)) }
-            if app.showsIPTVSeries { rows.append(Row(category: XCategory(id: "series", name: String(localized: "Serien")), count: shows)) }
+            if app.showsIPTVMovies { rows.append(Row(category: XCategory(id: "movie", name: String(localized: "Movies")), count: movies)) }
+            if app.showsIPTVSeries { rows.append(Row(category: XCategory(id: "series", name: String(localized: "Series")), count: shows)) }
             return rows
         case .jellyfinHome:
-            return [Row(category: XCategory(id: allCategoryID, name: String(localized: "Übersicht")), count: nil)]
+            return [Row(category: XCategory(id: allCategoryID, name: String(localized: "Overview")), count: nil)]
         case .jellyfinFilms, .jellyfinSeries:
             let kind: JFKind = section == .jellyfinFilms ? .films : .series
             let needle = makeSearchKey(filter)
             let rows = jellyfin.categoryRows(kind).filter { needle.isEmpty || makeSearchKey($0.name).contains(needle) }
-            let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle")), count: jellyfin.items(kind).count)
+            let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "All")), count: jellyfin.items(kind).count)
             return [all] + rows.map { Row(category: XCategory(id: $0.id, name: $0.name), count: $0.count) }
         case .recordings:
             let upcoming = recorder.recordings.filter(\.isUpcomingOrRunning).count
             return [
-                Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle Aufnahmen")), count: recorder.recordings.count),
-                Row(category: XCategory(id: "upcoming", name: String(localized: "Geplant")), count: upcoming),
-                Row(category: XCategory(id: "done", name: String(localized: "Aufgenommen")), count: recorder.recordings.count - upcoming),
+                Row(category: XCategory(id: allCategoryID, name: String(localized: "All Recordings")), count: recorder.recordings.count),
+                Row(category: XCategory(id: "upcoming", name: String(localized: "Scheduled")), count: upcoming),
+                Row(category: XCategory(id: "done", name: String(localized: "Recorded")), count: recorder.recordings.count - upcoming),
             ]
         }
         let needle = makeSearchKey(filter)
         let filtered = needle.isEmpty ? source : source.filter { makeSearchKey($0.name).contains(needle) }
-        let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "Alle")), count: total, pinned: true)
+        let all = Row(category: XCategory(id: allCategoryID, name: String(localized: "All")), count: total, pinned: true)
         var pinned = [all]
         if section == .live && !editing {
-            pinned.append(Row(category: XCategory(id: favoriteChannelsID, name: String(localized: "Favoriten")),
+            pinned.append(Row(category: XCategory(id: favoriteChannelsID, name: String(localized: "Favorites")),
                               count: app.filteredChannels(categoryID: favoriteChannelsID, query: "").count, pinned: true))
-            pinned.append(Row(category: XCategory(id: recentChannelsID, name: String(localized: "Zuletzt gesehen")),
+            pinned.append(Row(category: XCategory(id: recentChannelsID, name: String(localized: "Recently Watched")),
                               count: app.filteredChannels(categoryID: recentChannelsID, query: "").count, pinned: true))
         }
         return pinned + filtered.map { Row(category: $0, count: counts($0.id), hidden: section == .live && app.isCategoryHidden($0.id)) }

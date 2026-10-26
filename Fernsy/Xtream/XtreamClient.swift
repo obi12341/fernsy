@@ -7,9 +7,9 @@ enum XtreamError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidServer: return String(localized: "Ungültige Server-Adresse")
-        case .authFailed: return String(localized: "Anmeldung fehlgeschlagen – Benutzername oder Passwort falsch")
-        case .http(let code): return String(localized: "Server-Fehler (HTTP \(code))")
+        case .invalidServer: return String(localized: "Invalid server address")
+        case .authFailed: return String(localized: "Sign-in failed – wrong username or password")
+        case .http(let code): return String(localized: "Server error (HTTP \(code))")
         }
     }
 }

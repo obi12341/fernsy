@@ -15,10 +15,10 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
         var errorDescription: String? {
             switch self {
-            case .http(let code): return String(localized: "Server antwortet mit HTTP \(code)")
-            case .timeout: return String(localized: "Zeitüberschreitung beim Verbinden")
-            case .cancelled: return String(localized: "Abgebrochen")
-            case .connectionLost: return String(localized: "Verbindung zum Server verloren")
+            case .http(let code): return String(localized: "Server responded with HTTP \(code)")
+            case .timeout: return String(localized: "Connection timed out")
+            case .cancelled: return String(localized: "Cancelled")
+            case .connectionLost: return String(localized: "Connection to the server lost")
             }
         }
     }
@@ -573,17 +573,17 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         if reconnecting {
             // A reconnect whose response does not arrive is retried like a failed one.
             if task != nil && now.timeIntervalSince(reconnectStartedAt) > 6 {
-                liveReconnect(reason: String(localized: "keine Antwort"))
+                liveReconnect(reason: String(localized: "no response"))
             }
         } else if !suspended {
             let playerReports = now.timeIntervalSince(playbackAheadAt) < 2
             if idle > hardStallTimeout || (idle > stallTimeout && playbackAhead < lowPlaybackAhead) {
-                liveReconnect(reason: String(format: String(localized: "keine Daten seit %.0f s, %.1f s Vorrat"), idle, playbackAhead))
+                liveReconnect(reason: String(format: String(localized: "no data for %.0f s, %.1f s buffered"), idle, playbackAhead))
             } else if playerReports && idle > dryStallTimeout && playbackAhead < dryPlaybackAhead
                         && now.timeIntervalSince(connectedAt) > stallTimeout {
                 // A fresh connection gets the normal time for its first bytes (servers often
                 // fetch their buffer first), or reconnects would chain.
-                liveReconnect(reason: String(format: String(localized: "keine Daten seit %.0f s, Player fast leer (%.1f s Vorrat)"), idle, playbackAhead))
+                liveReconnect(reason: String(format: String(localized: "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)"), idle, playbackAhead))
             } else if let delivered, delivered < slowMinimum, now.timeIntervalSince(connectedAt) >= slowMinAge {
                 if now.timeIntervalSince(lastSlowSwitchAt) < 120 && slowLevel < 2 {
                     // Slow again right after a switch: give this connection a longer window first.
@@ -593,7 +593,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                 } else {
                     // Data keeps arriving, but too little to keep up: replaced like a stall.
                     lastSlowSwitchAt = now
-                    liveReconnect(reason: String(format: String(localized: "zu langsam: %.0f s Inhalt in %.0f s"), delivered, slowWindow), slow: true)
+                    liveReconnect(reason: String(format: String(localized: "too slow: %1$.0f s of content in %2$.0f s"), delivered, slowWindow), slow: true)
                 }
             }
         }
@@ -886,7 +886,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         #endif
         if streaming && !cancelled && failure == nil {
             // Live streams do not end: a closed or failed connection is replaced.
-            liveReconnect(reason: error.map { $0.localizedDescription } ?? String(localized: "Server hat Verbindung geschlossen"))
+            liveReconnect(reason: error.map { $0.localizedDescription } ?? String(localized: "Server closed the connection"))
             return
         }
         // A film's download that ends before the file does was interrupted (an idle connection

@@ -81,8 +81,8 @@ struct LogView: View {
             .font(.system(.callout, design: .monospaced))
             .overlay {
                 if shown.isEmpty {
-                    ContentUnavailableView("Keine Einträge", systemImage: "list.bullet.rectangle",
-                                           description: Text(model.entries.isEmpty ? "Das Protokoll ist leer." : "Kein Eintrag passt zum Filter."))
+                    ContentUnavailableView("No Entries", systemImage: "list.bullet.rectangle",
+                                           description: Text(model.entries.isEmpty ? "The log is empty." : "No entry matches the filter."))
                 }
             }
             .onChange(of: shown.last?.id) { _, last in
@@ -93,9 +93,9 @@ struct LogView: View {
                 if let last = shown.last?.id { proxy.scrollTo(last, anchor: .bottom) }
             }
         }
-        .searchable(text: $search, placement: .toolbar, prompt: "Protokoll durchsuchen")
+        .searchable(text: $search, placement: .toolbar, prompt: "Search Log")
         .toolbar { toolbar(shown) }
-        .navigationTitle(model.run == .current ? "Protokoll" : "Protokoll (letzter Start)")
+        .navigationTitle(model.run == .current ? "Log" : "Log (Previous Launch)")
         .onAppear {
             model.start()
             #if DEBUG
@@ -110,38 +110,38 @@ struct LogView: View {
     @ToolbarContentBuilder
     private func toolbar(_ shown: [LogEntry]) -> some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
-            Picker("Lauf", selection: $model.run) {
-                Text("Aktueller Start").tag(LogModel.Run.current)
-                Text("Letzter Start").tag(LogModel.Run.previous)
+            Picker("Launch", selection: $model.run) {
+                Text("Current Launch").tag(LogModel.Run.current)
+                Text("Previous Launch").tag(LogModel.Run.previous)
             }
             .pickerStyle(.segmented)
-            .help("Einträge dieses oder des vorigen Programmstarts zeigen")
+            .help("Show the entries of this or the previous launch")
         }
         ToolbarItemGroup {
-            Picker("Stufe", selection: $minimumLevel) {
-                Text("Nur Fehler").tag(LogLevel.error)
-                Text("Warnungen").tag(LogLevel.warning)
+            Picker("Level", selection: $minimumLevel) {
+                Text("Errors Only").tag(LogLevel.error)
+                Text("Warnings").tag(LogLevel.warning)
                 Text("Info").tag(LogLevel.info)
-                Text("Alle (mit Details)").tag(LogLevel.detail)
+                Text("All (with Details)").tag(LogLevel.detail)
             }
-            .help("Mindeststufe der gezeigten Einträge")
-            Picker("Bereich", selection: $category) {
-                Text("Alle Bereiche").tag(LogCategory?.none)
+            .help("Minimum level of the shown entries")
+            Picker("Area", selection: $category) {
+                Text("All Areas").tag(LogCategory?.none)
                 Divider()
                 ForEach(LogCategory.allCases, id: \.self) { category in
                     Text(category.title).tag(LogCategory?.some(category))
                 }
             }
-            .help("Nur Einträge eines Bereichs zeigen")
-            Toggle("Mitlaufen", systemImage: "arrow.down.to.line", isOn: $follows)
-                .help("Neue Einträge automatisch zeigen")
-            Button("Kopieren", systemImage: "doc.on.doc") { copy(selected(in: shown)) }
-                .help("Ausgewählte Einträge kopieren, ohne Auswahl alle gezeigten")
-            Button("Sichern …", systemImage: "square.and.arrow.down") { save(selected(in: shown)) }
-                .help("Ausgewählte oder alle gezeigten Einträge als Textdatei sichern")
-            Button("Leeren", systemImage: "trash") { model.clear(); selection = [] }
+            .help("Only show entries of one area")
+            Toggle("Follow", systemImage: "arrow.down.to.line", isOn: $follows)
+                .help("Show new entries automatically")
+            Button("Copy", systemImage: "doc.on.doc") { copy(selected(in: shown)) }
+                .help("Copy the selected entries, or all shown entries without a selection")
+            Button("Save…", systemImage: "square.and.arrow.down") { save(selected(in: shown)) }
+                .help("Save the selected or all shown entries as a text file")
+            Button("Clear", systemImage: "trash") { model.clear(); selection = [] }
                 .disabled(model.run != .current)
-                .help("Protokoll dieses Starts leeren")
+                .help("Clear the log of this launch")
         }
     }
 
@@ -162,14 +162,14 @@ struct LogView: View {
     private func save(_ entries: [LogEntry]) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
-        panel.nameFieldStringValue = String(localized: "Fernsy-Protokoll") + " " + Date().formatted(.iso8601.year().month().day()) + ".txt"
+        panel.nameFieldStringValue = String(localized: "Fernsy Log") + " " + Date().formatted(.iso8601.year().month().day()) + ".txt"
         let content = text(of: entries)
         let completion: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK, let url = panel.url else { return }
             do {
                 try content.write(to: url, atomically: true, encoding: .utf8)
             } catch {
-                Prompt.inform(title: String(localized: "Sichern fehlgeschlagen"), message: error.localizedDescription)
+                Prompt.inform(title: String(localized: "Saving Failed"), message: error.localizedDescription)
             }
         }
         if let window = NSApp.keyWindow { panel.beginSheetModal(for: window, completionHandler: completion) } else { completion(panel.runModal()) }
@@ -205,8 +205,8 @@ extension LogLevel {
         switch self {
         case .detail: String(localized: "Detail")
         case .info: String(localized: "Info")
-        case .warning: String(localized: "Warnung")
-        case .error: String(localized: "Fehler")
+        case .warning: String(localized: "Warning")
+        case .error: String(localized: "Error")
         }
     }
 
@@ -234,15 +234,15 @@ extension LogCategory {
         switch self {
         case .app: String(localized: "App")
         case .player: String(localized: "Player")
-        case .network: String(localized: "Netzwerk")
+        case .network: String(localized: "Network")
         case .tuner: String(localized: "Tuner")
         case .timeshift: String(localized: "Timeshift")
-        case .recordings: String(localized: "Aufnahmen")
-        case .catalog: String(localized: "Katalog")
-        case .guide: String(localized: "Programm")
+        case .recordings: String(localized: "Recordings")
+        case .catalog: String(localized: "Catalog")
+        case .guide: String(localized: "Guide")
         case .jellyfin: String(localized: "Jellyfin")
-        case .pip: String(localized: "Bild-in-Bild")
-        case .mcp: String(localized: "Assistenten")
+        case .pip: String(localized: "Picture in Picture")
+        case .mcp: String(localized: "Assistants")
         }
     }
 }
@@ -253,7 +253,7 @@ struct LogCommands: Commands {
 
     var body: some Commands {
         CommandGroup(before: .windowList) {
-            Button("Protokoll") { openWindow(id: "log") }
+            Button("Log") { openWindow(id: "log") }
                 .keyboardShortcut("l", modifiers: [.command, .option])
             Divider()
         }

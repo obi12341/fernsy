@@ -19,8 +19,8 @@ context: |
     source into Vendor/ffmpeg. GPL components would block App Store distribution.
   - The app runs in the App Sandbox; new file or system access needs an entitlement and
     may need an App Review explanation.
-  - UI source language is German, every string also needs an English translation in
-    Fernsy/Localizable.xcstrings.
+  - UI source language is English (US spelling), every string also needs a German translation
+    in the string catalogs (Fernsy/*.xcstrings, and the FernsyCore package's catalog).
   - Recordings and background work only happen while the app is running (no helper or
     daemon); the app keeps running in the menu bar when windows are closed.
 

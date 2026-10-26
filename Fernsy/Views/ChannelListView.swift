@@ -59,7 +59,7 @@ struct ChannelListView: View {
                         ChannelDetailPane(channel: channel, number: channels.firstIndex { $0.id == id }.map { $0 + 1 },
                                           onInfo: { infoChannel = channel }, showInGuide: showInGuide)
                     } else {
-                        Text("Kein Sender ausgewählt")
+                        Text("No Channel Selected")
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -71,9 +71,9 @@ struct ChannelListView: View {
         .background {
             // ⌘I and ⌘D for the selected channel (the context menu only shows the shortcuts).
             Group {
-                Button("Senderinfo …") { infoChannel = selection.flatMap(app.channel) }
+                Button("Channel Info…") { infoChannel = selection.flatMap(app.channel) }
                     .keyboardShortcut("i", modifiers: .command)
-                Button("Favorit") { if let id = selection { app.toggleFavorite("live:\(id)") } }
+                Button("Favorite") { if let id = selection { app.toggleFavorite("live:\(id)") } }
                     .keyboardShortcut("d", modifiers: .command)
             }
             .opacity(0)
@@ -84,7 +84,7 @@ struct ChannelListView: View {
         .onChange(of: app.visibility) { _, _ in dropHiddenSelection() }
         .onChange(of: editing) { _, _ in dropHiddenSelection() }
         .navigationTitle("Live TV")
-        .navigationSubtitle("\(channels.count) Sender")
+        .navigationSubtitle("\(channels.count) channels")
         #if DEBUG
         .task {
             // Screenshot runs: IPTV_SELECT=<channel id> shows that channel's programme panel.
@@ -130,7 +130,7 @@ struct ChannelListView: View {
             VStack(spacing: 6) {
                 if let error = app.refreshError, !app.channels.isEmpty { ProviderUnreachableBanner(error: error) }
                 if editing {
-                    Text("Ausgeblendete Sender erscheinen nicht in Liste, Programm, Suche und beim Umschalten im Player.")
+                    Text("Hidden channels do not appear in the list, the guide, search or when switching channels in the player.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,11 +148,11 @@ struct ChannelListView: View {
                 ContentUnavailableView.search(text: query)
             } else if channels.isEmpty && categoryID == favoriteChannelsID {
                 ContentUnavailableView {
-                    Label("Noch keine Favoriten", systemImage: "star")
+                    Label("No Favorites Yet", systemImage: "star")
                 } description: {
-                    Text("Markiere Sender mit dem Stern, per Rechtsklick oder mit ⌘D. Sie erscheinen dann hier.")
+                    Text("Mark channels with the star, by right-clicking or with ⌘D. They then appear here.")
                 } actions: {
-                    if let showAll { Button("Alle Sender anzeigen", action: showAll) }
+                    if let showAll { Button("Show All Channels", action: showAll) }
                 }
             }
         }
@@ -209,7 +209,7 @@ struct ChannelRow: View {
                             .foregroundStyle(app.isFavorite("live:\(channel.id)") ? .yellow : .secondary)
                     }
                     .buttonStyle(.borderless)
-                    .help(app.isFavorite("live:\(channel.id)") ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen")
+                    .help(app.isFavorite("live:\(channel.id)") ? "Remove from Favorites" : "Add to Favorites")
                 }
                 NowNextLine(guide: app.epg.guide(channel.id), recording: recording, offline: offline)
             }
@@ -228,7 +228,7 @@ struct ChannelRow: View {
             // Hidden through its category: shown again from there.
             VisibilityToggle(hidden: true) {}
                 .disabled(true)
-                .help("Die Kategorie ist ausgeblendet")
+                .help("The category is hidden")
         }
     }
 }
@@ -255,11 +255,11 @@ private struct NowNextLine: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Group {
                     if offline {
-                        Text("Sender ist beim Anbieter offline")
+                        Text("Channel is offline at the provider")
                     } else if let current {
                         Text(verbatim: current.title)
                     } else if guide.entries != nil {
-                        Text("Keine Programmdaten")
+                        Text("No program data")
                     } else {
                         Text(verbatim: " ")
                     }
@@ -268,7 +268,7 @@ private struct NowNextLine: View {
                 .lineLimit(1)
                 Spacer(minLength: 8)
                 if let next, !offline {
-                    Text("Danach \(next.start.formatted(date: .omitted, time: .shortened)) \(next.title)")
+                    Text("Next \(next.start.formatted(date: .omitted, time: .shortened)) \(next.title)")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
@@ -326,8 +326,8 @@ struct VisibilityToggle: View {
         Toggle(isOn: Binding(get: { !hidden }, set: { _ in action() })) { EmptyView() }
             .toggleStyle(.checkbox)
             .labelsHidden()
-            .help(hidden ? "Einblenden" : "Ausblenden")
-            .accessibilityLabel(hidden ? "Einblenden" : "Ausblenden")
+            .help(hidden ? "Unhide" : "Hide")
+            .accessibilityLabel(hidden ? "Unhide" : "Hide")
     }
 }
 
@@ -338,9 +338,9 @@ struct ChannelVisibilityButton: View {
 
     var body: some View {
         if app.isChannelHidden(channel.id) {
-            Button("Einblenden") { app.setChannel(channel.id, hidden: false) }
+            Button("Unhide") { app.setChannel(channel.id, hidden: false) }
         } else if !app.isHidden(channel) {
-            Button("Ausblenden") { app.setChannel(channel.id, hidden: true) }
+            Button("Hide") { app.setChannel(channel.id, hidden: true) }
         }
     }
 }
@@ -367,7 +367,7 @@ struct EPGPanel: View {
                     RecordButton(channel: channel, entry: now)
                         .controlSize(.small)
                 }
-                Button("Abspielen", systemImage: "play.fill") { app.play(channel) }
+                Button("Play", systemImage: "play.fill") { app.play(channel) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
@@ -379,7 +379,7 @@ struct EPGPanel: View {
                         .contextMenu { RecordButton(channel: channel, entry: entry) }
                 }
             } else if loaded {
-                Text("Keine Programminformationen").foregroundStyle(.secondary).font(.callout)
+                Text("No program information").foregroundStyle(.secondary).font(.callout)
             } else {
                 ProgressView().controlSize(.small)
             }
@@ -426,19 +426,19 @@ struct ChannelInfoView: View {
                 TaggedName(name: channel.parsed, font: .title3, weight: .semibold)
             }
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                row("Name beim Anbieter", channel.name)
-                row("Nummer", "\(channel.id)")
-                row("Kategorie beim Anbieter", app.liveCategories.first { $0.id == channel.categoryId }?.name ?? "–")
-                row("EPG-ID", channel.epgId ?? "–")
-                row("Archiv", channel.hasArchive ? String(localized: "verfügbar") : String(localized: "nicht verfügbar"))
+                row("Name at the provider", channel.name)
+                row("Number", "\(channel.id)")
+                row("Category at the provider", app.liveCategories.first { $0.id == channel.categoryId }?.name ?? "–")
+                row("EPG ID", channel.epgId ?? "–")
+                row("Archive", channel.hasArchive ? String(localized: "available") : String(localized: "not available"))
             }
             HStack {
-                Button("Namen kopieren") {
+                Button("Copy Name") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(channel.name, forType: .string)
                 }
                 Spacer()
-                Button("Fertig") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -464,10 +464,10 @@ private struct ProviderUnreachableBanner: View {
                 .font(.title3)
                 .foregroundStyle(Theme.warning)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Anbieter nicht erreichbar").font(.callout.weight(.semibold))
+                Text("Provider Not Reachable").font(.callout.weight(.semibold))
                 Group {
                     if let updated = app.lastUpdated {
-                        Text("Du siehst die Senderliste vom \(updated.formatted(date: .abbreviated, time: .shortened)).")
+                        Text("You are seeing the channel list from \(updated.formatted(date: .abbreviated, time: .shortened)).")
                     } else {
                         Text(verbatim: error)
                     }
@@ -476,7 +476,7 @@ private struct ProviderUnreachableBanner: View {
                 .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Erneut versuchen") { Task { await app.loadCatalog(forceRefresh: true) } }
+            Button("Try Again") { Task { await app.loadCatalog(forceRefresh: true) } }
                 .disabled(app.isLoading)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
@@ -505,8 +505,8 @@ private struct LoadingRows: View {
             }
             VStack(spacing: 10) {
                 ProgressView().controlSize(.regular)
-                Text("Senderliste wird geladen").font(.headline)
-                Text("Programmdaten folgen danach").font(.caption).foregroundStyle(.secondary)
+                Text("Loading Channel List").font(.headline)
+                Text("Program data follows afterwards").font(.caption).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 28).padding(.vertical, 20)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))

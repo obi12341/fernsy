@@ -344,8 +344,8 @@ at launch and logs the path, `IPTV_MCPADDCLAUDE=<s>` runs the button after s sec
 app version for the manifest.
 
 Siri, Spotlight and Shortcuts use App Intents (`Fernsy/Intents/`): `ChannelEntity` (indexed in
-Spotlight's semantic index, visible channels only), `ShowEntity`, five App Shortcuts with German
-phrases in code and English ones in `Fernsy/AppShortcuts.xcstrings`; the actions themselves are
+Spotlight's semantic index, visible channels only), `ShowEntity`, five App Shortcuts with English
+phrases in code and German ones in `Fernsy/AppShortcuts.xcstrings`; the actions themselves are
 `FernsyActions`, shared with the MCP tools. Debug builds neither index nor donate unless
 `IPTV_SIRIINDEX=1`. `IPTV_TESTINTENT=<step>|…` runs the intents' actions once the catalog is
 loaded and logs the answers (`query:<text>`, `suggested`, `play:<id>`, `whatson`, `find:<text>`,
@@ -390,6 +390,18 @@ on the desktop (macOS only switches Spaces when the app has no window on the cur
 come back behind the player when it leaves full screen or closes; `showLibrary` (menu bar, Siri)
 takes a hidden one instead of opening a second. `IPTV_TESTFS=1` enters, leaves and re-enters
 full screen.
+
+### UI texts and translations
+
+The UI's source language is English (US spelling): literals in the code (`Text("…")`,
+`Button("…")`, `String(localized: "…")`, App Intents titles and Siri phrases) are English, and
+the catalogs `Fernsy/Localizable.xcstrings`, `Fernsy/AppShortcuts.xcstrings` and
+`Fernsy/InfoPlist.xcstrings` hold the German translation of every key. A language Fernsy does
+not have falls back to English. A new string needs its German translation in the catalog
+(Xcode adds the key on the next build). A new language is added in the project's
+Localizations (Xcode then shows a column for it in every catalog); only translations are
+needed, no code. Wording of the German UI did not change when the source flipped from German
+to English (change `fernsy-core-package`).
 
 ## License
 

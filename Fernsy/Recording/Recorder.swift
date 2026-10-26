@@ -184,7 +184,7 @@ final class Recorder: ObservableObject {
                 if r.status == .recording {
                     r.status = fileURL(r).map { FileManager.default.fileExists(atPath: $0.path) } == true ? .done : .failed
                     r.bytes = fileURL(r).flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path)[.size] as? Int64 }
-                    if r.fileName == nil { r.error = String(localized: "Keine Daten vom Sender") }
+                    if r.fileName == nil { r.error = String(localized: "No data from the channel") }
                 }
                 return r
             }
@@ -280,7 +280,7 @@ final class Recorder: ObservableObject {
         if let entry { return schedule(entry, on: channel) }
         let now = Date()
         let recording = Recording(id: UUID(), channelId: channel.id, channelName: channel.recordingLabel,
-                                  title: String(localized: "Aufnahme \(now.formatted(date: .abbreviated, time: .shortened))"),
+                                  title: String(localized: "Recording \(now.formatted(date: .abbreviated, time: .shortened))"),
                                   description: "", start: now, end: now.addingTimeInterval(2 * 3600),
                                   padBefore: 0, padAfter: 0, followsPaddingSettings: false, status: .scheduled)
         return plan(recording)
@@ -292,9 +292,9 @@ final class Recorder: ObservableObject {
         let inTheWay = RecordingPlan.blockers(for: planItem(recording), among: others, limit: limit, now: Date())
             .compactMap { id in recordings.first { $0.id == id } }
         guard inTheWay.isEmpty else {
-            let names = inTheWay.map { String(localized: "„\($0.title)“ (\($0.channelName))") }.joined(separator: ", ")
+            let names = inTheWay.map { String(localized: "“\($0.title)” (\($0.channelName))") }.joined(separator: ", ")
             AppLog.info(.recordings, "refused \(recording.title) on \(recording.channelName): overlaps \(names) with \(limit) stream(s)")
-            return .refused(String(localized: "„\(recording.title)“ läuft zur selben Zeit wie \(names). Dein Zugang erlaubt \(limit) Stream(s) gleichzeitig. Entferne eine dieser Aufnahmen, um diese Sendung aufzunehmen."))
+            return .refused(String(localized: "“\(recording.title)” is on at the same time as \(names). Your account allows \(limit) stream(s) at a time. Remove one of these recordings to record this show."))
         }
         recordings.append(recording)
         let previous = rebalance()
@@ -304,17 +304,17 @@ final class Recorder: ObservableObject {
         for r in recordings where r.isUpcomingOrRunning {
             let old = previous[r.id] ?? (before: 0, after: 0)
             if r.clipAfter > old.after {
-                lines.append(String(localized: "Nachlauf von „\(r.title)“ verkürzt auf \(Int(((r.padAfter - r.clipAfter) / 60).rounded())) Min."))
+                lines.append(String(localized: "Record after for “\(r.title)” shortened to \(Int(((r.padAfter - r.clipAfter) / 60).rounded())) min."))
             }
             if r.clipBefore > old.before {
-                lines.append(String(localized: "Vorlauf von „\(r.title)“ verkürzt auf \(Int(((r.padBefore - r.clipBefore) / 60).rounded())) Min."))
+                lines.append(String(localized: "Record before for “\(r.title)” shortened to \(Int(((r.padBefore - r.clipBefore) / 60).rounded())) min."))
             }
         }
         if let planned = recordings.first(where: { $0.id == recording.id }) {
             AppLog.info(.recordings, "planned \(planned.title) on \(planned.channelName): \(Self.window(planned))")
         }
         guard !lines.isEmpty else { return .planned(notice: nil) }
-        let notice = String(localized: "Dein Zugang erlaubt \(limit) Stream(s) gleichzeitig, deshalb ist weniger Puffer möglich:") + "\n" + lines.joined(separator: "\n")
+        let notice = String(localized: "Your account allows \(limit) stream(s) at a time, so less extra time is possible:") + "\n" + lines.joined(separator: "\n")
         return .planned(notice: notice)
     }
 
@@ -397,7 +397,7 @@ final class Recorder: ObservableObject {
                 // The connection is gone for good (offline channel, account blocked).
                 if let tuner = app?.tuners.tuner(recording.channelId), !tuner.isActive {
                     let reason: String
-                    if case .failed(let message) = tuner.state { reason = message } else { reason = String(localized: "Verbindung verloren") }
+                    if case .failed(let message) = tuner.state { reason = message } else { reason = String(localized: "Connection lost") }
                     finish(recording.id, error: reason)
                 }
             default:
@@ -487,7 +487,7 @@ final class Recorder: ObservableObject {
             copier.finish(at: tuner?.buffer.endOffset ?? 0)
         }
         // Waited the whole time (or was stopped while waiting) without any data.
-        let error = recording.fileName == nil ? error ?? String(localized: "Keine Daten vom Sender") : error
+        let error = recording.fileName == nil ? error ?? String(localized: "No data from the channel") : error
         update(id) {
             $0.status = error == nil ? .done : .failed
             $0.error = error
@@ -555,16 +555,16 @@ final class Recorder: ObservableObject {
         let message: String
         let confirm: String
         if let other = blockingRecordings.first {
-            message = String(localized: "Gerade wird „\(other.title)“ auf \(other.channelName) aufgenommen. Dein Zugang erlaubt nur \(app.tuners.limit) Stream(s) gleichzeitig.")
-            confirm = String(localized: "„\(other.title)“ beenden und aufnehmen")
+            message = String(localized: "“\(other.title)” is being recorded on \(other.channelName). Your account allows only \(app.tuners.limit) stream(s) at a time.")
+            confirm = String(localized: "Stop “\(other.title)” and Record")
         } else {
-            message = String(localized: "Für die Aufnahme schaltet Fernsy auf \(recording.channelName) um, weil dein Zugang nur \(app.tuners.limit) Stream(s) gleichzeitig erlaubt.")
-            confirm = String(localized: "Umschalten und aufnehmen")
+            message = String(localized: "To record, Fernsy switches to \(recording.channelName), because your account allows only \(app.tuners.limit) stream(s) at a time.")
+            confirm = String(localized: "Switch and Record")
         }
         let accepted = await Prompt.ask(
-            title: String(localized: "Aufnahme „\(recording.title)“ beginnt"),
-            message: message + "\n\n" + String(localized: "Ohne Antwort startet die Aufnahme in einer Minute."),
-            confirm: confirm, cancel: String(localized: "Aufnahme auslassen"), timeout: 60, timeoutAnswer: true)
+            title: String(localized: "Recording “\(recording.title)” Is Starting"),
+            message: message + "\n\n" + String(localized: "Without an answer, the recording starts in one minute."),
+            confirm: confirm, cancel: String(localized: "Skip Recording"), timeout: 60, timeoutAnswer: true)
         guard accepted else { return false }
         for other in blockingRecordings { finish(other.id, error: nil) }
         if playerBlocks, let channel = app.channel(recording.channelId) {
@@ -634,8 +634,8 @@ extension Recorder.PlanResult {
     func present() {
         switch self {
         case .planned(nil): break
-        case .planned(let notice?): Prompt.inform(title: String(localized: "Aufnahme geplant"), message: notice)
-        case .refused(let message): Prompt.inform(title: String(localized: "Aufnahme nicht möglich"), message: message)
+        case .planned(let notice?): Prompt.inform(title: String(localized: "Recording Scheduled"), message: notice)
+        case .refused(let message): Prompt.inform(title: String(localized: "Can’t Record"), message: message)
         }
     }
 }

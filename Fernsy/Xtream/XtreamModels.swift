@@ -105,7 +105,7 @@ struct XCategory: Identifiable, Hashable, Decodable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexString(.category_id) ?? ""
-        name = c.flexString(.category_name) ?? String(localized: "Unbenannt")
+        name = c.flexString(.category_name) ?? String(localized: "Untitled")
         parsed = ChannelName.parse(name)
     }
 }

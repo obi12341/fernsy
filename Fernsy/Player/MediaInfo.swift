@@ -124,7 +124,7 @@ enum MediaNames {
         case 2: return "Stereo"
         case 6: return "5.1"
         case 8: return "7.1"
-        default: return String(localized: "\(Int(n)) Kanäle")
+        default: return String(localized: "\(Int(n)) audio channels")
         }
     }
 

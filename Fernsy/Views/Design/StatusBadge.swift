@@ -14,7 +14,7 @@ struct StatusBadge: View {
     var body: some View {
         switch kind {
         case .playing:
-            Label("Im Player", systemImage: "play.fill")
+            Label("In Player", systemImage: "play.fill")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.tint)
                 .labelStyle(.titleAndIcon)
@@ -27,19 +27,19 @@ struct StatusBadge: View {
         case .scheduled:
             HStack(spacing: 4) {
                 Circle().strokeBorder(Theme.record, lineWidth: 1.5).frame(width: 8, height: 8)
-                Text("Geplant").font(.caption2.weight(.semibold))
+                Text("Scheduled").font(.caption2.weight(.semibold))
             }
             .foregroundStyle(Theme.record)
         case .favorite:
             Image(systemName: "star.fill")
                 .font(.caption)
                 .foregroundStyle(.yellow)
-                .accessibilityLabel("Favorit")
-                .help("Favorit")
+                .accessibilityLabel("Favorite")
+                .help("Favorite")
         case .offline:
             pill("Offline")
         case .hidden:
-            pill("Ausgeblendet")
+            pill("Hidden")
         case .live:
             HStack(spacing: 5) {
                 Circle().fill(.white).frame(width: 6, height: 6)

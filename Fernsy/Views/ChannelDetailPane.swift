@@ -43,19 +43,19 @@ private struct DetailContent: View {
                 header
                 actions
                 if offline {
-                    Label("Sender ist beim Anbieter offline", systemImage: "exclamationmark.triangle.fill")
+                    Label("Channel is offline at the provider", systemImage: "exclamationmark.triangle.fill")
                         .font(.callout)
                         .foregroundStyle(Theme.warning)
                 }
                 if let current {
                     NowCard(channel: channel, entry: current, now: now)
                 } else if guide.entries != nil {
-                    Text("Keine Programmdaten").font(.callout).foregroundStyle(.secondary)
+                    Text("No program data").font(.callout).foregroundStyle(.secondary)
                 } else {
                     ProgressView().controlSize(.small)
                 }
                 if !upcoming.isEmpty {
-                    Text("DANACH")
+                    Text("NEXT")
                         .font(.caption2.weight(.bold))
                         .tracking(0.6)
                         .foregroundStyle(.tertiary)
@@ -81,7 +81,7 @@ private struct DetailContent: View {
 
     private var subtitle: String {
         let category = app.liveCategories.first { $0.id == channel.categoryId }?.displayName
-        let parts = [number.map { String(localized: "Nr. \($0)") }, category].compactMap { $0 }
+        let parts = [number.map { String(localized: "No. \($0)") }, category].compactMap { $0 }
         return parts.joined(separator: " · ")
     }
 
@@ -90,7 +90,7 @@ private struct DetailContent: View {
             Button {
                 app.play(channel)
             } label: {
-                Label("Einschalten", systemImage: "play.fill").frame(maxWidth: .infinity)
+                Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
@@ -101,7 +101,7 @@ private struct DetailContent: View {
                     .foregroundStyle(app.isFavorite("live:\(channel.id)") ? .yellow : .primary)
             }
             .controlSize(.large)
-            .help(app.isFavorite("live:\(channel.id)") ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen")
+            .help(app.isFavorite("live:\(channel.id)") ? "Remove from Favorites" : "Add to Favorites")
             Menu {
                 ChannelMenu(channel: channel, onInfo: onInfo, showInGuide: showInGuide)
             } label: {
@@ -123,7 +123,7 @@ private struct NowCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("JETZT").font(.caption2.weight(.bold)).tracking(0.6).foregroundStyle(.tertiary)
+                Text("NOW").font(.caption2.weight(.bold)).tracking(0.6).foregroundStyle(.tertiary)
                 Spacer()
                 Text("\(entry.start.formatted(date: .omitted, time: .shortened))–\(entry.end.formatted(date: .omitted, time: .shortened))")
                     .font(.caption)
@@ -133,7 +133,7 @@ private struct NowCard: View {
             Text(verbatim: entry.title).font(.headline)
             HStack(spacing: 8) {
                 ProgressBar(value: entry.progress(at: now), height: 4)
-                Text("noch \(max(1, Int(entry.end.timeIntervalSince(now) / 60))) Min.")
+                Text("\(max(1, Int(entry.end.timeIntervalSince(now) / 60))) min left")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize()
@@ -194,7 +194,7 @@ struct RecordCapsule: View {
         } label: {
             HStack(spacing: 5) {
                 Circle().fill(existing == nil ? Theme.record : .white).frame(width: large ? 8 : 6, height: large ? 8 : 6)
-                Text(existing == nil ? "Aufnehmen" : running ? "Aufnahme läuft" : "Geplant")
+                Text(existing == nil ? "Record" : running ? "Recording in Progress" : "Scheduled")
             }
             .font((large ? Font.callout : .caption).weight(.semibold))
             .foregroundStyle(existing == nil ? Theme.record : .white)
@@ -203,8 +203,8 @@ struct RecordCapsule: View {
             .background(existing == nil ? Theme.record.opacity(0.15) : Theme.record, in: Capsule())
         }
         .buttonStyle(.plain)
-        .help(existing == nil ? "Diese Sendung aufnehmen (Fernsy muss dafür geöffnet sein)"
-              : running ? "Aufnahme beenden" : "Geplante Aufnahme entfernen")
+        .help(existing == nil ? "Record this show (Fernsy has to be open)"
+              : running ? "Stop Recording" : "Remove scheduled recording")
         .opacity(entry.end > Date() ? 1 : 0)
     }
 }
@@ -218,29 +218,29 @@ struct ChannelMenu: View {
     var showInGuide: (() -> Void)?
 
     var body: some View {
-        Button("Einschalten") { app.play(channel) }
+        Button("Watch") { app.play(channel) }
         if let showInGuide {
-            Button("Im Programm zeigen", action: showInGuide)
+            Button("Show in Guide", action: showInGuide)
         }
-        Button(app.isFavorite("live:\(channel.id)") ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen") {
+        Button(app.isFavorite("live:\(channel.id)") ? "Remove from Favorites" : "Add to Favorites") {
             app.toggleFavorite("live:\(channel.id)")
         }
         .keyboardShortcut("d", modifiers: .command)
         if app.recentChannels.contains(channel.id) {
-            Button("Aus „Zuletzt gesehen“ entfernen") { app.removeRecent(channel.id) }
+            Button("Remove from Recently Watched") { app.removeRecent(channel.id) }
         }
         if let running = recorder.active(on: channel.id) {
             Divider()
-            Button("Aufnahme beenden") { recorder.stop(running.id) }
+            Button("Stop Recording") { recorder.stop(running.id) }
         }
         Divider()
         ChannelVisibilityButton(channel: channel)
         if let id = channel.categoryId, let category = app.liveCategories.first(where: { $0.id == id }),
            !app.isCategoryHidden(id) {
-            Button("Kategorie „\(category.displayName)“ ausblenden") { app.setCategory(id, hidden: true) }
+            Button("Hide Category “\(category.displayName)”") { app.setCategory(id, hidden: true) }
         }
         Divider()
-        Button("Senderinfo …", action: onInfo)
+        Button("Channel Info…", action: onInfo)
             .keyboardShortcut("i", modifiers: .command)
     }
 }

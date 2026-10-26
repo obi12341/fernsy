@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A show from the guide: "<channel id>:<start epoch>", the same id the MCP tools use.
 struct ShowEntity: AppEntity {
-    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Sendung")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Show")
     static let defaultQuery = ShowQuery()
 
     let id: String
@@ -57,20 +57,20 @@ struct IntentAnswer {
 @MainActor
 enum IntentActions {
     private static var notSignedIn: IntentAnswer {
-        IntentAnswer(text: String(localized: "Melde dich zuerst in Fernsy bei deinem IPTV-Konto an."))
+        IntentAnswer(text: String(localized: "First sign in to your IPTV account in Fernsy."))
     }
 
     static func play(channelId: Int) async -> IntentAnswer {
         guard let app = await IntentSupport.app(), app.credentials != nil else { return notSignedIn }
         let actions = FernsyActions(app: app)
         guard let channel = actions.visibleChannel(channelId) else {
-            return IntentAnswer(text: String(localized: "Diesen Sender gibt es in Fernsy nicht."))
+            return IntentAnswer(text: String(localized: "Fernsy doesn't have this channel."))
         }
         switch actions.playChannel(channel) {
         case .playing:
-            return IntentAnswer(text: String(localized: "Fernsy zeigt jetzt \(channel.displayName)."))
+            return IntentAnswer(text: String(localized: "Fernsy is now showing \(channel.displayName)."))
         case .blocked(let recording):
-            return IntentAnswer(text: String(localized: "Gerade wird „\(recording.title)“ auf \(recording.channelName) aufgenommen, und dein Zugang erlaubt nur \(app.tuners.limit) Stream(s). Fernsy schaltet deshalb nicht um."))
+            return IntentAnswer(text: String(localized: "\"\(recording.title)\" is being recorded on \(recording.channelName), and your account allows only \(app.tuners.limit) stream(s). So Fernsy doesn't switch."))
         }
     }
 
@@ -79,16 +79,16 @@ enum IntentActions {
         let actions = FernsyActions(app: app)
         let channels = actions.favoritesAndRecent(limit: 12)
         guard !channels.isEmpty else {
-            return IntentAnswer(text: String(localized: "Markiere in Fernsy Sender als Favoriten, dann sage ich dir, was dort läuft."))
+            return IntentAnswer(text: String(localized: "Mark channels as favorites in Fernsy, and I'll tell you what's on."))
         }
         await actions.loadGuides(channels.map(\.id), timeout: 10)
         let rows = channels.compactMap { channel -> (title: String, detail: String)? in
             guard let current = actions.nowAndNext(channel.id).now else { return nil }
-            return (channel.displayName, String(localized: "\(current.title) · bis \(IntentSupport.time(current.end))"))
+            return (channel.displayName, String(localized: "\(current.title) · until \(IntentSupport.time(current.end))"))
         }
-        guard !rows.isEmpty else { return IntentAnswer(text: String(localized: "Für deine Favoriten gibt es gerade keine Programmdaten.")) }
+        guard !rows.isEmpty else { return IntentAnswer(text: String(localized: "There is no program data for your favorites right now.")) }
         let spoken = rows.prefix(3).map { "\($0.title): \($0.detail.components(separatedBy: " · ").first ?? $0.detail)" }.joined(separator: ", ")
-        return IntentAnswer(text: String(localized: "Gerade läuft \(spoken)."), rows: rows)
+        return IntentAnswer(text: String(localized: "On now: \(spoken)."), rows: rows)
     }
 
     static func findShow(_ query: String) async -> IntentAnswer {
@@ -96,14 +96,14 @@ enum IntentActions {
         let actions = FernsyActions(app: app)
         let channels = actions.favoritesAndRecent()
         guard !channels.isEmpty else {
-            return IntentAnswer(text: String(localized: "Markiere in Fernsy Sender als Favoriten, dann suche ich dort im Programm."))
+            return IntentAnswer(text: String(localized: "Mark channels as favorites in Fernsy, and I'll search their guide."))
         }
         let hits = await actions.searchGuide(query, on: channels).prefix(8)
         guard let first = hits.first else {
-            return IntentAnswer(text: String(localized: "„\(query)“ habe ich im Programm deiner Favoriten und zuletzt gesehenen Sender nicht gefunden."))
+            return IntentAnswer(text: String(localized: "I didn't find \"\(query)\" in the guide of your favorite and recently watched channels."))
         }
         let rows = hits.map { (title: $0.entry.title, detail: "\($0.channel.displayName) · \(IntentSupport.when($0.entry.start))") }
-        return IntentAnswer(text: String(localized: "„\(first.entry.title)“ kommt \(IntentSupport.when(first.entry.start)) auf \(first.channel.displayName)."),
+        return IntentAnswer(text: String(localized: "\"\(first.entry.title)\" is on \(IntentSupport.when(first.entry.start)) on \(first.channel.displayName)."),
                             rows: rows, shows: hits.map { ShowEntity($0.entry, on: $0.channel) })
     }
 
@@ -112,7 +112,7 @@ enum IntentActions {
         guard let app = await IntentSupport.app(), app.credentials != nil else { return notSignedIn }
         let actions = FernsyActions(app: app)
         guard let channel = channelId.flatMap(actions.visibleChannel) ?? actions.playingChannel else {
-            return IntentAnswer(text: String(localized: "Sag mir den Sender, oder schalte ihn zuerst in Fernsy ein."))
+            return IntentAnswer(text: String(localized: "Tell me the channel, or switch to it in Fernsy first."))
         }
         let (result, show) = await actions.recordNow(channel)
         return answer(result, title: show?.title ?? channel.displayName)
@@ -124,11 +124,11 @@ enum IntentActions {
         let parts = showId.split(separator: ":")
         guard parts.count == 2, let channelId = Int(parts[0]), let epoch = Double(parts[1]),
               let channel = actions.visibleChannel(channelId) else {
-            return IntentAnswer(text: String(localized: "Diese Sendung finde ich nicht mehr im Programm."))
+            return IntentAnswer(text: String(localized: "I can't find this show in the guide any more."))
         }
         await actions.loadGuides([channelId], timeout: 8)
         guard let entry = actions.entries(channelId).first(where: { abs($0.start.timeIntervalSince1970 - epoch) < 60 }), entry.end > Date() else {
-            return IntentAnswer(text: String(localized: "Diese Sendung finde ich nicht mehr im Programm."))
+            return IntentAnswer(text: String(localized: "I can't find this show in the guide any more."))
         }
         return answer(actions.schedule(entry, on: channel), title: entry.title)
     }
@@ -138,8 +138,8 @@ enum IntentActions {
         case .refused(let reason):
             return IntentAnswer(text: reason)
         case .planned(let recording, _):
-            guard let recording else { return IntentAnswer(text: String(localized: "„\(title)“ wird aufgenommen.")) }
-            return IntentAnswer(text: String(localized: "„\(recording.title)“ wird aufgenommen, \(IntentSupport.when(recording.recordStart)) bis \(IntentSupport.time(recording.recordEnd))."))
+            guard let recording else { return IntentAnswer(text: String(localized: "\"\(title)\" will be recorded.")) }
+            return IntentAnswer(text: String(localized: "\"\(recording.title)\" will be recorded, \(IntentSupport.when(recording.recordStart)) to \(IntentSupport.time(recording.recordEnd))."))
         }
     }
 
@@ -148,14 +148,14 @@ enum IntentActions {
         guard let app = AppDelegate.app else { return notSignedIn }
         app.requestedSearch = text
         PlayerWindow.showLibrary()
-        return IntentAnswer(text: String(localized: "Fernsy sucht nach „\(text)“."))
+        return IntentAnswer(text: String(localized: "Fernsy is searching for \"\(text)\"."))
     }
 
     static func stop() async -> IntentAnswer {
         guard let app = await IntentSupport.app() else { return notSignedIn }
         return FernsyActions(app: app).stopPlayback()
-            ? IntentAnswer(text: String(localized: "Fernsy hat die Wiedergabe beendet."))
-            : IntentAnswer(text: String(localized: "In Fernsy läuft gerade nichts."))
+            ? IntentAnswer(text: String(localized: "Fernsy stopped playback."))
+            : IntentAnswer(text: String(localized: "Nothing is playing in Fernsy."))
     }
 }
 
@@ -190,16 +190,16 @@ struct SearchFernsyIntent: ShowInAppSearchResultsIntent {
 // MARK: Intents
 
 struct PlayChannelIntent: AppIntent {
-    static let title: LocalizedStringResource = "Sender einschalten"
-    static let description = IntentDescription("Zeigt einen Live-Sender in Fernsy.")
+    static let title: LocalizedStringResource = "Switch Channel"
+    static let description = IntentDescription("Shows a live channel in Fernsy.")
 
-    @Parameter(title: "Sender")
+    @Parameter(title: "Channels")
     var channel: ChannelEntity
 
     init() {}
     init(channel: ChannelEntity) { self.channel = channel }
 
-    static var parameterSummary: some ParameterSummary { Summary("Schalte auf \(\.$channel)") }
+    static var parameterSummary: some ParameterSummary { Summary("Switch to \(\.$channel)") }
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -208,8 +208,8 @@ struct PlayChannelIntent: AppIntent {
 }
 
 struct WhatsOnIntent: AppIntent {
-    static let title: LocalizedStringResource = "Was läuft gerade"
-    static let description = IntentDescription("Sagt, was gerade auf deinen Lieblingssendern läuft.")
+    static let title: LocalizedStringResource = "What's On"
+    static let description = IntentDescription("Tells you what's on now on your favorite channels.")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
@@ -219,13 +219,13 @@ struct WhatsOnIntent: AppIntent {
 }
 
 struct FindShowIntent: AppIntent {
-    static let title: LocalizedStringResource = "Sendung suchen"
-    static let description = IntentDescription("Sucht eine Sendung im Programm deiner Favoriten und zuletzt gesehenen Sender.")
+    static let title: LocalizedStringResource = "Find Show"
+    static let description = IntentDescription("Searches the guide of your favorite and recently watched channels for a show.")
 
-    @Parameter(title: "Sendung")
+    @Parameter(title: "Show")
     var query: String
 
-    static var parameterSummary: some ParameterSummary { Summary("Suche \(\.$query) im Programm") }
+    static var parameterSummary: some ParameterSummary { Summary("Find \(\.$query) in the guide") }
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView & ReturnsValue<[ShowEntity]> {
@@ -235,10 +235,10 @@ struct FindShowIntent: AppIntent {
 }
 
 struct RecordIntent: AppIntent {
-    static let title: LocalizedStringResource = "Laufende Sendung aufnehmen"
-    static let description = IntentDescription("Nimmt die Sendung auf, die gerade auf dem Sender läuft – ohne Angabe auf dem Sender im Player.")
+    static let title: LocalizedStringResource = "Record Current Show"
+    static let description = IntentDescription("Records the show on now on the channel – without a channel, on the one in the player.")
 
-    @Parameter(title: "Sender")
+    @Parameter(title: "Channels")
     var channel: ChannelEntity?
 
     @MainActor
@@ -248,10 +248,10 @@ struct RecordIntent: AppIntent {
 }
 
 struct RecordShowIntent: AppIntent {
-    static let title: LocalizedStringResource = "Sendung aufnehmen"
-    static let description = IntentDescription("Plant die Aufnahme einer Sendung aus dem Programm.")
+    static let title: LocalizedStringResource = "Record Show"
+    static let description = IntentDescription("Schedules a recording of a show from the guide.")
 
-    @Parameter(title: "Sendung")
+    @Parameter(title: "Show")
     var show: ShowEntity
 
     @MainActor
@@ -261,8 +261,8 @@ struct RecordShowIntent: AppIntent {
 }
 
 struct StopPlaybackIntent: AppIntent {
-    static let title: LocalizedStringResource = "Wiedergabe beenden"
-    static let description = IntentDescription("Beendet die Wiedergabe in Fernsy.")
+    static let title: LocalizedStringResource = "Stop Playback"
+    static let description = IntentDescription("Stops playback in Fernsy.")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -292,26 +292,26 @@ struct IntentRowsView: View {
 struct FernsyShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: PlayChannelIntent(), phrases: [
-            "Schalte \(.applicationName) auf \(\.$channel)",
-            "\(.applicationName) auf \(\.$channel)",
-            "Zeig \(\.$channel) in \(.applicationName)",
-        ], shortTitle: "Sender einschalten", systemImageName: "tv")
+            "Switch \(.applicationName) to \(\.$channel)",
+            "\(.applicationName) on \(\.$channel)",
+            "Show \(\.$channel) in \(.applicationName)",
+        ], shortTitle: "Switch Channel", systemImageName: "tv")
         AppShortcut(intent: WhatsOnIntent(), phrases: [
-            "Was läuft gerade in \(.applicationName)",
-            "Was läuft in \(.applicationName)",
-        ], shortTitle: "Was läuft gerade", systemImageName: "list.bullet.rectangle")
+            "What's on in \(.applicationName)",
+            "What's on now in \(.applicationName)",
+        ], shortTitle: "What's On", systemImageName: "list.bullet.rectangle")
         AppShortcut(intent: FindShowIntent(), phrases: [
-            "Suche eine Sendung in \(.applicationName)",
-            "Wann kommt etwas in \(.applicationName)",
-        ], shortTitle: "Sendung suchen", systemImageName: "magnifyingglass")
+            "Find a show in \(.applicationName)",
+            "When is something on in \(.applicationName)",
+        ], shortTitle: "Find Show", systemImageName: "magnifyingglass")
         AppShortcut(intent: RecordIntent(), phrases: [
-            "Nimm das in \(.applicationName) auf",
-            "Nimm \(\.$channel) in \(.applicationName) auf",
-            "Aufnahme in \(.applicationName) starten",
-        ], shortTitle: "Aufnehmen", systemImageName: "record.circle")
+            "Record this in \(.applicationName)",
+            "Record \(\.$channel) in \(.applicationName)",
+            "Start recording in \(.applicationName)",
+        ], shortTitle: "Record", systemImageName: "record.circle")
         AppShortcut(intent: StopPlaybackIntent(), phrases: [
-            "Stopp \(.applicationName)",
-            "Beende die Wiedergabe in \(.applicationName)",
-        ], shortTitle: "Wiedergabe beenden", systemImageName: "stop.circle")
+            "Stop \(.applicationName)",
+            "Stop playback in \(.applicationName)",
+        ], shortTitle: "Stop Playback", systemImageName: "stop.circle")
     }
 }

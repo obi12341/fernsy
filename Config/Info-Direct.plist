@@ -22,7 +22,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Fernsy verbindet sich mit deinem Jellyfin-Server oder IPTV-Anbieter im lokalen Netzwerk.</string>
+	<string>Fernsy connects to your Jellyfin server or IPTV provider on your local network.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

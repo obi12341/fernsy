@@ -65,7 +65,7 @@ enum MCPDesktopExtension {
         AppLog.info(.mcp, "Claude Desktop not found: saving the desktop extension")
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "Fernsy.mcpb"
-        panel.message = String(localized: "Claude Desktop wurde nicht gefunden. Sichere die Erweiterung und öffne sie später mit Claude Desktop.")
+        panel.message = String(localized: "Claude Desktop was not found. Save the extension and open it with Claude Desktop later.")
         panel.begin { response in
             if response == .OK, let target = panel.url {
                 try? FileManager.default.removeItem(at: target)

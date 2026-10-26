@@ -144,7 +144,7 @@
 				};
 			};
 			buildConfigurationList = A1B2C3D4000000000000000B /* Build configuration list for PBXProject "Fernsy" */;
-			developmentRegion = de;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				de,
