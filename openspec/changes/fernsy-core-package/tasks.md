@@ -31,8 +31,8 @@
 
 ## 5. CI and docs
 
-- [ ] 5.1 `.github/workflows/tests.yml` per design F (push to `main` and `change/**`, pull requests, `workflow_call`; installs the tvOS runtime when missing; runs `scripts/test.sh` and the tests on a tvOS simulator). Verify: a push of this branch runs it green on GitHub.
-- [ ] 5.2 `release.yml` calls the test workflow as a job; `dmg` and `appstore` need it. Verify: a manual `appstore-test` run shows the test job first; on a throwaway branch with a failing test, `workflow_dispatch` of `release.yml` with `--ref` that branch stops before `dmg` (then delete the branch).
+- [x] 5.1 `.github/workflows/tests.yml` per design F (push to `main` and `change/**`, pull requests, `workflow_call`; installs the tvOS runtime when missing; runs `scripts/test.sh` and the tests on a tvOS simulator). Verify: a push of this branch runs it green on GitHub.
+- [x] 5.2 `release.yml` calls the test workflow as a job; `dmg` and `appstore` need it. Verified: on a throwaway branch with a failing test, `release.yml` with channel `appstore-test` (it publishes nothing, so a broken gate could not ship a nightly from a test branch) ran `tests / core` first, which failed on `ChannelNameTests parse`, and skipped `dmg`, `appstore` and `publish`; the branch was deleted afterwards.
 - [x] 5.3 DEVELOPMENT.md: section "Tests and FernsyCore" (what belongs in the package, how to run `scripts/test.sh`, tvOS runtime, fixtures and where they come from); remove the moved self-test switches from the debug switch list. Verify: the section exists; `grep -n "IPTV_NAMETEST\|IPTV_PLANTEST\|IPTV_TRACKSELFTEST\|IPTV_LOGSELFTEST" -r Fernsy DEVELOPMENT.md` is empty.
 - [x] 5.4 `openspec validate --all --strict` exits 0; Debug, Direct and Release builds have 0 warnings; `scripts/test.sh` passes.
 
