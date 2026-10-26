@@ -35,6 +35,14 @@ channels, the adult-category detection and the zap order move from the Mac app i
 `FernsyCore` with the same stored keys and files (so the Mac keeps its data). Both apps use
 them; the Mac's views keep their behavior. Pinned categories are new: a small per-account file
 (`pinned.json`, like `visibility.json`) in `FernsyCore`, used only by the Apple TV app for now.
+On Apple TV these per-account values are stored as data in UserDefaults
+(`live.visibility.<account>`, `live.pinned.<account>`), not as files: tvOS keeps only
+UserDefaults for sure (about 500 KB), Caches may be purged. Rejected: Application Support
+files (tvOS may refuse or purge them; the Mac keeps its files).
+
+Pitfall found while building sign-in: the cached catalog must only be shown when restoring the
+stored account. Shown on a new sign-in, a rejected password with the same account key as a
+cached catalog looked like a successful sign-in.
 Rejected: a second copy in `FernsyTV` (the rules, e.g. "channels of a hidden category are
 hidden everywhere", would drift apart).
 
