@@ -35,6 +35,14 @@ echo "▸ Archive"
 xcodebuild archive -project Fernsy.xcodeproj -scheme Fernsy -configuration Release \
     -archivePath "$OUT/Fernsy.xcarchive" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} ${VERSIONS[@]+"${VERSIONS[@]}"} -quiet
 
+# The archived app must embed the six FFmpeg frameworks and no loose dylib.
+FW="$OUT/Fernsy.xcarchive/Products/Applications/Fernsy.app/Contents/Frameworks"
+for lib in avutil swresample swscale avcodec avformat avfilter; do
+    [ -d "$FW/$lib.framework" ] || { echo "✗ $lib.framework missing in the archive" >&2; exit 1; }
+done
+if ls "$FW"/*.dylib >/dev/null 2>&1; then echo "✗ loose dylibs in the archive: $(ls "$FW"/*.dylib)" >&2; exit 1; fi
+echo "✓ FFmpeg frameworks embedded"
+
 DESTINATION=export
 [ "${UPLOAD:-0}" = "1" ] && DESTINATION=upload
 sed "s/__DESTINATION__/$DESTINATION/" "$ROOT/Config/ExportOptions-AppStore.plist" > "$OUT/ExportOptions.plist"
