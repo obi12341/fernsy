@@ -1,3 +1,4 @@
+import CFFShim
 import FernsyCore
 import Foundation
 
@@ -7,8 +8,8 @@ import Foundation
 /// Wraps a headless PlaybackSession (`.tuner`) and restarts it when the stream breaks for
 /// good; the TimeshiftWriter keeps the buffer's timeline continuous across restarts.
 @MainActor
-final class LiveTuner: ObservableObject {
-    enum State: Equatable {
+public final class LiveTuner: ObservableObject {
+    public enum State: Equatable {
         case connecting
         case running
         case reconnecting
@@ -18,20 +19,20 @@ final class LiveTuner: ObservableObject {
         case stopped
     }
 
-    nonisolated let channelId: Int
-    nonisolated let url: URL
-    nonisolated let buffer: TimeshiftBuffer
-    @Published private(set) var state: State = .connecting
+    public nonisolated let channelId: Int
+    public nonisolated let url: URL
+    public nonisolated let buffer: TimeshiftBuffer
+    @Published public private(set) var state: State = .connecting
     /// How the current connection delivers (for the player's status card).
-    @Published private(set) var health: HTTPByteSource.Health = .ok
+    @Published public private(set) var health: HTTPByteSource.Health = .ok
     /// Set each time a reconnect via the load balancer ended slow or silent delivery.
-    @Published private(set) var recoveredAt: Date?
+    @Published public private(set) var recoveredAt: Date?
 
     /// Recordings keep a tuner trying for as long as they run; the player alone gives up
     /// after a few attempts like before.
-    var keepTrying = false
+    public var keepTrying = false
     /// The provider reported the channel offline (true) or it delivers again (false).
-    var onOffline: ((Bool) -> Void)?
+    public var onOffline: ((Bool) -> Void)?
 
     nonisolated private let writer: TimeshiftWriter
     nonisolated private let holder = SessionHolder()
@@ -40,7 +41,7 @@ final class LiveTuner: ObservableObject {
     private var attempts = 0
     private var openedAt: Date?
 
-    init(channelId: Int, url: URL, keepSeconds: Double) {
+    public init(channelId: Int, url: URL, keepSeconds: Double) {
         self.channelId = channelId
         self.url = url
         buffer = TimeshiftBuffer(channelId: channelId, keepSeconds: keepSeconds)
@@ -50,14 +51,14 @@ final class LiveTuner: ObservableObject {
         connect()
     }
 
-    var isActive: Bool {
+    public var isActive: Bool {
         switch state {
         case .connecting, .running, .reconnecting: return true
         default: return false
         }
     }
 
-    func stop() {
+    public func stop() {
         guard state != .stopped else { return }
         generation += 1
         state = .stopped
@@ -70,10 +71,10 @@ final class LiveTuner: ObservableObject {
     }
 
     /// Buffer time of the newest content received (recording gaps).
-    nonisolated var contentTime: Double? { writer.contentTime }
+    public nonisolated var contentTime: Double? { writer.contentTime }
 
     /// Seconds the player still has ahead of its position (stall detection on the connection).
-    nonisolated func reportPlaybackAhead(_ seconds: Double) {
+    public nonisolated func reportPlaybackAhead(_ seconds: Double) {
         holder.session?.reportPlaybackAhead(seconds)
     }
 
@@ -185,29 +186,29 @@ private final class SessionHolder: @unchecked Sendable {
 /// shared by everyone who needs that channel (player, recordings) and closed when the last
 /// one lets go.
 @MainActor
-final class TunerPool: ObservableObject {
-    enum Owner: Hashable {
+public final class TunerPool: ObservableObject {
+    public enum Owner: Hashable {
         case player
         case recording(UUID)
     }
 
-    @Published private(set) var owners: [Int: Set<Owner>] = [:]
+    @Published public private(set) var owners: [Int: Set<Owner>] = [:]
     private var tuners: [Int: LiveTuner] = [:]
     /// Simultaneous streams the account allows.
-    var limit = 1
+    public var limit = 1
     /// A channel was reported offline by the provider, or delivers again.
-    var onOffline: ((Int, Bool) -> Void)?
-    var keepSeconds: Double = 3600 {
+    public var onOffline: ((Int, Bool) -> Void)?
+    public var keepSeconds: Double = 3600 {
         didSet { for tuner in tuners.values { tuner.buffer.keepSeconds = keepSeconds } }
     }
 
-    init() {
+    public init() {
         TimeshiftBuffer.removeLeftovers()
     }
 
-    func tuner(_ channelId: Int) -> LiveTuner? { tuners[channelId] }
+    public func tuner(_ channelId: Int) -> LiveTuner? { tuners[channelId] }
 
-    func acquire(_ channelId: Int, url: URL, owner: Owner) -> LiveTuner {
+    public func acquire(_ channelId: Int, url: URL, owner: Owner) -> LiveTuner {
         if let tuner = tuners[channelId], tuner.isActive || tuner.state == .unsupported {
             owners[channelId, default: []].insert(owner)
             updateKeepTrying(channelId)
@@ -222,7 +223,7 @@ final class TunerPool: ObservableObject {
         return tuner
     }
 
-    func release(_ channelId: Int, owner: Owner) {
+    public func release(_ channelId: Int, owner: Owner) {
         owners[channelId]?.remove(owner)
         if owners[channelId]?.isEmpty ?? true {
             owners[channelId] = nil
@@ -235,14 +236,14 @@ final class TunerPool: ObservableObject {
 
     /// Channels (with their owners) that would have to give way before `owner` can tune
     /// `channelId`. Empty when there is a free connection or the channel is already tuned.
-    func blockers(for channelId: Int, as owner: Owner) -> [(channelId: Int, owners: Set<Owner>)] {
+    public func blockers(for channelId: Int, as owner: Owner) -> [(channelId: Int, owners: Set<Owner>)] {
         if tuners[channelId] != nil { return [] }
         let others = owners.filter { $0.key != channelId && !$0.value.subtracting([owner]).isEmpty }
         guard others.count >= limit else { return [] }
         return others.map { ($0.key, $0.value) }.sorted { $0.channelId < $1.channelId }
     }
 
-    func stopAll() {
+    public func stopAll() {
         for tuner in tuners.values { tuner.stop() }
         tuners = [:]
         owners = [:]

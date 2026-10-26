@@ -1,14 +1,16 @@
+import CFFShim
 import CoreGraphics
+import FernsyCore
 import Foundation
 
 /// Takes stills without the player (MCP `frames`): its own FFmpeg context over a fresh byte
 /// source, one picture per request from the keyframe at or before the requested time. Software
 /// decoding only – one picture per seek does not pay for a VideoToolbox session.
-final class FrameGrabber: @unchecked Sendable {
-    struct Still {
+public final class FrameGrabber: @unchecked Sendable {
+    public struct Still {
         /// Stream time of the picture in seconds (the demuxer's clock, before any offset).
-        let streamTime: Double
-        let image: CGImage
+        public let streamTime: Double
+        public let image: CGImage
     }
 
     private let source: ByteSource
@@ -23,14 +25,14 @@ final class FrameGrabber: @unchecked Sendable {
     private let tileWidth: CGFloat
 
     /// The container's start time in seconds (player positions count from here).
-    private(set) var startTime = 0.0
+    public private(set) var startTime = 0.0
     /// Length in seconds, when the container knows it.
-    private(set) var duration: Double?
+    public private(set) var duration: Double?
 
     /// Serial: one contact sheet at a time.
-    static let queue = DispatchQueue(label: "de.mobilistics.fernsy.frames", qos: .userInitiated)
+    public static let queue = DispatchQueue(label: "de.mobilistics.fernsy.frames", qos: .userInitiated)
 
-    init(source: ByteSource, tileWidth: CGFloat) {
+    public init(source: ByteSource, tileWidth: CGFloat) {
         self.source = source
         self.sourceBox = SourceBox(source)
         self.tileWidth = tileWidth
@@ -38,7 +40,7 @@ final class FrameGrabber: @unchecked Sendable {
 
     deinit { close() }
 
-    func open() throws {
+    public func open() throws {
         try source.open()
         let opaque = Unmanaged.passUnretained(sourceBox).toOpaque()
         guard let pb = ffs_avio_alloc(opaque, 256 * 1024, source.supportsRanges ? 1 : 0, ioRead, ioSeek) else { throw GrabError("out of memory") }
@@ -69,7 +71,7 @@ final class FrameGrabber: @unchecked Sendable {
     }
 
     /// The keyframe at or before `streamTime` (seconds on the demuxer's clock).
-    func still(atStreamTime streamTime: Double) -> Still? {
+    public func still(atStreamTime streamTime: Double) -> Still? {
         guard let fmt else { return nil }
         let ts = Int64((streamTime / timeBase).rounded(.down))
         guard av_seek_frame(fmt, videoIndex, ts, AVSEEK_FLAG_BACKWARD) >= 0 else { return nil }
@@ -77,7 +79,7 @@ final class FrameGrabber: @unchecked Sendable {
     }
 
     /// The first keyframe from byte `offset` on (the live buffer's index knows where they are).
-    func still(atByte offset: Int64) -> Still? {
+    public func still(atByte offset: Int64) -> Still? {
         guard let fmt else { return nil }
         avformat_flush(fmt)
         guard avio_seek(fmt.pointee.pb, offset, SEEK_SET) >= 0 else { return nil }
@@ -114,10 +116,10 @@ final class FrameGrabber: @unchecked Sendable {
         return nil
     }
 
-    func cancel() { source.cancel() }
+    public func cancel() { source.cancel() }
 
     /// Also stops the source: an HTTP source would otherwise keep reading ahead.
-    func close() {
+    public func close() {
         source.cancel()
         if decoder != nil { avcodec_free_context(&decoder) }
         if conv != nil { ffs_pixconv_free(&conv) }
@@ -125,9 +127,9 @@ final class FrameGrabber: @unchecked Sendable {
         if pb != nil { ffs_avio_free(&pb) }
     }
 
-    struct GrabError: LocalizedError {
-        let message: String
-        init(_ message: String) { self.message = message }
-        var errorDescription: String? { message }
+    public struct GrabError: LocalizedError {
+        public let message: String
+        public init(_ message: String) { self.message = message }
+        public var errorDescription: String? { message }
     }
 }

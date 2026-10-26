@@ -1,5 +1,6 @@
 import AppKit
 import FernsyCore
+import FernsyPlayer
 import Foundation
 
 struct Recording: Codable, Identifiable, Equatable {

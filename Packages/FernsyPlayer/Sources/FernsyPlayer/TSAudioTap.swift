@@ -1,3 +1,4 @@
+import CFFShim
 import FernsyCore
 import Foundation
 
@@ -9,44 +10,44 @@ import Foundation
 /// emits such a PES once ~200 KB have piled up, i.e. ~12 s late, so audio never makes
 /// it in time. This tap sees the raw bytes on their way into FFmpeg, splits the AAC
 /// into ADTS frames and timestamps them from the PES PTS plus the running sample count.
-final class TSAudioTap {
-    struct Frame {
-        let data: Data
+public final class TSAudioTap {
+    public struct Frame {
+        public let data: Data
         /// 90 kHz units, same clock as FFmpeg's MPEG-TS timestamps. Nil after a reconnect
         /// until the next PES header: the receiver places such frames itself.
-        let pts: Int64?
-        let duration: Int64
+        public let pts: Int64?
+        public let duration: Int64
     }
 
-    let pid: Int
-    var onFrame: ((Frame) -> Void)?
+    public let pid: Int
+    public var onFrame: ((Frame) -> Void)?
 
     private var carry = [UInt8]()
     private var es = [UInt8]()
     private var nextPTS: Int64?
-    private(set) var sampleRate = 0
-    private(set) var channels = 0
+    public private(set) var sampleRate = 0
+    public private(set) var channels = 0
 
     /// Frames are only handed out without a timestamp after a reconnect (not at startup).
     private var rejoined = false
 
     private static let sampleRates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350]
 
-    init(pid: Int) {
+    public init(pid: Int) {
         self.pid = pid
     }
 
     /// The byte stream restarts (live reconnect): nothing before this point continues.
     /// Frames are handed out without timestamp until the next PES header, which this kind of
     /// stream carries only every few seconds.
-    func reset() {
+    public func reset() {
         carry.removeAll(keepingCapacity: true)
         es.removeAll(keepingCapacity: true)
         nextPTS = nil
         rejoined = true
     }
 
-    func feed(_ bytes: UnsafeBufferPointer<UInt8>) {
+    public func feed(_ bytes: UnsafeBufferPointer<UInt8>) {
         carry.append(contentsOf: bytes)
         var offset = 0
         let count = carry.count

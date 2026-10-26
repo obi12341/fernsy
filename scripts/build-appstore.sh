@@ -18,7 +18,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/build/appstore"
 cd "$ROOT"
 [ -n "${BUILD_NUMBER:-}" ] || BUMP_BUILD=1 "$ROOT/scripts/set-version.sh"
-[ -d "$ROOT/Vendor/ffmpeg/lib" ] || "$ROOT/scripts/build-ffmpeg.sh"
+[ -d "$ROOT/Packages/FernsyPlayer/Frameworks/avcodec.xcframework" ] || "$ROOT/scripts/build-ffmpeg.sh"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 

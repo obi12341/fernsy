@@ -1,3 +1,4 @@
+import CFFShim
 import CoreMedia
 import FernsyCore
 import Foundation
@@ -7,18 +8,18 @@ import VideoToolbox
 /// pixel buffers that AVSampleBufferDisplayLayer shows as Dolby Vision; the same bitstream
 /// decoded as plain HEVC (FFmpeg's hwaccel) shows profile 5 green and pink, and attaching the
 /// RPU to those buffers by hand gives a black picture.
-final class DVDecoder {
-    struct Config {
-        let profile: Int
-        let level: Int
-        let compatibilityId: Int
-        let dvcC: Data
+public final class DVDecoder {
+    public struct Config {
+        public let profile: Int
+        public let level: Int
+        public let compatibilityId: Int
+        public let dvcC: Data
 
         /// "8.1", "5", "7.6" – profile and base-layer compatibility as usually written.
-        var name: String { compatibilityId > 0 ? "\(profile).\(compatibilityId)" : "\(profile)" }
+        public var name: String { compatibilityId > 0 ? "\(profile).\(compatibilityId)" : "\(profile)" }
 
         /// The stream's Dolby Vision configuration, or nil when it has none.
-        init?(_ par: UnsafePointer<AVCodecParameters>) {
+        public init?(_ par: UnsafePointer<AVCodecParameters>) {
             var level: Int32 = 0, compat: Int32 = 0
             var bytes = [UInt8](repeating: 0, count: 24)
             let profile = ffs_dovi_config(par, &level, &compat, &bytes)
@@ -30,38 +31,38 @@ final class DVDecoder {
         }
     }
 
-    struct Frame {
-        let pixelBuffer: CVPixelBuffer
+    public struct Frame {
+        public let pixelBuffer: CVPixelBuffer
         /// Presentation time in seconds.
-        let time: Double
+        public let time: Double
     }
 
     /// Whether this Mac can show the stream as Dolby Vision through this decoder: profile 5 or
     /// 8 HEVC with length-prefixed packets (MKV/MP4), and a hardware DV decoder.
-    static func supports(_ par: UnsafePointer<AVCodecParameters>, config: Config) -> Bool {
+    public static func supports(_ par: UnsafePointer<AVCodecParameters>, config: Config) -> Bool {
         guard par.pointee.codec_id == AV_CODEC_ID_HEVC, config.profile == 5 || config.profile == 8,
               ffs_extradata_is_hvcc(par) != 0 else { return false }
         return isAvailable
     }
 
     /// This Mac has a Dolby Vision HEVC decoder (`JF_NODV=1` pretends it has none in debug builds).
-    static var isAvailable: Bool {
+    public static var isAvailable: Bool {
         #if DEBUG
         if ProcessInfo.processInfo.environment["JF_NODV"] == "1" { return false }
         #endif
         return VTIsHardwareDecodeSupported(kCMVideoCodecType_DolbyVisionHEVC)
     }
 
-    let config: Config
+    public let config: Config
     private let session: VTDecompressionSession
     private let formatDescription: CMVideoFormatDescription
     private let timeBase: AVRational
     private let reorderDepth: Int
     /// Decoded frames not yet released, in presentation order.
     private var pending: [Frame] = []
-    private(set) var decodedFrames = 0
+    public private(set) var decodedFrames = 0
 
-    init?(stream: UnsafeMutablePointer<AVStream>, config: Config) {
+    public init?(stream: UnsafeMutablePointer<AVStream>, config: Config) {
         let par = stream.pointee.codecpar!
         guard let extradata = par.pointee.extradata, par.pointee.extradata_size > 0 else { return nil }
         let hvcC = Data(bytes: extradata, count: Int(par.pointee.extradata_size))
@@ -93,7 +94,7 @@ final class DVDecoder {
 
     /// Decodes one packet; frames come out in presentation order. Returns the decoder status.
     @discardableResult
-    func decode(_ pkt: UnsafeMutablePointer<AVPacket>, output: (Frame) -> Void) -> OSStatus {
+    public func decode(_ pkt: UnsafeMutablePointer<AVPacket>, output: (Frame) -> Void) -> OSStatus {
         guard let sample = sampleBuffer(pkt) else { return OSStatus(kVTParameterErr) }
         var result = noErr
         let status = VTDecompressionSessionDecodeFrame(session, sampleBuffer: sample, flags: [], infoFlagsOut: nil) { [weak self] status, _, image, pts, _ in
@@ -110,7 +111,7 @@ final class DVDecoder {
     }
 
     /// End of stream: releases the frames still held for reordering.
-    func drain(output: (Frame) -> Void) {
+    public func drain(output: (Frame) -> Void) {
         VTDecompressionSessionFinishDelayedFrames(session)
         VTDecompressionSessionWaitForAsynchronousFrames(session)
         pending.forEach(output)
@@ -118,7 +119,7 @@ final class DVDecoder {
     }
 
     /// Seek: drops everything decoded so far.
-    func flush() {
+    public func flush() {
         VTDecompressionSessionWaitForAsynchronousFrames(session)
         pending.removeAll()
     }

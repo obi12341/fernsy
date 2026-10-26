@@ -1,26 +1,27 @@
 import AVFoundation
+import CFFShim
 import CoreMedia
 import CoreVideo
 import FernsyCore
 
 // FFmpeg custom-I/O trampolines (must be plain C function pointers; FrameGrabber uses them too).
 /// Gives the C callbacks a concrete class to point at.
-final class SourceBox {
-    let source: ByteSource
-    init(_ source: ByteSource) { self.source = source }
+public final class SourceBox {
+    public let source: ByteSource
+    public init(_ source: ByteSource) { self.source = source }
 }
 
-func ioRead(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafeMutablePointer<UInt8>?, _ size: Int32) -> Int32 {
+public func ioRead(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafeMutablePointer<UInt8>?, _ size: Int32) -> Int32 {
     guard let opaque, let buf else { return Int32(ffs_error_eio()) }
     return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.read(into: buf, size: Int(size))
 }
 
-func ioSeek(_ opaque: UnsafeMutableRawPointer?, _ offset: Int64, _ whence: Int32) -> Int64 {
+public func ioSeek(_ opaque: UnsafeMutableRawPointer?, _ offset: Int64, _ whence: Int32) -> Int64 {
     guard let opaque else { return -1 }
     return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.seek(offset: offset, whence: whence)
 }
 
-func ioInterrupt(_ opaque: UnsafeMutableRawPointer?) -> Int32 {
+public func ioInterrupt(_ opaque: UnsafeMutableRawPointer?) -> Int32 {
     guard let opaque else { return 0 }
     return Unmanaged<SourceBox>.fromOpaque(opaque).takeUnretainedValue().source.isCancelled ? 1 : 0
 }
@@ -40,8 +41,8 @@ private extension CMTime {
 /// Live channels normally run as two sessions: a headless `.tuner` session receives the
 /// network stream and hands cleaned packets to a TimeshiftWriter, and a `.buffer` session
 /// plays the resulting timeshift buffer (seekable).
-final class PlaybackSession {
-    enum Mode {
+public final class PlaybackSession {
+    public enum Mode {
         /// Straight from HTTP: VOD, or live without timeshift.
         case network(isLive: Bool)
         /// Live ingest without decoding; packets go to the output.
@@ -52,7 +53,7 @@ final class PlaybackSession {
         case file(FileByteSource)
     }
 
-    enum Event {
+    public enum Event {
         case opened(MediaInfo)
         case videoSize(CGSize)
         case started
@@ -194,12 +195,12 @@ final class PlaybackSession {
 
     /// Runs on the video thread right before the first video frame goes to the renderer (the
     /// engine stops anything else feeding the renderer there, e.g. the PiP loading picture).
-    var beforeFirstVideo: (() -> Void)?
+    public var beforeFirstVideo: (() -> Void)?
     /// Receives every video frame that goes to the renderer.
-    var lastPicture: LastPicture?
+    public var lastPicture: LastPicture?
     private var sentVideo = false
 
-    init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
+    public init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
          videoSink: VideoSink?, audioSink: AudioSink?,
          synchronizer: AVSampleBufferRenderSynchronizer, onEvent: @escaping (Event) -> Void) {
         self.url = url
@@ -242,7 +243,7 @@ final class PlaybackSession {
     }
 
     /// Headless live ingest for a tuner: no renderers are ever used.
-    convenience init(tunerURL: URL, output: TunerOutput, onEvent: @escaping (Event) -> Void) {
+    public convenience init(tunerURL: URL, output: TunerOutput, onEvent: @escaping (Event) -> Void) {
         self.init(url: tunerURL, mode: .tuner(output), startPosition: 0,
                   videoSink: nil, audioSink: nil,
                   synchronizer: AVSampleBufferRenderSynchronizer(), onEvent: onEvent)
@@ -251,19 +252,19 @@ final class PlaybackSession {
     private var isTuner: Bool { tunerOutput != nil }
 
     /// Network counters of the source (for a tuner: its connection).
-    var networkStats: (HTTPByteSource.NetStats, Int64) {
+    public var networkStats: (HTTPByteSource.NetStats, Int64) {
         (source.netStats, source.totalBytesReceived)
     }
 
     /// Tuner: the connection's health and a recovery via another server (watchdog queue).
-    func observeConnection(health: @escaping (HTTPByteSource.Health) -> Void, recovered: @escaping () -> Void) {
+    public func observeConnection(health: @escaping (HTTPByteSource.Health) -> Void, recovered: @escaping () -> Void) {
         guard let http = source as? HTTPByteSource else { return }
         http.onHealth = health
         http.onRecovered = recovered
     }
 
     /// Tuner: how much the slowest consumer still has ahead (stall detection).
-    func reportPlaybackAhead(_ seconds: Double) {
+    public func reportPlaybackAhead(_ seconds: Double) {
         source.reportPlaybackAhead(seconds)
     }
 
@@ -273,7 +274,7 @@ final class PlaybackSession {
 
     // MARK: Public control (thread-safe)
 
-    func start() {
+    public func start() {
         group.enter()
         let thread = Thread { [self] in demuxMain() }
         thread.name = "player.demux"
@@ -282,7 +283,7 @@ final class PlaybackSession {
     }
 
     /// Blocks until every thread has exited. Never call from a session thread.
-    func stop() {
+    public func stop() {
         lock.lock()
         stopped = true
         lock.unlock()
@@ -294,7 +295,7 @@ final class PlaybackSession {
         freeFormat()
     }
 
-    func setPaused(_ paused: Bool) {
+    public func setPaused(_ paused: Bool) {
         lock.lock()
         defer { lock.unlock() }
         userPaused = paused
@@ -303,20 +304,20 @@ final class PlaybackSession {
     }
 
     /// `position` is in display time (0 = start of media).
-    func seek(to position: Double) {
+    public func seek(to position: Double) {
         guard !isLive else { return }
         lock.lock()
         pendingSeek = max(0, position) + timeOffset
         lock.unlock()
     }
 
-    func selectAudio(_ index: Int32) {
+    public func selectAudio(_ index: Int32) {
         lock.lock()
         pendingAudio = index
         lock.unlock()
     }
 
-    func selectSubtitle(_ index: Int32?) {
+    public func selectSubtitle(_ index: Int32?) {
         lock.lock()
         pendingSubtitle = .some(index)
         lock.unlock()
@@ -337,7 +338,7 @@ final class PlaybackSession {
     private func demuxMain() {
         defer { group.leave() }
         if let timeshift, !timeshift.waitForContent(seconds: 0, timeout: 25, cancelled: { isStopped }) {
-            if !isStopped { emit(.failed(String(localized: "No data from the channel"), retry: true)) }
+            if !isStopped { emit(.failed(String(localized: "No data from the channel", bundle: .module), retry: true)) }
             return
         }
         do {
@@ -423,7 +424,7 @@ final class PlaybackSession {
             if isTuner {
                 let ret = av_read_frame(fmt, pkt)
                 if ret < 0 {
-                    if !isStopped { emit(.failed(String(localized: "Stream interrupted"), retry: true)) }
+                    if !isStopped { emit(.failed(String(localized: "Stream interrupted", bundle: .module), retry: true)) }
                     break
                 }
                 route(pkt, fmt: fmt)
@@ -445,12 +446,12 @@ final class PlaybackSession {
             if ret < 0 {
                 if isStopped { break }
                 if liveTimeline {
-                    emit(.failed(String(localized: "Stream interrupted"), retry: true))
+                    emit(.failed(String(localized: "Stream interrupted", bundle: .module), retry: true))
                     break
                 }
                 if ret != ffs_error_eof() && fmt.pointee.pb?.pointee.eof_reached == 0 {
                     // Network error mid-file: surface it rather than pretending we ended.
-                    emit(.failed(String(localized: "Connection lost"), retry: false))
+                    emit(.failed(String(localized: "Connection lost", bundle: .module), retry: false))
                     break
                 }
                 markEOF()
@@ -472,11 +473,11 @@ final class PlaybackSession {
     }
 
     /// Pseudo stream index for audio demuxed by TSAudioTap instead of FFmpeg.
-    static let tappedAudioIndex: Int32 = -2
+    public static let tappedAudioIndex: Int32 = -2
 
     /// Timeshift: playback "at the live edge" stays this far behind the newest data, so
     /// channels that deliver in bursts do not run dry between them.
-    static let liveLead: Double = {
+    public static let liveLead: Double = {
         #if DEBUG
         // IPTV_LIVELEAD=<s>: start live closer to the newest data (tests the dry-player reconnect).
         if let lead = ProcessInfo.processInfo.environment["IPTV_LIVELEAD"].flatMap(Double.init) { return lead }
@@ -698,12 +699,12 @@ final class PlaybackSession {
         let opaque = Unmanaged.passUnretained(sourceBox).toOpaque()
         let seekable: Int32 = (!isLive && source.supportsRanges) ? 1 : 0
         guard let pb = ffs_avio_alloc(opaque, 256 * 1024, seekable, ioRead, ioSeek) else {
-            throw PlayerError.message(String(localized: "Out of memory"))
+            throw PlayerError.message(String(localized: "Out of memory", bundle: .module))
         }
         self.pb = pb
 
         var ctx = avformat_alloc_context()
-        guard let allocated = ctx else { throw PlayerError.message(String(localized: "Out of memory")) }
+        guard let allocated = ctx else { throw PlayerError.message(String(localized: "Out of memory", bundle: .module)) }
         allocated.pointee.pb = pb
         allocated.pointee.flags |= AVFMT_FLAG_CUSTOM_IO | AVFMT_FLAG_GENPTS
         if liveTimeline { allocated.pointee.flags |= AVFMT_FLAG_DISCARD_CORRUPT }
@@ -727,7 +728,7 @@ final class PlaybackSession {
         let ret = avformat_open_input(&ctx, url.absoluteString, hint, &opts)
         av_dict_free(&opts)
         guard ret >= 0, let ctx else {
-            throw PlayerError.message(isStopped ? String(localized: "Cancelled") : String(localized: "Could not open the stream (\(Int(ret)))"))
+            throw PlayerError.message(isStopped ? String(localized: "Cancelled", bundle: .module) : String(localized: "Could not open the stream (\(Int(ret)))", bundle: .module))
         }
         fmt = ctx
 
@@ -739,14 +740,14 @@ final class PlaybackSession {
         }
 
         if avformat_find_stream_info(ctx, nil) < 0 && !isStopped {
-            throw PlayerError.message(String(localized: "No playable tracks found"))
+            throw PlayerError.message(String(localized: "No playable tracks found", bundle: .module))
         }
-        if isStopped { throw PlayerError.message(String(localized: "Cancelled")) }
+        if isStopped { throw PlayerError.message(String(localized: "Cancelled", bundle: .module)) }
         return ctx
     }
 
     private func selectStreams() throws {
-        guard let ctx = fmt else { throw PlayerError.message(String(localized: "No playable tracks found")) }
+        guard let ctx = fmt else { throw PlayerError.message(String(localized: "No playable tracks found", bundle: .module)) }
 
         // Stream selection: best video, audio in the user's language if available.
         var v = av_find_best_stream(ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nil, 0)
@@ -763,14 +764,14 @@ final class PlaybackSession {
             if par.codec_type == AVMEDIA_TYPE_AUDIO {
                 // Unidentified audio (no sample rate) cannot be decoded; leave it out.
                 guard par.sample_rate > 0 else { continue }
-                var parts = [MediaNames.language(lang) ?? String(localized: "Track \(audioTracks.count + 1)")]
+                var parts = [MediaNames.language(lang) ?? String(localized: "Track \(audioTracks.count + 1)", bundle: .module)]
                 if let title, !title.isEmpty, title != lang { parts.append(title) }
                 parts.append(MediaNames.audioCodec(par.codec_id))
                 parts.append(MediaNames.channels(par.ch_layout.nb_channels))
                 audioTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · "), language: MediaNames.languageCode(lang),
                                               isDefault: st.pointee.disposition & AV_DISPOSITION_DEFAULT != 0))
             } else if par.codec_type == AVMEDIA_TYPE_SUBTITLE && (ffs_is_text_subtitle(par.codec_id) != 0 || Self.isBitmapSubtitle(par.codec_id)) {
-                var parts = [MediaNames.language(lang) ?? String(localized: "Subtitles \(subtitleTracks.count + 1)")]
+                var parts = [MediaNames.language(lang) ?? String(localized: "Subtitles \(subtitleTracks.count + 1)", bundle: .module)]
                 if let title, !title.isEmpty, title != lang { parts.append(title) }
                 subtitleTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · "), language: MediaNames.languageCode(lang),
                                                  isForced: st.pointee.disposition & AV_DISPOSITION_FORCED != 0 || MediaNames.titleSaysForced(title),
@@ -801,7 +802,7 @@ final class PlaybackSession {
         }
         if a < 0, audioTap != nil {
             a = Self.tappedAudioIndex
-            audioTracks.append(MediaTrack(id: a, title: String(localized: "Audio · AAC (repaired from TS stream)")))
+            audioTracks.append(MediaTrack(id: a, title: String(localized: "Audio · AAC (repaired from TS stream)", bundle: .module)))
         }
 
         lock.lock()
@@ -825,7 +826,7 @@ final class PlaybackSession {
             guard usable else { throw PlayerError.unsupported }
         }
 
-        guard v >= 0 || a >= 0 || a == Self.tappedAudioIndex else { throw PlayerError.message(String(localized: "No playable tracks found")) }
+        guard v >= 0 || a >= 0 || a == Self.tappedAudioIndex else { throw PlayerError.message(String(localized: "No playable tracks found", bundle: .module)) }
 
         var duration: Double?
         if !liveTimeline && ctx.pointee.duration != ffs_nopts() && ctx.pointee.duration > 0 {
@@ -852,7 +853,7 @@ final class PlaybackSession {
             }
         }
         if a == Self.tappedAudioIndex {
-            stats.audio = String(localized: "AAC (TS repair)")
+            stats.audio = String(localized: "AAC (TS repair)", bundle: .module)
         }
         if a >= 0, let st = ctx.pointee.streams[Int(a)] {
             let par = st.pointee.codecpar.pointee
@@ -860,7 +861,7 @@ final class PlaybackSession {
         }
         lock.unlock()
         if let unsupportedDolbyVision {
-            throw PlayerError.message(String(localized: "Dolby Vision \(unsupportedDolbyVision) is not supported on this Mac"))
+            throw PlayerError.message(String(localized: "Dolby Vision \(unsupportedDolbyVision) is not supported on this Mac", bundle: .module))
         }
 
         let audioUsable = a >= 0 || a == Self.tappedAudioIndex
@@ -969,7 +970,7 @@ final class PlaybackSession {
         }
     }
 
-    static func isBitmapSubtitle(_ codec: AVCodecID) -> Bool {
+    public static func isBitmapSubtitle(_ codec: AVCodecID) -> Bool {
         codec == AV_CODEC_ID_HDMV_PGS_SUBTITLE || codec == AV_CODEC_ID_DVD_SUBTITLE || codec == AV_CODEC_ID_DVB_SUBTITLE
     }
 
@@ -1129,7 +1130,7 @@ final class PlaybackSession {
            DVDecoder.supports(st.pointee.codecpar, config: config) {
             dv = DVDecoder(stream: st, config: config)
             if dv == nil && config.profile == 5 {
-                emit(.failed(String(localized: "Dolby Vision \(config.name) is not supported on this Mac"), retry: false))
+                emit(.failed(String(localized: "Dolby Vision \(config.name) is not supported on this Mac", bundle: .module), retry: false))
             }
         }
         var ctx: UnsafeMutablePointer<AVCodecContext>?
@@ -1205,7 +1206,7 @@ final class PlaybackSession {
                 CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: pixelBuffer, formatDescriptionOut: &fd)
                 formatDescription = fd
                 updateVideoStats(pixelBuffer: pixelBuffer, sar: st.pointee.codecpar.pointee.sample_aspect_ratio,
-                                 decoder: String(localized: "VideoToolbox (Dolby Vision)"))
+                                 decoder: String(localized: "VideoToolbox (Dolby Vision)", bundle: .module))
             }
             guard let formatDescription else { return }
             var timing = CMSampleTimingInfo(duration: CMTime(sec: duration), presentationTimeStamp: CMTime(sec: frame.time),
@@ -1256,7 +1257,7 @@ final class PlaybackSession {
                 AppLog.error(.player, "Dolby Vision decode failed (\(status))")
                 dv = nil
                 if decoder.config.profile == 5 {
-                    emit(.failed(String(localized: "Dolby Vision \(decoder.config.name) is not supported on this Mac"), retry: false))
+                    emit(.failed(String(localized: "Dolby Vision \(decoder.config.name) is not supported on this Mac", bundle: .module), retry: false))
                     return
                 }
                 ctx = ffs_open_decoder(st, 1)
@@ -1320,11 +1321,11 @@ final class PlaybackSession {
         let cvFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
         let formatName: String
         switch cvFormat {
-        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8-bit)")
-        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange: formatName = String(localized: "P010 (10-bit)")
+        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8-bit)", bundle: .module)
+        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange: formatName = String(localized: "P010 (10-bit)", bundle: .module)
         // The Dolby Vision decoder hands out Apple's lossless-compressed layouts.
-        case kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8-bit, compressed)")
-        case kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarFullRange: formatName = String(localized: "P010 (10-bit, compressed)")
+        case kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8-bit, compressed)", bundle: .module)
+        case kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarFullRange: formatName = String(localized: "P010 (10-bit, compressed)", bundle: .module)
         default: formatName = String(format: "%c%c%c%c", (cvFormat >> 24) & 0xff, (cvFormat >> 16) & 0xff, (cvFormat >> 8) & 0xff, cvFormat & 0xff)
         }
 
@@ -1851,24 +1852,24 @@ final class PlaybackSession {
 
 /// The newest video frame sent to the renderer (the renderer itself does not hand it out while
 /// it plays): Picture in Picture starts only with a picture, and its loading picture is based on it.
-final class LastPicture: @unchecked Sendable {
+public final class LastPicture: @unchecked Sendable {
     private let lock = NSLock()
     private var buffer: CVPixelBuffer?
 
-    var value: CVPixelBuffer? {
+    public var value: CVPixelBuffer? {
         lock.lock()
         defer { lock.unlock() }
         return buffer
     }
 
-    func set(_ buffer: CVPixelBuffer?) {
+    public func set(_ buffer: CVPixelBuffer?) {
         lock.lock()
         self.buffer = buffer
         lock.unlock()
     }
 }
 
-enum PlayerError: LocalizedError {
+public enum PlayerError: LocalizedError {
     case message(String)
     case offline
     /// The tuner cannot remux these streams (timeshift unavailable).
@@ -1877,19 +1878,19 @@ enum PlayerError: LocalizedError {
     /// takes the stream slot of the developer's own account (`IPTV_ALLOWREAL=1` lifts it).
     case debugRealProvider
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .message(let m): return m
-        case .offline: return String(localized: "This channel is currently offline at your provider.")
-        case .unsupported: return String(localized: "Timeshift is not available for this channel.")
-        case .debugRealProvider: return String(localized: "Debug build: real providers only with IPTV_ALLOWREAL=1")
+        case .offline: return String(localized: "This channel is currently offline at your provider.", bundle: .module)
+        case .unsupported: return String(localized: "Timeshift is not available for this channel.", bundle: .module)
+        case .debugRealProvider: return String(localized: "Debug build: real providers only with IPTV_ALLOWREAL=1", bundle: .module)
         }
     }
 
     #if DEBUG
     /// Xtream stream URLs (live, films, episodes, catch-up) of other servers are refused;
     /// Jellyfin and local files are not Xtream streams and pass.
-    static func debugAllows(_ url: URL) -> Bool {
+    public static func debugAllows(_ url: URL) -> Bool {
         guard let host = url.host?.lowercased(), url.scheme?.hasPrefix("http") == true else { return true }
         let xtream = ["live", "movie", "series", "timeshift"].contains(url.pathComponents.dropFirst().first ?? "")
         guard xtream else { return true }

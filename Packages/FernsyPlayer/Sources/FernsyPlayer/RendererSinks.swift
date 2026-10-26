@@ -1,5 +1,7 @@
 import AVFoundation
+import CFFShim
 import CoreMedia
+import FernsyCore
 
 /// The video renderer's receiver (macOS 27 API). A receiver is not thread-safe; every call goes
 /// through this sink under a lock, so the session's output thread, the control queue and the
@@ -7,8 +9,8 @@ import CoreMedia
 ///
 /// Fernsy paces its output itself (video at most 0.3 s ahead of the clock), so frames are
 /// enqueued immediately; the result tells whether the decoder needs a restart.
-final class VideoSink: @unchecked Sendable {
-    enum Outcome {
+public final class VideoSink: @unchecked Sendable {
+    public enum Outcome {
         case enqueued
         case decodeFailures(Int)
         /// The renderer was flushed while the frame was on its way (expected around seeks).
@@ -20,11 +22,11 @@ final class VideoSink: @unchecked Sendable {
     private let lock = NSLock()
     private let receiver: AVSampleBufferVideoRenderer.Receiver
 
-    init(receiver: sending AVSampleBufferVideoRenderer.Receiver) {
+    public init(receiver: sending AVSampleBufferVideoRenderer.Receiver) {
         self.receiver = receiver
     }
 
-    func enqueue(_ sample: CMSampleBuffer) -> Outcome {
+    public func enqueue(_ sample: CMSampleBuffer) -> Outcome {
         let ready = CMReadySampleBuffer<CMSampleBuffer.DynamicContent>(unsafeBuffer: sample)
         lock.lock()
         defer { lock.unlock() }
@@ -42,7 +44,7 @@ final class VideoSink: @unchecked Sendable {
         }
     }
 
-    func flush() {
+    public func flush() {
         lock.lock()
         defer { lock.unlock() }
         receiver.flush()
@@ -79,14 +81,14 @@ final class VideoSink: @unchecked Sendable {
 
     /// Flush and remove the frame on screen (stopping playback). The receiver's variant is
     /// async; it runs on its own and nothing is enqueued meanwhile (the session is stopped).
-    func flushRemovingImage() {
+    public func flushRemovingImage() {
         let receiver = receiver
         Task { await receiver.flush(removingDisplayedImage: true) }
     }
 
     /// Rendering events after enqueuing stopped (for example while paused): the decoder may
     /// still report that it needs a flush.
-    func observeEvents(needsFlush: @escaping @Sendable (String) -> Void,
+    public func observeEvents(needsFlush: @escaping @Sendable (String) -> Void,
                        decodeFailures: @escaping @Sendable (Int) -> Void) -> Task<Void, Never> {
         let receiver = receiver
         return Task {
@@ -102,8 +104,8 @@ final class VideoSink: @unchecked Sendable {
 }
 
 /// The audio renderer's receiver, the same way as `VideoSink`.
-final class AudioSink: @unchecked Sendable {
-    enum Outcome {
+public final class AudioSink: @unchecked Sendable {
+    public enum Outcome {
         case enqueued
         /// The renderer suggests refilling (the output device changed, or the renderer failed).
         case suggestsFlush
@@ -113,11 +115,11 @@ final class AudioSink: @unchecked Sendable {
     private let lock = NSLock()
     private let receiver: AVSampleBufferAudioRenderer.Receiver
 
-    init(receiver: sending AVSampleBufferAudioRenderer.Receiver) {
+    public init(receiver: sending AVSampleBufferAudioRenderer.Receiver) {
         self.receiver = receiver
     }
 
-    func enqueue(_ sample: CMSampleBuffer) -> Outcome {
+    public func enqueue(_ sample: CMSampleBuffer) -> Outcome {
         let ready = CMReadySampleBuffer<CMSampleBuffer.DynamicContent>(unsafeBuffer: sample)
         lock.lock()
         defer { lock.unlock() }
@@ -130,14 +132,14 @@ final class AudioSink: @unchecked Sendable {
         }
     }
 
-    func flush() {
+    public func flush() {
         lock.lock()
         defer { lock.unlock() }
         receiver.flush()
     }
 
     /// Automatic flushes after enqueuing stopped (output device changed while paused).
-    func observeEvents(_ handler: @escaping @Sendable () -> Void) -> Task<Void, Never> {
+    public func observeEvents(_ handler: @escaping @Sendable () -> Void) -> Task<Void, Never> {
         let receiver = receiver
         return Task {
             for await event in receiver.renderingEventsAfterFinishedEnqueuing {

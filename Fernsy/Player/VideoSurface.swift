@@ -1,5 +1,6 @@
-import AppKit
 import AVFoundation
+import AppKit
+import FernsyPlayer
 import SwiftUI
 
 /// Layer-hosting view for the AVSampleBufferDisplayLayer. The layer is placed at

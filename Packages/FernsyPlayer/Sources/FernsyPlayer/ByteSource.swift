@@ -1,8 +1,10 @@
+import CFFShim
+import FernsyCore
 import Foundation
 
 /// What PlaybackSession reads from: the network (HTTPByteSource), the timeshift buffer of
 /// a tuned channel (BufferByteSource) or a recording on disk (FileByteSource).
-protocol ByteSource: AnyObject {
+public protocol ByteSource: AnyObject {
     var isCancelled: Bool { get }
     var supportsRanges: Bool { get }
     var finalURL: URL? { get }
@@ -26,46 +28,46 @@ extension HTTPByteSource: ByteSource {}
 /// Plays the timeshift buffer of a tuned channel. Offsets are relative to the oldest byte the
 /// buffer held when the reader opened (FFmpeg starts counting at 0); reading at the live edge
 /// waits for the tuner instead of ending.
-final class BufferByteSource: ByteSource {
-    let buffer: TimeshiftBuffer
+public final class BufferByteSource: ByteSource {
+    public let buffer: TimeshiftBuffer
     private let reader: TimeshiftBuffer.Reader
     private let base: Int64
     private let lock = NSLock()
     private var cancelled = false
 
-    var tap: ((UnsafeBufferPointer<UInt8>) -> Void)?
-    var onRejoin: ((Int64) -> Void)?
+    public var tap: ((UnsafeBufferPointer<UInt8>) -> Void)?
+    public var onRejoin: ((Int64) -> Void)?
 
-    init(buffer: TimeshiftBuffer) {
+    public init(buffer: TimeshiftBuffer) {
         self.buffer = buffer
         base = buffer.oldestOffset
         reader = buffer.makeReader(at: base)
     }
 
-    var isCancelled: Bool {
+    public var isCancelled: Bool {
         lock.lock(); defer { lock.unlock() }
         return cancelled
     }
 
-    var supportsRanges: Bool { true }
-    var finalURL: URL? { nil }
-    var mimeType: String? { "video/mp2t" }
-    var netStats: HTTPByteSource.NetStats { buffer.netStats() }
-    var totalBytesReceived: Int64 { buffer.totalBytesReceived() }
+    public var supportsRanges: Bool { true }
+    public var finalURL: URL? { nil }
+    public var mimeType: String? { "video/mp2t" }
+    public var netStats: HTTPByteSource.NetStats { buffer.netStats() }
+    public var totalBytesReceived: Int64 { buffer.totalBytesReceived() }
 
     /// Logical buffer offset ↔ FFmpeg position.
-    func position(ofBufferOffset offset: Int64) -> Int64 { max(0, offset - base) }
+    public func position(ofBufferOffset offset: Int64) -> Int64 { max(0, offset - base) }
 
-    func open() throws {}
+    public func open() throws {}
 
-    func cancel() {
+    public func cancel() {
         lock.lock()
         cancelled = true
         lock.unlock()
         reader.cancel()
     }
 
-    func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32 {
+    public func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32 {
         switch reader.read(into: ptr, size: size) {
         case .data(let n):
             tap?(UnsafeBufferPointer(start: ptr, count: n))
@@ -76,7 +78,7 @@ final class BufferByteSource: ByteSource {
         }
     }
 
-    func seek(offset: Int64, whence: Int32) -> Int64 {
+    public func seek(offset: Int64, whence: Int32) -> Int64 {
         if whence & Int32(ffs_avseek_size()) != 0 { return -1 }
         let mode = whence & ~Int32(ffs_avseek_force())
         let target: Int64
@@ -89,12 +91,12 @@ final class BufferByteSource: ByteSource {
         return target - base
     }
 
-    func reportPlaybackAhead(_ seconds: Double) {}
+    public func reportPlaybackAhead(_ seconds: Double) {}
 }
 
 /// A finished or still growing recording on disk.
-final class FileByteSource: ByteSource {
-    let url: URL
+public final class FileByteSource: ByteSource {
+    public let url: URL
     /// While true, reading at the end waits for more data (recording in progress).
     private let isGrowing: () -> Bool
     private var handle: FileHandle?
@@ -102,30 +104,30 @@ final class FileByteSource: ByteSource {
     private let lock = NSLock()
     private var cancelled = false
 
-    var tap: ((UnsafeBufferPointer<UInt8>) -> Void)?
-    var onRejoin: ((Int64) -> Void)?
+    public var tap: ((UnsafeBufferPointer<UInt8>) -> Void)?
+    public var onRejoin: ((Int64) -> Void)?
 
-    init(url: URL, isGrowing: @escaping () -> Bool) {
+    public init(url: URL, isGrowing: @escaping () -> Bool) {
         self.url = url
         self.isGrowing = isGrowing
     }
 
-    var isCancelled: Bool {
+    public var isCancelled: Bool {
         lock.lock(); defer { lock.unlock() }
         return cancelled
     }
 
-    var supportsRanges: Bool { true }
-    var finalURL: URL? { url }
-    var mimeType: String? { "video/mp2t" }
-    var netStats: HTTPByteSource.NetStats { HTTPByteSource.NetStats() }
-    var totalBytesReceived: Int64 { offset }
+    public var supportsRanges: Bool { true }
+    public var finalURL: URL? { url }
+    public var mimeType: String? { "video/mp2t" }
+    public var netStats: HTTPByteSource.NetStats { HTTPByteSource.NetStats() }
+    public var totalBytesReceived: Int64 { offset }
 
-    func open() throws {
+    public func open() throws {
         handle = try FileHandle(forReadingFrom: url)
     }
 
-    func cancel() {
+    public func cancel() {
         lock.lock()
         cancelled = true
         lock.unlock()
@@ -135,7 +137,7 @@ final class FileByteSource: ByteSource {
         (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
     }
 
-    func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32 {
+    public func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32 {
         guard let handle else { return Int32(ffs_error_eio()) }
         while true {
             if isCancelled { return Int32(ffs_error_exit()) }
@@ -151,7 +153,7 @@ final class FileByteSource: ByteSource {
         }
     }
 
-    func seek(offset target: Int64, whence: Int32) -> Int64 {
+    public func seek(offset target: Int64, whence: Int32) -> Int64 {
         if whence & Int32(ffs_avseek_size()) != 0 { return isGrowing() ? -1 : fileSize }
         let mode = whence & ~Int32(ffs_avseek_force())
         let position: Int64
@@ -166,5 +168,5 @@ final class FileByteSource: ByteSource {
         return position
     }
 
-    func reportPlaybackAhead(_ seconds: Double) {}
+    public func reportPlaybackAhead(_ seconds: Double) {}
 }

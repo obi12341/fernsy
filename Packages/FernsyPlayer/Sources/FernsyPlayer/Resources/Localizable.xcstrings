@@ -1,0 +1,336 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "AAC (TS repair)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AAC (TS-Reparatur)"
+          }
+        }
+      }
+    },
+    "Audio · AAC (repaired from TS stream)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio · AAC (aus TS-Strom repariert)"
+          }
+        }
+      }
+    },
+    "Cancelled": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abgebrochen"
+          }
+        }
+      }
+    },
+    "Connection lost": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung verloren"
+          }
+        }
+      }
+    },
+    "Connection timed out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitüberschreitung beim Verbinden"
+          }
+        }
+      }
+    },
+    "Connection to the server lost": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung zum Server verloren"
+          }
+        }
+      }
+    },
+    "Could not open the stream (%lld)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stream konnte nicht geöffnet werden (%lld)"
+          }
+        }
+      }
+    },
+    "Debug build: real providers only with IPTV_ALLOWREAL=1": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debug-Build: echte Anbieter nur mit IPTV_ALLOWREAL=1"
+          }
+        }
+      }
+    },
+    "Decoder restarted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoder neu gestartet"
+          }
+        }
+      }
+    },
+    "Dolby Vision %@ is not supported on this Mac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolby Vision %@ wird auf diesem Mac nicht unterstützt"
+          }
+        }
+      }
+    },
+    "NV12 (8-bit)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NV12 (8 Bit)"
+          }
+        }
+      }
+    },
+    "NV12 (8-bit, compressed)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NV12 (8 Bit, komprimiert)"
+          }
+        }
+      }
+    },
+    "No data from the channel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Daten vom Sender"
+          }
+        }
+      }
+    },
+    "No playable tracks found": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine abspielbaren Spuren gefunden"
+          }
+        }
+      }
+    },
+    "Out of memory": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicherfehler"
+          }
+        }
+      }
+    },
+    "P010 (10-bit)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "P010 (10 Bit)"
+          }
+        }
+      }
+    },
+    "P010 (10-bit, compressed)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "P010 (10 Bit, komprimiert)"
+          }
+        }
+      }
+    },
+    "Playback interrupted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabe unterbrochen"
+          }
+        }
+      }
+    },
+    "Server closed the connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server hat Verbindung geschlossen"
+          }
+        }
+      }
+    },
+    "Server responded with HTTP %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server antwortet mit HTTP %lld"
+          }
+        }
+      }
+    },
+    "Stream ended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stream beendet"
+          }
+        }
+      }
+    },
+    "Stream interrupted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stream unterbrochen"
+          }
+        }
+      }
+    },
+    "Subtitles %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel %lld"
+          }
+        }
+      }
+    },
+    "The picture could not be restored.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Bild konnte nicht wiederhergestellt werden."
+          }
+        }
+      }
+    },
+    "The recording could not be written fast enough": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme konnte nicht schnell genug geschrieben werden"
+          }
+        }
+      }
+    },
+    "This channel is currently offline at your provider.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Sender ist beim Anbieter derzeit offline."
+          }
+        }
+      }
+    },
+    "Timeshift is not available for this channel.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitversetztes Fernsehen ist für diesen Sender nicht möglich."
+          }
+        }
+      }
+    },
+    "Track %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spur %lld"
+          }
+        }
+      }
+    },
+    "VideoToolbox (Dolby Vision)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VideoToolbox (Dolby Vision)"
+          }
+        }
+      }
+    },
+    "no data for %.0f s, %.1f s buffered": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "keine Daten seit %1$.0f s, %2$.1f s Vorrat"
+          }
+        }
+      }
+    },
+    "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "keine Daten seit %1$.0f s, Player fast leer (%2$.1f s Vorrat)"
+          }
+        }
+      }
+    },
+    "no response": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "keine Antwort"
+          }
+        }
+      }
+    },
+    "too slow: %1$.0f s of content in %2$.0f s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zu langsam: %.0f s Inhalt in %.0f s"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

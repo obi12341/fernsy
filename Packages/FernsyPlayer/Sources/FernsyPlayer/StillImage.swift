@@ -6,11 +6,11 @@ import UniformTypeIdentifiers
 
 /// Stills for the assistant (MCP `snapshot` and `frames`): decoded pictures to CGImage, a
 /// labelled contact sheet, JPEG through ImageIO (the bundled FFmpeg has no encoders).
-enum StillImage {
+public enum StillImage {
     private static let context = CIContext(options: [.cacheIntermediates: false])
 
     /// The picture scaled to at most `maxWidth` pixels, wider pixels (anamorphic video) included.
-    static func image(from pixelBuffer: CVPixelBuffer, maxWidth: CGFloat, pixelAspect: CGFloat = 1) -> CGImage? {
+    public static func image(from pixelBuffer: CVPixelBuffer, maxWidth: CGFloat, pixelAspect: CGFloat = 1) -> CGImage? {
         var image = CIImage(cvPixelBuffer: pixelBuffer)
         let width = image.extent.width * max(pixelAspect, 0.1)
         let scale = min(1, maxWidth / max(width, 1))
@@ -19,7 +19,7 @@ enum StillImage {
                                      colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
     }
 
-    static func jpeg(_ image: CGImage, quality: Double = 0.75) -> Data? {
+    public static func jpeg(_ image: CGImage, quality: Double = 0.75) -> Data? {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
         CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
@@ -27,7 +27,7 @@ enum StillImage {
     }
 
     /// Tiles in rows of `columns`, each with its label in a dark box in the lower left corner.
-    static func contactSheet(_ tiles: [(image: CGImage, label: String)], tileWidth: CGFloat = 320, columns: Int = 6) -> CGImage? {
+    public static func contactSheet(_ tiles: [(image: CGImage, label: String)], tileWidth: CGFloat = 320, columns: Int = 6) -> CGImage? {
         guard let first = tiles.first?.image else { return nil }
         let tileHeight = (tileWidth * CGFloat(first.height) / CGFloat(max(first.width, 1))).rounded()
         let gap: CGFloat = 4

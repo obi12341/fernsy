@@ -1,5 +1,6 @@
 import Combine
 import FernsyCore
+import FernsyPlayer
 import Foundation
 import Network
 import SwiftUI

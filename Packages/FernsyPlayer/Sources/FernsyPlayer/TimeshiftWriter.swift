@@ -1,9 +1,10 @@
+import CFFShim
 import FernsyCore
 import Foundation
 
 /// Receives the cleaned packets of a tuner session (PlaybackSession in `.tuner` mode) on its
 /// demux thread.
-protocol TunerOutput: AnyObject {
+public protocol TunerOutput: AnyObject {
     /// Streams of a (re)opened connection. `tappedAudio`: TSAudioTap delivers ADTS AAC as
     /// input index `PlaybackSession.tappedAudioIndex`. Returns false when the streams cannot
     /// be written (unsupported codec); the tuner then gives up on timeshift.
@@ -28,8 +29,8 @@ private func writeToBuffer(_ opaque: UnsafeMutableRawPointer?, _ buf: UnsafePoin
 /// epoch whose offset continues right after what was written. Other streams follow the
 /// epoch that places them next to their own last packet, so packets still interleaved from
 /// before a jump land correctly.
-final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
-    let buffer: TimeshiftBuffer
+public final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
+    public let buffer: TimeshiftBuffer
     private let lock = NSLock()
     private var muxer: OpaquePointer?
     private var failed = false
@@ -65,7 +66,7 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
     private let testJump = ProcessInfo.processInfo.environment["IPTV_TESTJUMP"]?.split(separator: ":").compactMap { Double($0) }
     #endif
 
-    init(buffer: TimeshiftBuffer) {
+    public init(buffer: TimeshiftBuffer) {
         self.buffer = buffer
     }
 
@@ -74,7 +75,7 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
     }
 
     /// Writes the trailer and closes the buffer for readers.
-    func close() {
+    public func close() {
         lock.lock()
         if muxer != nil {
             var m: OpaquePointer? = muxer
@@ -85,19 +86,19 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
         buffer.close()
     }
 
-    var contentTime: Double? {
+    public var contentTime: Double? {
         timeLock.lock(); defer { timeLock.unlock() }
         return newestClockTime
     }
 
-    var isFailed: Bool {
+    public var isFailed: Bool {
         lock.lock(); defer { lock.unlock() }
         return failed
     }
 
     // MARK: TunerOutput
 
-    func streamsOpened(_ fmt: UnsafeMutablePointer<AVFormatContext>, kept: [Int32], clock: Int32, tappedAudio: Bool) -> Bool {
+    public func streamsOpened(_ fmt: UnsafeMutablePointer<AVFormatContext>, kept: [Int32], clock: Int32, tappedAudio: Bool) -> Bool {
         lock.lock()
         defer { lock.unlock() }
         guard !failed else { return false }
@@ -152,7 +153,7 @@ final class TimeshiftWriter: TunerOutput, @unchecked Sendable {
         return !mapping.isEmpty
     }
 
-    func packet(_ pkt: UnsafeMutablePointer<AVPacket>, input: Int32, timeBase: AVRational) {
+    public func packet(_ pkt: UnsafeMutablePointer<AVPacket>, input: Int32, timeBase: AVRational) {
         lock.lock()
         defer { lock.unlock() }
         guard let muxer, let out = mapping[input] else { return }

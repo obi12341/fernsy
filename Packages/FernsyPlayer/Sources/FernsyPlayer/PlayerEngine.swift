@@ -1,52 +1,53 @@
 import AVFoundation
+import CFFShim
 import Combine
 import FernsyCore
 import SwiftUI
 
 /// Position/duration live in their own object so that 10 Hz clock updates only
 /// re-render the transport bar, not the whole player.
-final class PlaybackProgress: ObservableObject {
-    @Published var position: Double = 0
-    @Published var duration: Double = 0
-    @Published var buffered: Double = 0
+public final class PlaybackProgress: ObservableObject {
+    @Published public var position: Double = 0
+    @Published public var duration: Double = 0
+    @Published public var buffered: Double = 0
     /// Timeshift: buffer time range that can be played, and the clock time of `position`.
-    @Published var liveStart: Double = 0
-    @Published var liveEnd: Double = 0
-    @Published var wallClock: Date?
+    @Published public var liveStart: Double = 0
+    @Published public var liveEnd: Double = 0
+    @Published public var wallClock: Date?
     /// Timeshift: playback follows the live stream (not paused or rewound since). Measured
     /// distance to the newest data is no good for this: providers deliver in bursts.
-    @Published var followsLive = true
+    @Published public var followsLive = true
 
     /// Seconds behind live (0 while following live).
-    var behindLive: Double { followsLive ? 0 : max(0, liveEnd - position - PlayerEngine.liveLead) }
+    public var behindLive: Double { followsLive ? 0 : max(0, liveEnd - position - PlayerEngine.liveLead) }
 }
 
 /// Buffer level over time for the info overlay. Separate object so the once-per-second
 /// samples only re-render the chart.
-final class BufferHistory: ObservableObject {
-    enum Event { case reconnect, restart, rebuffer }
+public final class BufferHistory: ObservableObject {
+    public enum Event { case reconnect, restart, rebuffer }
 
-    struct Sample: Identifiable {
-        let id: Int
-        let time: Date
+    public struct Sample: Identifiable {
+        public let id: Int
+        public let time: Date
         /// Demuxed and waiting in the player.
-        let player: Double
+        public let player: Double
         /// Received but not yet demuxed, converted at the average data rate.
-        let network: Double
-        let events: [Event]
+        public let network: Double
+        public let events: [Event]
     }
 
-    static let window: TimeInterval = 120
+    public static let window: TimeInterval = 120
 
-    @Published private(set) var samples: [Sample] = []
+    @Published public private(set) var samples: [Sample] = []
     /// Average over the last 30 s; single seconds are useless for bursty channels.
-    @Published private(set) var averageMbps = 0.0
+    @Published public private(set) var averageMbps = 0.0
 
     private var nextID = 0
     private var rates: [Double] = []
     private var previous: PlaybackStats?
 
-    func reset() {
+    public func reset() {
         samples = []
         rates = []
         averageMbps = 0
@@ -55,7 +56,7 @@ final class BufferHistory: ObservableObject {
 
     /// The restart count is passed separately: it lives in the engine, not in the session.
     /// `disk`: timeshift, seconds stored ahead of the player (instead of network bytes).
-    func record(_ stats: PlaybackStats, disk: Double? = nil) {
+    public func record(_ stats: PlaybackStats, disk: Double? = nil) {
         rates.append(stats.bitrateMbps)
         if rates.count > 30 { rates.removeFirst(rates.count - 30) }
         averageMbps = rates.reduce(0, +) / Double(rates.count)
@@ -82,38 +83,51 @@ final class BufferHistory: ObservableObject {
 
 /// Hooks for a controller that plays something other than a plain URL (Jellyfin): a transcode
 /// started mid-item, seeking by restarting, falling back when the source cannot be opened.
-struct ExternalPlayback {
+public struct ExternalPlayback {
     /// Item position at which the current stream starts (transcodes started with an offset).
-    var timelineOffset: Double = 0
+    public var timelineOffset: Double = 0
     /// The whole item's length when the stream does not know it (progressive transcodes).
-    var duration: Double?
+    public var duration: Double?
     /// Non-seekable stream: the controller restarts at the requested item position.
-    var restartAt: ((Double) -> Void)?
+    public var restartAt: ((Double) -> Void)?
     /// The stream failed before playing; return true when the controller takes over.
-    var onFailedBeforeStart: ((String) -> Bool)?
+    public var onFailedBeforeStart: ((String) -> Bool)?
     /// The stream failed while playing (e.g. the server rejected the token); return true when
     /// the controller recovers by loading again.
-    var onFailedAfterStart: ((String) -> Bool)?
+    public var onFailedAfterStart: ((String) -> Bool)?
     /// Track choices the controller handles itself (external files, transcode restarts);
     /// return false to let the engine switch the stream's own track.
-    var selectAudio: ((MediaTrack) -> Bool)?
-    var selectSubtitle: ((MediaTrack?) -> Bool)?
+    public var selectAudio: ((MediaTrack) -> Bool)?
+    public var selectSubtitle: ((MediaTrack?) -> Bool)?
     /// Tracks the controller already chose (stream ids); nil = the engine's language rules.
-    var tracks: TrackRequest?
+    public var tracks: TrackRequest?
     /// A stream opened (each restart opens its own); the controller adjusts the track menus.
-    var onOpened: (() -> Void)?
+    public var onOpened: (() -> Void)?
     /// "Direct play" / "Transcode", shown in the info overlay.
-    var methodLabel: String?
+    public var methodLabel: String?
+
+    public init(timelineOffset: Double = 0, duration: Double? = nil, restartAt: ((Double) -> Void)? = nil, onFailedBeforeStart: ((String) -> Bool)? = nil, onFailedAfterStart: ((String) -> Bool)? = nil, selectAudio: ((MediaTrack) -> Bool)? = nil, selectSubtitle: ((MediaTrack?) -> Bool)? = nil, tracks: TrackRequest? = nil, onOpened: (() -> Void)? = nil, methodLabel: String? = nil) {
+        self.timelineOffset = timelineOffset
+        self.duration = duration
+        self.restartAt = restartAt
+        self.onFailedBeforeStart = onFailedBeforeStart
+        self.onFailedAfterStart = onFailedAfterStart
+        self.selectAudio = selectAudio
+        self.selectSubtitle = selectSubtitle
+        self.tracks = tracks
+        self.onOpened = onOpened
+        self.methodLabel = methodLabel
+    }
 }
 
 /// Owns the renderers and the current PlaybackSession; main-thread API for the UI.
-final class PlayerEngine: ObservableObject {
-    enum Status: Equatable {
+public final class PlayerEngine: ObservableObject {
+    public enum Status: Equatable {
         case idle, loading, playing, paused, buffering, ended
         case failed(String)
     }
 
-    @Published private(set) var status: Status = .idle {
+    @Published public private(set) var status: Status = .idle {
         didSet {
             // An item that fails or ends before its first frame must not leave the loading picture running.
             switch status {
@@ -131,26 +145,26 @@ final class PlayerEngine: ObservableObject {
             }
         }
     }
-    @Published private(set) var media: MediaInfo?
+    @Published public private(set) var media: MediaInfo?
     private var nextStatsLog = Date.distantPast
     /// When the picture stopped for lack of data (after the start), for the log.
     private var stallStartedAt: Date?
-    @Published private(set) var videoSize: CGSize = .zero
-    @Published private(set) var stats = PlaybackStats()
-    @Published private(set) var subtitleText: String?
+    @Published public private(set) var videoSize: CGSize = .zero
+    @Published public private(set) var stats = PlaybackStats()
+    @Published public private(set) var subtitleText: String?
     /// The bitmap subtitle (PGS, VobSub, DVB) to draw now.
-    @Published private(set) var subtitleBitmap: BitmapCue?
+    @Published public private(set) var subtitleBitmap: BitmapCue?
     /// Set by a controller (Jellyfin) for the current item.
-    private(set) var external: ExternalPlayback?
+    public private(set) var external: ExternalPlayback?
     /// Cues supplied by a controller (external subtitle file); the stream's own are ignored.
     private var externalCues: [SubtitleCue]?
     private var bitmapCues: [BitmapCue] = []
     private var hasStarted = false
-    @Published private(set) var isPaused = false
-    @Published private(set) var isReconnecting = false
+    @Published public private(set) var isPaused = false
+    @Published public private(set) var isReconnecting = false
     /// The source is currently not delivering audio for the selected track.
-    @Published private(set) var isAudioMissing = false
-    @Published var volume: Float {
+    @Published public private(set) var isAudioMissing = false
+    @Published public var volume: Float {
         didSet {
             audioRenderer.volume = volume
             #if DEBUG
@@ -160,24 +174,24 @@ final class PlayerEngine: ObservableObject {
             #endif
         }
     }
-    @Published var isMuted = false {
+    @Published public var isMuted = false {
         didSet { audioRenderer.isMuted = isMuted }
     }
 
-    let progress = PlaybackProgress()
-    let bufferHistory = BufferHistory()
-    let displayLayer: AVSampleBufferDisplayLayer
+    public let progress = PlaybackProgress()
+    public let bufferHistory = BufferHistory()
+    public let displayLayer: AVSampleBufferDisplayLayer
 
     /// While Picture in Picture runs: the loading picture shown until a new item's first frame.
-    private(set) lazy var loadingCard = PictureInPictureLoadingCard(sink: videoSink)
-    let lastPicture = LastPicture()
+    public private(set) lazy var loadingCard = PictureInPictureLoadingCard(sink: videoSink)
+    public let lastPicture = LastPicture()
     #if DEBUG
     private var debugOpenedItems = 0
     #endif
     private let audioRenderer: AVSampleBufferAudioRenderer
     private let synchronizer: AVSampleBufferRenderSynchronizer
     /// The renderers' receivers (macOS 27): every enqueue and flush goes through them.
-    let videoSink: VideoSink
+    public let videoSink: VideoSink
     private let audioSink: AudioSink
     private var sinkEvents: [Task<Void, Never>] = []
     /// Recent automatic video recoveries (rate limit, give up after three in 30 s).
@@ -192,36 +206,36 @@ final class PlayerEngine: ObservableObject {
     private var earlyEndRecoveredAt: Double?
     private var currentIsLive = false
     /// Live from a tuner's timeshift buffer (seekable) instead of straight from the network.
-    @Published private(set) var isTimeshift = false
+    @Published public private(set) var isTimeshift = false
     private var tuner: LiveTuner?
     private var tunerState: AnyCancellable?
     private var tunerHealth: AnyCancellable?
     private var tunerRecovery: AnyCancellable?
     /// Live: how the tuner's connection delivers (the status card names the provider only
     /// when it is slow, silent or being replaced).
-    @Published private(set) var connectionHealth: HTTPByteSource.Health = .ok {
+    @Published public private(set) var connectionHealth: HTTPByteSource.Health = .ok {
         didSet { noteUnhealthyStall() }
     }
     /// When the picture last waited while the connection was slow, silent or being replaced:
     /// the note after a server switch only follows a stall the user saw.
     private var unhealthyStallAt = Date.distantPast
     /// Live: another provider server ended a stall; shown for a few seconds.
-    @Published private(set) var showsServerSwitchNote = false
+    @Published public private(set) var showsServerSwitchNote = false
     private var serverSwitchNoteHide: DispatchWorkItem?
-    static var liveLead: Double { PlaybackSession.liveLead }
+    public static var liveLead: Double { PlaybackSession.liveLead }
     private var reconnectAttempts = 0 {
         didSet { if reconnectAttempt != reconnectAttempts { reconnectAttempt = reconnectAttempts } }
     }
     /// The player's own restart of the stream (shown as "Versuch n von 8"); 0 when none runs.
-    @Published private(set) var reconnectAttempt = 0
-    static let maxReconnectAttempts = 8
+    @Published public private(set) var reconnectAttempt = 0
+    public static let maxReconnectAttempts = 8
     /// Full restarts since the last user-initiated load.
     private var restarts = 0
     private var startedAt: Date?
     private var cues: [SubtitleCue] = []
     private var activity: NSObjectProtocol?
 
-    init() {
+    public init() {
         let stored = UserDefaults.standard.object(forKey: "player.volume") as? Float
         volume = stored ?? 1.0
         let displayLayer = AVSampleBufferDisplayLayer()
@@ -235,7 +249,7 @@ final class PlayerEngine: ObservableObject {
 
         displayLayer.videoGravity = .resize // the view sizes the layer to the exact display aspect
         displayLayer.preventsDisplaySleepDuringVideoPlayback = true
-        displayLayer.backgroundColor = NSColor.black.cgColor
+        displayLayer.backgroundColor = CGColor(gray: 0, alpha: 1)
         audioRenderer.volume = volume
         #if DEBUG
         // Test runs are silent unless asked for: the user may be watching in the installed app.
@@ -263,16 +277,16 @@ final class PlayerEngine: ObservableObject {
         controlQueue.async { s?.stop() }
     }
 
-    var isLive: Bool { currentIsLive }
+    public var isLive: Bool { currentIsLive }
 
     // MARK: Control
 
     /// Language rules for the next load (settings, or the series' remembered choice).
-    var trackPreferences = TrackPreferences.settings
+    public var trackPreferences = TrackPreferences.settings
     /// Tracks for the current stream; the user's pick replaces it so restarts keep it.
     private var trackRequest: TrackRequest = .preferences(TrackPreferences())
 
-    func load(url: URL, isLive: Bool, startAt: Double = 0, external: ExternalPlayback? = nil) {
+    public func load(url: URL, isLive: Bool, startAt: Double = 0, external: ExternalPlayback? = nil) {
         trackRequest = external?.tracks ?? .preferences(trackPreferences)
         detachTuner()
         self.external = external
@@ -291,7 +305,7 @@ final class PlayerEngine: ObservableObject {
         let position = progress.position, duration = progress.duration
         guard duration > 0, position < duration - 60, let url = currentURL, !url.isFileURL else { return false }
         if let last = earlyEndRecoveredAt, abs(position - last) < 30 {
-            status = .failed(String(localized: "Playback interrupted"))
+            status = .failed(String(localized: "Playback interrupted", bundle: .module))
             endActivity()
             return true
         }
@@ -306,7 +320,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// A recording file; `isGrowing` while it is still being written.
-    func load(file url: URL, isGrowing: @escaping () -> Bool, startAt: Double = 0) {
+    public func load(file url: URL, isGrowing: @escaping () -> Bool, startAt: Double = 0) {
         trackRequest = .preferences(trackPreferences)
         detachTuner()
         external = nil
@@ -319,7 +333,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// Live TV through the channel's tuner: starts at the live edge of its timeshift buffer.
-    func load(tuner: LiveTuner) {
+    public func load(tuner: LiveTuner) {
         trackRequest = .preferences(trackPreferences)
         detachTuner()
         external = nil
@@ -467,7 +481,7 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
-    func stop() {
+    public func stop() {
         logStallEnd("stopped")
         loadingCard.stop()
         lastPicture.set(nil)
@@ -493,16 +507,16 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
-    func togglePause() {
+    public func togglePause() {
         setPaused(!isPaused)
     }
 
     /// For Picture in Picture: live streams show as live, and the time range is expressed on
     /// the display layer's clock (the synchronizer's).
-    var isLiveStream: Bool { currentIsLive }
-    var clockTime: Double { synchronizer.currentTime().seconds }
+    public var isLiveStream: Bool { currentIsLive }
+    public var clockTime: Double { synchronizer.currentTime().seconds }
 
-    func setPaused(_ paused: Bool) {
+    public func setPaused(_ paused: Bool) {
         guard status != .idle else { return }
         if status == .ended && !paused {
             seek(to: 0)
@@ -515,7 +529,7 @@ final class PlayerEngine: ObservableObject {
         controlQueue.async { [weak self] in self?.session?.setPaused(paused) }
     }
 
-    func seek(to position: Double) {
+    public func seek(to position: Double) {
         guard !currentIsLive || isTimeshift, status != .idle else { return }
         let target: Double
         if isTimeshift, let buffer = tuner?.buffer {
@@ -552,12 +566,12 @@ final class PlayerEngine: ObservableObject {
 
     /// Timeshift: the clock time of a buffer position, read from the buffer itself (the published
     /// `progress.wallClock` follows a seek only a moment later).
-    func wallTime(of position: Double) -> Date? {
+    public func wallTime(of position: Double) -> Date? {
         guard isTimeshift else { return nil }
         return tuner?.buffer.wallTime(of: position)
     }
 
-    func seek(by delta: Double) {
+    public func seek(by delta: Double) {
         seek(to: progress.position + delta)
     }
 
@@ -632,20 +646,20 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// Timeshift: back to the live edge.
-    func goLive() {
+    public func goLive() {
         guard isTimeshift, let newest = tuner?.buffer.newest?.time else { return }
         if isPaused { setPaused(false) }
         seek(to: newest)
     }
 
-    func selectAudio(_ track: MediaTrack) {
+    public func selectAudio(_ track: MediaTrack) {
         if let handler = external?.selectAudio, handler(track) { return }
         media?.selectedAudio = track.id
         trackRequest = .explicit(audio: track.id, subtitle: media?.selectedSubtitle)
         controlQueue.async { [weak self] in self?.session?.selectAudio(track.id) }
     }
 
-    func selectSubtitle(_ track: MediaTrack?) {
+    public func selectSubtitle(_ track: MediaTrack?) {
         if let handler = external?.selectSubtitle, handler(track) { return }
         media?.selectedSubtitle = track?.id
         trackRequest = .explicit(audio: media?.selectedAudio, subtitle: track?.id)
@@ -659,7 +673,7 @@ final class PlayerEngine: ObservableObject {
 
     /// A controller shows subtitles from a file (track id chosen by the controller); the stream's
     /// own subtitle track is switched off.
-    func showExternalSubtitles(_ cues: [SubtitleCue], trackId: Int32) {
+    public func showExternalSubtitles(_ cues: [SubtitleCue], trackId: Int32) {
         media?.selectedSubtitle = trackId
         externalCues = cues.sorted { $0.start < $1.start }
         self.cues = []
@@ -670,7 +684,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// Subtitles off, without touching the stream (a controller's own subtitles).
-    func clearSubtitleSelection() {
+    public func clearSubtitleSelection() {
         media?.selectedSubtitle = nil
         externalCues = nil
         cues = []
@@ -678,14 +692,14 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// A controller adds tracks the stream does not contain (external files) to the menus.
-    func addSubtitleTracks(_ tracks: [MediaTrack]) {
+    public func addSubtitleTracks(_ tracks: [MediaTrack]) {
         guard var info = media else { return }
         info.subtitleTracks += tracks.filter { t in !info.subtitleTracks.contains { $0.id == t.id } }
         media = info
     }
 
     /// A controller replaces the track menus (transcodes offer the source's tracks).
-    func setTracks(audio: [MediaTrack], subtitles: [MediaTrack], selectedAudio: Int32?, selectedSubtitle: Int32?) {
+    public func setTracks(audio: [MediaTrack], subtitles: [MediaTrack], selectedAudio: Int32?, selectedSubtitle: Int32?) {
         guard var info = media else { return }
         info.audioTracks = audio
         info.subtitleTracks = subtitles
@@ -807,7 +821,7 @@ final class PlayerEngine: ObservableObject {
             refillAudio()
         case .ended:
             if currentIsLive {
-                reconnect(reason: String(localized: "Stream ended"))
+                reconnect(reason: String(localized: "Stream ended", bundle: .module))
             } else if !recoverFromEarlyEnd() {
                 status = .ended
                 endActivity()
@@ -853,7 +867,7 @@ final class PlayerEngine: ObservableObject {
         guard recoveries.count < 3 else {
             AppLog.error(.player, "video decoder keeps failing (\(reason)), giving up")
             halt()
-            status = .failed(String(localized: "The picture could not be restored."))
+            status = .failed(String(localized: "The picture could not be restored.", bundle: .module))
             return
         }
         recoveries.append(now)
@@ -864,7 +878,7 @@ final class PlayerEngine: ObservableObject {
         } else if !currentIsLive || isTimeshift {
             seek(to: progress.position)
         } else {
-            reconnect(reason: String(localized: "Decoder restarted"))
+            reconnect(reason: String(localized: "Decoder restarted", bundle: .module))
         }
     }
 
@@ -890,7 +904,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// A controller gave up recovering (e.g. the Jellyfin session could not be renewed).
-    func reportFailure(_ message: String) {
+    public func reportFailure(_ message: String) {
         status = .failed(message)
         isReconnecting = false
         endActivity()

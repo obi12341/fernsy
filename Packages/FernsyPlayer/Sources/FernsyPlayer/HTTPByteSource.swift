@@ -1,3 +1,4 @@
+import CFFShim
 import FernsyCore
 import Foundation
 
@@ -7,25 +8,25 @@ import Foundation
 /// URLSession is used instead of FFmpeg's own HTTP stack because the system
 /// network stack is what the Xtream servers accept (plain curl-style clients get
 /// dropped), and it gives us redirects, proxies and keep-alive handling for free.
-final class HTTPByteSource: NSObject, URLSessionDataDelegate {
-    enum SourceError: LocalizedError {
+public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
+    public enum SourceError: LocalizedError {
         case http(Int)
         case timeout
         case cancelled
         case connectionLost
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
-            case .http(let code): return String(localized: "Server responded with HTTP \(code)")
-            case .timeout: return String(localized: "Connection timed out")
-            case .cancelled: return String(localized: "Cancelled")
-            case .connectionLost: return String(localized: "Connection to the server lost")
+            case .http(let code): return String(localized: "Server responded with HTTP \(code)", bundle: .module)
+            case .timeout: return String(localized: "Connection timed out", bundle: .module)
+            case .cancelled: return String(localized: "Cancelled", bundle: .module)
+            case .connectionLost: return String(localized: "Connection to the server lost", bundle: .module)
             }
         }
     }
 
-    let url: URL
-    let isLive: Bool
+    public let url: URL
+    public let isLive: Bool
 
     private let cond = NSCondition()
     private var session: URLSession!
@@ -44,18 +45,18 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var cancelled = false
     private var suspended = false
 
-    private(set) var contentLength: Int64 = -1
-    private(set) var supportsRanges = false
+    public private(set) var contentLength: Int64 = -1
+    public private(set) var supportsRanges = false
     /// Attempts to continue a film's interrupted download; reset once data flows again.
     private var continueAttempts = 0
     /// URL after redirects and MIME type of the first response.
-    private(set) var finalURL: URL?
-    private(set) var mimeType: String?
+    public private(set) var finalURL: URL?
+    public private(set) var mimeType: String?
     /// Sees every byte handed to FFmpeg, in order (used by TSAudioTap). Demux thread only.
-    var tap: ((UnsafeBufferPointer<UInt8>) -> Void)?
+    public var tap: ((UnsafeBufferPointer<UInt8>) -> Void)?
     /// Live: called (demux thread, inside `read`) when the reader reaches the first byte of
     /// a reconnected stream, before those bytes are handed out. The argument is that byte's offset.
-    var onRejoin: ((Int64) -> Void)?
+    public var onRejoin: ((Int64) -> Void)?
 
     // Live reconnect: a dropped or stalled connection is replaced in place and its bytes are
     // appended to the same buffer, so FFmpeg and the decoders never notice beyond a short gap.
@@ -101,14 +102,14 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     /// Live: the newest content time received, on the tuner's continuous timeline. Read by the
     /// watchdog outside `cond` (the buffer's stats provider takes `cond` under its own lock).
-    var contentClock: (() -> Double?)?
+    public var contentClock: (() -> Double?)?
     /// Live: the connection's health changed (watchdog queue).
-    var onHealth: ((Health) -> Void)?
+    public var onHealth: ((Health) -> Void)?
     /// Live: a reconnect via the load balancer ended slow or silent delivery, and the new
     /// connection runs in real time (watchdog queue).
-    var onRecovered: (() -> Void)?
+    public var onRecovered: (() -> Void)?
 
-    enum Health: Equatable {
+    public enum Health: Equatable {
         case ok
         /// Less content than real time arrives.
         case slow
@@ -136,7 +137,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private let keepBehind = 1 << 20
     private let readTimeout: TimeInterval
 
-    init(url: URL, isLive: Bool) {
+    public init(url: URL, isLive: Bool) {
         self.url = url
         self.isLive = isLive
         self.readTimeout = isLive ? 12 : 30
@@ -153,19 +154,19 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         session = URLSession(configuration: config, delegate: self, delegateQueue: queue)
     }
 
-    struct NetStats {
+    public struct NetStats {
         /// Live connections replaced in place (each incident counts once, however many attempts).
-        var reconnects = 0
-        var lastReconnectReason: String?
-        var lastReconnectAt: Date?
-        var isReconnecting = false
+        public var reconnects = 0
+        public var lastReconnectReason: String?
+        public var lastReconnectAt: Date?
+        public var isReconnecting = false
         /// Received but not yet handed to FFmpeg.
-        var unreadBytes = 0
+        public var unreadBytes = 0
         /// Request to response headers of the latest connection.
-        var connectTime: TimeInterval = 0
+        public var connectTime: TimeInterval = 0
     }
 
-    var netStats: NetStats {
+    public var netStats: NetStats {
         cond.lock(); defer { cond.unlock() }
         var result = net
         result.isReconnecting = reconnecting
@@ -173,12 +174,12 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         return result
     }
 
-    var totalBytesReceived: Int64 {
+    public var totalBytesReceived: Int64 {
         cond.lock(); defer { cond.unlock() }
         return bytesReceivedTotal
     }
 
-    var isCancelled: Bool {
+    public var isCancelled: Bool {
         cond.lock(); defer { cond.unlock() }
         return cancelled
     }
@@ -188,7 +189,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     /// Connects and waits for the response headers. Retries a few times because
     /// single-connection accounts can briefly reject us while the previous stream
     /// is still being torn down on the server.
-    func open() throws {
+    public func open() throws {
         var lastError: Error = SourceError.timeout
         for attempt in 0..<5 {
             if attempt > 0 { Thread.sleep(forTimeInterval: 0.4 * Double(attempt)) }
@@ -205,7 +206,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         throw lastError
     }
 
-    func cancel() {
+    public func cancel() {
         cond.lock()
         if streaming && !reconnecting && !cancelled { logConnectionSummary() }
         cancelled = true
@@ -224,26 +225,26 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     #if DEBUG
     /// Test hooks: kill the connection outright, or silently stop receiving (a stalled socket).
-    func debugDropConnection() {
+    public func debugDropConnection() {
         cond.lock(); defer { cond.unlock() }
         task?.cancel()
     }
 
-    func debugStallConnection() {
+    public func debugStallConnection() {
         cond.lock(); defer { cond.unlock() }
         task?.suspend()
     }
 
     /// The next reconnect to the edge is answered as if with HTTP 403 (expired edge token).
     private var debugForbidEdge = false
-    func debugForbidNextEdge() {
+    public func debugForbidNextEdge() {
         cond.lock(); defer { cond.unlock() }
         debugForbidEdge = true
     }
 
     /// Drops now and again 6 s after the next successful reconnect (an edge that fails again).
     private var debugFlaky = false
-    func debugFlakyEdge() {
+    public func debugFlakyEdge() {
         cond.lock(); defer { cond.unlock() }
         debugFlaky = true
         task?.cancel()
@@ -258,7 +259,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var debugTrickleTimer: DispatchSourceTimer?
     /// IPTV_TESTCLOCK=1 logs the content clock every 2 s.
     private static let debugClock = ProcessInfo.processInfo.environment["IPTV_TESTCLOCK"] == "1"
-    func debugTrickle(kbit: Double) {
+    public func debugTrickle(kbit: Double) {
         cond.lock(); defer { cond.unlock() }
         debugTrickleKbit = kbit
         let timer = DispatchSource.makeTimerSource(queue: watchdogQueue)
@@ -308,7 +309,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     /// The server ends the response early without an error (an idle connection closed by a proxy).
     private var debugCleanClose = false
-    func debugCloseConnection() {
+    public func debugCloseConnection() {
         cond.lock(); defer { cond.unlock() }
         debugCleanClose = true
         // A held (suspended) task only completes once it runs again.
@@ -320,7 +321,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     // MARK: FFmpeg callbacks
 
-    func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32 {
+    public func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32 {
         cond.lock()
 
         // Live: the watchdog reconnects stalls and gives up after a few attempts, so the
@@ -379,14 +380,14 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     /// Live: seconds of media the player still has queued, reported by the session. A gap in
     /// delivery only counts as a stall once this runs low, because some channels arrive in
     /// segment-sized bursts with several seconds of silence in between.
-    func reportPlaybackAhead(_ seconds: Double) {
+    public func reportPlaybackAhead(_ seconds: Double) {
         cond.lock()
         playbackAhead = seconds
         playbackAheadAt = Date()
         cond.unlock()
     }
 
-    func seek(offset: Int64, whence: Int32) -> Int64 {
+    public func seek(offset: Int64, whence: Int32) -> Int64 {
         if whence & Int32(ffs_avseek_size()) != 0 {
             return contentLength >= 0 ? contentLength : -1
         }
@@ -531,17 +532,17 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         if reconnecting {
             // A reconnect whose response does not arrive is retried like a failed one.
             if task != nil && now.timeIntervalSince(reconnectStartedAt) > 6 {
-                liveReconnect(reason: String(localized: "no response"))
+                liveReconnect(reason: String(localized: "no response", bundle: .module))
             }
         } else if !suspended {
             let playerReports = now.timeIntervalSince(playbackAheadAt) < 2
             if idle > hardStallTimeout || (idle > stallTimeout && playbackAhead < lowPlaybackAhead) {
-                liveReconnect(reason: String(format: String(localized: "no data for %.0f s, %.1f s buffered"), idle, playbackAhead))
+                liveReconnect(reason: String(format: String(localized: "no data for %.0f s, %.1f s buffered", bundle: .module), idle, playbackAhead))
             } else if playerReports && idle > dryStallTimeout && playbackAhead < dryPlaybackAhead
                         && now.timeIntervalSince(connectedAt) > stallTimeout {
                 // A fresh connection gets the normal time for its first bytes (servers often
                 // fetch their buffer first), or reconnects would chain.
-                liveReconnect(reason: String(format: String(localized: "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)"), idle, playbackAhead))
+                liveReconnect(reason: String(format: String(localized: "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)", bundle: .module), idle, playbackAhead))
             } else {
                 switch delivery.decide(at: now, reading: reading, connectionAge: now.timeIntervalSince(connectedAt)) {
                 case .keep:
@@ -551,7 +552,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                     AppLog.info(.network, "slow again after switching servers (\(String(format: "%.0f", delivered)) s of content), judging over \(Int(window)) s instead of switching again")
                 case .replace(let delivered, let window):
                     // Data keeps arriving, but too little to keep up: replaced like a stall.
-                    liveReconnect(reason: String(format: String(localized: "too slow: %1$.0f s of content in %2$.0f s"), delivered, window), slow: true)
+                    liveReconnect(reason: String(format: String(localized: "too slow: %1$.0f s of content in %2$.0f s", bundle: .module), delivered, window), slow: true)
                 }
             }
         }
@@ -688,7 +689,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     // MARK: URLSessionDataDelegate
 
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         cond.lock()
         defer { cond.broadcast(); cond.unlock() }
@@ -798,7 +799,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         completionHandler(.allow)
     }
 
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         cond.lock()
         defer { cond.unlock() }
         guard isCurrent(dataTask) else { return }
@@ -827,7 +828,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         cond.broadcast()
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         cond.lock()
         defer { cond.broadcast(); cond.unlock() }
         guard isCurrent(task) else { return }
@@ -840,7 +841,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         #endif
         if streaming && !cancelled && failure == nil {
             // Live streams do not end: a closed or failed connection is replaced.
-            liveReconnect(reason: error.map { $0.localizedDescription } ?? String(localized: "Server closed the connection"))
+            liveReconnect(reason: error.map { $0.localizedDescription } ?? String(localized: "Server closed the connection", bundle: .module))
             return
         }
         // A film's download that ends before the file does was interrupted (an idle connection

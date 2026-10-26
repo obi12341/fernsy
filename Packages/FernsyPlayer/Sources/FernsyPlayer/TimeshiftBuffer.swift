@@ -1,3 +1,5 @@
+import CFFShim
+import FernsyCore
 import Foundation
 
 /// The remuxed MPEG-TS stream of one tuned channel, kept on disk for timeshift and
@@ -7,16 +9,16 @@ import Foundation
 /// (video keyframes with PAT/PMT in front), so the oldest retained byte is always a valid
 /// place to start demuxing. An in-memory index maps buffer time (the tuner's continuous
 /// timeline) and wall-clock time to byte offsets of resync points.
-final class TimeshiftBuffer {
-    struct Entry {
+public final class TimeshiftBuffer {
+    public struct Entry {
         /// Buffer time in seconds (continuous across reconnects).
-        let time: Double
+        public let time: Double
         /// When this point arrived; for clock times in the UI and recording start/end.
-        let wall: Date
-        let offset: Int64
+        public let wall: Date
+        public let offset: Int64
     }
 
-    enum ReadResult {
+    public enum ReadResult {
         case data(Int)
         /// The tuner stopped and everything has been read.
         case ended
@@ -25,9 +27,9 @@ final class TimeshiftBuffer {
         case lost
     }
 
-    let directory: URL
+    public let directory: URL
     /// Seconds kept behind the live edge (at least two minutes, needed for playback).
-    var keepSeconds: Double {
+    public var keepSeconds: Double {
         get { cond.lock(); defer { cond.unlock() }; return keep }
         set { cond.lock(); keep = max(120, newValue); cond.unlock() }
     }
@@ -50,7 +52,7 @@ final class TimeshiftBuffer {
     private let segmentBytes: Int64 = 64 << 20
     private var statsProvider: (() -> (HTTPByteSource.NetStats, Int64))?
 
-    init(channelId: Int, keepSeconds: Double) {
+    public init(channelId: Int, keepSeconds: Double) {
         keep = max(120, keepSeconds)
         directory = Self.root.appendingPathComponent("\(channelId)-\(UUID().uuidString.prefix(8))", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -62,19 +64,19 @@ final class TimeshiftBuffer {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    static var root: URL {
+    public static var root: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Fernsy/timeshift", isDirectory: true)
     }
 
     /// Leftovers of a previous run (crash, force quit).
-    static func removeLeftovers() {
+    public static func removeLeftovers() {
         try? FileManager.default.removeItem(at: root)
     }
 
     // MARK: Writing (tuner demux thread)
 
-    func append(_ bytes: UnsafeRawBufferPointer) {
+    public func append(_ bytes: UnsafeRawBufferPointer) {
         guard let base = bytes.baseAddress, bytes.count > 0 else { return }
         cond.lock()
         defer { cond.unlock() }
@@ -94,7 +96,7 @@ final class TimeshiftBuffer {
     }
 
     /// The next byte written starts a resync point at buffer time `time`.
-    func markResyncPoint(time: Double) {
+    public func markResyncPoint(time: Double) {
         cond.lock()
         defer { cond.unlock() }
         guard !failed else { return }
@@ -108,27 +110,27 @@ final class TimeshiftBuffer {
     }
 
     /// No more data will come; readers get `.ended` once they reach the end.
-    func close() {
+    public func close() {
         cond.lock()
         closed = true
         cond.broadcast()
         cond.unlock()
     }
 
-    func setStatsProvider(_ provider: @escaping () -> (HTTPByteSource.NetStats, Int64)) {
+    public func setStatsProvider(_ provider: @escaping () -> (HTTPByteSource.NetStats, Int64)) {
         cond.lock()
         statsProvider = provider
         cond.unlock()
     }
 
-    func netStats() -> HTTPByteSource.NetStats {
+    public func netStats() -> HTTPByteSource.NetStats {
         cond.lock()
         let provider = statsProvider
         cond.unlock()
         return provider?().0 ?? HTTPByteSource.NetStats()
     }
 
-    func totalBytesReceived() -> Int64 {
+    public func totalBytesReceived() -> Int64 {
         cond.lock()
         let provider = statsProvider
         cond.unlock()
@@ -167,28 +169,28 @@ final class TimeshiftBuffer {
 
     // MARK: Index
 
-    var oldestOffset: Int64 {
+    public var oldestOffset: Int64 {
         cond.lock(); defer { cond.unlock() }
         return segments.first?.start ?? 0
     }
 
-    var oldest: Entry? {
+    public var oldest: Entry? {
         cond.lock(); defer { cond.unlock() }
         return entries.first
     }
 
-    var newest: Entry? {
+    public var newest: Entry? {
         cond.lock(); defer { cond.unlock() }
         return entries.last
     }
 
-    var isClosed: Bool {
+    public var isClosed: Bool {
         cond.lock(); defer { cond.unlock() }
         return closed
     }
 
     /// The last resync point at or before `time` (or the oldest one).
-    func entry(atOrBefore time: Double) -> Entry? {
+    public func entry(atOrBefore time: Double) -> Entry? {
         cond.lock(); defer { cond.unlock() }
         guard !entries.isEmpty else { return nil }
         var lo = 0, hi = entries.count - 1
@@ -200,20 +202,20 @@ final class TimeshiftBuffer {
         return entries[lo]
     }
 
-    func entry(atOrBeforeWall wall: Date) -> Entry? {
+    public func entry(atOrBeforeWall wall: Date) -> Entry? {
         cond.lock(); defer { cond.unlock() }
         guard let first = entries.first else { return nil }
         return entries.last { $0.wall <= wall } ?? first
     }
 
     /// Wall-clock time of a buffer time, interpolated from the nearest resync point.
-    func wallTime(of time: Double) -> Date? {
+    public func wallTime(of time: Double) -> Date? {
         guard let entry = entry(atOrBefore: time) else { return nil }
         return entry.wall.addingTimeInterval(time - entry.time)
     }
 
     /// Waits until the buffer has at least `seconds` of content (or the tuner gave up).
-    func waitForContent(seconds: Double, timeout: TimeInterval, cancelled: () -> Bool) -> Bool {
+    public func waitForContent(seconds: Double, timeout: TimeInterval, cancelled: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         cond.lock()
         defer { cond.unlock() }
@@ -226,7 +228,7 @@ final class TimeshiftBuffer {
 
     // MARK: Reading
 
-    func makeReader(at offset: Int64) -> Reader {
+    public func makeReader(at offset: Int64) -> Reader {
         cond.lock()
         defer { cond.unlock() }
         let id = nextReaderID
@@ -236,7 +238,7 @@ final class TimeshiftBuffer {
     }
 
     /// One position in the buffer; keeps its segment from being trimmed.
-    final class Reader {
+    public final class Reader {
         private let buffer: TimeshiftBuffer
         private let id: Int
         private var cancelled = false
@@ -252,19 +254,19 @@ final class TimeshiftBuffer {
             buffer.cond.unlock()
         }
 
-        var offset: Int64 {
+        public var offset: Int64 {
             buffer.cond.lock(); defer { buffer.cond.unlock() }
             return buffer.readerOffsets[id] ?? 0
         }
 
-        func cancel() {
+        public func cancel() {
             buffer.cond.lock()
             cancelled = true
             buffer.cond.broadcast()
             buffer.cond.unlock()
         }
 
-        func seek(to offset: Int64) -> Bool {
+        public func seek(to offset: Int64) -> Bool {
             buffer.cond.lock(); defer { buffer.cond.unlock() }
             guard offset >= (buffer.segments.first?.start ?? 0), offset <= buffer.writeOffset else { return false }
             buffer.readerOffsets[id] = offset
@@ -272,7 +274,7 @@ final class TimeshiftBuffer {
         }
 
         /// Blocks until data is available at the current position.
-        func read(into ptr: UnsafeMutableRawPointer, size: Int) -> ReadResult {
+        public func read(into ptr: UnsafeMutableRawPointer, size: Int) -> ReadResult {
             let b = buffer
             b.cond.lock()
             defer { b.cond.unlock() }
@@ -296,18 +298,18 @@ final class TimeshiftBuffer {
 }
 
 /// Copies the buffer from a resync point into a recording file until stopped.
-final class RecordingCopier {
-    let url: URL
+public final class RecordingCopier {
+    public let url: URL
     private let reader: TimeshiftBuffer.Reader
     private let lock = NSLock()
     private var stopAt: Int64?
     private var thread: Thread?
     private let done = DispatchSemaphore(value: 0)
-    private(set) var bytesWritten: Int64 = 0
-    private(set) var error: String?
-    var onFinish: (() -> Void)?
+    public private(set) var bytesWritten: Int64 = 0
+    public private(set) var error: String?
+    public var onFinish: (() -> Void)?
 
-    init(buffer: TimeshiftBuffer, from offset: Int64, to url: URL) throws {
+    public init(buffer: TimeshiftBuffer, from offset: Int64, to url: URL) throws {
         self.url = url
         FileManager.default.createFile(atPath: url.path, contents: nil)
         let handle = try FileHandle(forWritingTo: url)
@@ -322,17 +324,17 @@ final class RecordingCopier {
     }
 
     /// Writes what the buffer holds up to now, then ends the file.
-    func finish(at offset: Int64) {
+    public func finish(at offset: Int64) {
         lock.lock()
         stopAt = offset
         lock.unlock()
     }
 
-    func cancel() {
+    public func cancel() {
         reader.cancel()
     }
 
-    func waitUntilDone() {
+    public func waitUntilDone() {
         done.wait()
         done.signal()
     }
@@ -373,7 +375,7 @@ final class RecordingCopier {
                 return
             case .lost:
                 lock.lock()
-                error = String(localized: "The recording could not be written fast enough")
+                error = String(localized: "The recording could not be written fast enough", bundle: .module)
                 lock.unlock()
                 return
             }
@@ -383,7 +385,7 @@ final class RecordingCopier {
 
 extension TimeshiftBuffer {
     /// Everything written so far ends here.
-    var endOffset: Int64 {
+    public var endOffset: Int64 {
         cond.lock(); defer { cond.unlock() }
         return writeOffset
     }

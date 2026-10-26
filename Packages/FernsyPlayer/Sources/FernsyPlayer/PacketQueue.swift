@@ -1,10 +1,12 @@
+import CFFShim
+import FernsyCore
 import Foundation
 
 /// Thread-safe FIFO between the demuxer and a decoder thread.
 /// Packets carry the playback serial they were demuxed under, so decoders can
 /// discard anything that predates a seek or a stream discontinuity.
-final class PacketQueue {
-    enum Item {
+public final class PacketQueue {
+    public enum Item {
         case packet(UnsafeMutablePointer<AVPacket>, serial: Int)
         /// Decoder must reset its state; everything after belongs to `serial`.
         case flush(serial: Int)
@@ -18,12 +20,12 @@ final class PacketQueue {
     private var aborted = false
     private var bytes = 0
 
-    var byteCount: Int {
+    public var byteCount: Int {
         cond.lock(); defer { cond.unlock() }
         return bytes
     }
 
-    func put(_ item: Item) {
+    public func put(_ item: Item) {
         cond.lock()
         defer { cond.unlock() }
         if aborted {
@@ -36,7 +38,7 @@ final class PacketQueue {
     }
 
     /// Blocks until an item is available. Returns nil once aborted.
-    func get() -> Item? {
+    public func get() -> Item? {
         cond.lock()
         defer { cond.unlock() }
         while head >= items.count && !aborted {
@@ -54,7 +56,7 @@ final class PacketQueue {
     }
 
     /// Drops all queued items (used before posting a flush marker).
-    func clear() {
+    public func clear() {
         cond.lock()
         defer { cond.unlock() }
         for i in head..<items.count { Self.free(items[i]) }
@@ -63,7 +65,7 @@ final class PacketQueue {
         bytes = 0
     }
 
-    func abort() {
+    public func abort() {
         cond.lock()
         aborted = true
         for i in head..<items.count { Self.free(items[i]) }
