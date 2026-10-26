@@ -28,6 +28,14 @@ struct Recording: Codable, Identifiable, Equatable {
     /// neighbour goes.
     var clipBefore: TimeInterval = 0
     var clipAfter: TimeInterval = 0
+    /// Content the provider did not deliver (10 s or more each), saved as each gap closes.
+    var gaps: [Gap] = []
+
+    struct Gap: Codable, Equatable {
+        /// When the missing content would have been on air.
+        let at: Date
+        let seconds: TimeInterval
+    }
 
     var recordStart: Date { start.addingTimeInterval(-padBefore + clipBefore) }
     var recordEnd: Date { end.addingTimeInterval(padAfter - clipAfter) }
@@ -42,7 +50,7 @@ struct Recording: Codable, Identifiable, Equatable {
 extension Recording {
     private enum CodingKeys: String, CodingKey {
         case id, channelId, channelName, title, description, start, end, padBefore, padAfter
-        case followsPaddingSettings, status, fileName, error, bytes, clipBefore, clipAfter
+        case followsPaddingSettings, status, fileName, error, bytes, clipBefore, clipAfter, gaps
     }
 
     /// Lists written before `followsPaddingSettings` existed: their scheduled entries follow
@@ -65,6 +73,7 @@ extension Recording {
         bytes = try c.decodeIfPresent(Int64.self, forKey: .bytes)
         clipBefore = try c.decodeIfPresent(TimeInterval.self, forKey: .clipBefore) ?? 0
         clipAfter = try c.decodeIfPresent(TimeInterval.self, forKey: .clipAfter) ?? 0
+        gaps = try c.decodeIfPresent([Gap].self, forKey: .gaps) ?? []
     }
 }
 
@@ -78,6 +87,8 @@ final class Recorder: ObservableObject {
     weak var app: AppModel?
     private var storeURL: URL?
     private var copiers: [UUID: RecordingCopier] = [:]
+    private var gapTrackers: [UUID: GapTracker] = [:]
+    private var gapTimer: Timer?
     private var starting: Set<UUID> = []
     private var timer: Timer?
     private var activity: NSObjectProtocol?
@@ -156,6 +167,8 @@ final class Recorder: ObservableObject {
         stopAll(reason: nil)
         timer?.invalidate()
         timer = nil
+        gapTimer?.invalidate()
+        gapTimer = nil
         recordings = []
         storeURL = nil
         guard let accountKey else { updateActivity(); return }
@@ -183,6 +196,11 @@ final class Recorder: ObservableObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
+        let gapTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sampleGaps() }
+        }
+        RunLoop.main.add(gapTimer, forMode: .common)
+        self.gapTimer = gapTimer
         tick()
     }
 
@@ -423,12 +441,30 @@ final class Recorder: ObservableObject {
                 try FileManager.default.createDirectory(at: Self.folder, withIntermediateDirectories: true)
                 let copier = try RecordingCopier(buffer: tuner.buffer, from: entry.offset, to: Self.folder.appendingPathComponent(name))
                 copiers[recording.id] = copier
+                gapTrackers[recording.id] = GapTracker()
                 update(recording.id) { $0.fileName = name }
                 AppLog.info(.recordings, "started \(recording.title) on \(recording.channelName) → \(name)")
             } catch {
                 finish(recording.id, error: error.localizedDescription)
             }
         }
+    }
+
+    /// Once a second: how much content each writing recording got against the clock.
+    private func sampleGaps() {
+        guard !gapTrackers.isEmpty else { return }
+        let now = Date()
+        for id in Array(gapTrackers.keys) {
+            guard let recording = recordings.first(where: { $0.id == id }),
+                  let content = app?.tuners.tuner(recording.channelId)?.contentTime,
+                  let gap = gapTrackers[id]?.sample(wall: now, content: content) else { continue }
+            add(gap, to: recording)
+        }
+    }
+
+    private func add(_ gap: Recording.Gap, to recording: Recording) {
+        update(recording.id) { $0.gaps.append(gap) }
+        AppLog.warning(.recordings, "\(recording.title): \(Int(gap.seconds)) s missing from \(gap.at.formatted(date: .omitted, time: .standard)), the provider delivered too little")
     }
 
     /// Started (status `.recording`) but not writing yet, because no data has arrived.
@@ -439,6 +475,7 @@ final class Recorder: ObservableObject {
     private func finish(_ id: UUID, error: String?) {
         guard let recording = recordings.first(where: { $0.id == id }) else { return }
         let tuner = app?.tuners.tuner(recording.channelId)
+        if var tracker = gapTrackers.removeValue(forKey: id), let gap = tracker.finish() { add(gap, to: recording) }
         if let copier = copiers.removeValue(forKey: id) {
             copier.onFinish = { [weak self, weak copier] in
                 guard let self else { return }
@@ -648,5 +685,64 @@ enum Prompt {
         alert.messageText = title
         alert.informativeText = message
         if let window = NSApp.keyWindow { alert.beginSheetModal(for: window) } else { alert.runModal() }
+    }
+}
+
+/// Missing content in a running recording. Wall time minus content time (the deficit) stays
+/// steady while the provider delivers in real time and grows while it delivers too little;
+/// the writer's timeline never carries the hole as a jump (see design H of
+/// slow-live-stream-reconnect).
+struct GapTracker {
+    private var origin: (wall: Date, content: Double)?
+    /// Deficit before the current growth, and the last time it was there.
+    private var baseline = 0.0
+    private var lastAtBaseline = Date()
+    /// Deficit that has held (within 1 s) since `referenceAt`.
+    private var reference = 0.0
+    private var referenceAt = Date()
+    private var last: (wall: Date, deficit: Double)?
+    /// Raw deficits of the last 6 s: channels that deliver in bursts make the deficit a saw
+    /// tooth; its lower edge is the content really missing.
+    private var recent: [(wall: Date, deficit: Double)] = []
+    private let minimum: TimeInterval = 10
+
+    /// A gap of 10 s or more that this sample closes (the deficit held still for 5 s).
+    mutating func sample(wall: Date, content: Double) -> Recording.Gap? {
+        guard let origin else {
+            origin = (wall, content)
+            lastAtBaseline = wall
+            referenceAt = wall
+            return nil
+        }
+        let raw = wall.timeIntervalSince(origin.wall) - (content - origin.content)
+        recent.append((wall, raw))
+        recent.removeAll { wall.timeIntervalSince($0.wall) > 6 }
+        let deficit = recent.map(\.deficit).min() ?? raw
+        last = (wall, deficit)
+        if deficit <= baseline + 1 {
+            baseline = min(baseline, deficit)
+            lastAtBaseline = wall
+        }
+        if abs(deficit - reference) > 1 {
+            reference = deficit
+            referenceAt = wall
+        }
+        guard wall.timeIntervalSince(referenceAt) >= 5, deficit > baseline + 1 else { return nil }
+        return close(at: wall, deficit: deficit)
+    }
+
+    /// The recording ends: a gap still growing counts as well.
+    mutating func finish() -> Recording.Gap? {
+        guard let last, last.deficit > baseline + 1 else { return nil }
+        return close(at: last.wall, deficit: last.deficit)
+    }
+
+    private mutating func close(at wall: Date, deficit: Double) -> Recording.Gap? {
+        let growth = deficit - baseline
+        let start = lastAtBaseline
+        baseline = deficit
+        lastAtBaseline = wall
+        // Short hiccups are absorbed into the baseline.
+        return growth >= minimum ? Recording.Gap(at: start, seconds: growth) : nil
     }
 }

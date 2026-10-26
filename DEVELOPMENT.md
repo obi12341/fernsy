@@ -287,11 +287,17 @@ order, refused or with shortened padding as the stream limit requires; `IPTV_PLA
 the plan calculation's examples (`RecordingPlan`), `IPTV_AWAKEHOURS=<hours|0|off>` sets "Mac wach halten" in memory
 (0 = always while a recording is scheduled, off = never), `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
 `IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag,
+`IPTV_SECTION=<live|recordings|…>` opens the library on that section,
 `IPTV_TESTNODATA=<offline|silent>:<s>` makes tuner connections fail as an offline or silent
 channel for that many seconds after the first one; a recording keeps waiting for its channel
 until its window ends).
 `IPTV_TESTNET` (`drop:`, `stall:`, `close:<s>`; for live also `forbid:<s>`, the next edge
-reconnect gets a 403, and `flaky:<s>`, dropping again 6 s after the reconnect) (`IPTV_LIVELEAD=<s>`
+reconnect gets a 403, `flaky:<s>`, dropping again 6 s after the reconnect, and `trickle:<s>`,
+the connection delivering only `IPTV_TRICKLEKBIT` kbit/s (default 300) until the next reconnect,
+for the slow-delivery rule (`IPTV_TRICKLEMORE=<n|all>`: that many later connections as well, so the
+player runs dry and shows the provider card, or a recording misses content and lists the gap;
+`IPTV_TESTCLOCK=1` logs the content clock the rule measures every 2 s); `IPTV_TESTNOPATH=1` acts as if macOS had no network, for the
+"Keine Internetverbindung" card) (`IPTV_LIVELEAD=<s>`
 starts live closer to the newest data for the dry-player rule) also runs for films: a film's download that ends
 before the file does (an idle connection closed during a long pause) continues with a range
 request and keeps its buffer; an end more than 60 s before the known duration reloads at the

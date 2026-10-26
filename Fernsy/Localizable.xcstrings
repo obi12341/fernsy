@@ -252,6 +252,16 @@
         }
       }
     },
+    "%lld Lücken, insgesamt %@ – %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld gaps, %2$@ in total – %3$@"
+          }
+        }
+      }
+    },
     "%lld Min.": {
       "localizations": {
         "en": {
@@ -830,6 +840,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mark as Unwatched"
+          }
+        }
+      }
+    },
+    "Anbieter hat zu wenig geliefert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "provider delivered too little"
           }
         }
       }
@@ -1656,6 +1676,16 @@
         }
       }
     },
+    "Der Sender kommt zu langsam vom Anbieter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The channel arrives too slowly from the provider"
+          }
+        }
+      }
+    },
     "Der Sender liefert gerade keine Tondaten. Der Ton setzt automatisch wieder ein.": {
       "localizations": {
         "en": {
@@ -1832,6 +1862,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your own media server"
+          }
+        }
+      }
+    },
+    "Ein anderer Server des Anbieters liefert wieder flüssig.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another server of the provider delivers smoothly again."
           }
         }
       }
@@ -2116,12 +2156,42 @@
         }
       }
     },
+    "Fernsy spielt weiter, sobald das Netz zurück ist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy continues as soon as the network is back."
+          }
+        }
+      }
+    },
     "Fernsy sucht nach „%@“.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Fernsy is searching for \"%@\"."
+          }
+        }
+      }
+    },
+    "Fernsy wartet auf Daten …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy is waiting for data …"
+          }
+        }
+      }
+    },
+    "Fernsy wechselt zu einem anderen Server des Anbieters …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy is switching to another server of the provider …"
           }
         }
       }
@@ -2870,6 +2940,16 @@
         }
       }
     },
+    "Keine Internetverbindung": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No internet connection"
+          }
+        }
+      }
+    },
     "Keine Programmdaten": {
       "localizations": {
         "en": {
@@ -3066,6 +3146,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete"
+          }
+        }
+      }
+    },
+    "Lücke %@ (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gap %1$@ (%2$@)"
           }
         }
       }
@@ -5324,6 +5414,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "over"
+          }
+        }
+      }
+    },
+    "zu langsam: %.0f s Inhalt in %.0f s": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "too slow: %1$.0f s of content in %2$.0f s"
           }
         }
       }

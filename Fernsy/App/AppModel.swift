@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import Network
 import SwiftUI
 
 enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
@@ -122,6 +123,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var recentChannels: [Int]
     /// Channels the provider reported offline when played in this run (cleared by a successful start).
     @Published var offlineChannels: Set<Int> = []
+    /// macOS has a network path (Wi-Fi, Ethernet …). False lets the player say "no internet"
+    /// instead of naming the provider.
+    @Published private(set) var isNetworkAvailable = true
+    private let pathMonitor = NWPathMonitor()
     static let recentLimit = 20
     /// Hidden live categories and channels of the signed-in account.
     @Published private(set) var visibility = ChannelVisibility() {
@@ -267,9 +272,31 @@ final class AppModel: ObservableObject {
         debugBootstrap()
         #endif
         Task { @MainActor in _ = self.mcp }
+        startPathMonitor()
         loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
+    }
+
+    private func startPathMonitor() {
+        #if DEBUG
+        // IPTV_TESTNOPATH=1: as if macOS reported no network (the no-internet card).
+        if ProcessInfo.processInfo.environment["IPTV_TESTNOPATH"] == "1" {
+            isNetworkAvailable = false
+            return
+        }
+        #endif
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let available = path.status == .satisfied
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, self.isNetworkAvailable != available else { return }
+                    AppLog.info(.network, available ? "network available" : "no network path")
+                    self.isNetworkAvailable = available
+                }
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "app.path"))
     }
 
     func applyTimeshiftSetting() {
@@ -352,6 +379,10 @@ final class AppModel: ObservableObject {
                     window.setFrame(CGRect(origin: CGPoint(x: 80, y: 80), size: CGSize(width: size[0], height: size[1])), display: true)
                 }
             }
+        }
+        // IPTV_SECTION=<live|recordings|…>: the library opens on that section.
+        if let section = env["IPTV_SECTION"].flatMap(LibrarySection.init(rawValue:)) {
+            requestedSection = section
         }
         if let list = env["IPTV_TESTRECORD"] {
             // IPTV_TESTRECORD=<channel>:<starts in s>:<seconds>[:<before min>:<after min>],…: shows
