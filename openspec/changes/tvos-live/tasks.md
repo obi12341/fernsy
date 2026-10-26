@@ -12,7 +12,7 @@
 
 ## 3. Live TV
 
-- [ ] 3.1 Category column, channel rows and the pane with now and next (screen `live`). Verify: demo-server screenshot next to the rendered design screen; tags, star, progress and time left are shown.
+- [x] 3.1 Category column, channel rows and the pane with now and next (screen `live`). Verify: demo-server screenshot next to the rendered design screen; tags, star, progress and time left are shown.
 - [ ] 3.2 Preview in the pane per design E, Play/Pause for sound. Verify: MCP `now_playing` on 52325 shows the previewed channel after focus rests; with `IPTV_MAXCONN=1` and a recording running (`IPTV_TESTRECORD=102:5:60:0:0`) the pane shows the logo and no second connection opens (log).
 - [ ] 3.3 Long-press menu: Aufnehmen, Favorit, Ausblenden; favourites, history and hiding as on the Mac (task 1.1). Verify: UI test hides a channel and it is gone from the list, the guide and the zap strip.
 - [ ] 3.4 "Alle Kategorien" with country chips, search, pin and hide (screen `kategorien`). Verify: demo-server screenshot; pinning a category adds it to the column.

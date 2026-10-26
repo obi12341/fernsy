@@ -22,6 +22,13 @@ public struct ChannelVisibility: Codable, Equatable, Sendable {
     }
 
     /// The stored value in an account folder; empty if there is none or it is unreadable.
+    /// The value as stored data (Apple TV keeps it in UserDefaults); empty if `data` is nil or unreadable.
+    public static func decoded(_ data: Data?) -> ChannelVisibility {
+        data.flatMap(AccountFile.decode) ?? ChannelVisibility()
+    }
+
+    public var encoded: Data? { AccountFile.encode(self) }
+
     public static func load(from dir: URL) -> ChannelVisibility {
         AccountFile.load(fileName, from: dir) ?? ChannelVisibility()
     }
@@ -51,6 +58,13 @@ public struct PinnedCategories: Codable, Equatable, Sendable {
         modifiedAt = Date()
     }
 
+    /// The value as stored data (Apple TV keeps it in UserDefaults); empty if `data` is nil or unreadable.
+    public static func decoded(_ data: Data?) -> PinnedCategories {
+        data.flatMap(AccountFile.decode) ?? PinnedCategories()
+    }
+
+    public var encoded: Data? { AccountFile.encode(self) }
+
     public static func load(from dir: URL) -> PinnedCategories {
         AccountFile.load(fileName, from: dir) ?? PinnedCategories()
     }
@@ -60,20 +74,27 @@ public struct PinnedCategories: Codable, Equatable, Sendable {
     }
 }
 
-/// Small JSON files in an account folder (ISO dates, sorted keys).
+/// Small JSON values in an account folder or in UserDefaults (ISO dates, sorted keys).
 enum AccountFile {
-    static func load<T: Decodable>(_ name: String, from dir: URL) -> T? {
+    static func decode<T: Decodable>(_ data: Data) -> T? {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        guard let data = try? Data(contentsOf: dir.appendingPathComponent(name)) else { return nil }
         return try? decoder.decode(T.self, from: data)
     }
 
-    static func save<T: Encodable>(_ value: T, as name: String, to dir: URL) {
+    static func encode<T: Encodable>(_ value: T) -> Data? {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
-        guard let data = try? encoder.encode(value) else { return }
+        return try? encoder.encode(value)
+    }
+
+    static func load<T: Decodable>(_ name: String, from dir: URL) -> T? {
+        (try? Data(contentsOf: dir.appendingPathComponent(name))).flatMap(decode)
+    }
+
+    static func save<T: Encodable>(_ value: T, as name: String, to dir: URL) {
+        guard let data = encode(value) else { return }
         try? data.write(to: dir.appendingPathComponent(name), options: .atomic)
     }
 }

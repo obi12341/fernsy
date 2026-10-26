@@ -75,6 +75,14 @@ struct LiveStateTests {
         #expect(ChannelVisibility.load(from: dir).hiddenChannels == [5])
     }
 
+    @Test func valuesRoundTripAsData() {
+        var pinned = PinnedCategories()
+        pinned.set("7", pinned: true)
+        #expect(PinnedCategories.decoded(pinned.encoded).categories == ["7"])
+        #expect(ChannelVisibility.decoded(nil) == ChannelVisibility())
+        #expect(ChannelVisibility.decoded(Data("garbage".utf8)) == ChannelVisibility())
+    }
+
     /// The Mac's stored visibility.json from before the move still loads.
     @Test func existingVisibilityFileLoads() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -25,6 +25,12 @@ final class TVModel: ObservableObject {
     /// Launched with stored credentials: the sign-in at launch shows progress, not the welcome screen.
     private(set) var startedWithAccount = false
 
+    // Live lists, as on the Mac (LiveRules); see TVModel+Live.swift.
+    @Published var favorites: Set<String> = []
+    @Published var recentChannels: [Int] = []
+    @Published var visibility = ChannelVisibility()
+    @Published var pinned = PinnedCategories()
+
     let engine = PlayerEngine()
     let guide = EPGStore()
     private let tuners = TunerPool()
@@ -50,7 +56,13 @@ final class TVModel: ObservableObject {
         let client = XtreamClient(credentials: credentials)
         // Restoring the stored account (`remember` false): the cached catalog shows at once and the
         // server's answer replaces it. A new sign-in shows nothing before the server accepts it.
-        if !remember, let cached = CatalogCache.load(accountKey: credentials.accountKey) { apply(cached) }
+        if !remember, let cached = CatalogCache.load(accountKey: credentials.accountKey) {
+            // The rows load their guide as they appear, so they need the client already.
+            self.client = client
+            self.credentials = credentials
+            loadLiveState()
+            apply(cached)
+        }
         do {
             let account = try await client.account()
             self.client = client
@@ -58,6 +70,7 @@ final class TVModel: ObservableObject {
             maxConnections = max(1, account.maxConnections ?? 1)
             tuners.limit = maxConnections
             if remember && !Self.skipKeychain { CredentialStore.save(credentials) }
+            loadLiveState()
             signIn = .signedIn
             AppLog.info(.app, "signed in, \(maxConnections) stream(s)")
             try await loadCatalog()
@@ -118,6 +131,7 @@ final class TVModel: ObservableObject {
         if let playing, playing.id != channel.id { tuners.release(playing.id, owner: .player) }
         let tuner = tuners.acquire(channel.id, url: url, owner: .player)
         playing = channel
+        noteRecent(channel.id)
         engine.load(tuner: tuner)
         AppLog.info(.player, "play channel \(channel.id): \(channel.displayName)")
     }

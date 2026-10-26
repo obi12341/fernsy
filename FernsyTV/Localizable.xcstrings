@@ -3,6 +3,26 @@
   "strings": {
     "": {},
     "%@": {},
+    "%lld channels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sender"
+          }
+        }
+      }
+    },
+    "%lld min left": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "noch %lld Min."
+          }
+        }
+      }
+    },
     "A notification appears on your iPhone. With it you can type or paste the address and password.": {
       "localizations": {
         "de": {
@@ -23,12 +43,92 @@
         }
       }
     },
+    "All": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle"
+          }
+        }
+      }
+    },
+    "All Categories": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Kategorien"
+          }
+        }
+      }
+    },
+    "All Channels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Sender"
+          }
+        }
+      }
+    },
+    "Back: Live TV": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück: Live TV"
+          }
+        }
+      }
+    },
+    "Channels you watch appear here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hier erscheinen die Sender, die du schaust."
+          }
+        }
+      }
+    },
+    "Click: Open Category": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken: Kategorie öffnen"
+          }
+        }
+      }
+    },
+    "Click: Watch": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken: Einschalten"
+          }
+        }
+      }
+    },
     "Ended": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Beendet"
+          }
+        }
+      }
+    },
+    "Favorites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoriten"
           }
         }
       }
@@ -59,6 +159,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Programm"
+          }
+        }
+      }
+    },
+    "Hide": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausblenden"
+          }
+        }
+      }
+    },
+    "Hold: Pin, Hide": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gedrückt halten: Anheften, Ausblenden"
+          }
+        }
+      }
+    },
+    "Hold: Record, Favourite, Hide": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gedrückt halten: Aufnehmen, Favorit, Ausblenden"
           }
         }
       }
@@ -113,6 +243,66 @@
         }
       }
     },
+    "NEXT": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DANACH"
+          }
+        }
+      }
+    },
+    "No channels.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Sender."
+          }
+        }
+      }
+    },
+    "No Country": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ohne Land"
+          }
+        }
+      }
+    },
+    "No favourites yet. Hold a channel’s button and choose “Favourite”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Favoriten. Halte die Taste auf einem Sender gedrückt und wähle „Favorit“."
+          }
+        }
+      }
+    },
+    "No programme information": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Programminformationen"
+          }
+        }
+      }
+    },
+    "NOW · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JETZT · %@"
+          }
+        }
+      }
+    },
     "Password": {
       "localizations": {
         "de": {
@@ -133,6 +323,46 @@
         }
       }
     },
+    "Pin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anheften"
+          }
+        }
+      }
+    },
+    "PINNED": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ANGEHEFTET"
+          }
+        }
+      }
+    },
+    "Pinned": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angeheftet"
+          }
+        }
+      }
+    },
+    "Play/Pause: Preview with sound": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "▶︎❙❙: Vorschau mit Ton"
+          }
+        }
+      }
+    },
     "Playing": {
       "localizations": {
         "de": {
@@ -143,12 +373,42 @@
         }
       }
     },
+    "REC": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "REC"
+          }
+        }
+      }
+    },
+    "Recently Watched": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuletzt gesehen"
+          }
+        }
+      }
+    },
     "Recordings": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Aufnahmen"
+          }
+        }
+      }
+    },
+    "Search categories": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorie suchen"
           }
         }
       }
@@ -198,7 +458,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anmeldung …"
+            "value": "Anmelden …"
           }
         }
       }
@@ -209,6 +469,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Demo-Zugang testen"
+          }
+        }
+      }
+    },
+    "Unpin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht mehr anheften"
           }
         }
       }
