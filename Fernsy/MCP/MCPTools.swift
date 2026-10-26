@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 import SwiftUI
 
 /// The MCP tools: the guide, the viewing history, recordings and playback, through the same

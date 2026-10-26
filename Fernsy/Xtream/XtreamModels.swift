@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 // Xtream Codes panels are loose with JSON types (ids as strings or ints, numbers

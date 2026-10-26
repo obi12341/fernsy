@@ -3,13 +3,20 @@ import Foundation
 /// A provider's channel or category name split into what people read and what tells
 /// duplicates apart: "|DE| RTL FHD" → name "RTL", country "DE", quality "FHD".
 /// Names in which nothing is recognised stay exactly as delivered.
-struct ChannelName: Hashable, Sendable {
-    let raw: String
-    let name: String
-    let country: String?
-    let quality: String?
+public struct ChannelName: Hashable, Sendable {
+    public let raw: String
+    public let name: String
+    public let country: String?
+    public let quality: String?
 
-    static func parse(_ raw: String) -> ChannelName {
+    public init(raw: String, name: String, country: String?, quality: String?) {
+        self.raw = raw
+        self.name = name
+        self.country = country
+        self.quality = quality
+    }
+
+    public static func parse(_ raw: String) -> ChannelName {
         var text = trimDecoration(raw)
         var country: String?
         if let (code, rest) = countryPrefix(text) {
@@ -73,37 +80,4 @@ struct ChannelName: Hashable, Sendable {
         }
         return w.uppercased()
     }
-
-    #if DEBUG
-    /// IPTV_NAMETEST=1: the spec's examples and known edge cases.
-    static func selfTest() {
-        let cases: [(String, String, String?, String?)] = [
-            ("|DE| RTL FHD", "RTL", "DE", "FHD"),
-            ("########## ADULT ##########", "ADULT", nil, nil),
-            ("Kanal Süd", "Kanal Süd", nil, nil),
-            ("TV: Classics", "TV: Classics", nil, nil),
-            ("DE: ZDF", "ZDF", "DE", nil),
-            ("[DE] ZDF", "ZDF", "DE", nil),
-            ("DE - ZDF", "ZDF", "DE", nil),
-            ("DE ▎ ZDF", "ZDF", "DE", nil),
-            ("DE: ZDF HD", "ZDF", "DE", "HD"),
-            ("DE: ZDF SD", "ZDF", "DE", "SD"),
-            ("DE: Das Erste HD", "Das Erste", "DE", "HD"),
-            ("UK: BBC One FHD", "BBC One", "UK", "FHD"),
-            ("RT Doc", "RT Doc", nil, nil),
-            ("ARD-alpha", "ARD-alpha", nil, nil),
-            ("ZDF HDraw Cable", "ZDF HDraw Cable", nil, nil),
-            ("Das Erste HDraw", "Das Erste", nil, "HD raw"),
-            ("Northern Light 1 HD", "Northern Light 1", nil, "HD"),
-            ("HD", "HD", nil, nil),
-            ("4K", "4K", nil, nil),
-            ("FR: TF1 FHD HEVC", "TF1", "FR", "FHD"),
-        ]
-        for (raw, name, country, quality) in cases {
-            let p = parse(raw)
-            let ok = p.name == name && p.country == country && p.quality == quality
-            debugLog("[test] channel name \(ok ? "pass" : "FAIL"): \"\(raw)\" → \"\(p.name)\" \(p.country ?? "-") \(p.quality ?? "-")")
-        }
-    }
-    #endif
 }

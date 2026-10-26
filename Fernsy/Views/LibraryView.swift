@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// Pseudo category id for "everything in this section".

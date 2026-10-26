@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// A small outlined tag next to a channel or category name ("DE", "FHD").

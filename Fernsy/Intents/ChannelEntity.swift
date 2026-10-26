@@ -1,5 +1,6 @@
 import AppIntents
 import CoreSpotlight
+import FernsyCore
 
 /// A live channel for Siri, Spotlight and Shortcuts. Only channels the app shows are offered
 /// (hidden ones and adult content per Settings left out).

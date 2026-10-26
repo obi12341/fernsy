@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreMedia
 import CoreVideo
+import FernsyCore
 
 // FFmpeg custom-I/O trampolines (must be plain C function pointers; FrameGrabber uses them too).
 /// Gives the C callbacks a concrete class to point at.

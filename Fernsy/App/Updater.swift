@@ -1,5 +1,6 @@
 #if DIRECT_DISTRIBUTION
 import Combine
+import FernsyCore
 import Foundation
 import Sparkle
 import SwiftUI

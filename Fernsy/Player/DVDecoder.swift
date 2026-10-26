@@ -1,4 +1,5 @@
 import CoreMedia
+import FernsyCore
 import Foundation
 import VideoToolbox
 

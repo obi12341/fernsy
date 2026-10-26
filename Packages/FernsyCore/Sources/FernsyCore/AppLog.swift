@@ -1,6 +1,6 @@
 import Foundation
 
-enum LogLevel: Int, Comparable, CaseIterable, Sendable {
+public enum LogLevel: Int, Comparable, CaseIterable, Sendable {
     /// Frequent or technical data (stats, timing, geometry).
     case detail
     /// Normal milestones (playback started, recording finished, catalog loaded).
@@ -10,9 +10,9 @@ enum LogLevel: Int, Comparable, CaseIterable, Sendable {
     /// Something that failed for the user.
     case error
 
-    static func < (a: LogLevel, b: LogLevel) -> Bool { a.rawValue < b.rawValue }
+    public static func < (a: LogLevel, b: LogLevel) -> Bool { a.rawValue < b.rawValue }
 
-    var code: String {
+    public var code: String {
         switch self {
         case .detail: "DETAIL"
         case .info: "INFO"
@@ -21,25 +21,33 @@ enum LogLevel: Int, Comparable, CaseIterable, Sendable {
         }
     }
 
-    init?(code: String) {
+    public init?(code: String) {
         guard let level = Self.allCases.first(where: { $0.code == code }) else { return nil }
         self = level
     }
 }
 
-enum LogCategory: String, CaseIterable, Sendable {
+public enum LogCategory: String, CaseIterable, Sendable {
     case app, player, network, tuner, timeshift, recordings, catalog, guide, jellyfin, pip, mcp
 }
 
-struct LogEntry: Identifiable, Sendable {
-    let id: Int
-    let date: Date
-    let level: LogLevel
-    let category: LogCategory
-    let message: String
+public struct LogEntry: Identifiable, Sendable {
+    public let id: Int
+    public let date: Date
+    public let level: LogLevel
+    public let category: LogCategory
+    public let message: String
+
+    public init(id: Int, date: Date, level: LogLevel, category: LogCategory, message: String) {
+        self.id = id
+        self.date = date
+        self.level = level
+        self.category = category
+        self.message = message
+    }
 
     /// One line of the log file and of copied or saved text.
-    var line: String {
+    public var line: String {
         "\(LogEntry.timestamp.string(from: date))\t\(level.code)\t\(category.rawValue)\t\(message)"
     }
 
@@ -54,16 +62,16 @@ struct LogEntry: Identifiable, Sendable {
 /// The app's event log, in every build: the last entries in memory, and a file in the app's
 /// Caches folder for this run and the previous one. Callable from any thread; credentials are
 /// removed before an entry is stored. Nothing is ever sent anywhere.
-final class AppLog: @unchecked Sendable {
-    static let shared = AppLog()
+public final class AppLog: @unchecked Sendable {
+    public static let shared = AppLog()
 
-    static func detail(_ category: LogCategory, _ message: String) { shared.add(.detail, category, message) }
-    static func info(_ category: LogCategory, _ message: String) { shared.add(.info, category, message) }
-    static func warning(_ category: LogCategory, _ message: String) { shared.add(.warning, category, message) }
-    static func error(_ category: LogCategory, _ message: String) { shared.add(.error, category, message) }
+    public static func detail(_ category: LogCategory, _ message: String) { shared.add(.detail, category, message) }
+    public static func info(_ category: LogCategory, _ message: String) { shared.add(.info, category, message) }
+    public static func warning(_ category: LogCategory, _ message: String) { shared.add(.warning, category, message) }
+    public static func error(_ category: LogCategory, _ message: String) { shared.add(.error, category, message) }
 
-    static let capacity = 20_000
-    static let maxFileBytes = 4 << 20
+    public static let capacity = 20_000
+    public static let maxFileBytes = 4 << 20
 
     private let lock = NSLock()
     private var entries: [LogEntry] = []
@@ -76,9 +84,9 @@ final class AppLog: @unchecked Sendable {
     private var file: FileHandle?
     private var fileBytes = 0
 
-    let folder: URL
-    var currentURL: URL { folder.appendingPathComponent("current.log") }
-    var previousURL: URL { folder.appendingPathComponent("previous.log") }
+    public let folder: URL
+    public var currentURL: URL { folder.appendingPathComponent("current.log") }
+    public var previousURL: URL { folder.appendingPathComponent("previous.log") }
 
     private init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -96,7 +104,7 @@ final class AppLog: @unchecked Sendable {
 
     // MARK: Writing
 
-    func add(_ level: LogLevel, _ category: LogCategory, _ message: String) {
+    public func add(_ level: LogLevel, _ category: LogCategory, _ message: String) {
         lock.lock()
         let text = redact(message, secrets: Array(secrets.values))
         let entry = LogEntry(id: nextID, date: Date(), level: level, category: category, message: text)
@@ -147,7 +155,7 @@ final class AppLog: @unchecked Sendable {
     // MARK: Reading
 
     /// Entries of this run with an id above `id` (all for nil).
-    func entries(after id: Int?) -> [LogEntry] {
+    public func entries(after id: Int?) -> [LogEntry] {
         lock.lock(); defer { lock.unlock() }
         guard let id else { return entries }
         guard let last = entries.last, last.id > id else { return [] }
@@ -156,7 +164,7 @@ final class AppLog: @unchecked Sendable {
     }
 
     /// The previous run, read from its file.
-    func previousRun() -> [LogEntry] {
+    public func previousRun() -> [LogEntry] {
         guard let text = try? String(contentsOf: previousURL, encoding: .utf8) else { return [] }
         var result: [LogEntry] = []
         for (i, line) in text.split(separator: "\n").enumerated() {
@@ -170,7 +178,7 @@ final class AppLog: @unchecked Sendable {
     }
 
     /// Empties this run (memory and file).
-    func clear() {
+    public func clear() {
         lock.lock()
         entries = []
         pending = []
@@ -184,7 +192,7 @@ final class AppLog: @unchecked Sendable {
     // MARK: Credentials
 
     /// Values replaced by "•••" wherever they appear (passwords, tokens); nil removes one.
-    func setSecret(_ key: String, _ value: String?) {
+    public func setSecret(_ key: String, _ value: String?) {
         lock.lock(); defer { lock.unlock() }
         if let value, value.count >= 4 { secrets[key] = value } else { secrets[key] = nil }
     }
@@ -194,7 +202,7 @@ final class AppLog: @unchecked Sendable {
     private static let pathCredentials = try! NSRegularExpression(
         pattern: "/(live|movie|series|timeshift)/[^/\\s]+/[^/\\s]+/", options: [])
 
-    func redact(_ message: String, secrets: [String]) -> String {
+    public func redact(_ message: String, secrets: [String]) -> String {
         var text = message
         let range = { NSRange(text.startIndex..., in: text) }
         text = Self.queryCredentials.stringByReplacingMatches(in: text, range: range(), withTemplate: "$1•••")
@@ -207,37 +215,13 @@ final class AppLog: @unchecked Sendable {
         }
         return text
     }
-
-    #if DEBUG
-    /// IPTV_LOGSELFTEST=1: sample messages with credentials; none may survive.
-    func selfTest() {
-        setSecret("selftest", "s3cr3t-Pass")
-        let samples = [
-            "GET http://example.com:8080/live/alice/s3cr3t-Pass/101.ts failed",
-            "player_api.php?username=alice&password=s3cr3t-Pass&action=get_live_streams",
-            "https://jf.example/Videos/1/stream?api_key=abcdef123&Static=true",
-            "token=xyz789 rejected, password is s3cr3t-Pass",
-        ]
-        var ok = true
-        for sample in samples {
-            add(.detail, .app, "selftest " + sample)
-            let stored = entries(after: nil).last?.message ?? ""
-            for secret in ["alice/", "s3cr3t-Pass", "abcdef123", "xyz789"] where stored.contains(secret) {
-                ok = false
-                debugLog("[test] log self-test FAIL: \(secret) in \(stored)")
-            }
-        }
-        setSecret("selftest", nil)
-        debugLog("[test] log self-test \(ok ? "pass" : "FAIL")")
-    }
-    #endif
 }
 
 extension AppLog {
     /// A filtered slice of the current or previous run, oldest first: at least `minimum`, in
     /// `categories` (all when empty), since `since`, containing `query`; the newest `limit` of
     /// those. Entries are redacted already when they are added.
-    func query(previous: Bool = false, minimum: LogLevel = .info, categories: Set<LogCategory> = [],
+    public func query(previous: Bool = false, minimum: LogLevel = .info, categories: Set<LogCategory> = [],
                since: Date? = nil, query: String = "", limit: Int = 200) -> (entries: [LogEntry], truncated: Bool) {
         let source = previous ? previousRun() : entries(after: nil)
         let needle = query.lowercased()
@@ -250,3 +234,13 @@ extension AppLog {
         return (Array(matching.suffix(limit)), matching.count > limit)
     }
 }
+
+#if DEBUG
+private let debugStart = Date()
+
+/// Debug builds: a line on stderr with the seconds since launch (test runs read it).
+public func debugLog(_ message: String) {
+    let t = String(format: "%7.2f", Date().timeIntervalSince(debugStart))
+    FileHandle.standardError.write(Data(("\(t) " + message + "\n").utf8))
+}
+#endif

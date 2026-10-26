@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// Streams an HTTP resource through URLSession and exposes blocking read/seek

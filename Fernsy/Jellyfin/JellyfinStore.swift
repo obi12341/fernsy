@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// The Jellyfin account and its film and series library.

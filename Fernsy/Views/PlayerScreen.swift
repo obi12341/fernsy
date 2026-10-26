@@ -1,6 +1,7 @@
 import AppIntents
 import Charts
 import Combine
+import FernsyCore
 import SwiftUI
 
 struct PlayerScreen: View {

@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 import SwiftUI
 import UniformTypeIdentifiers
 

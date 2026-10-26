@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 
 /// Library windows hidden while the player is in full screen. With no Fernsy window left on the
 /// desktop, activating Fernsy (⌘-Tab, Dock) switches to the player's full-screen Space instead of

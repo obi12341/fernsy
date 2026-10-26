@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// The programme of one channel. Views observe this per channel, so a channel finishing

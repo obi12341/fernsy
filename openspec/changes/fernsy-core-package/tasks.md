@@ -8,9 +8,9 @@
 
 ## 1. Package skeleton
 
-- [ ] 1.1 Create `Packages/FernsyCore` (Package.swift per design A, `Sources/FernsyCore`, `Tests/FernsyCoreTests`, empty `Localizable.xcstrings` as resource) and link it from both app targets as a local package. Restore Xcode's `alwaysOutOfDate` reordering in `project.pbxproj` from HEAD. Verify: Debug builds of `Fernsy` and `Fernsy Direct` with 0 warnings; `git diff` of the project file shows only the package reference and the two product dependencies.
-- [ ] 1.2 Move `ChannelName` with `debugLog` and `AppLog` (needed by it and almost everything else) into the package, make what the app uses `public`, add `import FernsyCore` where needed. Turn `ChannelName.selfTest` and `AppLog.selfTest` into `ChannelNameTests` and `AppLogTests`, remove the functions and the `IPTV_NAMETEST`/`IPTV_LOGSELFTEST` switches. Verify: `xcodebuild test -scheme FernsyCore -destination 'platform=macOS'` passes all 20 name cases and the secrets test; make one name case fail on purpose once and see the test name it.
-- [ ] 1.3 `scripts/test.sh`: macOS tests plus `xcodebuild build -scheme FernsyCore -destination 'generic/platform=tvOS Simulator'`. Verify: it exits 0, and exits non-zero when a test fails.
+- [x] 1.1 Create `Packages/FernsyCore` (Package.swift per design A, `Sources/FernsyCore`, `Tests/FernsyCoreTests`, empty `Localizable.xcstrings` as resource) and link it from both app targets as a local package. Restore Xcode's `alwaysOutOfDate` reordering in `project.pbxproj` from HEAD. Verify: Debug builds of `Fernsy` and `Fernsy Direct` with 0 warnings; `git diff` of the project file shows only the package reference and the two product dependencies.
+- [x] 1.2 Move `ChannelName` with `debugLog` and `AppLog` (needed by it and almost everything else) into the package, make what the app uses `public`, add `import FernsyCore` where needed. Turn `ChannelName.selfTest` and `AppLog.selfTest` into `ChannelNameTests` and `AppLogTests`, remove the functions and the `IPTV_NAMETEST`/`IPTV_LOGSELFTEST` switches. Verify: `xcodebuild test -scheme FernsyCore -destination 'platform=macOS'` passes all 20 name cases and the secrets test; make one name case fail on purpose once and see the test name it.
+- [x] 1.3 `scripts/test.sh`: macOS tests plus `xcodebuild build -scheme FernsyCore -destination 'generic/platform=tvOS Simulator'`. Verify: it exits 0, and exits non-zero when a test fails.
 
 ## 2. Move the shared logic
 

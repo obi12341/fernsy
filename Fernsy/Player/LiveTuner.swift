@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// Receives one live channel from the network into its timeshift buffer, for the player and

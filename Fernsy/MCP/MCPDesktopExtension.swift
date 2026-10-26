@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 
 /// "Zu Claude Desktop hinzufügen …": a desktop extension (`.mcpb`, manifest 0.3) that Claude
 /// Desktop installs with one click. It holds a tiny stdio bridge that forwards MCP messages to

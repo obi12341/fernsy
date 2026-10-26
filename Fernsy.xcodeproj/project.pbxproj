@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		A1B2C3D4000000000000003B /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000000000000003A /* Sparkle */; };
+		A1B2C3D40000000000000041 /* FernsyCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000000000000003F /* FernsyCore */; };
+		A1B2C3D40000000000000042 /* FernsyCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000040 /* FernsyCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +34,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D40000000000000041 /* FernsyCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -40,6 +43,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D4000000000000003B /* Sparkle in Frameworks */,
+				A1B2C3D40000000000000042 /* FernsyCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,6 +100,7 @@
 			);
 			name = Fernsy;
 			packageProductDependencies = (
+				A1B2C3D4000000000000003F /* FernsyCore */,
 			);
 			productName = Fernsy;
 			productReference = A1B2C3D40000000000000001 /* Fernsy.app */;
@@ -120,6 +125,7 @@
 			name = "Fernsy Direct";
 			packageProductDependencies = (
 				A1B2C3D4000000000000003A /* Sparkle */,
+				A1B2C3D40000000000000040 /* FernsyCore */,
 			);
 			productName = Fernsy;
 			productReference = A1B2C3D40000000000000038 /* Fernsy.app */;
@@ -155,6 +161,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A1B2C3D40000000000000039 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				A1B2C3D4000000000000003E /* XCLocalSwiftPackageReference "Packages/FernsyCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A1B2C3D40000000000000005 /* Products */;
@@ -496,6 +503,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		A1B2C3D4000000000000003E /* XCLocalSwiftPackageReference "Packages/FernsyCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FernsyCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		A1B2C3D40000000000000039 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -512,6 +526,14 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D40000000000000039 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		A1B2C3D4000000000000003F /* FernsyCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FernsyCore;
+		};
+		A1B2C3D40000000000000040 /* FernsyCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FernsyCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// Receives the cleaned packets of a tuner session (PlaybackSession in `.tuner` mode) on its

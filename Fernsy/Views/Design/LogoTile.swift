@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 import SwiftUI
 
 /// A channel logo on a 13:8 tile: graphite in both appearances (IPTV logos are mostly made

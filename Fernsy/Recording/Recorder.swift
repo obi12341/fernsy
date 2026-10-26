@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 import Foundation
 
 struct Recording: Codable, Identifiable, Equatable {

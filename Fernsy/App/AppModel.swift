@@ -1,4 +1,5 @@
 import Combine
+import FernsyCore
 import Foundation
 import Network
 import SwiftUI
@@ -525,9 +526,7 @@ final class AppModel: ObservableObject {
             }
         }
         if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
-        if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
-        if env["IPTV_NAMETEST"] == "1" { ChannelName.selfTest() }
         if env["IPTV_PLANTEST"] == "1" { RecordingPlan.selfTest() }
         if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
         if let spec = env["IPTV_TESTRESUME"] {

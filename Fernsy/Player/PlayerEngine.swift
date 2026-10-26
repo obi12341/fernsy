@@ -1,5 +1,6 @@
 import AVFoundation
 import Combine
+import FernsyCore
 import SwiftUI
 
 /// Position/duration live in their own object so that 10 Hz clock updates only
@@ -947,14 +948,6 @@ final class PlayerEngine: ObservableObject {
     }
 }
 
-#if DEBUG
-private let debugStart = Date()
-
-func debugLog(_ message: String) {
-    let t = String(format: "%7.2f", Date().timeIntervalSince(debugStart))
-    FileHandle.standardError.write(Data(("\(t) " + message + "\n").utf8))
-}
-#endif
 
 /// A weak engine reference the receivers' event tasks can carry; it is only read on the main queue.
 private final class WeakEngine: @unchecked Sendable {
