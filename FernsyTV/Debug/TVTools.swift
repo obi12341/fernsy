@@ -98,10 +98,11 @@ struct TVTools {
     }
 
     private func nowPlaying() -> [String: Any] {
-        guard let channel = model.playing else { return ["playing": false] }
+        guard let channel = model.playing ?? model.previewing else { return ["playing": false] }
         let engine = model.engine, progress = engine.progress
         var value: [String: Any] = [
             "playing": true, "item_id": "live:\(channel.id)", "channel": channel.displayName,
+            "preview": model.playing == nil, "muted": engine.isMuted,
             "state": "\(engine.status)", "follows_live": progress.followsLive,
             "buffer_seconds": Int(progress.liveEnd - progress.liveStart),
         ]

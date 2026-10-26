@@ -133,6 +133,16 @@
         }
       }
     },
+    "Favourite": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorit"
+          }
+        }
+      }
+    },
     "Fernsy": {
       "localizations": {
         "de": {
@@ -189,6 +199,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gedrückt halten: Aufnehmen, Favorit, Ausblenden"
+          }
+        }
+      }
+    },
+    "Incomplete: Fernsy was left during the recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unvollständig: Fernsy wurde während der Aufnahme verlassen"
           }
         }
       }
@@ -293,12 +313,32 @@
         }
       }
     },
+    "Not enough free space on the Apple TV (at least 2 GB needed).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu wenig freier Speicher auf dem Apple TV (mindestens 2 GB nötig)."
+          }
+        }
+      }
+    },
     "NOW · %@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "JETZT · %@"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -393,12 +433,42 @@
         }
       }
     },
+    "Record": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnehmen"
+          }
+        }
+      }
+    },
+    "Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme"
+          }
+        }
+      }
+    },
     "Recordings": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Aufnahmen"
+          }
+        }
+      }
+    },
+    "Remove Favourite": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Favorit mehr"
           }
         }
       }
@@ -459,6 +529,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anmelden …"
+          }
+        }
+      }
+    },
+    "Stop Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme beenden"
           }
         }
       }

@@ -22,6 +22,12 @@ final class TVModel: ObservableObject {
     @Published private(set) var channels: [LiveChannel] = []
     /// The live channel in the player, nil when the player is closed.
     @Published private(set) var playing: LiveChannel?
+    /// The channel playing in Live TV's pane (muted unless its sound was turned on), sharing the
+    /// player's engine and connection, so clicking it continues full screen (design E).
+    @Published private(set) var previewing: LiveChannel?
+    private var previewSound = false
+    /// The engine's mute state outside the preview (debug builds start muted).
+    private var baseMuted = false
     /// Launched with stored credentials: the sign-in at launch shows progress, not the welcome screen.
     private(set) var startedWithAccount = false
 
@@ -33,7 +39,12 @@ final class TVModel: ObservableObject {
 
     let engine = PlayerEngine()
     let guide = EPGStore()
-    private let tuners = TunerPool()
+    let tuners = TunerPool()
+    let recorder = Recorder()
+    /// A question of the recorder, shown as an alert (TVModel+Recordings.swift).
+    @Published var question: RecorderQuestion?
+    /// A message about a recording just planned (refused, or padding shortened).
+    @Published var notice: String?
     private(set) var client: XtreamClient?
 
     static let shared = TVModel()
@@ -43,6 +54,7 @@ final class TVModel: ObservableObject {
 
     private init() {
         tuners.keepSeconds = Self.timeshiftSeconds
+        recorder.host = self
         if let credentials = Self.debugCredentials ?? (Self.skipKeychain ? nil : CredentialStore.load()) {
             startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
@@ -68,14 +80,20 @@ final class TVModel: ObservableObject {
             self.client = client
             self.credentials = credentials
             maxConnections = max(1, account.maxConnections ?? 1)
+            #if DEBUG
+            // IPTV_MAXCONN=<n>: the account's stream limit for this run (single-stream tests).
+            if let value = ProcessInfo.processInfo.environment["IPTV_MAXCONN"].flatMap(Int.init) { maxConnections = max(1, value) }
+            #endif
             tuners.limit = maxConnections
             if remember && !Self.skipKeychain { CredentialStore.save(credentials) }
             loadLiveState()
+            recorder.activate(accountKey: credentials.accountKey)
             signIn = .signedIn
             AppLog.info(.app, "signed in, \(maxConnections) stream(s)")
             try await loadCatalog()
             #if DEBUG
             autoplay()
+            testRecord()
             #endif
         } catch {
             signIn = channels.isEmpty ? .failed(error.localizedDescription) : .signedIn
@@ -85,6 +103,7 @@ final class TVModel: ObservableObject {
 
     func signOut() {
         stop()
+        recorder.activate(accountKey: nil)
         if !Self.skipKeychain { CredentialStore.delete() }
         client = nil
         credentials = nil
@@ -127,6 +146,16 @@ final class TVModel: ObservableObject {
     // MARK: Playback
 
     func play(_ channel: LiveChannel) {
+        if previewing?.id == channel.id {
+            // The preview goes full screen on the same connection.
+            previewing = nil
+            engine.isMuted = baseMuted
+            playing = channel
+            noteRecent(channel.id)
+            AppLog.info(.player, "play channel \(channel.id) from the preview")
+            return
+        }
+        stopPreview()
         guard let client, let url = client.liveURL(channel.id) else { return }
         if let playing, playing.id != channel.id { tuners.release(playing.id, owner: .player) }
         let tuner = tuners.acquire(channel.id, url: url, owner: .player)
@@ -141,6 +170,42 @@ final class TVModel: ObservableObject {
         engine.stop()
         tuners.release(playing.id, owner: .player)
         self.playing = nil
+    }
+
+    // MARK: Preview
+
+    /// Plays `channel` muted in Live TV's pane, unless that needs a connection a recording holds.
+    func startPreview(_ channel: LiveChannel) {
+        guard playing == nil, previewing?.id != channel.id, let client, let url = client.liveURL(channel.id) else { return }
+        let blocked = tuners.blockers(for: channel.id, as: .player).contains { $0.owners != [.player] }
+        guard !blocked else {
+            AppLog.detail(.player, "no preview of \(channel.displayName): the account's streams are in use")
+            stopPreview()
+            return
+        }
+        stopPreview()
+        baseMuted = engine.isMuted
+        previewSound = false
+        engine.isMuted = true
+        let tuner = tuners.acquire(channel.id, url: url, owner: .player)
+        previewing = channel
+        engine.load(tuner: tuner)
+        AppLog.info(.player, "preview channel \(channel.id): \(channel.displayName)")
+    }
+
+    func stopPreview() {
+        guard let previewing else { return }
+        engine.stop()
+        tuners.release(previewing.id, owner: .player)
+        self.previewing = nil
+        engine.isMuted = baseMuted
+    }
+
+    /// Play/Pause on a channel row: the preview's sound on or off (debug builds stay muted).
+    func togglePreviewSound() {
+        guard previewing != nil else { return }
+        previewSound.toggle()
+        engine.isMuted = baseMuted || !previewSound
     }
 
     func togglePause() { engine.togglePause() }

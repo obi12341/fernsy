@@ -110,6 +110,15 @@ public protocol RecorderHost: AnyObject {
     func removeRecordingFile(_ url: URL)
     /// Holds the device awake with this reason, or lets it sleep again (nil).
     func keepAwake(reason: String?)
+    /// Why a recording cannot start now (e.g. too little free space); nil: it can.
+    func recordingRefusal() -> String?
+    /// Drop finished entries whose file is gone (Apple TV: tvOS purged its caches).
+    var dropsMissingRecordings: Bool { get }
+}
+
+public extension RecorderHost {
+    func recordingRefusal() -> String? { nil }
+    var dropsMissingRecordings: Bool { false }
 }
 
 /// When the device is kept awake for recordings.
@@ -212,6 +221,17 @@ public final class Recorder: ObservableObject {
                     if r.fileName == nil { r.error = String(localized: "No data from the channel", bundle: .module) }
                 }
                 return r
+            }
+            if host?.dropsMissingRecordings == true {
+                let before = recordings.count
+                recordings.removeAll { r in
+                    guard r.status == .done || r.status == .failed, let url = fileURL(r) else { return false }
+                    return !FileManager.default.fileExists(atPath: url.path)
+                }
+                if recordings.count < before {
+                    AppLog.info(.recordings, "\(before - recordings.count) recordings removed: their files are gone")
+                    save()
+                }
             }
         }
         AppLog.detail(.recordings, "\(recordings.count) recordings loaded for this account")
@@ -444,6 +464,11 @@ public final class Recorder: ObservableObject {
                 return
             }
             guard recordings.first(where: { $0.id == recording.id })?.status == .scheduled else { return }
+            if let refusal = host.recordingRefusal() {
+                update(recording.id) { $0.status = .failed; $0.error = refusal }
+                AppLog.error(.recordings, "\(recording.title) on \(recording.channelName) not started: \(refusal)")
+                return
+            }
             let tuner = host.tuners.acquire(recording.channelId, url: url, owner: .recording(recording.id))
             // Running from now on, with or without data: the list shows it waiting, and it can be
             // stopped. Waits for the start time and the first data (so the file starts on a

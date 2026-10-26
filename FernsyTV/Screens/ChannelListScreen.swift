@@ -36,6 +36,12 @@ struct ChannelListScreen: View {
                 ChannelPane(channel: list.first { $0.id == focusedChannel } ?? list.first)
                     .frame(width: 540)
                     .padding(.top, 12)
+                    // The preview starts once focus rests on a row for a second (design E).
+                    .task(id: focusedChannel) {
+                        guard let id = focusedChannel, let channel = list.first(where: { $0.id == id }) else { return }
+                        try? await Task.sleep(for: .seconds(1))
+                        if !Task.isCancelled { model.startPreview(channel) }
+                    }
             }
             .padding(.leading, 80)
             .padding(.top, 10)
@@ -44,6 +50,7 @@ struct ChannelListScreen: View {
             .overlay(alignment: .bottomLeading) { Hints().padding(.leading, 460).padding(.bottom, 44) }
             .background(TVTheme.background)
             .foregroundStyle(TVTheme.text)
+            .onDisappear { model.stopPreview() }
             .navigationDestination(isPresented: $showAllCategories) {
                 AllCategoriesScreen { category in
                     source = .category(category.id)
@@ -192,11 +199,31 @@ private struct ChannelRowButton: View {
     var body: some View {
         Button { model.play(channel) } label: {
             ChannelRowLabel(channel: channel, number: number, show: model.currentShow(on: channel),
-                            favorite: model.isFavorite(channel), recording: false)
+                            favorite: model.isFavorite(channel), recording: model.activeRecording(on: channel) != nil)
         }
         .buttonStyle(ChannelRowStyle())
+        .contextMenu { ChannelActions(channel: channel) }
+        .onPlayPauseCommand { model.togglePreviewSound() }
         .accessibilityIdentifier("channel.\(channel.id)")
         .task { await model.loadGuide(for: channel) }
+    }
+}
+
+/// The long-press menu of a channel: record (or stop), favourite, hide.
+struct ChannelActions: View {
+    @EnvironmentObject private var model: TVModel
+    let channel: LiveChannel
+
+    var body: some View {
+        if let recording = model.activeRecording(on: channel) {
+            Button("Stop Recording", systemImage: "stop.circle") { model.recorder.stop(recording.id) }
+        } else {
+            Button("Record", systemImage: "record.circle") { model.notice = model.recordNow(channel) }
+        }
+        Button(model.isFavorite(channel) ? "Remove Favourite" : "Favourite", systemImage: model.isFavorite(channel) ? "star.slash" : "star") {
+            model.toggleFavorite(channel)
+        }
+        Button("Hide", systemImage: "eye.slash") { model.setHidden(channel, true) }
     }
 }
 
@@ -339,9 +366,18 @@ private struct PaneContent: View {
     @ObservedObject var guide: ChannelGuide
 
     var body: some View {
-        ChannelLogo(channel: channel, radius: 20, logoPadding: 70)
-            .frame(width: 540, height: 304)
-            .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.1)) }
+        Group {
+            if model.previewing?.id == channel.id {
+                TVVideoSurface(engine: model.engine)
+                    .overlay(alignment: .topLeading) { LiveBadge().padding(16) }
+                    .accessibilityIdentifier("live.preview")
+            } else {
+                ChannelLogo(channel: channel, radius: 20, logoPadding: 70)
+            }
+        }
+        .frame(width: 540, height: 304)
+        .clipShape(.rect(cornerRadius: 20))
+        .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.1)) }
         if let show = model.currentShow(on: channel) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("NOW · \(Self.span(show))")
@@ -377,6 +413,18 @@ private struct PaneContent: View {
     static func span(_ show: EPGEntry) -> String {
         let style = Date.FormatStyle.dateTime.hour().minute()
         return "\(show.start.formatted(style))–\(show.end.formatted(style))"
+    }
+}
+
+/// The red "LIVE" badge on a live picture.
+struct LiveBadge: View {
+    var body: some View {
+        Text("LIVE")
+            .font(.system(size: 16, weight: .heavy)).tracking(1)
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background(TVTheme.live, in: .capsule)
+            .foregroundStyle(.white)
     }
 }
 

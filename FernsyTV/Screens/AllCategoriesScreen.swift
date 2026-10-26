@@ -101,6 +101,7 @@ struct AllCategoriesScreen: View {
         .background(Color(hex: 0x16151B).ignoresSafeArea())
         .foregroundStyle(TVTheme.text)
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func chip(_ title: Text, id: String, _ value: Filter, count: Int) -> some View {
