@@ -526,7 +526,6 @@ final class AppModel: ObservableObject {
             }
         }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
-        if env["IPTV_PLANTEST"] == "1" { RecordingPlan.selfTest() }
         if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
         if let spec = env["IPTV_TESTRESUME"] {
             // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run.

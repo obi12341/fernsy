@@ -7,3 +7,4 @@ dist/
 Vendor/
 .claude/worktrees/
 docs/
+__pycache__/
