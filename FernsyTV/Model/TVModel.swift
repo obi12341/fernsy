@@ -22,6 +22,8 @@ final class TVModel: ObservableObject {
     @Published private(set) var channels: [LiveChannel] = []
     /// The live channel in the player, nil when the player is closed.
     @Published private(set) var playing: LiveChannel?
+    /// Launched with stored credentials: the sign-in at launch shows progress, not the welcome screen.
+    private(set) var startedWithAccount = false
 
     let engine = PlayerEngine()
     let guide = EPGStore()
@@ -36,6 +38,7 @@ final class TVModel: ObservableObject {
     private init() {
         tuners.keepSeconds = Self.timeshiftSeconds
         if let credentials = Self.debugCredentials ?? (Self.skipKeychain ? nil : CredentialStore.load()) {
+            startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
         }
     }
@@ -45,8 +48,9 @@ final class TVModel: ObservableObject {
     func signIn(_ credentials: XtreamCredentials, remember: Bool = true) async {
         signIn = .signingIn
         let client = XtreamClient(credentials: credentials)
-        // The cached catalog shows at once; the server's answer replaces it.
-        if let cached = CatalogCache.load(accountKey: credentials.accountKey) { apply(cached) }
+        // Restoring the stored account (`remember` false): the cached catalog shows at once and the
+        // server's answer replaces it. A new sign-in shows nothing before the server accepts it.
+        if !remember, let cached = CatalogCache.load(accountKey: credentials.accountKey) { apply(cached) }
         do {
             let account = try await client.account()
             self.client = client
@@ -144,7 +148,8 @@ final class TVModel: ObservableObject {
     static var debugCredentials: XtreamCredentials? {
         #if DEBUG
         let env = ProcessInfo.processInfo.environment
-        guard let server = env["IPTV_SERVER"], let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
+        // An empty IPTV_SERVER= starts without an account (the welcome screen).
+        guard let server = env["IPTV_SERVER"], !server.isEmpty, let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
         return XtreamCredentials(server: server, username: user, password: pass)
         #else
         nil

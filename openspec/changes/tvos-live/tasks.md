@@ -7,8 +7,8 @@
 
 ## 2. Frame and sign-in
 
-- [ ] 2.1 Tab bar per design F (Live TV, Programm, Aufnahmen, gear), opens on Live TV. Verify: `scripts/tv-run.sh` and screenshots of each tab; Up reaches the tab bar, Back from a tab's top level goes to it.
-- [ ] 2.2 Welcome screen and IPTV form (screens `login`, `login2`) with the keychain and "Demo-Zugang testen" (design H). Verify: `scripts/tv-run.sh FERNSY_NO_KEYCHAIN=1` without `IPTV_SERVER` shows the welcome screen; the demo button signs in to the demo server; a wrong password (`demo`/`x`) keeps the form with the message.
+- [x] 2.1 Tab bar per design F (Live TV, Programm, Aufnahmen, gear), opens on Live TV. Verify: `scripts/tv-run.sh` and screenshots of each tab; Up reaches the tab bar, Back from a tab's top level goes to it.
+- [x] 2.2 Welcome screen and IPTV form (screens `login`, `login2`) with the keychain and "Demo-Zugang testen" (design H). Verify: `scripts/tv-run.sh FERNSY_NO_KEYCHAIN=1` without `IPTV_SERVER` shows the welcome screen; the demo button signs in to the demo server; a wrong password (`demo`/`x`) keeps the form with the message.
 
 ## 3. Live TV
 

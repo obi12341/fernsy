@@ -3,6 +3,26 @@
   "strings": {
     "": {},
     "%@": {},
+    "A notification appears on your iPhone. With it you can type or paste the address and password.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf deinem iPhone erscheint eine Mitteilung. Darüber kannst du Adresse und Passwort bequem eintippen oder einfügen."
+          }
+        }
+      }
+    },
+    "Add IPTV Account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV-Zugang hinzufügen"
+          }
+        }
+      }
+    },
     "Ended": {
       "localizations": {
         "de": {
@@ -23,6 +43,36 @@
         }
       }
     },
+    "Fernsy brings no content. You need your own account with a provider or a Jellyfin server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy enthält keine Inhalte. Du brauchst einen eigenen Zugang bei einem Anbieter oder einen Jellyfin-Server."
+          }
+        }
+      }
+    },
+    "Guide": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programm"
+          }
+        }
+      }
+    },
+    "IPTV Account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV-Zugang"
+          }
+        }
+      }
+    },
     "LIVE": {
       "localizations": {
         "de": {
@@ -39,6 +89,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Live TV"
+          }
+        }
+      }
+    },
+    "Live TV, guide, films and series from your provider (Xtream Codes).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live-TV, Programm, Filme und Serien von deinem Anbieter (Xtream Codes)."
           }
         }
       }
@@ -83,12 +143,42 @@
         }
       }
     },
+    "Recordings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmen"
+          }
+        }
+      }
+    },
     "Server address": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Server-Adresse"
+          }
+        }
+      }
+    },
+    "Server Address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server-Adresse"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
           }
         }
       }
@@ -113,12 +203,52 @@
         }
       }
     },
+    "Try the Demo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo-Zugang testen"
+          }
+        }
+      }
+    },
     "Username": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Benutzername"
+          }
+        }
+      }
+    },
+    "Welcome to Fernsy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Willkommen bei Fernsy"
+          }
+        }
+      }
+    },
+    "What would you like to connect? You can add more accounts later in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Womit möchtest du dich verbinden? Weitere Konten kannst du später in den Einstellungen hinzufügen."
+          }
+        }
+      }
+    },
+    "You find these details in your provider’s email under “Xtream Codes”. They are kept in the keychain.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Daten findest du in der E-Mail deines Anbieters unter „Xtream Codes“. Sie werden im Schlüsselbund gesichert."
           }
         }
       }

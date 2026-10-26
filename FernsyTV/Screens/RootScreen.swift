@@ -1,23 +1,53 @@
 import SwiftUI
 
-/// Placeholder screens (tvos-foundation): plain SwiftUI that the designed screens replace.
-/// Each reads only TVModel and keeps the accessibility identifiers the UI test uses.
+/// The app's frame: the welcome screen and sign-in without an account, the tab bar with one.
+/// Screens read only TVModel and keep the accessibility identifiers the UI tests use
+/// (DEVELOPMENT.md › Apple TV).
 struct RootScreen: View {
     @EnvironmentObject private var model: TVModel
 
     var body: some View {
         Group {
-            switch model.signIn {
-            case .signedIn:
-                ChannelListScreen()
-            case .signingIn where model.channels.isEmpty:
+            if model.signIn == .signedIn || !model.channels.isEmpty {
+                MainTabs()
+            } else if model.signIn == .signingIn && model.startedWithAccount {
                 ProgressView("Signing in …")
-            default:
-                SignInScreen()
+            } else {
+                WelcomeScreen()
             }
         }
+        .background(TVTheme.background.ignoresSafeArea())
         .fullScreenCover(isPresented: Binding(get: { model.playing != nil }, set: { if !$0 { model.stop() } })) {
             PlayerScreen()
         }
+    }
+}
+
+/// The top tab bar (design F of tvos-live): Live TV, Programm, Aufnahmen and the gear.
+struct MainTabs: View {
+    enum Tab: Hashable { case live, guide, recordings, settings }
+
+    @State private var selection: Tab = .live
+
+    var body: some View {
+        TabView(selection: $selection) {
+            SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
+            SwiftUI.Tab(value: Tab.guide) { PendingScreen(title: "Guide") } label: { Text("Guide") }
+            SwiftUI.Tab(value: Tab.recordings) { PendingScreen(title: "Recordings") } label: { Text("Recordings") }
+            SwiftUI.Tab(value: Tab.settings) { PendingScreen(title: "Settings") } label: {
+                Label("Settings", systemImage: "gearshape").labelStyle(.iconOnly)
+            }
+        }
+        .accessibilityIdentifier("tabs")
+    }
+}
+
+/// A tab whose designed screen is built by a later task of tvos-live.
+private struct PendingScreen: View {
+    let title: LocalizedStringKey
+
+    var body: some View {
+        Text(title).font(.system(size: 54, weight: .bold)).foregroundStyle(TVTheme.tertiary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
