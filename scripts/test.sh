@@ -22,11 +22,12 @@ run test -destination 'platform=macOS'
 run build -destination 'generic/platform=tvOS Simulator'
 
 if [ "${1:-}" = "--tvos-sim" ]; then
-    DEVICE="$(xcrun simctl list devices available | grep -m1 -o 'Apple TV[^(]*' | sed 's/ *$//' || true)"
+    # By id: device names contain parentheses ("Apple TV 4K (3rd generation)").
+    DEVICE="$(xcrun simctl list devices available | grep -m1 'Apple TV' | grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' || true)"
     if [ -z "$DEVICE" ]; then
         echo "No tvOS simulator: install the runtime with 'xcodebuild -downloadPlatform tvOS'." >&2
         exit 1
     fi
-    run test -destination "platform=tvOS Simulator,name=$DEVICE"
+    run test -destination "platform=tvOS Simulator,id=$DEVICE"
 fi
 echo "✔ FernsyCore tests passed"
