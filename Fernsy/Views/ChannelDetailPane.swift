@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// The selected channel next to the Live TV list: what runs now (with "Record") and the

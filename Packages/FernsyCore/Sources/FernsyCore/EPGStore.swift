@@ -1,12 +1,11 @@
-import FernsyCore
 import Foundation
 
 /// The programme of one channel. Views observe this per channel, so a channel finishing
 /// its download only redraws the rows showing that channel.
 @MainActor
-final class ChannelGuide: ObservableObject {
+public final class ChannelGuide: ObservableObject {
     /// nil until loaded; empty when the server has no programme for the channel.
-    @Published fileprivate(set) var entries: [EPGEntry]?
+    @Published public fileprivate(set) var entries: [EPGEntry]?
     /// Set once the full table arrived (the quick now/next answer alone leaves it nil).
     fileprivate var fetchedAt: Date?
 }
@@ -20,7 +19,9 @@ final class ChannelGuide: ObservableObject {
 /// load), so at most two are requested at a time, the most recently requested first, and
 /// a download is cancelled as soon as no view waits for it any more.
 @MainActor
-final class EPGStore {
+public final class EPGStore {
+    public init() {}
+
     private var guides: [Int: ChannelGuide] = [:]
     private var pending: [Int: (id: UUID, task: Task<Void, Never>)] = [:]
     private var waiters: [Int: Set<UUID>] = [:]
@@ -29,7 +30,7 @@ final class EPGStore {
     private var pruned = false
     private let tableSlots = AsyncLimiter(limit: 2)
 
-    func guide(_ channelId: Int) -> ChannelGuide {
+    public func guide(_ channelId: Int) -> ChannelGuide {
         if let guide = guides[channelId] { return guide }
         let guide = ChannelGuide()
         guides[channelId] = guide
@@ -37,7 +38,7 @@ final class EPGStore {
     }
 
     /// Loads the channel's programme; returns when done or when the caller is cancelled.
-    func load(_ channelId: Int, client: XtreamClient?) async {
+    public func load(_ channelId: Int, client: XtreamClient?) async {
         let guide = guide(channelId)
         if Self.isFresh(guide) { return }
         guard let client else { return }
@@ -71,7 +72,7 @@ final class EPGStore {
     }
 
     /// Forgets everything (logout / other account). Guide objects stay, views may hold them.
-    func removeAll() {
+    public func removeAll() {
         generation += 1
         pending.values.forEach { $0.task.cancel() }
         pending = [:]
@@ -112,7 +113,7 @@ final class EPGStore {
 
     /// For a visible row: loads the programme, then keeps it fresh until the caller is
     /// cancelled (the row disappears).
-    func keepFresh(_ channelId: Int, client: XtreamClient?) async {
+    public func keepFresh(_ channelId: Int, client: XtreamClient?) async {
         await load(channelId, client: client)
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(Self.recheckInterval))
@@ -121,12 +122,12 @@ final class EPGStore {
     }
 
     /// Whether the channel's programme should be downloaded again (for rows that stay visible).
-    func needsRefresh(_ channelId: Int) -> Bool {
+    public func needsRefresh(_ channelId: Int) -> Bool {
         !Self.isFresh(guide(channelId))
     }
 
     /// How often a visible row asks `needsRefresh` (`IPTV_EPGRECHECK=<s>` in debug builds).
-    static var recheckInterval: TimeInterval {
+    public static var recheckInterval: TimeInterval {
         #if DEBUG
         if let seconds = ProcessInfo.processInfo.environment["IPTV_EPGRECHECK"].flatMap(Double.init) { return seconds }
         #endif
@@ -201,15 +202,15 @@ final class EPGStore {
 /// At most `limit` holders at a time; waiting callers are served newest first (the row
 /// that just scrolled into view matters more than one requested a while ago).
 @MainActor
-final class AsyncLimiter {
+public final class AsyncLimiter {
     private let limit: Int
     private var running = 0
     private var waiting: [(id: UUID, continuation: CheckedContinuation<Bool, Never>)] = []
 
-    init(limit: Int) { self.limit = limit }
+    public init(limit: Int) { self.limit = limit }
 
     /// false if the caller was cancelled while waiting; it then must not call `release()`.
-    func acquire() async -> Bool {
+    public func acquire() async -> Bool {
         if Task.isCancelled { return false }
         if running < limit {
             running += 1
@@ -223,7 +224,7 @@ final class AsyncLimiter {
         }
     }
 
-    func release() {
+    public func release() {
         if let next = waiting.popLast() {
             next.continuation.resume(returning: true)
         } else {

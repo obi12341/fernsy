@@ -1,4 +1,5 @@
 import AppIntents
+import FernsyCore
 import SwiftUI
 
 /// A show from the guide: "<channel id>:<start epoch>", the same id the MCP tools use.

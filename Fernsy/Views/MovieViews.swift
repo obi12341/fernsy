@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 enum LibrarySort: String, CaseIterable, Identifiable {

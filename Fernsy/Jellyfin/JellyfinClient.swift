@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// Jellyfin REST client. All routes live here; they were verified against Jellyfin 12.2.0,

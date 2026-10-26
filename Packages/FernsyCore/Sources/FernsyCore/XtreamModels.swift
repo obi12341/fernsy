@@ -1,45 +1,50 @@
-import FernsyCore
 import Foundation
 
 // Xtream Codes panels are loose with JSON types (ids as strings or ints, numbers
 // as strings, null vs ""), so everything decodes leniently.
 extension KeyedDecodingContainer {
-    func flexString(_ key: Key) -> String? {
+    public func flexString(_ key: Key) -> String? {
         if let s = try? decodeIfPresent(String.self, forKey: key) { return s }
         if let i = try? decodeIfPresent(Int.self, forKey: key) { return String(i) }
         if let d = try? decodeIfPresent(Double.self, forKey: key) { return String(d) }
         return nil
     }
 
-    func flexInt(_ key: Key) -> Int? {
+    public func flexInt(_ key: Key) -> Int? {
         if let i = try? decodeIfPresent(Int.self, forKey: key) { return i }
         if let s = try? decodeIfPresent(String.self, forKey: key) { return Int(s) ?? Double(s).map { Int($0) } }
         if let d = try? decodeIfPresent(Double.self, forKey: key) { return Int(d) }
         return nil
     }
 
-    func flexDouble(_ key: Key) -> Double? {
+    public func flexDouble(_ key: Key) -> Double? {
         if let d = try? decodeIfPresent(Double.self, forKey: key) { return d }
         if let s = try? decodeIfPresent(String.self, forKey: key) { return Double(s) }
         return nil
     }
 
-    func nonEmpty(_ key: Key) -> String? {
+    public func nonEmpty(_ key: Key) -> String? {
         guard let s = flexString(key)?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
         return s
     }
 }
 
-func makeSearchKey(_ s: String) -> String {
+public func makeSearchKey(_ s: String) -> String {
     s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
 }
 
-struct XtreamCredentials: Codable, Equatable {
-    var server: String
-    var username: String
-    var password: String
+public struct XtreamCredentials: Codable, Equatable, Sendable {
+    public var server: String
+    public var username: String
+    public var password: String
 
-    var baseURL: URL? {
+    public init(server: String, username: String, password: String) {
+        self.server = server
+        self.username = username
+        self.password = password
+    }
+
+    public var baseURL: URL? {
         var s = server.trimmingCharacters(in: .whitespacesAndNewlines)
         if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") { s = "http://" + s }
         while s.hasSuffix("/") { s.removeLast() }
@@ -49,16 +54,16 @@ struct XtreamCredentials: Codable, Equatable {
     #if DEBUG
     /// IPTV_COPIEDACCOUNT: an account folder copied from the installed app, opened without its
     /// credentials (they stay in the installed app's keychain). The server never resolves.
-    static let copiedServer = "http://copied-account.invalid"
-    static var copied: XtreamCredentials? {
+    public static let copiedServer = "http://copied-account.invalid"
+    public static var copied: XtreamCredentials? {
         guard let folder = ProcessInfo.processInfo.environment["IPTV_COPIEDACCOUNT"], !folder.isEmpty else { return nil }
         return XtreamCredentials(server: copiedServer, username: folder, password: "")
     }
-    var isCopied: Bool { server == Self.copiedServer }
+    public var isCopied: Bool { server == Self.copiedServer }
     #endif
 
     /// Stable identifier for per-account cache folders.
-    var accountKey: String {
+    public var accountKey: String {
         #if DEBUG
         if isCopied { return username }
         #endif
@@ -67,17 +72,17 @@ struct XtreamCredentials: Codable, Equatable {
     }
 }
 
-struct AccountInfo: Decodable {
-    let auth: Bool
-    let status: String?
-    let expiresAt: Date?
-    let maxConnections: Int?
-    let activeConnections: Int?
+public struct AccountInfo: Decodable, Sendable {
+    public let auth: Bool
+    public let status: String?
+    public let expiresAt: Date?
+    public let maxConnections: Int?
+    public let activeConnections: Int?
 
     private enum Root: String, CodingKey { case user_info }
     private enum Keys: String, CodingKey { case auth, status, exp_date, max_connections, active_cons }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let root = try decoder.container(keyedBy: Root.self)
         let c = try root.nestedContainer(keyedBy: Keys.self, forKey: .user_info)
         auth = c.flexInt(.auth) == 1
@@ -88,48 +93,48 @@ struct AccountInfo: Decodable {
     }
 }
 
-struct XCategory: Identifiable, Hashable, Decodable {
-    let id: String
-    let name: String
+public struct XCategory: Identifiable, Hashable, Decodable, Sendable {
+    public let id: String
+    public let name: String
     /// `name` without provider decoration, with its country and quality tags.
-    let parsed: ChannelName
-    var displayName: String { parsed.name }
+    public let parsed: ChannelName
+    public var displayName: String { parsed.name }
 
     private enum Keys: String, CodingKey { case category_id, category_name }
 
-    init(id: String, name: String) {
+    public init(id: String, name: String) {
         self.id = id
         self.name = name
         parsed = ChannelName(raw: name, name: name, country: nil, quality: nil)
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexString(.category_id) ?? ""
-        name = c.flexString(.category_name) ?? String(localized: "Untitled")
+        name = c.flexString(.category_name) ?? String(localized: "Untitled", bundle: .module)
         parsed = ChannelName.parse(name)
     }
 }
 
-struct LiveChannel: Identifiable, Hashable, Decodable {
-    let id: Int
-    let name: String
-    let icon: String?
-    let epgId: String?
-    let categoryId: String?
-    let isAdult: Bool
-    let hasArchive: Bool
-    let searchKey: String
+public struct LiveChannel: Identifiable, Hashable, Decodable, Sendable {
+    public let id: Int
+    public let name: String
+    public let icon: String?
+    public let epgId: String?
+    public let categoryId: String?
+    public let isAdult: Bool
+    public let hasArchive: Bool
+    public let searchKey: String
     /// `name` without provider decoration, with its country and quality tags. The search key
     /// stays built from the delivered name.
-    let parsed: ChannelName
-    var displayName: String { parsed.name }
+    public let parsed: ChannelName
+    public var displayName: String { parsed.name }
     /// Name with the country, for recordings and their file names: "Das Erste (DE)".
-    var recordingLabel: String { parsed.country.map { "\(parsed.name) (\($0))" } ?? parsed.name }
+    public var recordingLabel: String { parsed.country.map { "\(parsed.name) (\($0))" } ?? parsed.name }
 
     private enum Keys: String, CodingKey { case stream_id, name, stream_icon, epg_channel_id, category_id, is_adult, tv_archive }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexInt(.stream_id) ?? 0
         name = c.flexString(.name)?.trimmingCharacters(in: .whitespaces) ?? ""
@@ -142,24 +147,24 @@ struct LiveChannel: Identifiable, Hashable, Decodable {
         parsed = ChannelName.parse(name)
     }
 
-    static func == (a: Self, b: Self) -> Bool { a.id == b.id }
-    func hash(into h: inout Hasher) { h.combine(id) }
+    public static func == (a: Self, b: Self) -> Bool { a.id == b.id }
+    public func hash(into h: inout Hasher) { h.combine(id) }
 }
 
-struct Movie: Identifiable, Hashable, Decodable {
-    let id: Int
-    let name: String
-    let poster: String?
-    let categoryId: String?
-    let containerExtension: String
-    let rating: Double?
-    let added: Int
-    let isAdult: Bool
-    let searchKey: String
+public struct Movie: Identifiable, Hashable, Decodable, Sendable {
+    public let id: Int
+    public let name: String
+    public let poster: String?
+    public let categoryId: String?
+    public let containerExtension: String
+    public let rating: Double?
+    public let added: Int
+    public let isAdult: Bool
+    public let searchKey: String
 
     private enum Keys: String, CodingKey { case stream_id, name, stream_icon, category_id, container_extension, rating, added, is_adult }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexInt(.stream_id) ?? 0
         name = c.flexString(.name)?.trimmingCharacters(in: .whitespaces) ?? ""
@@ -172,26 +177,26 @@ struct Movie: Identifiable, Hashable, Decodable {
         searchKey = makeSearchKey(name)
     }
 
-    static func == (a: Self, b: Self) -> Bool { a.id == b.id }
-    func hash(into h: inout Hasher) { h.combine(id) }
+    public static func == (a: Self, b: Self) -> Bool { a.id == b.id }
+    public func hash(into h: inout Hasher) { h.combine(id) }
 }
 
-struct Series: Identifiable, Hashable, Decodable {
-    let id: Int
-    let name: String
-    let cover: String?
-    let plot: String?
-    let cast: String?
-    let genre: String?
-    let releaseDate: String?
-    let rating: Double?
-    let categoryId: String?
-    let lastModified: Int
-    let searchKey: String
+public struct Series: Identifiable, Hashable, Decodable, Sendable {
+    public let id: Int
+    public let name: String
+    public let cover: String?
+    public let plot: String?
+    public let cast: String?
+    public let genre: String?
+    public let releaseDate: String?
+    public let rating: Double?
+    public let categoryId: String?
+    public let lastModified: Int
+    public let searchKey: String
 
     private enum Keys: String, CodingKey { case series_id, name, cover, plot, cast, genre, releaseDate, release_date, rating, category_id, last_modified }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexInt(.series_id) ?? 0
         name = c.flexString(.name)?.trimmingCharacters(in: .whitespaces) ?? ""
@@ -206,29 +211,29 @@ struct Series: Identifiable, Hashable, Decodable {
         searchKey = makeSearchKey(name)
     }
 
-    static func == (a: Self, b: Self) -> Bool { a.id == b.id }
-    func hash(into h: inout Hasher) { h.combine(id) }
+    public static func == (a: Self, b: Self) -> Bool { a.id == b.id }
+    public func hash(into h: inout Hasher) { h.combine(id) }
 }
 
-struct Episode: Identifiable, Hashable, Decodable {
-    let id: String
-    let number: Int
-    let season: Int
-    let title: String
-    let containerExtension: String
-    let plot: String?
-    let durationSeconds: Int?
-    let image: String?
+public struct Episode: Identifiable, Hashable, Decodable, Sendable {
+    public let id: String
+    public let number: Int
+    public let season: Int
+    public let title: String
+    public let containerExtension: String
+    public let plot: String?
+    public let durationSeconds: Int?
+    public let image: String?
 
     private enum Keys: String, CodingKey { case id, episode_num, season, title, container_extension, info }
     private enum InfoKeys: String, CodingKey { case plot, duration_secs, movie_image }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = c.flexString(.id) ?? UUID().uuidString
         number = c.flexInt(.episode_num) ?? 0
         season = c.flexInt(.season) ?? 0
-        title = c.flexString(.title) ?? String(localized: "Episode")
+        title = c.flexString(.title) ?? String(localized: "Episode", bundle: .module)
         containerExtension = c.nonEmpty(.container_extension) ?? "mkv"
         if let info = try? c.nestedContainer(keyedBy: InfoKeys.self, forKey: .info) {
             plot = info.nonEmpty(.plot)
@@ -242,14 +247,14 @@ struct Episode: Identifiable, Hashable, Decodable {
     }
 }
 
-struct SeriesInfo: Decodable {
-    let seasons: [Int: [Episode]]
-    let backdrop: String?
+public struct SeriesInfo: Decodable, Sendable {
+    public let seasons: [Int: [Episode]]
+    public let backdrop: String?
 
     private enum Keys: String, CodingKey { case episodes, info }
     private enum InfoKeys: String, CodingKey { case backdrop_path }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         var result: [Int: [Episode]] = [:]
         if let dict = try? c.decode([String: [Episode]].self, forKey: .episodes) {
@@ -268,23 +273,23 @@ struct SeriesInfo: Decodable {
     }
 }
 
-struct MovieDetails: Decodable {
-    let plot: String?
-    let genre: String?
-    let cast: String?
-    let director: String?
-    let releaseDate: String?
-    let duration: String?
-    let rating: Double?
-    let backdrop: String?
-    let poster: String?
+public struct MovieDetails: Decodable, Sendable {
+    public let plot: String?
+    public let genre: String?
+    public let cast: String?
+    public let director: String?
+    public let releaseDate: String?
+    public let duration: String?
+    public let rating: Double?
+    public let backdrop: String?
+    public let poster: String?
 
     private enum Root: String, CodingKey { case info }
     private enum Keys: String, CodingKey {
         case plot, description, genre, cast, actors, director, releasedate, release_date, duration, rating, backdrop_path, movie_image, cover_big
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let root = try decoder.container(keyedBy: Root.self)
         guard let c = try? root.nestedContainer(keyedBy: Keys.self, forKey: .info) else {
             plot = nil; genre = nil; cast = nil; director = nil; releaseDate = nil
@@ -304,16 +309,16 @@ struct MovieDetails: Decodable {
     }
 }
 
-struct EPGEntry: Identifiable, Decodable {
-    let id: String
-    let title: String
-    let description: String
-    let start: Date
-    let end: Date
+public struct EPGEntry: Identifiable, Decodable, Sendable {
+    public let id: String
+    public let title: String
+    public let description: String
+    public let start: Date
+    public let end: Date
 
     private enum Keys: String, CodingKey { case id, title, description, start_timestamp, stop_timestamp }
 
-    init(id: String, title: String, description: String, start: Date, end: Date) {
+    public init(id: String, title: String, description: String, start: Date, end: Date) {
         self.id = id
         self.title = title
         self.description = description
@@ -321,7 +326,7 @@ struct EPGEntry: Identifiable, Decodable {
         self.end = end
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         title = Self.base64(c.flexString(.title)) ?? ""
         description = Self.base64(c.flexString(.description)) ?? ""
@@ -337,15 +342,15 @@ struct EPGEntry: Identifiable, Decodable {
         return decoded
     }
 
-    var progress: Double { progress(at: Date()) }
+    public var progress: Double { progress(at: Date()) }
 
-    func progress(at date: Date) -> Double {
+    public func progress(at date: Date) -> Double {
         let total = end.timeIntervalSince(start)
         guard total > 0 else { return 0 }
         return min(1, max(0, date.timeIntervalSince(start) / total))
     }
 }
 
-struct EPGResponse: Decodable {
-    let epg_listings: [EPGEntry]
+public struct EPGResponse: Decodable, Sendable {
+    public let epg_listings: [EPGEntry]
 }

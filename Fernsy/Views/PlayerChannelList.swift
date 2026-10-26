@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// Live TV in the player: the channels of a category over the picture, with what is on now,

@@ -14,8 +14,8 @@
 
 ## 2. Move the shared logic
 
-- [ ] 2.1 Move `XtreamModels`, `XtreamClient`, `EPGStore` (design B). Verify: both app targets build with 0 warnings; demo-server run (`scripts/dev-run.sh IPTV_AUTOPLAY=live:101`) loads the catalog and EPG and plays.
-- [ ] 2.2 Move `JellyfinModels`, `ContentHistory`, `MediaInfo`, `TrackChooser` (with `TrackChooserTests` from its self-test, `IPTV_TRACKSELFTEST` removed). Verify: builds with 0 warnings; tests pass.
+- [x] 2.1 Move `XtreamModels`, `XtreamClient`, `EPGStore` (design B). Verify: both app targets build with 0 warnings; demo-server run (`scripts/dev-run.sh IPTV_AUTOPLAY=live:101`) loads the catalog and EPG and plays.
+- [x] 2.2 Move `JellyfinModels`, `ContentHistory`, `MediaInfo`, `TrackChooser` (with `TrackChooserTests` from its self-test, `IPTV_TRACKSELFTEST` removed). Verify: builds with 0 warnings; tests pass.
 - [ ] 2.3 Move `RecordingPlan` (with `RecordingPlanTests`, `IPTV_PLANTEST` removed) and `GapTracker` out of `Recorder.swift`, plus `GapTrackerTests` (design E). Verify: tests pass; demo-server recording run (`IPTV_TESTRECORD=101:5:150:0:0 IPTV_TESTNET=trickle:30 IPTV_TRICKLEKBIT=100 IPTV_TRICKLEMORE=2`) still lists its gap while running.
 - [ ] 2.4 Strings per design D: package calls use `bundle: .module`, their keys move from `Fernsy/Localizable.xcstrings` to the package catalog with translations, plus `LocalizationTests`. Verify: `grep -rn 'String(localized:' Packages/FernsyCore/Sources | grep -v 'bundle: .module'` is empty; the app catalog has no stale keys of moved code; the English dev build shows an Xtream error ("Server antwortet mit HTTP …" in English) for `IPTV_SERVER=https://fernsy-demo.mobilistics.workers.dev IPTV_PASS=wrong`.
 

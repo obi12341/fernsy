@@ -525,7 +525,6 @@ final class AppModel: ObservableObject {
                 if spec[0] == "iptv" { logout() } else { jellyfin.signOut() }
             }
         }
-        if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
         if env["IPTV_PLANTEST"] == "1" { RecordingPlan.selfTest() }
         if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }

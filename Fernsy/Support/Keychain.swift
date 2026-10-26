@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 import Security
 

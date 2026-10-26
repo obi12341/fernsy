@@ -1,20 +1,20 @@
 import Foundation
 
-enum XtreamError: LocalizedError {
+public enum XtreamError: LocalizedError, Sendable {
     case invalidServer
     case authFailed
     case http(Int)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
-        case .invalidServer: return String(localized: "Invalid server address")
-        case .authFailed: return String(localized: "Sign-in failed – wrong username or password")
-        case .http(let code): return String(localized: "Server error (HTTP \(code))")
+        case .invalidServer: return String(localized: "Invalid server address", bundle: .module)
+        case .authFailed: return String(localized: "Sign-in failed – wrong username or password", bundle: .module)
+        case .http(let code): return String(localized: "Server error (HTTP \(code))", bundle: .module)
         }
     }
 }
 
-enum CatalogAction: String, CaseIterable {
+public enum CatalogAction: String, CaseIterable, Sendable {
     case liveCategories = "get_live_categories"
     case vodCategories = "get_vod_categories"
     case seriesCategories = "get_series_categories"
@@ -23,8 +23,12 @@ enum CatalogAction: String, CaseIterable {
     case series = "get_series"
 }
 
-struct XtreamClient {
-    let credentials: XtreamCredentials
+public struct XtreamClient: Sendable {
+    public let credentials: XtreamCredentials
+
+    public init(credentials: XtreamCredentials) {
+        self.credentials = credentials
+    }
 
     private static let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -51,7 +55,7 @@ struct XtreamClient {
         return url
     }
 
-    func data(_ action: String?, _ params: [String: String] = [:]) async throws -> Data {
+    public func data(_ action: String?, _ params: [String: String] = [:]) async throws -> Data {
         let (data, response) = try await Self.session.data(from: try apiURL(action, params))
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw XtreamError.http(http.statusCode)
@@ -59,31 +63,31 @@ struct XtreamClient {
         return data
     }
 
-    func account() async throws -> AccountInfo {
+    public func account() async throws -> AccountInfo {
         let info = try JSONDecoder().decode(AccountInfo.self, from: try await data(nil))
         guard info.auth else { throw XtreamError.authFailed }
         return info
     }
 
-    func catalog(_ action: CatalogAction) async throws -> Data {
+    public func catalog(_ action: CatalogAction) async throws -> Data {
         try await data(action.rawValue)
     }
 
-    func seriesInfo(_ id: Int) async throws -> SeriesInfo {
+    public func seriesInfo(_ id: Int) async throws -> SeriesInfo {
         try JSONDecoder().decode(SeriesInfo.self, from: try await data("get_series_info", ["series_id": String(id)]))
     }
 
-    func movieDetails(_ id: Int) async throws -> MovieDetails {
+    public func movieDetails(_ id: Int) async throws -> MovieDetails {
         try JSONDecoder().decode(MovieDetails.self, from: try await data("get_vod_info", ["vod_id": String(id)]))
     }
 
-    func shortEPG(_ streamId: Int, limit: Int = 4) async throws -> [EPGEntry] {
+    public func shortEPG(_ streamId: Int, limit: Int = 4) async throws -> [EPGEntry] {
         let d = try await data("get_short_epg", ["stream_id": String(streamId), "limit": String(limit)])
         return (try? JSONDecoder().decode(EPGResponse.self, from: d).epg_listings) ?? []
     }
 
     /// The full programme the server holds for a channel, including what already aired.
-    func epgTable(_ streamId: Int) async throws -> [EPGEntry] {
+    public func epgTable(_ streamId: Int) async throws -> [EPGEntry] {
         let d = try await data("get_simple_data_table", ["stream_id": String(streamId)])
         return (try? JSONDecoder().decode(EPGResponse.self, from: d).epg_listings) ?? []
     }
@@ -98,7 +102,7 @@ struct XtreamClient {
     }
 
     /// Raw MPEG-TS: lowest latency, no HLS segmenting, demuxed directly.
-    func liveURL(_ id: Int) -> URL? { streamURL("live", String(id), "ts") }
-    func movieURL(_ movie: Movie) -> URL? { streamURL("movie", String(movie.id), movie.containerExtension) }
-    func episodeURL(_ episode: Episode) -> URL? { streamURL("series", episode.id, episode.containerExtension) }
+    public func liveURL(_ id: Int) -> URL? { streamURL("live", String(id), "ts") }
+    public func movieURL(_ movie: Movie) -> URL? { streamURL("movie", String(movie.id), movie.containerExtension) }
+    public func episodeURL(_ episode: Episode) -> URL? { streamURL("series", episode.id, episode.containerExtension) }
 }

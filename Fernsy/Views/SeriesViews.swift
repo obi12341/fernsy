@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 private let posterColumns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 20, alignment: .top)]

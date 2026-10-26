@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 extension AppModel {

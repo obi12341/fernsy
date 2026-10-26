@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// Programme grid: one row per channel, time runs horizontally. The channel column and

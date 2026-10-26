@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "FernsyCore", targets: ["FernsyCore"]),
     ],
     targets: [
-        .target(name: "FernsyCore"),
+        .target(name: "FernsyCore", resources: [.process("Resources")]),
         .testTarget(name: "FernsyCoreTests", dependencies: ["FernsyCore"]),
     ],
     swiftLanguageModes: [.v5]
