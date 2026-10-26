@@ -10,7 +10,21 @@
 		A1B2C3D4000000000000003B /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000000000000003A /* Sparkle */; };
 		A1B2C3D40000000000000041 /* FernsyCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000000000000003F /* FernsyCore */; };
 		A1B2C3D40000000000000042 /* FernsyCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000040 /* FernsyCore */; };
+		A1B2C3D40000000000000046 /* FernsyPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000044 /* FernsyPlayer */; };
+		A1B2C3D40000000000000047 /* FernsyPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000045 /* FernsyPlayer */; };
+		A1B2C3D40000000000000053 /* FernsyCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000051 /* FernsyCore */; };
+		A1B2C3D40000000000000054 /* FernsyPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000052 /* FernsyPlayer */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1B2C3D4000000000000005C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1B2C3D4000000000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D4000000000000004A;
+			remoteInfo = "Fernsy TV";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A1B2C3D40000000000000001 /* Fernsy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fernsy.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -19,12 +33,24 @@
 		A1B2C3D40000000000000038 /* Fernsy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fernsy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4000000000000003C /* Info-Direct.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-Direct.plist"; sourceTree = "<group>"; };
 		A1B2C3D4000000000000003D /* Fernsy-Direct.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Fernsy-Direct.entitlements"; sourceTree = "<group>"; };
+		A1B2C3D40000000000000049 /* FernsyTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FernsyTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D40000000000000056 /* FernsyTVUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FernsyTVUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A1B2C3D40000000000000002 /* Fernsy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Fernsy;
+			sourceTree = "<group>";
+		};
+		A1B2C3D40000000000000048 /* FernsyTV */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FernsyTV;
+			sourceTree = "<group>";
+		};
+		A1B2C3D40000000000000055 /* FernsyTVUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FernsyTVUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D40000000000000041 /* FernsyCore in Frameworks */,
+				A1B2C3D40000000000000046 /* FernsyPlayer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,6 +71,23 @@
 			files = (
 				A1B2C3D4000000000000003B /* Sparkle in Frameworks */,
 				A1B2C3D40000000000000042 /* FernsyCore in Frameworks */,
+				A1B2C3D40000000000000047 /* FernsyPlayer in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4000000000000004F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3D40000000000000053 /* FernsyCore in Frameworks */,
+				A1B2C3D40000000000000054 /* FernsyPlayer in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D40000000000000059 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -54,6 +98,8 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D40000000000000002 /* Fernsy */,
+				A1B2C3D40000000000000048 /* FernsyTV */,
+				A1B2C3D40000000000000055 /* FernsyTVUITests */,
 				A1B2C3D40000000000000012 /* Config */,
 				A1B2C3D40000000000000005 /* Products */,
 			);
@@ -64,6 +110,8 @@
 			children = (
 				A1B2C3D40000000000000001 /* Fernsy.app */,
 				A1B2C3D40000000000000038 /* Fernsy.app */,
+				A1B2C3D40000000000000049 /* FernsyTV.app */,
+				A1B2C3D40000000000000056 /* FernsyTVUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,7 +137,6 @@
 				A1B2C3D40000000000000008 /* Sources */,
 				A1B2C3D40000000000000003 /* Frameworks */,
 				A1B2C3D40000000000000009 /* Resources */,
-				A1B2C3D40000000000000020 /* Embed FFmpeg */,
 			);
 			buildRules = (
 			);
@@ -101,6 +148,7 @@
 			name = Fernsy;
 			packageProductDependencies = (
 				A1B2C3D4000000000000003F /* FernsyCore */,
+				A1B2C3D40000000000000044 /* FernsyPlayer */,
 			);
 			productName = Fernsy;
 			productReference = A1B2C3D40000000000000001 /* Fernsy.app */;
@@ -113,7 +161,6 @@
 				A1B2C3D40000000000000034 /* Sources */,
 				A1B2C3D40000000000000035 /* Frameworks */,
 				A1B2C3D40000000000000036 /* Resources */,
-				A1B2C3D40000000000000037 /* Embed FFmpeg */,
 			);
 			buildRules = (
 			);
@@ -126,10 +173,56 @@
 			packageProductDependencies = (
 				A1B2C3D4000000000000003A /* Sparkle */,
 				A1B2C3D40000000000000040 /* FernsyCore */,
+				A1B2C3D40000000000000045 /* FernsyPlayer */,
 			);
 			productName = Fernsy;
 			productReference = A1B2C3D40000000000000038 /* Fernsy.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A1B2C3D4000000000000004A /* Fernsy TV */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4000000000000004B /* Build configuration list for PBXNativeTarget "Fernsy TV" */;
+			buildPhases = (
+				A1B2C3D4000000000000004E /* Sources */,
+				A1B2C3D4000000000000004F /* Frameworks */,
+				A1B2C3D40000000000000050 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D40000000000000048 /* FernsyTV */,
+			);
+			name = "Fernsy TV";
+			packageProductDependencies = (
+				A1B2C3D40000000000000051 /* FernsyCore */,
+				A1B2C3D40000000000000052 /* FernsyPlayer */,
+			);
+			productName = FernsyTV;
+			productReference = A1B2C3D40000000000000049 /* FernsyTV.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A1B2C3D40000000000000057 /* Fernsy TV UITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4000000000000005D /* Build configuration list for PBXNativeTarget "Fernsy TV UITests" */;
+			buildPhases = (
+				A1B2C3D40000000000000058 /* Sources */,
+				A1B2C3D40000000000000059 /* Frameworks */,
+				A1B2C3D4000000000000005A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1B2C3D4000000000000005B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D40000000000000055 /* FernsyTVUITests */,
+			);
+			name = "Fernsy TV UITests";
+			productName = FernsyTVUITests;
+			productReference = A1B2C3D40000000000000056 /* FernsyTVUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -147,6 +240,13 @@
 					A1B2C3D40000000000000030 = {
 						CreatedOnToolsVersion = 27.0;
 					};
+					A1B2C3D4000000000000004A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					A1B2C3D40000000000000057 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = A1B2C3D4000000000000004A;
+					};
 				};
 			};
 			buildConfigurationList = A1B2C3D4000000000000000B /* Build configuration list for PBXProject "Fernsy" */;
@@ -162,6 +262,7 @@
 			packageReferences = (
 				A1B2C3D40000000000000039 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				A1B2C3D4000000000000003E /* XCLocalSwiftPackageReference "Packages/FernsyCore" */,
+				A1B2C3D40000000000000043 /* XCLocalSwiftPackageReference "Packages/FernsyPlayer" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A1B2C3D40000000000000005 /* Products */;
@@ -170,6 +271,8 @@
 			targets = (
 				A1B2C3D40000000000000006 /* Fernsy */,
 				A1B2C3D40000000000000030 /* Fernsy Direct */,
+				A1B2C3D4000000000000004A /* Fernsy TV */,
+				A1B2C3D40000000000000057 /* Fernsy TV UITests */,
 			);
 		};
 /* End PBXProject section */
@@ -189,42 +292,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D40000000000000050 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4000000000000005A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A1B2C3D40000000000000020 /* Embed FFmpeg */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			alwaysOutOfDate = 1;
-			name = "Embed FFmpeg";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "exec \"$PROJECT_DIR/scripts/embed-ffmpeg.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		A1B2C3D40000000000000037 /* Embed FFmpeg */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			alwaysOutOfDate = 1;
-			name = "Embed FFmpeg";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "exec \"$PROJECT_DIR/scripts/embed-ffmpeg.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A1B2C3D40000000000000008 /* Sources */ = {
@@ -241,7 +323,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D4000000000000004E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D40000000000000058 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1B2C3D4000000000000005B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D4000000000000004A /* Fernsy TV */;
+			targetProxy = A1B2C3D4000000000000005C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A1B2C3D4000000000000000C /* Debug */ = {
@@ -306,9 +410,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				FFMPEG_PREFIX = "$(PROJECT_DIR)/Vendor/ffmpeg";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(FFMPEG_PREFIX)/include";
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -317,20 +419,10 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(FFMPEG_PREFIX)/lib";
 				MARKETING_VERSION = 1.1;
-				OTHER_LDFLAGS = (
-					"-lavformat",
-					"-lavcodec",
-					"-lavfilter",
-					"-lavutil",
-					"-lswresample",
-					"-lswscale",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -349,9 +441,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				FFMPEG_PREFIX = "$(PROJECT_DIR)/Vendor/ffmpeg";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(FFMPEG_PREFIX)/include";
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -360,20 +450,10 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(FFMPEG_PREFIX)/lib";
 				MARKETING_VERSION = 1.1;
-				OTHER_LDFLAGS = (
-					"-lavformat",
-					"-lavcodec",
-					"-lavfilter",
-					"-lavutil",
-					"-lswresample",
-					"-lswscale",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -393,9 +473,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				FFMPEG_PREFIX = "$(PROJECT_DIR)/Vendor/ffmpeg";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(FFMPEG_PREFIX)/include";
 				INFOPLIST_FILE = "Config/Info-Direct.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -405,22 +483,12 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(FFMPEG_PREFIX)/lib";
 				MARKETING_VERSION = 1.1;
-				OTHER_LDFLAGS = (
-					"-lavformat",
-					"-lavcodec",
-					"-lavfilter",
-					"-lavutil",
-					"-lswresample",
-					"-lswscale",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.dev;
 				PRODUCT_NAME = Fernsy;
 				SPARKLE_PUBLIC_ED_KEY = "jOhtmmUX0BOx1oTRsWehQWehmSWuahwKdjzD++0Bjec=";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DIRECT_DISTRIBUTION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -439,9 +507,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				FFMPEG_PREFIX = "$(PROJECT_DIR)/Vendor/ffmpeg";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(FFMPEG_PREFIX)/include";
 				INFOPLIST_FILE = "Config/Info-Direct.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -451,23 +517,114 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(FFMPEG_PREFIX)/lib";
 				MARKETING_VERSION = 1.1;
-				OTHER_LDFLAGS = (
-					"-lavformat",
-					"-lavcodec",
-					"-lavfilter",
-					"-lavutil",
-					"-lswresample",
-					"-lswscale",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
 				PRODUCT_NAME = Fernsy;
 				SPARKLE_PUBLIC_ED_KEY = "jOhtmmUX0BOx1oTRsWehQWehmSWuahwKdjzD++0Bjec=";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DIRECT_DISTRIBUTION $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fernsy/Player/FFmpeg/Fernsy-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A1B2C3D4000000000000004C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "TVAppIcon-Dev";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 13;
+				DEVELOPMENT_TEAM = B8YT7FNB66;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.dev;
+				PRODUCT_NAME = FernsyTV;
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		A1B2C3D4000000000000004D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = TVAppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 13;
+				DEVELOPMENT_TEAM = B8YT7FNB66;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy;
+				PRODUCT_NAME = FernsyTV;
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		A1B2C3D4000000000000005E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 13;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.uitests;
+				PRODUCT_NAME = FernsyTVUITests;
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_TARGET_NAME = "Fernsy TV";
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		A1B2C3D4000000000000005F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 13;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = de.mobilistics.fernsy.uitests;
+				PRODUCT_NAME = FernsyTVUITests;
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TEST_TARGET_NAME = "Fernsy TV";
+				TVOS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Release;
 		};
@@ -501,12 +658,34 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A1B2C3D4000000000000004B /* Build configuration list for PBXNativeTarget "Fernsy TV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4000000000000004C /* Debug */,
+				A1B2C3D4000000000000004D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D4000000000000005D /* Build configuration list for PBXNativeTarget "Fernsy TV UITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4000000000000005E /* Debug */,
+				A1B2C3D4000000000000005F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
 		A1B2C3D4000000000000003E /* XCLocalSwiftPackageReference "Packages/FernsyCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/FernsyCore;
+		};
+		A1B2C3D40000000000000043 /* XCLocalSwiftPackageReference "Packages/FernsyPlayer" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FernsyPlayer;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -534,6 +713,22 @@
 		A1B2C3D40000000000000040 /* FernsyCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FernsyCore;
+		};
+		A1B2C3D40000000000000044 /* FernsyPlayer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FernsyPlayer;
+		};
+		A1B2C3D40000000000000045 /* FernsyPlayer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FernsyPlayer;
+		};
+		A1B2C3D40000000000000051 /* FernsyCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FernsyCore;
+		};
+		A1B2C3D40000000000000052 /* FernsyPlayer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FernsyPlayer;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

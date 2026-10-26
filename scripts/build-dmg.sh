@@ -2,7 +2,7 @@
 # Builds a Release Fernsy.app and packs it into a DMG (distribution outside the App Store).
 # It builds the "Fernsy Direct" target: the app plus the Sparkle updater (the App Store build,
 # scripts/build-appstore.sh, uses the "Fernsy" target without it).
-# FFmpeg comes from Vendor/ffmpeg (scripts/build-ffmpeg.sh) and is embedded by the build.
+# FFmpeg comes from Packages/FernsyPlayer/Frameworks (scripts/build-ffmpeg.sh) and is embedded by the build.
 #
 #   scripts/build-dmg.sh                 # ad-hoc signed (local use, no developer account)
 #   SIGN_IDENTITY="Developer ID Application: …" scripts/build-dmg.sh
@@ -27,7 +27,7 @@ SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 cd "$ROOT"
 "$ROOT/scripts/set-version.sh"
-[ -d "$ROOT/Vendor/ffmpeg/lib" ] || "$ROOT/scripts/build-ffmpeg.sh"
+[ -d "$ROOT/Packages/FernsyPlayer/Frameworks/avcodec.xcframework" ] || "$ROOT/scripts/build-ffmpeg.sh"
 rm -rf "$BUILD"
 mkdir -p "$DIST"
 
@@ -90,10 +90,10 @@ sleep 3
 lsof -p "$PID" -Fn 2>/dev/null | sed -n 's/^n//p' > "$BUILD/launch.log" || true
 kill "$PID" 2>/dev/null || true
 wait "$PID" 2>/dev/null || true
-if grep -q "/opt/homebrew\|/usr/local\|Vendor/ffmpeg" "$BUILD/launch.log"; then
-    echo "App loads libraries from outside the bundle:"; grep "/opt/homebrew\|/usr/local\|Vendor/ffmpeg" "$BUILD/launch.log" | head; exit 1
+if grep -q "/opt/homebrew\|/usr/local\|Packages/FernsyPlayer" "$BUILD/launch.log"; then
+    echo "App loads libraries from outside the bundle:"; grep "/opt/homebrew\|/usr/local\|Packages/FernsyPlayer" "$BUILD/launch.log" | head; exit 1
 fi
-grep -q "Frameworks/libavcodec" "$BUILD/launch.log" || { echo "libavcodec not loaded from bundle"; tail -20 "$BUILD/launch.log"; exit 1; }
+grep -q "Frameworks/avcodec.framework/" "$BUILD/launch.log" || { echo "avcodec not loaded from bundle"; tail -20 "$BUILD/launch.log"; exit 1; }
 
 echo "▸ Creating DMG"
 DMG_ROOT="$BUILD/dmg"

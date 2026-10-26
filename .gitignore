@@ -8,3 +8,5 @@ Vendor/
 .claude/worktrees/
 docs/
 __pycache__/
+Packages/FernsyPlayer/Frameworks/
+Packages/FernsyPlayer/Sources/CFFShim/include/lib*/

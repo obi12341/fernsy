@@ -1,5 +1,7 @@
+import CFFShim
 import Combine
 import FernsyCore
+import FernsyPlayer
 import Foundation
 import VideoToolbox
 

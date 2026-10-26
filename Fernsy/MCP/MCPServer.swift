@@ -35,10 +35,16 @@ final class MCPServer: ObservableObject {
     private let tokenBox = TokenBox()
     private var http: MCPHTTPServer?
     private let tools: MCPTools
+    private let dispatcher: MCPDispatcher
     private var inMemory = false
 
+    static let protocolVersions = MCPDispatcher.protocolVersions
+
     init(app: AppModel) {
-        tools = MCPTools(app: app)
+        let tools = MCPTools(app: app)
+        self.tools = tools
+        dispatcher = MCPDispatcher(serverName: "Fernsy", instructions: MCPTools.instructions, definitions: MCPTools.definitions,
+                                   imageKey: MCPTools.imageKey) { name, arguments in try await tools.call(name, arguments) }
         isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
         token = ""
         #if DEBUG
@@ -133,73 +139,10 @@ final class MCPServer: ObservableObject {
         }
     }
 
-    // MARK: JSON-RPC
-
-    static let protocolVersions = ["2025-06-18", "2025-03-26", "2024-11-05"]
-    private var clientName = "?"
+    // MARK: JSON-RPC (FernsyCore's MCPDispatcher)
 
     private func handle(_ body: Data) async -> MCPHTTPServer.Response {
-        guard let message = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-              message["jsonrpc"] as? String == "2.0", let method = message["method"] as? String else {
-            return reply(id: nil, error: (-32700, "Parse error: expected one JSON-RPC 2.0 message"))
-        }
-        let id = message["id"]
-        let params = message["params"] as? [String: Any] ?? [:]
-        // Notifications (no id) get no answer.
-        guard let id, !(id is NSNull) else { return MCPHTTPServer.Response(status: 202, body: nil) }
-
-        switch method {
-        case "initialize":
-            let requested = params["protocolVersion"] as? String ?? ""
-            clientName = ((params["clientInfo"] as? [String: Any])?["name"] as? String) ?? "?"
-            AppLog.info(.mcp, "client \(clientName) connected (protocol \(requested))")
-            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-            return reply(id: id, result: [
-                "protocolVersion": Self.protocolVersions.contains(requested) ? requested : Self.protocolVersions[0],
-                "capabilities": ["tools": ["listChanged": false]],
-                "serverInfo": ["name": "Fernsy", "title": "Fernsy", "version": version],
-                "instructions": MCPTools.instructions,
-            ])
-        case "ping":
-            return reply(id: id, result: [:])
-        case "tools/list":
-            return reply(id: id, result: ["tools": MCPTools.definitions])
-        case "tools/call":
-            guard let name = params["name"] as? String else { return reply(id: id, error: (-32602, "Missing tool name")) }
-            guard MCPTools.definitions.contains(where: { $0["name"] as? String == name }) else {
-                return reply(id: id, error: (-32602, "Unknown tool: \(name)"))
-            }
-            let arguments = params["arguments"] as? [String: Any] ?? [:]
-            AppLog.info(.mcp, "\(clientName): \(name)")
-            let result: [String: Any]
-            do {
-                var value = try await tools.call(name, arguments)
-                var content: [[String: Any]] = []
-                if let image = value.removeValue(forKey: MCPTools.imageKey) as? Data {
-                    content.append(["type": "image", "mimeType": "image/jpeg", "data": image.base64EncodedString()])
-                }
-                content.append(["type": "text", "text": Self.text(value)])
-                result = ["content": content, "structuredContent": value, "isError": false]
-            } catch {
-                AppLog.warning(.mcp, "\(name) failed: \(error.localizedDescription)")
-                result = ["content": [["type": "text", "text": error.localizedDescription]], "isError": true]
-            }
-            return reply(id: id, result: result)
-        default:
-            return reply(id: id, error: (-32601, "Method not found: \(method)"))
-        }
-    }
-
-    private static func text(_ value: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) else { return "{}" }
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    private func reply(id: Any?, result: [String: Any]? = nil, error: (code: Int, message: String)? = nil) -> MCPHTTPServer.Response {
-        var message: [String: Any] = ["jsonrpc": "2.0", "id": id ?? NSNull()]
-        if let error { message["error"] = ["code": error.code, "message": error.message] } else { message["result"] = result ?? [:] }
-        let data = (try? JSONSerialization.data(withJSONObject: message, options: [.withoutEscapingSlashes])) ?? Data()
-        return MCPHTTPServer.Response(status: 200, body: data)
+        await dispatcher.handle(body)
     }
 }
 
