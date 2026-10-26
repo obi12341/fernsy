@@ -36,6 +36,9 @@ struct XtreamClient {
     }()
 
     private func apiURL(_ action: String?, _ params: [String: String] = [:]) throws -> URL {
+        #if DEBUG
+        if credentials.isCopied { throw XtreamError.invalidServer }
+        #endif
         guard let base = credentials.baseURL,
               var components = URLComponents(url: base.appendingPathComponent("player_api.php"), resolvingAgainstBaseURL: false)
         else { throw XtreamError.invalidServer }

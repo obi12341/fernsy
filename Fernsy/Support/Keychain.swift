@@ -3,7 +3,13 @@ import Security
 
 /// Codable values as generic passwords in the keychain, one item per account name.
 enum Keychain {
+    #if DEBUG
+    /// Debug builds have their own bundle id; their own service keeps them away from the
+    /// installed app's items even where the signature would let them ask for access.
+    private static let service = "de.mobilistics.fernsy.dev"
+    #else
     private static let service = "de.mobilistics.fernsy"
+    #endif
 
     static func load<T: Decodable>(_ type: T.Type, account: String) -> T? {
         let query: [String: Any] = [

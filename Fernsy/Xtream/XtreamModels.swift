@@ -45,8 +45,22 @@ struct XtreamCredentials: Codable, Equatable {
         return URL(string: s)
     }
 
+    #if DEBUG
+    /// IPTV_COPIEDACCOUNT: an account folder copied from the installed app, opened without its
+    /// credentials (they stay in the installed app's keychain). The server never resolves.
+    static let copiedServer = "http://copied-account.invalid"
+    static var copied: XtreamCredentials? {
+        guard let folder = ProcessInfo.processInfo.environment["IPTV_COPIEDACCOUNT"], !folder.isEmpty else { return nil }
+        return XtreamCredentials(server: copiedServer, username: folder, password: "")
+    }
+    var isCopied: Bool { server == Self.copiedServer }
+    #endif
+
     /// Stable identifier for per-account cache folders.
     var accountKey: String {
+        #if DEBUG
+        if isCopied { return username }
+        #endif
         let raw = "\(server.lowercased())|\(username)"
         return String(raw.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : "_" })
     }

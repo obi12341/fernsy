@@ -151,7 +151,11 @@ final class PlayerEngine: ObservableObject {
     @Published var volume: Float {
         didSet {
             audioRenderer.volume = volume
+            #if DEBUG
+            return
+            #else
             UserDefaults.standard.set(volume, forKey: "player.volume")
+            #endif
         }
     }
     @Published var isMuted = false {
@@ -218,6 +222,14 @@ final class PlayerEngine: ObservableObject {
         displayLayer.preventsDisplaySleepDuringVideoPlayback = true
         displayLayer.backgroundColor = NSColor.black.cgColor
         audioRenderer.volume = volume
+        #if DEBUG
+        // Test runs are silent unless asked for: the user may be watching in the installed app.
+        if ProcessInfo.processInfo.environment["IPTV_SOUND"] != "1" {
+            isMuted = true
+            audioRenderer.isMuted = true
+            AppLog.info(.player, "debug build starts muted (IPTV_SOUND=1 for sound)")
+        }
+        #endif
 
         synchronizer.delaysRateChangeUntilHasSufficientMediaData = false
 

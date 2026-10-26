@@ -1566,6 +1566,16 @@
         }
       }
     },
+    "Debug-Build: echte Anbieter nur mit IPTV_ALLOWREAL=1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debug build: real providers only with IPTV_ALLOWREAL=1"
+          }
+        }
+      }
+    },
     "Decoder neu gestartet": {
       "localizations": {
         "en": {
