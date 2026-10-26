@@ -1,9 +1,8 @@
-import FernsyCore
 import Foundation
 import Security
 
 /// Codable values as generic passwords in the keychain, one item per account name.
-enum Keychain {
+public enum Keychain {
     #if DEBUG
     /// Debug builds have their own bundle id; their own service keeps them away from the
     /// installed app's items even where the signature would let them ask for access.
@@ -12,7 +11,7 @@ enum Keychain {
     private static let service = "de.mobilistics.fernsy"
     #endif
 
-    static func load<T: Decodable>(_ type: T.Type, account: String) -> T? {
+    public static func load<T: Decodable>(_ type: T.Type, account: String) -> T? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -25,7 +24,7 @@ enum Keychain {
         return try? JSONDecoder().decode(T.self, from: data)
     }
 
-    static func save<T: Encodable>(_ value: T, account: String) {
+    public static func save<T: Encodable>(_ value: T, account: String) {
         guard let data = try? JSONEncoder().encode(value) else { return }
         delete(account: account)
         let attrs: [String: Any] = [
@@ -38,7 +37,7 @@ enum Keychain {
         SecItemAdd(attrs as CFDictionary, nil)
     }
 
-    static func delete(account: String) {
+    public static func delete(account: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -49,8 +48,8 @@ enum Keychain {
 }
 
 /// The Xtream login.
-enum CredentialStore {
-    static func load() -> XtreamCredentials? { Keychain.load(XtreamCredentials.self, account: "xtream") }
-    static func save(_ credentials: XtreamCredentials) { Keychain.save(credentials, account: "xtream") }
-    static func delete() { Keychain.delete(account: "xtream") }
+public enum CredentialStore {
+    public static func load() -> XtreamCredentials? { Keychain.load(XtreamCredentials.self, account: "xtream") }
+    public static func save(_ credentials: XtreamCredentials) { Keychain.save(credentials, account: "xtream") }
+    public static func delete() { Keychain.delete(account: "xtream") }
 }

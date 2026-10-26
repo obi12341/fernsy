@@ -3,19 +3,25 @@ import Network
 
 /// A minimal HTTP/1.1 server for the MCP endpoint: loopback only, one request per connection,
 /// `POST /mcp` with a bearer token. Everything else is refused before the body is handled.
-final class MCPHTTPServer: @unchecked Sendable {
-    struct Response {
-        var status: Int
-        var body: Data?
-        var headers: [String: String] = [:]
+public final class MCPHTTPServer: @unchecked Sendable {
+    public struct Response: Sendable {
+        public var status: Int
+        public var body: Data?
+        public var headers: [String: String] = [:]
+
+        public init(status: Int, body: Data? = nil, headers: [String: String] = [:]) {
+            self.status = status
+            self.body = body
+            self.headers = headers
+        }
     }
 
     /// Called on the main actor with the request body of an accepted `POST /mcp`.
-    typealias Handler = @MainActor (Data) async -> Response
+    public typealias Handler = @MainActor (Data) async -> Response
 
-    enum State: Equatable { case starting, running, failed(String), stopped }
+    public enum State: Equatable { case starting, running, failed(String), stopped }
 
-    let port: UInt16
+    public let port: UInt16
     private let token: @Sendable () -> String
     private let handler: Handler
     private let onState: @MainActor (State) -> Void
@@ -25,14 +31,14 @@ final class MCPHTTPServer: @unchecked Sendable {
     private static let maxHeader = 16 * 1024
     private static let maxBody = 1024 * 1024
 
-    init(port: UInt16, token: @escaping @Sendable () -> String, onState: @escaping @MainActor (State) -> Void, handler: @escaping Handler) {
+    public init(port: UInt16, token: @escaping @Sendable () -> String, onState: @escaping @MainActor (State) -> Void, handler: @escaping Handler) {
         self.port = port
         self.token = token
         self.onState = onState
         self.handler = handler
     }
 
-    func start() {
+    public func start() {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
         parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: NWEndpoint.Port(rawValue: port)!)
@@ -57,7 +63,7 @@ final class MCPHTTPServer: @unchecked Sendable {
         listener.start(queue: queue)
     }
 
-    func stop() {
+    public func stop() {
         listener?.cancel()
         listener = nil
     }

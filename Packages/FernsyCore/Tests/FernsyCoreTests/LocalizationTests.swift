@@ -19,6 +19,7 @@ struct LocalizationTests {
         "Fernsy/Localizable.xcstrings", "Fernsy/AppShortcuts.xcstrings", "Fernsy/InfoPlist.xcstrings",
         "Packages/FernsyCore/Sources/FernsyCore/Resources/Localizable.xcstrings",
         "Packages/FernsyPlayer/Sources/FernsyPlayer/Resources/Localizable.xcstrings",
+        "FernsyTV/Localizable.xcstrings",
     ]
 
     /// Every key has a German translation, so no string ships English-only in the German UI.

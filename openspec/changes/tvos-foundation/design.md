@@ -140,8 +140,10 @@ with the designs and invite reviewing a look nobody chose.
 - Muted at start unless `IPTV_SOUND=1`, the demo-server guard of `PlayerError.debugAllows` (it
   moves with `PlaybackSession`), and credentials from `IPTV_SERVER/IPTV_USER/IPTV_PASS` with
   `FERNSY_NO_KEYCHAIN=1`.
-- Debug MCP server: `MCPHTTPServer` and `MCPServer` move to `FernsyCore` (the two app
-  references become parameters); the Apple TV app registers its own small tool set in
+- Debug MCP server: `MCPHTTPServer` and the JSON-RPC part of `MCPServer` move to `FernsyCore`
+  (the latter as `MCPDispatcher`, which takes the tool list and a call closure); the Mac app's
+  `MCPServer` keeps its setting, token, keychain and desktop-extension parts and uses the
+  dispatcher. The Apple TV app registers its own small tool set in
   `FernsyTV/Debug/TVTools.swift` – `play`, `stop_playback`, `seek`, `now_playing`,
   `playback_diagnostics`, `snapshot`, `get_log` – on port 52325 with `IPTV_MCPTOKEN`, DEBUG only.
   The simulator shares the Mac's network, so `127.0.0.1:52325` reaches it. Release builds of
