@@ -23,6 +23,26 @@
         }
       }
     },
+    "%@ · %lld min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$lld Min."
+          }
+        }
+      }
+    },
+    "%@ · until %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · bis %2$@"
+          }
+        }
+      }
+    },
     "%lld": {
       "localizations": {
         "de": {
@@ -49,6 +69,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "noch %lld Min."
+          }
+        }
+      }
+    },
+    "%lld running · %lld scheduled": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld läuft · %2$lld geplant"
           }
         }
       }
@@ -193,6 +223,16 @@
         }
       }
     },
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        }
+      }
+    },
     "Don’t Record": {
       "localizations": {
         "de": {
@@ -209,6 +249,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beendet"
+          }
+        }
+      }
+    },
+    "Failed · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlgeschlagen · %@"
           }
         }
       }
@@ -269,6 +319,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ausblenden"
+          }
+        }
+      }
+    },
+    "Hold a channel’s button in Live TV or choose a show in the Guide to record it. Fernsy records while it is open on this Apple TV; tvOS may remove recordings when space runs short.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Halte in Live TV die Taste auf einem Sender gedrückt oder wähle im Programm eine Sendung, um sie aufzunehmen. Fernsy nimmt auf, solange es auf diesem Apple TV geöffnet ist; tvOS kann Aufnahmen löschen, wenn der Speicher knapp wird."
           }
         }
       }
@@ -383,6 +443,26 @@
         }
       }
     },
+    "Missed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verpasst"
+          }
+        }
+      }
+    },
+    "Missed · Fernsy was not open": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verpasst · Fernsy war nicht geöffnet"
+          }
+        }
+      }
+    },
     "NEXT": {
       "localizations": {
         "de": {
@@ -439,6 +519,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keine Programminformationen"
+          }
+        }
+      }
+    },
+    "No recordings yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Aufnahmen"
           }
         }
       }
@@ -583,6 +673,16 @@
         }
       }
     },
+    "Recorded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgenommen"
+          }
+        }
+      }
+    },
     "Recording": {
       "localizations": {
         "de": {
@@ -619,6 +719,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kein Favorit mehr"
+          }
+        }
+      }
+    },
+    "Running and Scheduled": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft und geplant"
+          }
+        }
+      }
+    },
+    "Scheduled": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geplant"
           }
         }
       }
@@ -719,6 +839,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nach unten wischen: Sender"
+          }
+        }
+      }
+    },
+    "The file of this recording is gone; tvOS may have removed it to free space.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei dieser Aufnahme fehlt; tvOS hat sie vermutlich gelöscht, um Speicher frei zu machen."
           }
         }
       }
@@ -839,6 +969,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "„%@“ wird aufgenommen"
+          }
+        }
+      }
+    },
+    "● REC": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● REC"
+          }
+        }
+      }
+    },
+    "⚠︎ Error": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠︎ Fehler"
           }
         }
       }

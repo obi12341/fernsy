@@ -43,7 +43,7 @@ struct TVTools {
     }
 
     static let imageKey = "_image"
-    static let instructions = "Debug tools of Fernsy on Apple TV (simulator): play a live channel, seek, read the player's state and log, take a snapshot of the picture."
+    static let instructions = "Debug tools of Fernsy on Apple TV (simulator): play a live channel, seek, read the player’s state and log, take a snapshot of the picture, record and list recordings."
 
     static let definitions: [[String: Any]] = [
         tool("play", "Play a live channel: item_id live:<channel id>.", ["item_id": ["type": "string"]], required: ["item_id"]),
@@ -55,6 +55,11 @@ struct TVTools {
         tool("snapshot", "The picture shown now, as a JPEG.", [:]),
         tool("get_log", "The app log of this run: minimum level (detail, info, warning, error), optional query.",
              ["level": ["type": "string"], "query": ["type": "string"], "limit": ["type": "integer"]]),
+        tool("record", "Record a live channel: the show on now (channel_id), or a later show (channel_id and start, ISO 8601, of a show in its guide).",
+             ["channel_id": ["type": "integer"], "start": ["type": "string"]], required: ["channel_id"]),
+        tool("list_recordings", "The recordings on this Apple TV: running, scheduled, finished, failed and missed, with file size.", [:]),
+        tool("cancel_recording", "Stop a running recording (keeps what was recorded) or drop a scheduled one; delete: true also removes a finished one and its file.",
+             ["recording_id": ["type": "string"], "delete": ["type": "boolean"]], required: ["recording_id"]),
     ]
 
     private static func tool(_ name: String, _ description: String, _ properties: [String: Any], required: [String] = []) -> [String: Any] {
@@ -92,6 +97,28 @@ struct TVTools {
             let result = AppLog.shared.query(minimum: levels[args["level"] as? String ?? "info"] ?? .info,
                                              query: args["query"] as? String ?? "", limit: args["limit"] as? Int ?? 200)
             return ["entries": result.entries.map { $0.line }, "truncated": result.truncated]
+        case "record":
+            guard let id = args["channel_id"] as? Int, let channel = model.channels.first(where: { $0.id == id }) else {
+                throw ToolError("Pass the channel_id of a live channel")
+            }
+            let message: String?
+            if let start = (args["start"] as? String).flatMap({ try? Date($0, strategy: .iso8601) }) {
+                await model.loadGuide(for: channel)
+                guard let show = model.guide.guide(id).entries?.first(where: { abs($0.start.timeIntervalSince(start)) < 60 }) else {
+                    throw ToolError("No show at \(start) on \(channel.displayName)")
+                }
+                message = model.schedule(show, on: channel)
+            } else {
+                message = model.recordNow(channel)
+            }
+            return ["result": "planned", "notice": message ?? "", "recordings": recordings()]
+        case "list_recordings":
+            return ["recordings": recordings()]
+        case "cancel_recording":
+            guard let value = args["recording_id"] as? String, let id = UUID(uuidString: value),
+                  model.recorder.recordings.contains(where: { $0.id == id }) else { throw ToolError("No recording with that id") }
+            if args["delete"] as? Bool == true { model.recorder.delete(id) } else { model.recorder.stop(id) }
+            return ["recordings": recordings()]
         default:
             throw ToolError("Unknown tool \(name)")
         }
@@ -109,6 +136,21 @@ struct TVTools {
         if !progress.followsLive { value["behind_live_seconds"] = Int(max(0, progress.liveEnd - progress.position)) }
         if let show = model.currentShow(on: channel) { value["show"] = show.title }
         return value
+    }
+
+    private func recordings() -> [[String: Any]] {
+        model.recorder.recordings.map { r in
+            var value: [String: Any] = [
+                "recording_id": r.id.uuidString, "title": r.title, "channel": r.channelName, "channel_id": r.channelId,
+                "status": r.status.rawValue, "record_start": r.recordStart.ISO8601Format(), "record_end": r.recordEnd.ISO8601Format(),
+            ]
+            if let file = r.fileName { value["file"] = file }
+            if let error = r.error { value["error"] = error }
+            if let url = model.recorder.fileURL(r), let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 {
+                value["bytes"] = size
+            }
+            return value
+        }
     }
 
     private func diagnostics() -> [String: Any] {

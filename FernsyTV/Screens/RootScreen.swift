@@ -17,8 +17,9 @@ struct RootScreen: View {
             }
         }
         .background(TVTheme.background.ignoresSafeArea())
-        .fullScreenCover(isPresented: Binding(get: { model.playing != nil }, set: { if !$0 { model.stop() } })) {
-            PlayerScreen()
+        .fullScreenCover(isPresented: Binding(get: { model.playing != nil || model.playingRecording != nil },
+                                              set: { if !$0 { model.stop() } })) {
+            if model.playingRecording != nil { RecordingPlayerScreen() } else { PlayerScreen() }
         }
         .alert(model.question?.title ?? "", isPresented: Binding(get: { model.question != nil }, set: { if !$0 { model.question?.answer(false) } }),
                presenting: model.question) { question in
@@ -45,7 +46,7 @@ struct MainTabs: View {
         TabView(selection: $selection) {
             SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
             SwiftUI.Tab(value: Tab.guide) { GuideScreen() } label: { Text("Guide") }
-            SwiftUI.Tab(value: Tab.recordings) { PendingScreen(title: "Recordings") } label: { Text("Recordings") }
+            SwiftUI.Tab(value: Tab.recordings) { RecordingsScreen() } label: { Text("Recordings") }
             SwiftUI.Tab(value: Tab.settings) { PendingScreen(title: "Settings") } label: {
                 Label("Settings", systemImage: "gearshape").labelStyle(.iconOnly)
             }

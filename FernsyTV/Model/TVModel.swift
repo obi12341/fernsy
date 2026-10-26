@@ -26,6 +26,8 @@ final class TVModel: ObservableObject {
     /// player's engine and connection, so clicking it continues full screen (design E).
     @Published private(set) var previewing: LiveChannel?
     private var previewSound = false
+    /// The recording in the player (TVModel+Recordings.swift), nil when none plays.
+    @Published var playingRecording: Recording?
     /// Where the playing channel was started from: the player's channel strip zaps through it.
     var zapSource: LiveSource = .all
     /// The engine's mute state outside the preview (debug builds start muted).
@@ -54,9 +56,13 @@ final class TVModel: ObservableObject {
     /// Timeshift buffer on Apple TV: Caches, which tvOS may need back (design F).
     static let timeshiftSeconds: Double = 30 * 60
 
+    private var recorderChanges: AnyCancellable?
+
     private init() {
         tuners.keepSeconds = Self.timeshiftSeconds
         recorder.host = self
+        // Screens observe the model: the recorder's list changes are the model's changes too.
+        recorderChanges = recorder.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         if let credentials = Self.debugCredentials ?? (Self.skipKeychain ? nil : CredentialStore.load()) {
             startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
@@ -89,6 +95,12 @@ final class TVModel: ObservableObject {
             tuners.limit = maxConnections
             if remember && !Self.skipKeychain { CredentialStore.save(credentials) }
             loadLiveState()
+            #if DEBUG
+            // IPTV_FRESHRECORDINGS=1: start without the recordings of earlier test runs.
+            if ProcessInfo.processInfo.environment["IPTV_FRESHRECORDINGS"] == "1" {
+                try? FileManager.default.removeItem(at: Self.recordingsDirectory(accountKey: credentials.accountKey))
+            }
+            #endif
             recorder.activate(accountKey: credentials.accountKey)
             signIn = .signedIn
             AppLog.info(.app, "signed in, \(maxConnections) stream(s)")
@@ -158,6 +170,7 @@ final class TVModel: ObservableObject {
             return
         }
         stopPreview()
+        if playingRecording != nil { stopRecordingPlayback() }
         guard let client, let url = client.liveURL(channel.id) else { return }
         if let playing, playing.id != channel.id { tuners.release(playing.id, owner: .player) }
         let tuner = tuners.acquire(channel.id, url: url, owner: .player)
@@ -168,6 +181,7 @@ final class TVModel: ObservableObject {
     }
 
     func stop() {
+        if playingRecording != nil { stopRecordingPlayback(); return }
         guard let playing else { return }
         AppLog.info(.player, "stop channel \(playing.id)")
         engine.stop()

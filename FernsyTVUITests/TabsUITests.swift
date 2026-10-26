@@ -36,7 +36,7 @@ final class TabsUITests: XCTestCase {
         for name in ["Guide", "Recordings", "Settings"] {
             remote.press(.right)
             XCTAssertTrue(waitForFocus(tabBar.buttons[name]), "\(name) has no focus:\n\(tabBar.debugDescription)")
-            let screen = name == "Guide" ? app.buttons["guide.source"] : app.staticTexts[name]
+            let screen = name == "Guide" ? app.buttons["guide.source"] : name == "Recordings" ? app.descendants(matching: .any)["recordings.screen"] : app.staticTexts[name]
             if name != "Settings" {
                 XCTAssertTrue(screen.waitForExistence(timeout: 5), "the \(name) screen did not show")
             }

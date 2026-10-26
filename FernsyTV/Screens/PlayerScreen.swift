@@ -10,6 +10,8 @@ struct PlayerScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var mode: Mode = .hidden
     @State private var lastInput = Date()
+    /// The player takes focus, so Back and the remote reach it, not the row below the cover.
+    @FocusState private var focused: Bool
 
     enum Mode: Equatable {
         case hidden, info
@@ -64,6 +66,9 @@ struct PlayerScreen: View {
         .foregroundStyle(.white)
         .accessibilityElement(children: .contain)
         .focusable(mode != .strip && !isTracks)
+        .focused($focused)
+        .onAppear { focused = true }
+        .onChange(of: mode) { _, value in if value == .hidden || value == .info { focused = true } }
         .onPlayPauseCommand { model.togglePause(); touch() }
         .onMoveCommand { move($0) }
         .onTapGesture { click() }

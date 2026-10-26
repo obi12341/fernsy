@@ -13,6 +13,7 @@ final class GuideUITests: XCTestCase {
             "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
             "IPTV_USER": "demo",
             "IPTV_PASS": "demo",
+            "IPTV_FRESHRECORDINGS": "1",
         ]
         app.launch()
         let remote = XCUIRemote.shared

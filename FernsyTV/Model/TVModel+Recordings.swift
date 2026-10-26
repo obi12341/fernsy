@@ -113,6 +113,51 @@ extension TVModel: RecorderHost {
         }
     }
 
+    // MARK: Playing recordings
+
+    /// Plays a recording (also one still being written), from where the user stopped.
+    func play(_ recording: Recording) {
+        guard let url = recorder.fileURL(recording), FileManager.default.fileExists(atPath: url.path) else {
+            notice = String(localized: "The file of this recording is gone; tvOS may have removed it to free space.")
+            return
+        }
+        stop()
+        stopPreview()
+        playingRecording = recording
+        let id = recording.id
+        engine.load(file: url, isGrowing: { Recorder.isGrowing(id) }, startAt: resumePosition(recording))
+        AppLog.info(.player, "play recording \(recording.title)")
+    }
+
+    func stopRecordingPlayback() {
+        guard let recording = playingRecording else { return }
+        saveResume(recording, position: engine.progress.position, duration: engine.progress.duration)
+        engine.stop()
+        playingRecording = nil
+    }
+
+    private func resumeKey(_ recording: Recording) -> String { "resume.recording.\(recording.id.uuidString)" }
+
+    func resumePosition(_ recording: Recording) -> Double {
+        UserDefaults.standard.double(forKey: resumeKey(recording))
+    }
+
+    /// The share watched (0…1), for the card's bar.
+    func watchedShare(_ recording: Recording) -> Double {
+        let duration = recording.recordEnd.timeIntervalSince(recording.recordStart)
+        return duration > 0 ? min(1, resumePosition(recording) / duration) : 0
+    }
+
+    /// As on the Mac: under 30 s or within the last 90 s nothing is kept.
+    private func saveResume(_ recording: Recording, position: Double, duration: Double) {
+        let finished = duration > 0 && position > duration - 90
+        if position < 30 || finished {
+            UserDefaults.standard.removeObject(forKey: resumeKey(recording))
+        } else {
+            UserDefaults.standard.set(position, forKey: resumeKey(recording))
+        }
+    }
+
     #if DEBUG
     /// IPTV_TESTRECORD=<channel>:<starts in s>:<seconds>[:<before min>:<after min>],…, as on the Mac.
     func testRecord() {
