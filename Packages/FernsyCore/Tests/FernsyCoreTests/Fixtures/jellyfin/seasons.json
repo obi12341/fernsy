@@ -1,0 +1,36 @@
+{
+ "Items": [
+  {
+   "Name": "Season 1",
+   "ServerId": "00000000000000000000000000000001",
+   "Id": "00000000000000000000000000000007",
+   "PremiereDate": "2024-12-30T00:00:00.0000000Z",
+   "ChannelId": null,
+   "ProductionYear": 2024,
+   "IndexNumber": 1,
+   "IsFolder": true,
+   "Type": "Season",
+   "UserData": {
+    "PlayedPercentage": 0,
+    "UnplayedItemCount": 1,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "IsFavorite": false,
+    "Played": false,
+    "Key": "00000000000000000000000000000006001",
+    "ItemId": "00000000000000000000000000000007"
+   },
+   "RecursiveItemCount": 1,
+   "ChildCount": 1,
+   "SeriesName": "Test Show",
+   "SeriesId": "00000000000000000000000000000006",
+   "ImageTags": {},
+   "BackdropImageTags": [],
+   "ImageBlurHashes": {},
+   "LocationType": "FileSystem",
+   "MediaType": "Unknown"
+  }
+ ],
+ "TotalRecordCount": 1,
+ "StartIndex": 0
+}

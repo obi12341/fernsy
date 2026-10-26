@@ -1,0 +1,20 @@
+{
+ "info": {
+  "plot": "An astronomer follows a signal that has been travelling for a hundred years.",
+  "genre": "Adventure",
+  "cast": "Lena Albrecht, Jonas Kerber, Mira Sander, Paul Ostendorf",
+  "director": "Ruth Weidenfeld",
+  "releasedate": "2025-09-12",
+  "duration": "01:58:00",
+  "rating": "7.8",
+  "backdrop_path": [
+   "https://fernsy-demo.mobilistics.workers.dev/img/en/movie_0_bg.png"
+  ],
+  "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/movie_0.png"
+ },
+ "movie_data": {
+  "stream_id": 500,
+  "name": "Stardust",
+  "container_extension": "mp4"
+ }
+}

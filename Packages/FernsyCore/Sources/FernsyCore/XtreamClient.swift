@@ -30,7 +30,8 @@ public struct XtreamClient: Sendable {
         self.credentials = credentials
     }
 
-    private static let session: URLSession = {
+    /// Tests replace it with a session whose protocol answers from recorded examples.
+    nonisolated(unsafe) static var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 300
@@ -39,7 +40,7 @@ public struct XtreamClient: Sendable {
         return URLSession(configuration: config)
     }()
 
-    private func apiURL(_ action: String?, _ params: [String: String] = [:]) throws -> URL {
+    func apiURL(_ action: String?, _ params: [String: String] = [:]) throws -> URL {
         #if DEBUG
         if credentials.isCopied { throw XtreamError.invalidServer }
         #endif

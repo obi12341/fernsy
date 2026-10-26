@@ -21,13 +21,13 @@
 
 ## 3. Slow-delivery rule as a value type
 
-- [ ] 3.1 `DeliveryMonitor` in the package per design B; `HTTPByteSource.checkStall` uses it with `Date()`, keeping lock, timers, reconnect and the existing log lines. Verify: builds with 0 warnings; demo-server runs `IPTV_TESTNET=trickle:30` (replaced "too slow … (load balancer)"), `IPTV_TESTNET=trickle:20 IPTV_TRICKLEMORE=all` ("judging over 30 s", "60 s", then about one switch a minute) and `IPTV_TESTNET=drop:20` ("(same edge)", no slow reconnect) give the same log lines as before the change.
-- [ ] 3.2 `DeliveryMonitorTests` (design E) with a fed clock. Verify: tests pass and run in under a second.
+- [x] 3.1 `DeliveryMonitor` in the package per design B; `HTTPByteSource.checkStall` uses it with `Date()`, keeping lock, timers, reconnect and the existing log lines. Verify: builds with 0 warnings; demo-server runs `IPTV_TESTNET=trickle:30` (replaced "too slow … (load balancer)"), `IPTV_TESTNET=trickle:20 IPTV_TRICKLEMORE=all` ("judging over 30 s", "60 s", then about one switch a minute) and `IPTV_TESTNET=drop:20` ("(same edge)", no slow reconnect) give the same log lines as before the change.
+- [x] 3.2 `DeliveryMonitorTests` (design E) with a fed clock. Verify: tests pass and run in under a second.
 
 ## 4. Network fixtures
 
-- [ ] 4.1 Record Xtream fixtures once from the demo server into `Tests/Fixtures` (live, VOD and series lists, categories, account info, an EPG answer) and write `XtreamDecodingTests` and `XtreamClientTests` with a `URLProtocol` stub, including HTTP 401 and invalid JSON, and that the password is masked in log entries. Verify: tests pass with Wi-Fi off (or `networksetup` not needed: the stub never lets a request out, checked by a test that fails on any unstubbed request).
-- [ ] 4.2 `JellyfinModelsTests` with fixtures recorded from the local Docker test Jellyfin (`docker start` of the test container, read-only API calls, ids and names replaced), never from the user's server. Verify: tests pass; fixtures contain no token or user id of any real server.
+- [x] 4.1 Record Xtream fixtures once from the demo server into `Tests/Fixtures` (live, VOD and series lists, categories, account info, an EPG answer) and write `XtreamDecodingTests` and `XtreamClientTests` with a `URLProtocol` stub, including HTTP 401 and invalid JSON, and that the password is masked in log entries. Verify: tests pass with Wi-Fi off (or `networksetup` not needed: the stub never lets a request out, checked by a test that fails on any unstubbed request).
+- [x] 4.2 `JellyfinModelsTests` with fixtures recorded from a fresh local Docker Jellyfin (`jellyfin/jellyfin` image, container `fernsy-jf-fixtures` on 127.0.0.1:8097 with two generated 3 s clips, removed afterwards; ids, tokens, addresses and online metadata replaced), never from the user's server. The PascalCase decoder moves to the package (`JellyfinJSON.decoder`) so the tests decode like the app. Verify: tests pass; fixtures contain no token or user id of any real server.
 
 ## 5. CI and docs
 

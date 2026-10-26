@@ -1,0 +1,87 @@
+{
+ "info": {
+  "name": "Harbour Detectives",
+  "plot": "An unlikely pair of detectives solves crimes around the country's biggest port.",
+  "backdrop_path": [
+   "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_bg.png"
+  ]
+ },
+ "episodes": {
+  "1": [
+   {
+    "id": "00100",
+    "episode_num": 1,
+    "season": 1,
+    "title": "Radio Contact",
+    "container_extension": "mp4",
+    "info": {
+     "plot": "A new lead takes the team back to a place they never wanted to see again.",
+     "duration_secs": 2700,
+     "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_e0.png"
+    }
+   },
+   {
+    "id": "00101",
+    "episode_num": 2,
+    "season": 1,
+    "title": "Low Tide",
+    "container_extension": "mp4",
+    "info": {
+     "plot": "A new lead takes the team back to a place they never wanted to see again.",
+     "duration_secs": 2760,
+     "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_e1.png"
+    }
+   },
+   {
+    "id": "00102",
+    "episode_num": 3,
+    "season": 1,
+    "title": "The Bet",
+    "container_extension": "mp4",
+    "info": {
+     "plot": "A new lead takes the team back to a place they never wanted to see again.",
+     "duration_secs": 2820,
+     "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_e2.png"
+    }
+   }
+  ],
+  "2": [
+   {
+    "id": "00200",
+    "episode_num": 1,
+    "season": 2,
+    "title": "Under Suspicion",
+    "container_extension": "mp4",
+    "info": {
+     "plot": "A new lead takes the team back to a place they never wanted to see again.",
+     "duration_secs": 2700,
+     "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_e0.png"
+    }
+   },
+   {
+    "id": "00201",
+    "episode_num": 2,
+    "season": 2,
+    "title": "Beacon",
+    "container_extension": "mp4",
+    "info": {
+     "plot": "A new lead takes the team back to a place they never wanted to see again.",
+     "duration_secs": 2760,
+     "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_e1.png"
+    }
+   },
+   {
+    "id": "00202",
+    "episode_num": 3,
+    "season": 2,
+    "title": "Between the Lines",
+    "container_extension": "mp4",
+    "info": {
+     "plot": "A new lead takes the team back to a place they never wanted to see again.",
+     "duration_secs": 2820,
+     "movie_image": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0_e2.png"
+    }
+   }
+  ]
+ }
+}

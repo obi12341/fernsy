@@ -1,0 +1,67 @@
+[
+ {
+  "num": 1,
+  "name": "Harbour Detectives",
+  "series_id": 800,
+  "cover": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_0.png",
+  "plot": "An unlikely pair of detectives solves crimes around the country's biggest port.",
+  "cast": "Lena Albrecht, Jonas Kerber, Mira Sander",
+  "genre": "Crime, Drama",
+  "releaseDate": "2024-03-01",
+  "rating": "8.1",
+  "category_id": "20",
+  "last_modified": "1793022111"
+ },
+ {
+  "num": 2,
+  "name": "Foghorn",
+  "series_id": 801,
+  "cover": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_1.png",
+  "plot": "On a North Sea island, people keep vanishing in the fog.",
+  "cast": "Lena Albrecht, Jonas Kerber, Mira Sander",
+  "genre": "Mystery, Crime",
+  "releaseDate": "2025-03-01",
+  "rating": "7.8",
+  "category_id": "20",
+  "last_modified": "1792935711"
+ },
+ {
+  "num": 3,
+  "name": "The Guesthouse",
+  "series_id": 802,
+  "cover": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_2.png",
+  "plot": "The Berger family runs a guesthouse that is never quite finished.",
+  "cast": "Lena Albrecht, Jonas Kerber, Mira Sander",
+  "genre": "Comedy",
+  "releaseDate": "2023-03-01",
+  "rating": "7.4",
+  "category_id": "22",
+  "last_modified": "1792849311"
+ },
+ {
+  "num": 4,
+  "name": "Borderland",
+  "series_id": 803,
+  "cover": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_3.png",
+  "plot": "Two families, two countries, one shared secret.",
+  "cast": "Lena Albrecht, Jonas Kerber, Mira Sander",
+  "genre": "Drama",
+  "releaseDate": "2025-03-01",
+  "rating": "8.3",
+  "category_id": "21",
+  "last_modified": "1792762911"
+ },
+ {
+  "num": 5,
+  "name": "Trace TV",
+  "series_id": 804,
+  "cover": "https://fernsy-demo.mobilistics.workers.dev/img/en/series_4.png",
+  "plot": "A forensic scientist and her team solve the trickiest cases.",
+  "cast": "Lena Albrecht, Jonas Kerber, Mira Sander",
+  "genre": "Crime",
+  "releaseDate": "2024-03-01",
+  "rating": "7.6",
+  "category_id": "20",
+  "last_modified": "1792676511"
+ }
+]

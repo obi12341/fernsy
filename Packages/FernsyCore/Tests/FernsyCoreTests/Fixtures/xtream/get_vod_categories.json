@@ -1,0 +1,27 @@
+[
+ {
+  "category_id": "10",
+  "category_name": "New",
+  "parent_id": 0
+ },
+ {
+  "category_id": "11",
+  "category_name": "Drama",
+  "parent_id": 0
+ },
+ {
+  "category_id": "12",
+  "category_name": "Thriller",
+  "parent_id": 0
+ },
+ {
+  "category_id": "13",
+  "category_name": "Comedy",
+  "parent_id": 0
+ },
+ {
+  "category_id": "14",
+  "category_name": "Adventure",
+  "parent_id": 0
+ }
+]

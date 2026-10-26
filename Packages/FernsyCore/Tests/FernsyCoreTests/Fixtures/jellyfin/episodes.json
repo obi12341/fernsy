@@ -1,0 +1,44 @@
+{
+ "Items": [
+  {
+   "Name": "Episode 1",
+   "ServerId": "00000000000000000000000000000001",
+   "Id": "00000000000000000000000000000005",
+   "Container": "mkv",
+   "PremiereDate": "2024-12-30T00:00:00.0000000Z",
+   "ChannelId": null,
+   "RunTimeTicks": 30230000,
+   "ProductionYear": 2024,
+   "IndexNumber": 1,
+   "ParentIndexNumber": 1,
+   "IsFolder": false,
+   "Type": "Episode",
+   "UserData": {
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "IsFavorite": false,
+    "Played": false,
+    "Key": "00000000000000000000000000000006001001",
+    "ItemId": "00000000000000000000000000000005"
+   },
+   "SeriesName": "Test Show",
+   "SeriesId": "00000000000000000000000000000006",
+   "SeasonId": "00000000000000000000000000000007",
+   "SeasonName": "Season 1",
+   "VideoType": "VideoFile",
+   "ImageTags": {
+    "Primary": "00000000000000000000000000000008"
+   },
+   "BackdropImageTags": [],
+   "ImageBlurHashes": {
+    "Primary": {
+     "00000000000000000000000000000008": "W@KnxZE9nhKVX2M9xua7R:S@X4RRsonNsljJjZXlt7X4oIjbf8j]"
+    }
+   },
+   "LocationType": "FileSystem",
+   "MediaType": "Video"
+  }
+ ],
+ "TotalRecordCount": 1,
+ "StartIndex": 0
+}

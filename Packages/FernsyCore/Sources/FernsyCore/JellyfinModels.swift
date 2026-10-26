@@ -188,3 +188,23 @@ public enum JellyfinError: LocalizedError, Equatable, Sendable {
         }
     }
 }
+
+/// Jellyfin's JSON is PascalCase; the models are camelCase.
+public enum JellyfinJSON {
+    public static let decoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.keyDecodingStrategy = .custom { keys in
+            let last = keys.last!.stringValue
+            return AnyKey(last.prefix(1).lowercased() + last.dropFirst())
+        }
+        return d
+    }()
+
+    private struct AnyKey: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(_ string: String) { stringValue = string }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+}

@@ -117,10 +117,8 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         case reconnecting(loadBalancer: Bool)
     }
 
-    // Slow delivery: content time against wall time over a window, sampled by the watchdog
-    // and cleared when a connection is answered.
-    private var contentSamples: [(wall: Date, content: Double)] = []
-    private var lastSlowAt = Date.distantPast
+    /// The slow-delivery rule (FernsyCore), sampled by the watchdog.
+    private var delivery = DeliveryMonitor()
     private var health = Health.ok
     /// The current incident began while the connection was slow or silent.
     private var incidentUnhealthy = false
@@ -129,19 +127,6 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var proving: (loadBalancer: Bool, since: Date)?
     /// A load-balancer reconnect after slow or silent delivery waits for real-time content.
     private var recoveryPending = false
-    /// A channel sending 6 s segments in bursts, on average in real time, still delivers 9 s in
-    /// 15 s (60 %). When the connection after a switch is slow again, switching did not help
-    /// (longer bursts at this provider, or a slow line of the user's own): each such repeat
-    /// doubles the window, up to 60 s, instead of switching servers every 20 s.
-    private var slowLevel = 0
-    private var slowWindow: TimeInterval { 15 * Double(1 << slowLevel) }
-    private var slowMinimum: Double { 0.6 * slowWindow }
-    /// The server's replay and first bytes, plus a full window.
-    private var slowMinAge: TimeInterval { slowWindow + 5 }
-    private var lastSlowSwitchAt = Date.distantPast
-    // Per connection, for the log (tuning the rule against real providers).
-    private var lowestWindow: Double?
-    private var longestPause: TimeInterval = 0
 
     // Bitrate measurement
     private var bytesReceivedTotal: Int64 = 0
@@ -517,9 +502,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         lastDataAt = Date()
         connectedAt = Date()
         connectionStart = bufferBase
-        contentSamples = []
-        lowestWindow = nil
-        longestPause = 0
+        delivery.connectionAnswered()
         cond.unlock()
         let timer = DispatchSource.makeTimerSource(queue: watchdogQueue)
         timer.schedule(deadline: .now() + 1, repeating: 0.5)
@@ -536,39 +519,13 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         cond.lock()
         guard streaming, !cancelled, failure == nil else { cond.unlock(); return }
         let now = Date()
-        if let content, !reconnecting {
-            contentSamples.append((now, content))
-            contentSamples.removeAll { now.timeIntervalSince($0.wall) > 61 }
-        }
         // Content delivered over the full window (nil until the connection has one), and
         // whether delivery is slower than real time right now.
-        var delivered: Double?
-        var slow = false
-        if !reconnecting, let latest = contentSamples.last, let first = contentSamples.first {
-            if let past = contentSamples.last(where: { now.timeIntervalSince($0.wall) >= 15 }) {
-                let content = latest.content - past.content
-                lowestWindow = min(lowestWindow ?? content, content)
-            }
-            if let past = contentSamples.last(where: { now.timeIntervalSince($0.wall) >= slowWindow }) {
-                let content = latest.content - past.content
-                delivered = content
-                slow = content < slowMinimum
-                if slow { lastSlowAt = now }
-            } else if latest.wall.timeIntervalSince(first.wall) >= 10 {
-                // A young connection: well under real time since it was answered.
-                slow = latest.content - first.content < 0.6 * latest.wall.timeIntervalSince(first.wall)
-            }
-            // For the player's card only: the player may run dry before the full window shows it.
-            // 6 s bursts still bring 6 s in any 12 s.
-            if !slow, let recent = contentSamples.last(where: { now.timeIntervalSince($0.wall) >= 12 }),
-               latest.content - recent.content < 5 {
-                slow = true
-            }
-        }
+        let reading = reconnecting ? .none : delivery.sample(at: now, content: content)
         let idle = now.timeIntervalSince(lastDataAt)
         #if DEBUG
         if Self.debugClock, Int(now.timeIntervalSince1970 * 2) % 4 == 0 {
-            debugLog("[clock] content \(content.map { String(format: "%.1f", $0) } ?? "nil"), in window \(delivered.map { String(format: "%.1f", $0) } ?? "-"), samples \(contentSamples.count), idle \(String(format: "%.1f", idle))")
+            debugLog("[clock] content \(content.map { String(format: "%.1f", $0) } ?? "nil"), in window \(reading.delivered.map { String(format: "%.1f", $0) } ?? "-"), samples \(delivery.sampleCount), idle \(String(format: "%.1f", idle))")
         }
         #endif
         if reconnecting {
@@ -585,29 +542,27 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                 // A fresh connection gets the normal time for its first bytes (servers often
                 // fetch their buffer first), or reconnects would chain.
                 liveReconnect(reason: String(format: String(localized: "no data for %1$.0f s, player nearly empty (%2$.1f s buffered)"), idle, playbackAhead))
-            } else if let delivered, delivered < slowMinimum, now.timeIntervalSince(connectedAt) >= slowMinAge {
-                if now.timeIntervalSince(lastSlowSwitchAt) < 120 && slowLevel < 2 {
+            } else {
+                switch delivery.decide(at: now, reading: reading, connectionAge: now.timeIntervalSince(connectedAt)) {
+                case .keep:
+                    break
+                case .lengthen(let delivered, let window):
                     // Slow again right after a switch: give this connection a longer window first.
-                    slowLevel += 1
-                    lastSlowSwitchAt = now
-                    AppLog.info(.network, "slow again after switching servers (\(String(format: "%.0f", delivered)) s of content), judging over \(Int(slowWindow)) s instead of switching again")
-                } else {
+                    AppLog.info(.network, "slow again after switching servers (\(String(format: "%.0f", delivered)) s of content), judging over \(Int(window)) s instead of switching again")
+                case .replace(let delivered, let window):
                     // Data keeps arriving, but too little to keep up: replaced like a stall.
-                    lastSlowSwitchAt = now
-                    liveReconnect(reason: String(format: String(localized: "too slow: %1$.0f s of content in %2$.0f s"), delivered, slowWindow), slow: true)
+                    liveReconnect(reason: String(format: String(localized: "too slow: %1$.0f s of content in %2$.0f s"), delivered, window), slow: true)
                 }
             }
         }
-        if slowLevel > 0 && now.timeIntervalSince(lastSlowAt) > 300 && now.timeIntervalSince(lastSlowSwitchAt) > 300 {
-            slowLevel = 0
+        if delivery.relax(at: now) {
             AppLog.info(.network, "no slow delivery for 5 minutes, judging over 15 s again")
         }
 
         // A load-balancer reconnect that ended slow or silent delivery: 5 s of content in real time.
         var recovered = false
-        if (recoveryPending || proving != nil) && !reconnecting, let latest = contentSamples.last, let first = contentSamples.first {
-            let elapsed = latest.wall.timeIntervalSince(first.wall)
-            if elapsed >= 5 && latest.content - first.content >= 0.9 * elapsed {
+        if (recoveryPending || proving != nil) && !reconnecting {
+            if delivery.deliversInRealTime {
                 proving = nil
                 if recoveryPending {
                     recoveryPending = false
@@ -619,7 +574,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         if let started = proving?.since, now.timeIntervalSince(started) > 20 { proving = nil }
         let newHealth: Health = reconnecting ? .reconnecting(loadBalancer: !attemptToEdge)
             : idle >= stallTimeout ? .silent
-            : proving.map { .reconnecting(loadBalancer: $0.loadBalancer) } ?? (slow ? .slow : .ok)
+            : proving.map { .reconnecting(loadBalancer: $0.loadBalancer) } ?? (reading.slow ? .slow : .ok)
         let changed = newHealth != health
         if changed {
             AppLog.detail(.network, "connection health: \(health) → \(newHealth)")
@@ -636,8 +591,8 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private func logConnectionSummary() {
         let lasted = Date().timeIntervalSince(connectedAt)
         guard streaming, lasted >= 20 else { return }
-        let window = lowestWindow.map { String(format: "%.1f s", $0) } ?? "-"
-        AppLog.info(.network, "connection ran \(Int(lasted) / 60):\(String(format: "%02d", Int(lasted) % 60)), lowest 15 s window \(window) of content, longest pause between data \(String(format: "%.1f", longestPause)) s")
+        let window = delivery.lowestWindow.map { String(format: "%.1f s", $0) } ?? "-"
+        AppLog.info(.network, "connection ran \(Int(lasted) / 60):\(String(format: "%02d", Int(lasted) % 60)), lowest 15 s window \(window) of content, longest pause between data \(String(format: "%.1f", delivery.longestPause)) s")
     }
 
     /// Replaces the current connection; the caller holds `cond`. `immediate`: no backoff (the
@@ -667,7 +622,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             // slow-live-stream-reconnect).
             let failsAgain = Date().timeIntervalSince(lastReconnectAt) < 20 && lastReconnectHost != nil
                 && lastReconnectHost == edgeURL?.host
-            let wasSlow = slow || Date().timeIntervalSince(lastSlowAt) < 60
+            let wasSlow = slow || delivery.wasSlow(within: 60, at: Date())
             avoidEdge = failsAgain || wasSlow
             incidentUnhealthy = wasSlow || health == .slow || health == .silent || recoveryPending
             recoveryPending = false
@@ -777,9 +732,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                 net.connectTime = Date().timeIntervalSince(requestStartedAt)
                 connectedAt = Date()
                 lastDataAt = Date()
-                contentSamples = []
-                lowestWindow = nil
-                longestPause = 0
+                delivery.connectionAnswered()
                 recoveryPending = incidentUnhealthy && !attemptToEdge
                 proving = incidentUnhealthy ? (!attemptToEdge, Date()) : nil
                 AppLog.info(.network, "reconnected (HTTP \(status)) via \(http?.url?.host ?? "?")\(attemptToEdge ? " (same edge)" : " (load balancer)")")
@@ -862,7 +815,7 @@ final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         buffer.append(data)
         bytesReceivedTotal += Int64(data.count)
         continueAttempts = 0
-        if streaming && !reconnecting { longestPause = max(longestPause, Date().timeIntervalSince(lastDataAt)) }
+        if streaming && !reconnecting { delivery.notePause(Date().timeIntervalSince(lastDataAt)) }
         lastDataAt = Date()
         // Attempts count per incident: a connection that ran stable for a while ends it. A server
         // that accepts and drops again right away keeps counting towards giving up.

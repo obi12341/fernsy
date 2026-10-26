@@ -6,9 +6,9 @@ import Testing
 struct LocalizationTests {
     /// The package's strings resolve from its own catalog, in both languages.
     @Test func packageStringsAreTranslated() throws {
-        let english = String(localized: "Invalid server address", bundle: .module, locale: Locale(identifier: "en"))
+        let english = String(localized: "Invalid server address", bundle: .fernsyCore, locale: Locale(identifier: "en"))
         #expect(english == "Invalid server address")
-        let path = try #require(Bundle.module.path(forResource: "de", ofType: "lproj"))
+        let path = try #require(Bundle.fernsyCore.path(forResource: "de", ofType: "lproj"))
         let german = try #require(Bundle(path: path)).localizedString(forKey: "Invalid server address", value: nil, table: nil)
         #expect(german == "Ungültige Server-Adresse")
     }

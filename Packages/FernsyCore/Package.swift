@@ -13,7 +13,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "FernsyCore", resources: [.process("Resources")]),
-        .testTarget(name: "FernsyCoreTests", dependencies: ["FernsyCore"]),
+        .testTarget(name: "FernsyCoreTests", dependencies: ["FernsyCore"], resources: [.copy("Fixtures")]),
     ],
     swiftLanguageModes: [.v5]
 )
