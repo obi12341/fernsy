@@ -38,11 +38,11 @@ None.
 
 ### Modified Capabilities
 
-- `playback`: the "Seamless live reconnect" requirement gains slow-delivery detection and
-  the rule for which server a reconnect tries first; "Player status cards" gains the
-  provider and no-internet cards and the note after a server switch.
-- `recordings`: the "Recordings section" requirement shows gaps in a recording and their
-  cause.
+- `playback`: new requirements "Slow live delivery" (slow-delivery detection, which server a
+  reconnect tries first, the rule for when switching does not help, delivery figures in the
+  log) and "Stall cause in the player" (provider and no-internet cards, the note after a
+  server switch); "Seamless live reconnect" logs the server of every connection.
+- `recordings`: new requirement "Gaps in recordings".
 
 ## Out of Scope
 
