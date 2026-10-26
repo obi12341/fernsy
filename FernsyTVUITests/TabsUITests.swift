@@ -45,6 +45,9 @@ final class TabsUITests: XCTestCase {
         // Back to Live TV, Down into it, and Up again reaches the tab bar.
         for _ in 0..<3 { remote.press(.left) }
         XCTAssertTrue(waitForFocus(liveTab), "Live TV has no focus again")
+        // The tab's screen follows the focus a moment later.
+        XCTAssertTrue(channel.waitForExistence(timeout: 5), "Live TV's screen did not come back")
+        Thread.sleep(forTimeInterval: 1)
         // The Live TV screen is shown again first; Down may need a moment.
         var entered = false
         for _ in 0..<3 where !entered {
@@ -52,8 +55,9 @@ final class TabsUITests: XCTestCase {
             entered = waitForFocusOutside(tabBar, in: app, timeout: 3)
         }
         XCTAssertTrue(entered, "Down did not enter Live TV again:\n\(app.debugDescription)")
-        remote.press(.up)
-        XCTAssertTrue(waitForFocus(liveTab), "Up did not reach the tab bar")
+        // Up row by row: from the first row it reaches the tab bar.
+        for _ in 0..<6 where !liveTab.hasFocus { remote.press(.up); Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertTrue(waitForFocus(liveTab), "Up did not reach the tab bar:\n\(app.debugDescription)")
     }
 
     private func waitForFocus(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {

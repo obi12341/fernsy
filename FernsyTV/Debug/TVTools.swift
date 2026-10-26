@@ -143,6 +143,7 @@ struct TVTools {
             var value: [String: Any] = [
                 "recording_id": r.id.uuidString, "title": r.title, "channel": r.channelName, "channel_id": r.channelId,
                 "status": r.status.rawValue, "record_start": r.recordStart.ISO8601Format(), "record_end": r.recordEnd.ISO8601Format(),
+                "show_start": r.start.ISO8601Format(), "show_end": r.end.ISO8601Format(),
             ]
             if let file = r.fileName { value["file"] = file }
             if let error = r.error { value["error"] = error }

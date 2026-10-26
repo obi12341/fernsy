@@ -47,20 +47,10 @@ struct MainTabs: View {
             SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
             SwiftUI.Tab(value: Tab.guide) { GuideScreen() } label: { Text("Guide") }
             SwiftUI.Tab(value: Tab.recordings) { RecordingsScreen() } label: { Text("Recordings") }
-            SwiftUI.Tab(value: Tab.settings) { PendingScreen(title: "Settings") } label: {
+            SwiftUI.Tab(value: Tab.settings) { SettingsScreen() } label: {
                 Label("Settings", systemImage: "gearshape").labelStyle(.iconOnly)
             }
         }
         .accessibilityIdentifier("tabs")
-    }
-}
-
-/// A tab whose designed screen is built by a later task of tvos-live.
-private struct PendingScreen: View {
-    let title: LocalizedStringKey
-
-    var body: some View {
-        Text(title).font(.system(size: 54, weight: .bold)).foregroundStyle(TVTheme.tertiary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

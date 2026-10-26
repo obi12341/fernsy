@@ -63,6 +63,16 @@
         }
       }
     },
+    "%lld min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Min."
+          }
+        }
+      }
+    },
     "%lld min left": {
       "localizations": {
         "de": {
@@ -99,6 +109,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auf deinem iPhone erscheint eine Mitteilung. Darüber kannst du Adresse und Passwort bequem eintippen oder einfügen."
+          }
+        }
+      }
+    },
+    "ACCOUNTS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KONTEN"
+          }
+        }
+      }
+    },
+    "Add Account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konto hinzufügen"
           }
         }
       }
@@ -143,6 +173,26 @@
         }
       }
     },
+    "APP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "APP"
+          }
+        }
+      }
+    },
+    "Applies when playback starts, if the channel has the track.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gilt beim Start der Wiedergabe, wenn der Sender die Spur hat."
+          }
+        }
+      }
+    },
     "Audio": {
       "localizations": {
         "de": {
@@ -153,12 +203,32 @@
         }
       }
     },
+    "AUDIO TRACK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TONSPUR"
+          }
+        }
+      }
+    },
     "Back: Live TV": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Zurück: Live TV"
+          }
+        }
+      }
+    },
+    "Before %lld · After %lld min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorlauf %1$lld · Nachlauf %2$lld Min."
           }
         }
       }
@@ -243,6 +313,16 @@
         }
       }
     },
+    "END LATER": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NACHLAUF"
+          }
+        }
+      }
+    },
     "Ended": {
       "localizations": {
         "de": {
@@ -283,6 +363,16 @@
         }
       }
     },
+    "Favourites, hidden channels and recordings stay on this Apple TV for when you sign in again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoriten, ausgeblendete Sender und Aufnahmen bleiben auf diesem Apple TV, falls du dich wieder anmeldest."
+          }
+        }
+      }
+    },
     "Fernsy": {
       "localizations": {
         "de": {
@@ -299,6 +389,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fernsy enthält keine Inhalte. Du brauchst einen eigenen Zugang bei einem Anbieter oder einen Jellyfin-Server."
+          }
+        }
+      }
+    },
+    "Fernsy on Apple TV uses one IPTV account. To use another one, sign out first. Jellyfin servers follow in a later version.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy nutzt auf Apple TV einen IPTV-Zugang. Für einen anderen meldest du dich zuerst ab. Jellyfin-Server folgen in einer späteren Version."
+          }
+        }
+      }
+    },
+    "Forced Only": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur erzwungene"
+          }
+        }
+      }
+    },
+    "forced subtitles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nur erzwungene Untertitel"
           }
         }
       }
@@ -373,6 +493,16 @@
         }
       }
     },
+    "IPTV": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV"
+          }
+        }
+      }
+    },
     "IPTV Account": {
       "localizations": {
         "de": {
@@ -439,6 +569,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wird geladen …"
+          }
+        }
+      }
+    },
+    "Log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokoll"
           }
         }
       }
@@ -633,6 +773,16 @@
         }
       }
     },
+    "Playback": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabe"
+          }
+        }
+      }
+    },
     "Playing": {
       "localizations": {
         "de": {
@@ -743,12 +893,32 @@
         }
       }
     },
+    "Scheduled recordings follow the new times. Fernsy records only while it is open on this Apple TV.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geplante Aufnahmen übernehmen die neuen Zeiten. Fernsy nimmt nur auf, solange es auf diesem Apple TV geöffnet ist."
+          }
+        }
+      }
+    },
     "Search categories": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Kategorie suchen"
+          }
+        }
+      }
+    },
+    "Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
           }
         }
       }
@@ -793,12 +963,52 @@
         }
       }
     },
+    "Sign Out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abmelden"
+          }
+        }
+      }
+    },
+    "Sign out of this account?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von diesem Zugang abmelden?"
+          }
+        }
+      }
+    },
+    "Signed in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angemeldet"
+          }
+        }
+      }
+    },
     "Signing in …": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Anmelden …"
+          }
+        }
+      }
+    },
+    "START EARLIER": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VORLAUF"
           }
         }
       }
@@ -823,6 +1033,16 @@
         }
       }
     },
+    "Streams at a time": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams gleichzeitig"
+          }
+        }
+      }
+    },
     "Subtitles": {
       "localizations": {
         "de": {
@@ -833,12 +1053,62 @@
         }
       }
     },
+    "SUBTITLES": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UNTERTITEL"
+          }
+        }
+      }
+    },
+    "subtitles %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel %@"
+          }
+        }
+      }
+    },
+    "subtitles off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel aus"
+          }
+        }
+      }
+    },
     "Swipe down: Channels": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Nach unten wischen: Sender"
+          }
+        }
+      }
+    },
+    "System language": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systemsprache"
+          }
+        }
+      }
+    },
+    "System Language": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systemsprache"
           }
         }
       }

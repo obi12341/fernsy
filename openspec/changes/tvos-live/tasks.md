@@ -27,13 +27,13 @@
 
 - [x] 5.1 Recordings on Apple TV per designs C and D: record now, schedule, padding, idle timer, stop on background, missed state, Caches index, free-space check. Verify: `IPTV_TESTRECORD=101:2:60:0:0` records and plays back in the simulator; sending the app home during a recording keeps an incomplete recording; a schedule that ends while the app is not running shows as missed at the next `tv-run.sh`.
 - [x] 5.2 Aufnahmen tab (screen `aufnahmen`) with running, scheduled, finished and failed recordings, playing with resume and deleting. Verify: screenshot; a finished recording plays and resumes; deleting removes file and entry.
-- [ ] 5.3 Settings (screen `einstellungen`) with accounts and sign-out, Konto hinzufügen, Wiedergabe, Aufnahmen padding, Protokoll and the version; no iCloud and no Jugendschutz rows. Verify: screenshot; changing the padding shows in the row and in a newly scheduled recording.
+- [x] 5.3 Settings (screen `einstellungen`) with accounts and sign-out, Konto hinzufügen, Wiedergabe, Aufnahmen padding, Protokoll and the version; no iCloud and no Jugendschutz rows. Verify: screenshot; changing the padding shows in the row and in a newly scheduled recording.
 - [x] 5.4 Debug MCP tools `record`, `list_recordings`, `cancel_recording` (design J). Verify: all three answer during a demo run on 52325.
 
 ## 6. Checks
 
-- [ ] 6.1 UI tests per design J pass with `scripts/tv-uitest.sh`; German and English strings in `FernsyTV/Localizable.xcstrings` (LocalizationTests pass).
-- [ ] 6.2 `openspec validate --all --strict` exits 0; Mac Debug, Direct ("Fernsy Direct") and Release and the Apple TV Debug build have 0 warnings; `scripts/test.sh --tvos-sim` passes.
+- [x] 6.1 UI tests per design J pass with `scripts/tv-uitest.sh`; German and English strings in `FernsyTV/Localizable.xcstrings` (LocalizationTests pass).
+- [x] 6.2 `openspec validate --all --strict` exits 0; Mac Debug, Direct ("Fernsy Direct") and Release and the Apple TV Debug build have 0 warnings; `scripts/test.sh --tvos-sim` passes.
 
 ## Workflow follow-up
 
