@@ -4,6 +4,7 @@
 #   every night (main changed) → the notarized DMG on the rolling pre-release "Nightly"
 #   run manually               → channel "nightly" (default) or "appstore-test" (archive and
 #                               export the App Store build without uploading)
+# Every channel first runs the tests (tests.yml); nothing is built when they fail.
 # The version comes from the tag (nightly: the newest release tag), the build number from
 # the commit count; the project file is never changed. Signing data comes only from secrets.
 name: Release
@@ -82,8 +83,16 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Fernsy $VERSION ($BUILD) · $CHANNEL · $SHA"
 
-  dmg:
+  # Nothing is built or published from a commit whose tests fail.
+  tests:
     needs: prepare
+    if: needs.prepare.outputs.channel != 'skip'
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  dmg:
+    needs: [prepare, tests]
     if: needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'nightly'
     # macOS 27 image with Xcode 27 (public preview); macos-26 only has Xcode 26.
     runs-on: xcode-27
@@ -269,7 +278,7 @@ jobs:
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/notary-key.p8"
 
   appstore:
-    needs: prepare
+    needs: [prepare, tests]
     if: needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'appstore-test'
     runs-on: xcode-27
     timeout-minutes: 60

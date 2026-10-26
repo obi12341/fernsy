@@ -181,11 +181,11 @@ DV mapping. Profile 7, MPEG-TS streams and Macs without a DV decoder keep FFmpeg
 (HDR10 base layer; profile 5 is then not playable locally). `JF_NODV=1` disables the DV path in
 debug builds.
 
-Track preselection (`Fernsy/Player/TrackChooser.swift`) follows Settings › Language &
+Track preselection (`Packages/FernsyCore/Sources/FernsyCore/TrackChooser.swift`) follows Settings › Language &
 Subtitles for every source; a pick in the player during a series episode is remembered per
 series (`tracks.series`). Debug: `IPTV_AUDIOLANG=<code|system>` and
 `IPTV_SUBTITLES=<off|forced|code>` override the settings for one run, `IPTV_TRACKSTORE=test`
-keeps the series memory apart, `IPTV_TRACKSELFTEST=1` checks the chooser rules,
+keeps the series memory apart (the chooser rules are tests: `TrackChooserTests`),
 `IPTV_AUTOPLAY=episode:<series>:<n>` plays an IPTV episode.
 
 Audio reaches `AVSampleBufferAudioRenderer` in blocks of at least 20 ms: TrueHD frames are
@@ -229,7 +229,7 @@ runs in the menu bar (`LoginItem`, `MenuBarSupport.startWithoutWindow`). Debug b
 register a login item: `IPTV_TESTLOGINITEM=<enabled|approval|off>` fakes the status macOS
 reports, `IPTV_TESTLOGINLAUNCH=1` starts as if opened at login.
 
-Every build writes an event log (`Fernsy/App/AppLog.swift`): levels error, warning, info and
+Every build writes an event log (`Packages/FernsyCore/Sources/FernsyCore/AppLog.swift`): levels error, warning, info and
 detail, one category per area. It is kept in memory and in `current.log` and `previous.log`
 (this launch and the previous one, 4 MB each at most) under
 `~/Library/Containers/de.mobilistics.fernsy/Data/Library/Caches/Fernsy/logs/`. Window › Log
@@ -238,16 +238,16 @@ detail, one category per area. It is kept in memory and in `current.log` and `pr
 diagnostic log where the user chooses"). Passwords, tokens and Xtream path or query
 credentials are replaced by "•••" before an entry is stored. Debug builds also write every
 entry to stderr. `debugLog` is left for `[test]` hooks only. `IPTV_TESTLOG=1` opens the log
-window (`previous` shows the previous launch), and `IPTV_LOGSELFTEST=1` checks the redaction.
+window (`previous` shows the previous launch); the redaction is tested in `AppLogTests`.
 
 Shared design building blocks live in `Fernsy/Views/Design/` (colour tokens, `LogoTile`,
 `StatusBadge`); the accent is `AccentColor` in the asset catalog. Debug switches:
 `IPTV_APPEARANCE=light|dark` runs in that appearance without changing the system,
 `IPTV_LOGOTONETEST=1` checks the logo tile's tone detection and initials,
 `IPTV_TESTNOPOSTER=1` shows every poster card's placeholder.
-Channel and category names are cleaned by `Fernsy/Xtream/ChannelName.swift` (country and
+Channel and category names are cleaned by `Packages/FernsyCore/Sources/FernsyCore/ChannelName.swift` (country and
 quality tags, decoration removed; the delivered name stays in "Senderinfo" and in the search
-key). `IPTV_NAMETEST=1` runs its examples, `IPTV_TESTINFO=<channel id>` opens a channel's
+key; its examples are `ChannelNameTests`), `IPTV_TESTINFO=<channel id>` opens a channel's
 info, `IPTV_LIVEMODE=list|guide` picks the Live TV view for one run.
 Live TV: `IPTV_SELECT=<id>` selects a channel (detail pane), `IPTV_TESTSCHEDULE=1` then
 schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog refresh fail
@@ -283,8 +283,8 @@ the same channel share one connection. Recordings (`Fernsy/Recording/`) copy the
 `~/Movies/Fernsy` and only run while the app is open. For tests use the demo server
 (`IPTV_MAXCONN=1` simulates a single-stream account;
 `IPTV_TESTRECORD=<channel>:<in s>:<s>[:<before min>:<after min>],…` plans recordings in that
-order, refused or with shortened padding as the stream limit requires; `IPTV_PLANTEST=1` runs
-the plan calculation's examples (`RecordingPlan`), `IPTV_AWAKEHOURS=<hours|0|off>` sets "Mac wach halten" in memory
+order, refused or with shortened padding as the stream limit requires (the plan calculation's examples are
+`RecordingPlanTests`), `IPTV_AWAKEHOURS=<hours|0|off>` sets "Mac wach halten" in memory
 (0 = always while a recording is scheduled, off = never), `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
 `IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag,
 `IPTV_SECTION=<live|recordings|…>` opens the library on that section,
@@ -390,6 +390,29 @@ on the desktop (macOS only switches Spaces when the app has no window on the cur
 come back behind the player when it leaves full screen or closes; `showLibrary` (menu bar, Siri)
 takes a hidden one instead of opening a second. `IPTV_TESTFS=1` enters, leaves and re-enters
 full screen.
+
+### Tests and FernsyCore
+
+Fernsy's platform-independent logic lives in the local package `Packages/FernsyCore` (macOS and
+tvOS), linked by both app targets: Xtream models, client and EPG store, channel names, Jellyfin
+models and JSON decoder, the recording plan and gap tracker, the slow-delivery rule
+(`DeliveryMonitor`, used by `HTTPByteSource`), content history, track choice, media info and the
+app log. Code that needs AppKit, SwiftUI views, FFmpeg or the keychain stays in the app. Public
+API is `public`; package strings use `String(localized: …, bundle: .module)` and live in the
+package's own `Resources/Localizable.xcstrings`.
+
+`scripts/test.sh` runs the tests (Swift Testing) on macOS and builds the package for the tvOS
+simulator; `scripts/test.sh --tvos-sim` also runs them on a tvOS simulator, which needs the tvOS
+runtime (`xcodebuild -downloadPlatform tvOS`, several GB). The tests need no network and no
+account: network answers come from `Tests/FernsyCoreTests/Fixtures` – Xtream answers recorded
+once from the demo server (public demo account, lists cut to five entries), Jellyfin answers
+recorded from a throwaway local Docker Jellyfin (two generated clips; ids, tokens, addresses and
+online metadata replaced). Never record fixtures from a real provider or the user's Jellyfin.
+`XtreamStub` answers every request of the tests, so nothing leaves the machine.
+
+CI (`.github/workflows/tests.yml`) runs the same on pushes to `main` and `change/**` and on pull
+requests; `release.yml` calls it first, so a nightly or release is not built from a commit whose
+tests fail.
 
 ### UI texts and translations
 
