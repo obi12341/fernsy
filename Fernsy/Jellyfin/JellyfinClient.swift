@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// Jellyfin REST client. All routes live here; they were verified against Jellyfin 12.2.0,
@@ -50,23 +51,7 @@ struct JellyfinClient {
         return URLSession(configuration: config)
     }()
 
-    /// Server JSON is PascalCase; our models are camelCase.
-    static let decoder: JSONDecoder = {
-        let d = JSONDecoder()
-        d.keyDecodingStrategy = .custom { keys in
-            let last = keys.last!.stringValue
-            return AnyKey(last.prefix(1).lowercased() + last.dropFirst())
-        }
-        return d
-    }()
-
-    private struct AnyKey: CodingKey {
-        var stringValue: String
-        var intValue: Int? { nil }
-        init(_ string: String) { stringValue = string }
-        init?(stringValue: String) { self.stringValue = stringValue }
-        init?(intValue: Int) { nil }
-    }
+    static var decoder: JSONDecoder { JellyfinJSON.decoder }
 
     var authorization: String {
         var value = "MediaBrowser Client=\"\(Self.clientName)\", Device=\"\(Self.deviceName)\", DeviceId=\"\(Self.deviceId)\", Version=\"\(Self.appVersion)\""

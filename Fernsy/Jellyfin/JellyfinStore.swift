@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// The Jellyfin account and its film and series library.
@@ -317,7 +318,7 @@ final class JellyfinStore: ObservableObject {
             await reloadAround(item)
         } catch {
             if let previous { apply([item.id: previous]) }
-            lastError = String(localized: "„\(item.name)“ konnte nicht markiert werden: \(error.localizedDescription)")
+            lastError = String(localized: "Could not mark “\(item.name)”: \(error.localizedDescription)")
         }
     }
 
@@ -332,7 +333,7 @@ final class JellyfinStore: ObservableObject {
             apply([item.id: data])
         } catch {
             if let previous { apply([item.id: previous]) }
-            lastError = String(localized: "„\(item.name)“ konnte nicht geändert werden: \(error.localizedDescription)")
+            lastError = String(localized: "Could not change “\(item.name)”: \(error.localizedDescription)")
         }
     }
 

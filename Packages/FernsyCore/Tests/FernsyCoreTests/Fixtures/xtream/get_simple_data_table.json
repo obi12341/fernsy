@@ -1,0 +1,64 @@
+{
+ "epg_listings": [
+  {
+   "id": "26",
+   "epg_id": "101",
+   "channel_id": "demo101",
+   "lang": "de",
+   "title": "RXZlbmluZyBHYWxh",
+   "description": "TXVzaWMsIGNvbWVkeSBhbmQgc3VycHJpc2UgZ3Vlc3RzIGxpdmUgZnJvbSB0aGUgc3R1ZGlvLg==",
+   "start_timestamp": "1792995300",
+   "stop_timestamp": "1793002500"
+  },
+  {
+   "id": "27",
+   "epg_id": "101",
+   "channel_id": "demo101",
+   "lang": "de",
+   "title": "VGhlIExhdGUgU2hvdw==",
+   "description": "VGFsaywgbXVzaWMgYW5kIGEgbG9vayBiYWNrIGF0IHRoZSB3ZWVrLg==",
+   "start_timestamp": "1793002500",
+   "stop_timestamp": "1793007000"
+  },
+  {
+   "id": "28",
+   "epg_id": "101",
+   "channel_id": "demo101",
+   "lang": "de",
+   "title": "RXZlbmluZyBHYWxh",
+   "description": "TXVzaWMsIGNvbWVkeSBhbmQgc3VycHJpc2UgZ3Vlc3RzIGxpdmUgZnJvbSB0aGUgc3R1ZGlvLg==",
+   "start_timestamp": "1793007000",
+   "stop_timestamp": "1793014200"
+  },
+  {
+   "id": "29",
+   "epg_id": "101",
+   "channel_id": "demo101",
+   "lang": "de",
+   "title": "RHJlYW0gSG9tZXM=",
+   "description": "QW4gb2xkIGJhcm4gYmVjb21lcyBhIGxpZ2h0LWZpbGxlZCBob21lLg==",
+   "start_timestamp": "1793014200",
+   "stop_timestamp": "1793017800"
+  },
+  {
+   "id": "30",
+   "epg_id": "101",
+   "channel_id": "demo101",
+   "lang": "de",
+   "title": "VGhlIExhdGUgU2hvdw==",
+   "description": "VGFsaywgbXVzaWMgYW5kIGEgbG9vayBiYWNrIGF0IHRoZSB3ZWVrLg==",
+   "start_timestamp": "1793017800",
+   "stop_timestamp": "1793022300"
+  },
+  {
+   "id": "31",
+   "epg_id": "101",
+   "channel_id": "demo101",
+   "lang": "de",
+   "title": "RHJlYW0gSG9tZXM=",
+   "description": "QW4gb2xkIGJhcm4gYmVjb21lcyBhIGxpZ2h0LWZpbGxlZCBob21lLg==",
+   "start_timestamp": "1793022300",
+   "stop_timestamp": "1793025900"
+  }
+ ]
+}

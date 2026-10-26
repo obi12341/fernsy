@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// Live TV's timeline over the timeshift buffer: clock times below, the shows' starts and
@@ -106,7 +107,7 @@ struct LiveTimeline: View {
         }
         .frame(height: 44)
         .accessibilityElement()
-        .accessibilityLabel("Zeitleiste")
+        .accessibilityLabel("Timeline")
         .accessibilityValue(wall(shown).formatted(date: .omitted, time: .standard))
         .accessibilityAdjustableAction { direction in
             let step: Double = direction == .increment ? 10 : -10
@@ -131,9 +132,9 @@ struct LiveTimeline: View {
         let minutes = Int(seconds / 60)
         if minutes >= 60 {
             let hours = Double(minutes) / 60
-            return String(localized: "Puffer \(hours.formatted(.number.precision(.fractionLength(0...1)))) Std.")
+            return String(localized: "Buffer \(hours.formatted(.number.precision(.fractionLength(0...1)))) h")
         }
-        return String(localized: "Puffer \(max(1, minutes)) Min.")
+        return String(localized: "Buffer \(max(1, minutes)) min")
     }
 }
 
@@ -206,7 +207,7 @@ struct FilmTimeline: View {
         }
         .font(.callout)
         .accessibilityElement()
-        .accessibilityLabel("Zeitleiste")
+        .accessibilityLabel("Timeline")
         .accessibilityValue(formatTime(shown))
         .accessibilityAdjustableAction { direction in
             onSeek(max(0, min(duration, shown + (direction == .increment ? 10 : -10))))

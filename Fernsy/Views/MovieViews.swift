@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 enum LibrarySort: String, CaseIterable, Identifiable {
@@ -5,18 +6,18 @@ enum LibrarySort: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .newest: return String(localized: "Neueste zuerst")
+        case .newest: return String(localized: "Newest First")
         case .name: return String(localized: "Name")
-        case .rating: return String(localized: "Bewertung")
+        case .rating: return String(localized: "Rating")
         }
     }
 
     /// For the segmented control.
     var shortTitle: String {
         switch self {
-        case .newest: return String(localized: "Neueste")
+        case .newest: return String(localized: "Newest")
         case .name: return String(localized: "Name")
-        case .rating: return String(localized: "Bewertung")
+        case .rating: return String(localized: "Rating")
         }
     }
 }
@@ -67,8 +68,8 @@ struct MovieGridView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button("Abspielen") { app.play(movie) }
-                        Button(app.isFavorite("movie:\(movie.id)") ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen") {
+                        Button("Play") { app.play(movie) }
+                        Button(app.isFavorite("movie:\(movie.id)") ? "Remove from Favorites" : "Add to Favorites") {
                             app.toggleFavorite("movie:\(movie.id)")
                         }
                     }
@@ -77,8 +78,8 @@ struct MovieGridView: View {
             .padding(24)
         }
         .toolbar { SortMenu(sort: $sort) }
-        .navigationTitle("Filme")
-        .navigationSubtitle("\(movies.count) Titel")
+        .navigationTitle("Movies")
+        .navigationSubtitle("\(movies.count) titles")
     }
 
     private func resumeFraction(_ movie: Movie) -> Double? {
@@ -92,11 +93,11 @@ struct SortMenu: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem {
-            Picker("Sortierung", selection: $sort) {
+            Picker("Sort Order", selection: $sort) {
                 ForEach(LibrarySort.allCases) { Text($0.shortTitle).tag($0) }
             }
             .pickerStyle(.segmented)
-            .help("Sortierung")
+            .help("Sort Order")
         }
     }
 }
@@ -183,7 +184,7 @@ struct PosterCard: View {
                         .foregroundStyle(.white, Color.accentColor)
                         .font(.title3)
                         .padding(6)
-                        .accessibilityLabel("Gesehen")
+                        .accessibilityLabel("Watched")
                 }
             }
             .overlay(alignment: .bottom) {
@@ -199,7 +200,7 @@ struct PosterCard: View {
             }
             .overlay(alignment: .bottomLeading) {
                 if progress != nil {
-                    Label("Fortsetzen", systemImage: "play.circle.fill")
+                    Label("Resume", systemImage: "play.circle.fill")
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6).padding(.vertical, 3)
                         .background(.black.opacity(0.6), in: Capsule())
@@ -291,19 +292,19 @@ struct MovieDetailView: View {
             } label: {
                 if resume > 0 {
                     HStack(spacing: 8) {
-                        Label("Fortsetzen", systemImage: "play.fill")
+                        Label("Resume", systemImage: "play.fill")
                         Text(verbatim: resumeDetail(resume, fraction: fraction)).opacity(0.8)
                     }
                     .padding(.horizontal, 8)
                 } else {
-                    Label("Abspielen", systemImage: "play.fill").padding(.horizontal, 8)
+                    Label("Play", systemImage: "play.fill").padding(.horizontal, 8)
                 }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
 
             if resume > 0 {
-                Button("Von vorne") {
+                Button("Start Over") {
                     app.saveResume(key, position: 0, duration: 0)
                     app.play(movie)
                 }
@@ -317,7 +318,7 @@ struct MovieDetailView: View {
                     .foregroundStyle(app.isFavorite("movie:\(movie.id)") ? .yellow : .primary)
             }
             .controlSize(.large)
-            .help("Favorit")
+            .help("Favorite")
         }
     }
 
@@ -325,13 +326,13 @@ struct MovieDetailView: View {
     private func resumeDetail(_ position: Double, fraction: Double?) -> String {
         guard let fraction, fraction > 0 else { return formatTime(position) }
         let remaining = Int(position / fraction - position) / 60
-        return String(localized: "\(formatTime(position)) · noch \(remaining) Min.")
+        return String(localized: "\(formatTime(position)) · \(remaining) min left")
     }
 
     private var detailsGrid: some View {
         Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
-            if let director = details?.director, !director.isEmpty { row("Regie", director) }
-            if let cast = details?.cast, !cast.isEmpty { row("Besetzung", cast) }
+            if let director = details?.director, !director.isEmpty { row("Director", director) }
+            if let cast = details?.cast, !cast.isEmpty { row("Cast", cast) }
             if let genre = details?.genre, !genre.isEmpty { row("Genre", genre) }
             row("Format", movie.containerExtension.uppercased())
         }
@@ -372,8 +373,8 @@ func runtimeText(_ raw: String?) -> String? {
     else if parts.count == 2 { minutes = parts[0] * 60 + parts[1] }
     else if let number = Int(raw.prefix { $0.isNumber }) { minutes = number }
     guard let minutes, minutes > 0 else { return nil }
-    if minutes < 60 { return String(localized: "\(minutes) Min.") }
-    return minutes % 60 == 0 ? String(localized: "\(minutes / 60) Std.") : String(localized: "\(minutes / 60) Std. \(minutes % 60) Min.")
+    if minutes < 60 { return String(localized: "\(minutes) min") }
+    return minutes % 60 == 0 ? String(localized: "\(minutes / 60) h") : String(localized: "\(minutes / 60) h \(minutes % 60) min")
 }
 
 func formatTime(_ seconds: Double) -> String {

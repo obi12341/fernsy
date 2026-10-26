@@ -1,0 +1,56 @@
+# Runs the FernsyCore tests (see DEVELOPMENT.md › Tests and FernsyCore): on macOS, and on a tvOS
+# simulator after building the package for tvOS. On pushes to main and change branches, on pull
+# requests, and from release.yml before anything is built or published.
+name: Tests
+
+on:
+  push:
+    branches: [main, 'change/**']
+  pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to test
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ inputs.ref || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  core:
+    runs-on: xcode-27
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Select Xcode
+        env:
+          XCODE_VERSION: '27.1'
+        run: |
+          XCODE="/Applications/Xcode_$XCODE_VERSION.app"
+          if [ ! -d "$XCODE" ]; then
+            echo "::error::This runner has no Xcode $XCODE_VERSION. Installed: $(ls -d /Applications/Xcode*.app | xargs -n1 basename | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: macOS tests and tvOS build
+        run: scripts/test.sh
+
+      - name: tvOS simulator runtime
+        run: |
+          if ! xcrun simctl list devices available | grep -q 'Apple TV'; then
+            xcodebuild -downloadPlatform tvOS
+          fi
+          xcrun simctl list devices available | grep 'Apple TV'
+
+      - name: Tests on a tvOS simulator
+        run: scripts/test.sh --tvos-sim

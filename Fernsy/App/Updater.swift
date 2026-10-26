@@ -1,5 +1,6 @@
 #if DIRECT_DISTRIBUTION
 import Combine
+import FernsyCore
 import Foundation
 import Sparkle
 import SwiftUI
@@ -118,7 +119,7 @@ struct CheckForUpdatesButton: View {
     @ObservedObject var updater: Updater
 
     var body: some View {
-        Button("Nach Updates suchen …") { updater.checkForUpdates() }
+        Button("Check for Updates…") { updater.checkForUpdates() }
             .disabled(!updater.canCheckForUpdates)
     }
 }
@@ -130,22 +131,22 @@ struct UpdateSettingsSection: View {
 
     var body: some View {
         Section {
-            Toggle("Automatisch nach Updates suchen", isOn: Binding(
+            Toggle("Check for updates automatically", isOn: Binding(
                 get: { updater.checksAutomatically }, set: { updater.checksAutomatically = $0 }))
-            Toggle("Nightly-Builds erhalten", isOn: $nightly)
+            Toggle("Receive nightly builds", isOn: $nightly)
             HStack {
                 if let last = updater.lastCheck {
-                    Text("Zuletzt gesucht: \(last.formatted(date: .abbreviated, time: .shortened))")
+                    Text("Last checked: \(last.formatted(date: .abbreviated, time: .shortened))")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Jetzt suchen") { updater.checkForUpdates() }
+                Button("Check Now") { updater.checkForUpdates() }
                     .disabled(!updater.canCheckForUpdates)
             }
         } header: {
             Text("Updates")
         } footer: {
-            Text("Nightly-Builds sind tägliche Testversionen mit den neuesten Änderungen. Sie können Fehler enthalten. Updates werden nie während einer Aufnahme installiert.")
+            Text("Nightly builds are daily test versions with the latest changes. They may contain bugs. Updates are never installed during a recording.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -163,8 +164,8 @@ extension Updater: SPUUpdaterDelegate {
         MainActor.assumeIsolated {
             guard recordingDue else { return false }
             AppLog.info(.app, "update \(item.displayVersionString) (\(item.versionString)) waits for the recordings")
-            Prompt.inform(title: String(localized: "Update nach der Aufnahme"),
-                          message: String(localized: "Fernsy installiert das Update, sobald keine Aufnahme mehr läuft oder in der nächsten halben Stunde beginnt. Beim Beenden von Fernsy wird es sofort installiert."))
+            Prompt.inform(title: String(localized: "Update after the recording"),
+                          message: String(localized: "Fernsy installs the update as soon as no recording is running or starting within the next half hour. When you quit Fernsy, it is installed right away."))
             holdUntilNoRecording(installHandler)
             return true
         }

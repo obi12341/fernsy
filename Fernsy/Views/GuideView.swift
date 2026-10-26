@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// Programme grid: one row per channel, time runs horizontally. The channel column and
@@ -91,7 +92,7 @@ struct GuideView: View {
             }
             ToolbarItem {
                 ControlGroup {
-                    Button("Vorheriger Tag", systemImage: "chevron.left") { setDay(dayOffset - 1) }
+                    Button("Previous Day", systemImage: "chevron.left") { setDay(dayOffset - 1) }
                         .disabled(dayOffset == 0)
                     Menu {
                         ForEach(Self.jumps, id: \.self) { time in
@@ -100,36 +101,36 @@ struct GuideView: View {
                     } label: {
                         Text(verbatim: dayTitle).monospacedDigit()
                     }
-                    .help("Zu einer Uhrzeit springen")
-                    Button("Nächster Tag", systemImage: "chevron.right") { setDay(dayOffset + 1) }
+                    .help("Jump to a time")
+                    Button("Next Day", systemImage: "chevron.right") { setDay(dayOffset + 1) }
                         .disabled(dayOffset == Self.maxDays)
                 }
             }
             ToolbarItem {
                 Button { scrollToNow() } label: {
-                    Text("Jetzt").fontWeight(.semibold).foregroundStyle(Theme.record)
+                    Text("Now").fontWeight(.semibold).foregroundStyle(Theme.record)
                 }
-                .help("Zur aktuellen Uhrzeit springen")
+                .help("Jump to the current time")
             }
         }
         .navigationTitle("Live TV")
-        .navigationSubtitle("\(channels.count) Sender")
+        .navigationSubtitle("\(channels.count) channels")
     }
 
     private func categoryMenu(_ selection: Binding<String?>) -> some View {
         let categories = app.visibleCategories(app.liveCategories).filter { !app.isCategoryHidden($0.id) }
         let current = selection.wrappedValue ?? allCategoryID
         let title: String = switch current {
-        case allCategoryID: String(localized: "Alle Sender")
-        case favoriteChannelsID: String(localized: "Favoriten")
-        case recentChannelsID: String(localized: "Zuletzt gesehen")
-        default: categories.first { $0.id == current }?.displayName ?? String(localized: "Alle Sender")
+        case allCategoryID: String(localized: "All Channels")
+        case favoriteChannelsID: String(localized: "Favorites")
+        case recentChannelsID: String(localized: "Recently Watched")
+        default: categories.first { $0.id == current }?.displayName ?? String(localized: "All Channels")
         }
         return Menu {
-            Picker("Kategorie", selection: Binding(get: { current }, set: { selection.wrappedValue = $0 })) {
-                Text("Alle Sender").tag(allCategoryID)
-                Text("Favoriten").tag(favoriteChannelsID)
-                Text("Zuletzt gesehen").tag(recentChannelsID)
+            Picker("Category", selection: Binding(get: { current }, set: { selection.wrappedValue = $0 })) {
+                Text("All Channels").tag(allCategoryID)
+                Text("Favorites").tag(favoriteChannelsID)
+                Text("Recently Watched").tag(recentChannelsID)
                 Divider()
                 ForEach(categories) { Text(verbatim: $0.displayName).tag($0.id) }
             }
@@ -137,14 +138,14 @@ struct GuideView: View {
         } label: {
             Text(verbatim: title).fontWeight(.semibold)
         }
-        .help("Kategorie des Programms")
+        .help("Category of the guide")
     }
 
     static let jumps = ["06:00", "12:00", "18:00", "20:15", "23:00"]
 
     private var dayTitle: String {
         let day = Calendar.current.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
-        let name = dayOffset == 0 ? String(localized: "Heute") : dayOffset == 1 ? String(localized: "Morgen")
+        let name = dayOffset == 0 ? String(localized: "Today") : dayOffset == 1 ? String(localized: "Tomorrow")
             : day.formatted(.dateTime.weekday(.wide))
         return "\(name), \(day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))"
     }
@@ -323,9 +324,9 @@ private struct DayLabel: View {
     }
 
     private func day(_ time: Date) -> String {
-        if Calendar.current.isDateInToday(time) { return String(localized: "Heute") }
-        if Calendar.current.isDateInTomorrow(time) { return String(localized: "Morgen") }
-        if Calendar.current.isDateInYesterday(time) { return String(localized: "Gestern") }
+        if Calendar.current.isDateInToday(time) { return String(localized: "Today") }
+        if Calendar.current.isDateInTomorrow(time) { return String(localized: "Tomorrow") }
+        if Calendar.current.isDateInYesterday(time) { return String(localized: "Yesterday") }
         return time.formatted(.dateTime.weekday(.wide).day().month())
     }
 }
@@ -374,7 +375,7 @@ private struct GuideRow: View {
                             .onTapGesture(count: 2) { app.play(channel) }
                             .onTapGesture { selection = GuideView.Selection(channelId: channel.id, entry: entry) }
                             .contextMenu {
-                                Button("Abspielen") { app.play(channel) }
+                                Button("Play") { app.play(channel) }
                                 RecordButton(channel: channel, entry: entry)
                             }
                             .padding(.leading, GuideLayout.channelWidth + x0)
@@ -427,10 +428,10 @@ private struct GuideRow: View {
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { app.play(channel) }
         .contextMenu {
-            Button("Abspielen") { app.play(channel) }
+            Button("Play") { app.play(channel) }
             ChannelVisibilityButton(channel: channel)
             Divider()
-            Button("Senderinfo …") { showsInfo = true }
+            Button("Channel Info…") { showsInfo = true }
         }
         .sheet(isPresented: $showsInfo) { ChannelInfoView(channel: channel) }
     }
@@ -452,8 +453,8 @@ private struct GuideRow: View {
             .frame(width: GuideLayout.timelineWidth - 4, height: GuideLayout.rowHeight - 8)
             .overlay(alignment: .leading) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Keine Programmdaten").font(.callout.weight(.medium)).foregroundStyle(.secondary)
-                    Text("Sender läuft trotzdem · Doppelklick zum Einschalten").font(.caption).foregroundStyle(.tertiary)
+                    Text("No program data").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                    Text("The channel plays anyway · double-click to watch").font(.caption).foregroundStyle(.tertiary)
                 }
                 .padding(.leading, GuideLayout.channelWidth + 10)
                 .stickyLeading()
@@ -553,9 +554,9 @@ private struct GuideCell: View {
 
     private func secondLine(_ mark: Recording.Status?) -> String {
         switch mark {
-        case .scheduled?: return String(localized: "● Geplant · \(times)")
-        case .recording?: return String(localized: "● Aufnahme läuft · \(times)")
-        case .done?, .failed?: return String(localized: "● Aufgenommen · \(times)")
+        case .scheduled?: return String(localized: "● Scheduled · \(times)")
+        case .recording?: return String(localized: "● Recording · \(times)")
+        case .done?, .failed?: return String(localized: "● Recorded · \(times)")
         default: return times
         }
     }
@@ -599,13 +600,13 @@ private struct GuideDetail: View {
             VStack(spacing: 8) {
                 recordButton
                 Button { app.play(channel) } label: {
-                    Text("Einschalten").frame(maxWidth: .infinity)
+                    Text("Watch").frame(maxWidth: .infinity)
                 }
                 .controlSize(.large)
-                .help(running ? "Läuft gerade" : "Sender live einschalten")
+                .help(running ? "On now" : "Watch the channel live")
             }
             .frame(width: 200)
-            Button("Schließen", systemImage: "xmark") { close() }
+            Button("Close", systemImage: "xmark") { close() }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
@@ -630,7 +631,7 @@ private struct GuideDetail: View {
             } label: {
                 HStack(spacing: 7) {
                     Circle().fill(.white).frame(width: 8, height: 8)
-                    Text(existing == nil ? "Aufnehmen" : existing?.status == .recording ? "Aufnahme beenden" : "Aufnahme entfernen")
+                    Text(existing == nil ? "Record" : existing?.status == .recording ? "Stop Recording" : "Remove Recording")
                     if existing == nil { Text(verbatim: "R").opacity(0.7) }
                 }
                 .frame(maxWidth: .infinity)
@@ -645,19 +646,19 @@ private struct GuideDetail: View {
     /// "Lichtspiel · Heute 22:55–23:45 · in 20 Min."
     private var caption: String {
         let times = "\(entry.start.formatted(date: .omitted, time: .shortened))–\(entry.end.formatted(date: .omitted, time: .shortened))"
-        let day = Calendar.current.isDateInToday(entry.start) ? String(localized: "Heute")
-            : Calendar.current.isDateInTomorrow(entry.start) ? String(localized: "Morgen")
+        let day = Calendar.current.isDateInToday(entry.start) ? String(localized: "Today")
+            : Calendar.current.isDateInTomorrow(entry.start) ? String(localized: "Tomorrow")
             : entry.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
         let now = Date()
         let relative: String
         if entry.start > now {
             let minutes = Int(entry.start.timeIntervalSince(now) / 60)
-            relative = minutes < 60 ? String(localized: "in \(max(1, minutes)) Min.")
-                : String(localized: "in \(minutes / 60) Std. \(minutes % 60) Min.")
+            relative = minutes < 60 ? String(localized: "in \(max(1, minutes)) min")
+                : String(localized: "in \(minutes / 60) h \(minutes % 60) min")
         } else if entry.end > now {
-            relative = String(localized: "läuft seit \(Int(now.timeIntervalSince(entry.start) / 60)) Min.")
+            relative = String(localized: "running for \(Int(now.timeIntervalSince(entry.start) / 60)) min")
         } else {
-            relative = String(localized: "vorbei")
+            relative = String(localized: "over")
         }
         return [channel.displayName, "\(day) \(times)", relative].joined(separator: " · ")
     }

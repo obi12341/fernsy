@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// The actions that assistants (MCP) and Siri (App Intents) offer, with the app's own rules:

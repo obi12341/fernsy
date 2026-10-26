@@ -1,0 +1,9 @@
+{
+ "LocalAddress": "http://127.0.0.1:8096",
+ "ServerName": "Fixture Server",
+ "Version": "12.3.0",
+ "ProductName": "Jellyfin Server",
+ "OperatingSystem": "",
+ "Id": "00000000000000000000000000000001",
+ "StartupWizardCompleted": true
+}

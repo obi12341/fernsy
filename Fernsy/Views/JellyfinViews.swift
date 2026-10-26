@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 // MARK: - Library helpers
@@ -14,20 +15,20 @@ enum JFSort: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .added: return String(localized: "Zuletzt hinzugefügt")
+        case .added: return String(localized: "Recently Added")
         case .name: return String(localized: "Name")
-        case .release: return String(localized: "Erscheinungsdatum")
-        case .rating: return String(localized: "Bewertung")
+        case .release: return String(localized: "Release Date")
+        case .rating: return String(localized: "Rating")
         }
     }
 
     /// For the segmented control.
     var shortTitle: String {
         switch self {
-        case .added: return String(localized: "Hinzugefügt")
+        case .added: return String(localized: "Added")
         case .name: return String(localized: "Name")
-        case .release: return String(localized: "Erscheinung")
-        case .rating: return String(localized: "Bewertung")
+        case .release: return String(localized: "Release")
+        case .rating: return String(localized: "Rating")
         }
     }
 }
@@ -44,7 +45,7 @@ extension JellyfinStore {
 
     func categoryRows(_ kind: JFKind) -> [CategoryRow] {
         let all = items(kind)
-        var rows = [CategoryRow(id: "favorites", name: String(localized: "Favoriten"), count: all.filter(\.isFavorite).count)]
+        var rows = [CategoryRow(id: "favorites", name: String(localized: "Favorites"), count: all.filter(\.isFavorite).count)]
         for lib in libraries where lib.collectionType == kind.collectionType {
             rows.append(CategoryRow(id: "lib:\(lib.id)", name: lib.name, count: all.filter { libraries(of: $0).contains(lib.id) }.count))
         }
@@ -96,12 +97,12 @@ struct JellyfinStatusBanner: View {
     var body: some View {
         VStack(spacing: 6) {
             if jellyfin.isExpired {
-                notice(title: "Jellyfin-Sitzung abgelaufen", detail: "Melde dich neu an, um weiterzuschauen.") {
-                    Button("Neu anmelden") { signingIn = true }
+                notice(title: "Jellyfin Session Expired", detail: "Sign in again to keep watching.") {
+                    Button("Sign In Again") { signingIn = true }
                 }
             } else if jellyfin.isOffline {
-                notice(title: "Jellyfin nicht erreichbar", detail: "Du siehst die gespeicherte Bibliothek.") {
-                    Button("Erneut versuchen") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }
+                notice(title: "Jellyfin Not Reachable", detail: "You are seeing the saved library.") {
+                    Button("Try Again") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }
                         .disabled(jellyfin.isLoading)
                 }
             }
@@ -145,13 +146,13 @@ struct JellyfinPlayButton: View {
         Button {
             app.play(jellyfin: item)
         } label: {
-            Label(resume > 0 ? "Fortsetzen (\(formatTime(resume)))" : "Abspielen", systemImage: "play.fill")
+            Label(resume > 0 ? "Resume (\(formatTime(resume)))" : "Play", systemImage: "play.fill")
                 .padding(.horizontal, 8)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         if resume > 0 {
-            Button("Von vorne") { app.play(jellyfin: item, resume: false) }
+            Button("Start Over") { app.play(jellyfin: item, resume: false) }
                 .controlSize(.large)
         }
     }
@@ -164,14 +165,14 @@ struct JellyfinItemMenu: View {
 
     var body: some View {
         if item.type != "Season" {
-            Button("Abspielen") { app.play(jellyfin: item) }
+            Button("Play") { app.play(jellyfin: item) }
             Divider()
         }
-        Button(item.isPlayed ? "Als ungesehen markieren" : "Als gesehen markieren") {
+        Button(item.isPlayed ? "Mark as Unwatched" : "Mark as Watched") {
             Task { await jellyfin.setPlayed(item, !item.isPlayed) }
         }
         if item.type == "Movie" || item.isSeries {
-            Button(item.isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen") {
+            Button(item.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
                 Task { await jellyfin.setFavorite(item, !item.isFavorite) }
             }
         }
@@ -206,20 +207,20 @@ struct JellyfinGridView: View {
         .safeAreaInset(edge: .top, spacing: 0) { JellyfinStatusBanner() }
         .overlay {
             if jellyfin.items(kind).isEmpty && jellyfin.isLoading {
-                ProgressView("Bibliothek wird geladen …")
+                ProgressView("Loading library …")
             }
         }
         .toolbar {
             ToolbarItem {
-                Picker("Sortierung", selection: sort) {
+                Picker("Sort Order", selection: sort) {
                     ForEach(JFSort.allCases) { Text($0.shortTitle).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .help("Sortierung")
+                .help("Sort Order")
             }
         }
-        .navigationTitle(kind == .films ? "Filme" : "Serien")
-        .navigationSubtitle(kind == .films ? "\(list.count) Filme" : "\(list.count) Serien")
+        .navigationTitle(kind == .films ? "Movies" : "Series")
+        .navigationSubtitle(kind == .films ? "\(list.count) movies" : "\(list.count) series")
         .task(id: kind == .films) { await jellyfin.refreshUserData() }
     }
 }
@@ -302,11 +303,11 @@ private struct WatchedFavoriteButtons: View {
         Button {
             Task { await jellyfin.setPlayed(item, !item.isPlayed) }
         } label: {
-            Label(item.isPlayed ? "Gesehen" : "Als gesehen markieren",
+            Label(item.isPlayed ? "Watched" : "Mark as Watched",
                   systemImage: item.isPlayed ? "checkmark.circle.fill" : "checkmark.circle")
         }
         .controlSize(.large)
-        .help(item.isPlayed ? "Als ungesehen markieren" : "Als gesehen markieren")
+        .help(item.isPlayed ? "Mark as Unwatched" : "Mark as Watched")
 
         Button {
             Task { await jellyfin.setFavorite(item, !item.isFavorite) }
@@ -314,7 +315,7 @@ private struct WatchedFavoriteButtons: View {
             Image(systemName: item.isFavorite ? "star.fill" : "star")
         }
         .controlSize(.large)
-        .help(item.isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen")
+        .help(item.isFavorite ? "Remove from Favorites" : "Add to Favorites")
     }
 }
 
@@ -361,10 +362,10 @@ private struct PeopleAndStreams: View {
         let directors = people.filter { $0.type == "Director" }.map(\.name)
         let cast = people.filter { $0.type == "Actor" }.prefix(10).map(\.name)
         if !directors.isEmpty {
-            LabeledContent("Regie") { Text(directors.joined(separator: ", ")).foregroundStyle(.secondary) }
+            LabeledContent("Director") { Text(directors.joined(separator: ", ")).foregroundStyle(.secondary) }
         }
         if !cast.isEmpty {
-            LabeledContent("Besetzung") { Text(cast.joined(separator: ", ")).foregroundStyle(.secondary) }
+            LabeledContent("Cast") { Text(cast.joined(separator: ", ")).foregroundStyle(.secondary) }
         }
         ForEach(Array((item.mediaSources ?? []).enumerated()), id: \.offset) { index, source in
             let streams = source.mediaStreams ?? []
@@ -375,10 +376,10 @@ private struct PeopleAndStreams: View {
                     Text(source.name ?? String(localized: "Version \(index + 1)")).font(.headline)
                 }
                 if !audio.isEmpty {
-                    LabeledContent("Tonspuren") { Text(audio.joined(separator: " · ")).foregroundStyle(.secondary) }
+                    LabeledContent("Audio Tracks") { Text(audio.joined(separator: " · ")).foregroundStyle(.secondary) }
                 }
                 if !subtitles.isEmpty {
-                    LabeledContent("Untertitel") { Text(subtitles.joined(separator: " · ")).foregroundStyle(.secondary) }
+                    LabeledContent("Subtitles") { Text(subtitles.joined(separator: " · ")).foregroundStyle(.secondary) }
                 }
             }
         }
@@ -439,7 +440,7 @@ struct JellyfinSeriesDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     if seasons.count > 1 {
-                        let picker = Picker("Staffel", selection: Binding(get: { seasonId }, set: { self.seasonId = $0 })) {
+                        let picker = Picker("Season", selection: Binding(get: { seasonId }, set: { self.seasonId = $0 })) {
                             ForEach(seasons) { Text(verbatim: $0.name).tag($0.id) }
                         }
                         .labelsHidden()
@@ -450,7 +451,7 @@ struct JellyfinSeriesDetailView: View {
                         Text(season.name).font(.title2.weight(.semibold))
                     }
                     Spacer()
-                    Button(season.isPlayed ? "Staffel als ungesehen markieren" : "Staffel als gesehen markieren") {
+                    Button(season.isPlayed ? "Mark Season as Unwatched" : "Mark Season as Watched") {
                         Task { await jellyfin.setPlayed(season, !season.isPlayed) }
                     }
                 }
@@ -498,11 +499,11 @@ struct JellyfinEpisodeRow: View {
                         Text(episode.name).font(.headline).lineLimit(1)
                     }
                     if episode.isPlayed {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint).accessibilityLabel("Gesehen")
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint).accessibilityLabel("Watched")
                     }
                     Spacer()
                     if let minutes = episode.runtimeMinutes, minutes > 0 {
-                        Text("\(minutes) Min.").foregroundStyle(.secondary).font(.callout)
+                        Text("\(minutes) min").foregroundStyle(.secondary).font(.callout)
                     }
                     Button {
                         Task { await jellyfin.setPlayed(episode, !episode.isPlayed) }
@@ -510,7 +511,7 @@ struct JellyfinEpisodeRow: View {
                         Image(systemName: episode.isPlayed ? "checkmark.circle.fill" : "circle")
                     }
                     .buttonStyle(.borderless)
-                    .help(episode.isPlayed ? "Als ungesehen markieren" : "Als gesehen markieren")
+                    .help(episode.isPlayed ? "Mark as Unwatched" : "Mark as Watched")
                 }
                 if let overview = episode.overview {
                     Text(overview).font(.callout).foregroundStyle(.secondary).lineLimit(3)
@@ -533,19 +534,19 @@ struct JellyfinHomeView: View {
                 HStack(spacing: 10) {
                     Text(verbatim: jellyfin.session?.serverName ?? "Jellyfin").font(.title2.weight(.bold))
                     Circle().fill(jellyfin.isOffline ? Theme.warning : Theme.online).frame(width: 8, height: 8)
-                    Text(jellyfin.isOffline ? "Offline" : "Verbunden").font(.callout).foregroundStyle(.secondary)
+                    Text(jellyfin.isOffline ? "Offline" : "Connected").font(.callout).foregroundStyle(.secondary)
                 }
                 if !jellyfin.resume.isEmpty {
-                    row("Weiterschauen", items: jellyfin.resume, landscape: true)
+                    row("Continue Watching", items: jellyfin.resume, landscape: true)
                 }
                 if !jellyfin.nextUp.isEmpty {
-                    row("Als Nächstes", items: jellyfin.nextUp, landscape: true)
+                    row("Up Next", items: jellyfin.nextUp, landscape: true)
                 }
                 if !jellyfin.latestFilms.isEmpty {
-                    row("Neue Filme", items: jellyfin.latestFilms, landscape: false)
+                    row("New Movies", items: jellyfin.latestFilms, landscape: false)
                 }
                 if !jellyfin.latestSeries.isEmpty {
-                    row("Neue Serien", items: jellyfin.latestSeries, landscape: false)
+                    row("New Series", items: jellyfin.latestSeries, landscape: false)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -554,7 +555,7 @@ struct JellyfinHomeView: View {
         .safeAreaInset(edge: .top, spacing: 0) { JellyfinStatusBanner() }
         .overlay {
             if jellyfin.resume.isEmpty && jellyfin.nextUp.isEmpty && jellyfin.latestFilms.isEmpty && jellyfin.latestSeries.isEmpty {
-                if jellyfin.isLoading { ProgressView() } else { ContentUnavailableView("Noch nichts zu sehen", systemImage: "house") }
+                if jellyfin.isLoading { ProgressView() } else { ContentUnavailableView("Nothing to Watch Yet", systemImage: "house") }
             }
         }
         .navigationTitle(jellyfin.session?.serverName ?? "Jellyfin")
@@ -571,7 +572,7 @@ struct JellyfinHomeView: View {
                     .contextMenu {
                         JellyfinItemMenu(item: item)
                         if let series = jellyfin.seriesItem(for: item), item.type == "Episode" {
-                            NavigationLink("Serie öffnen", value: series)
+                            NavigationLink("Open Series", value: series)
                         }
                     }
             } else {
@@ -631,10 +632,10 @@ private struct JellyfinCarousel<Card: View>: View {
                 Spacer()
                 Button { page(from: index, by: -1) } label: { Image(systemName: "chevron.left") }
                     .disabled(index == 0)
-                    .help("Zurück")
+                    .help("Back")
                 Button { page(from: index, by: 1) } label: { Image(systemName: "chevron.right") }
                     .disabled(index + visibleCount >= items.count)
-                    .help("Weiter")
+                    .help("Next")
             }
             .buttonStyle(.borderless)
             .font(.title3)

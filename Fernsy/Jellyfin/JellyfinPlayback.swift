@@ -1,4 +1,5 @@
 import Combine
+import FernsyCore
 import Foundation
 import VideoToolbox
 
@@ -158,7 +159,7 @@ final class JellyfinPlayback: ObservableObject {
         #endif
         method = .direct
         var external = ExternalPlayback()
-        external.methodLabel = String(localized: "Direkt (Originaldatei)")
+        external.methodLabel = String(localized: "Direct (original file)")
         external.onFailedBeforeStart = { [weak self] message in
             guard let self, !self.fellBack else { return false }
             self.fellBack = true
@@ -219,7 +220,7 @@ final class JellyfinPlayback: ObservableObject {
                 engine.load(url: result.url, isLive: false, startAt: 0, external: external)
             } catch {
                 AppLog.error(.jellyfin, "transcode request failed: \(error.localizedDescription)")
-                store.lastError = String(localized: "Jellyfin konnte den Titel nicht umwandeln: \(error.localizedDescription)")
+                store.lastError = String(localized: "Jellyfin could not transcode the title: \(error.localizedDescription)")
             }
         }
     }
@@ -233,7 +234,7 @@ final class JellyfinPlayback: ObservableObject {
         let externalTracks: [MediaTrack] = streams.filter { $0.type == "Subtitle" && $0.isExternal == true }.compactMap { s in
             guard let index = s.index else { return nil }
             let base = s.isTextSubtitleStream == true ? Self.externalTextBase : Self.externalBitmapBase
-            return s.track(id: base + Int32(index), suffix: " · " + String(localized: "extern"))
+            return s.track(id: base + Int32(index), suffix: " · " + String(localized: "external"))
         }
         if method == .direct {
             engine.addSubtitleTracks(externalTracks)
@@ -324,7 +325,7 @@ final class JellyfinPlayback: ObservableObject {
                 loadedCues = (index, cues)
                 engine.showExternalSubtitles(cues, trackId: trackId)
             } catch {
-                store.lastError = String(localized: "Untertitel konnten nicht geladen werden: \(error.localizedDescription)")
+                store.lastError = String(localized: "Subtitles could not be loaded: \(error.localizedDescription)")
             }
         }
     }
@@ -424,7 +425,7 @@ final class JellyfinPlayback: ObservableObject {
         let position = engine.progress.position
         Task {
             guard await store.renewSession(), !stopped else {
-                engine.reportFailure(String(localized: "Die Jellyfin-Sitzung ist abgelaufen."))
+                engine.reportFailure(String(localized: "The Jellyfin session has expired."))
                 return
             }
             AppLog.warning(.jellyfin, "reloading at \(Int(position)) s after renewing the session")

@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 import ServiceManagement
 
 /// "Beim Anmelden öffnen": Fernsy as a macOS login item (`SMAppService.mainApp`). macOS keeps the

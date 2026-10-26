@@ -1,5 +1,6 @@
 import AVFoundation
 import Combine
+import FernsyCore
 import SwiftUI
 
 /// Position/duration live in their own object so that 10 Hz clock updates only
@@ -290,7 +291,7 @@ final class PlayerEngine: ObservableObject {
         let position = progress.position, duration = progress.duration
         guard duration > 0, position < duration - 60, let url = currentURL, !url.isFileURL else { return false }
         if let last = earlyEndRecoveredAt, abs(position - last) < 30 {
-            status = .failed(String(localized: "Wiedergabe unterbrochen"))
+            status = .failed(String(localized: "Playback interrupted"))
             endActivity()
             return true
         }
@@ -806,7 +807,7 @@ final class PlayerEngine: ObservableObject {
             refillAudio()
         case .ended:
             if currentIsLive {
-                reconnect(reason: String(localized: "Stream beendet"))
+                reconnect(reason: String(localized: "Stream ended"))
             } else if !recoverFromEarlyEnd() {
                 status = .ended
                 endActivity()
@@ -852,7 +853,7 @@ final class PlayerEngine: ObservableObject {
         guard recoveries.count < 3 else {
             AppLog.error(.player, "video decoder keeps failing (\(reason)), giving up")
             halt()
-            status = .failed(String(localized: "Das Bild konnte nicht wiederhergestellt werden."))
+            status = .failed(String(localized: "The picture could not be restored."))
             return
         }
         recoveries.append(now)
@@ -863,7 +864,7 @@ final class PlayerEngine: ObservableObject {
         } else if !currentIsLive || isTimeshift {
             seek(to: progress.position)
         } else {
-            reconnect(reason: String(localized: "Decoder neu gestartet"))
+            reconnect(reason: String(localized: "Decoder restarted"))
         }
     }
 
@@ -947,14 +948,6 @@ final class PlayerEngine: ObservableObject {
     }
 }
 
-#if DEBUG
-private let debugStart = Date()
-
-func debugLog(_ message: String) {
-    let t = String(format: "%7.2f", Date().timeIntervalSince(debugStart))
-    FileHandle.standardError.write(Data(("\(t) " + message + "\n").utf8))
-}
-#endif
 
 /// A weak engine reference the receivers' event tasks can carry; it is only read on the main queue.
 private final class WeakEngine: @unchecked Sendable {

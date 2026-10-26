@@ -1,6 +1,7 @@
 import AppIntents
 import Charts
 import Combine
+import FernsyCore
 import SwiftUI
 
 struct PlayerScreen: View {
@@ -91,7 +92,7 @@ struct PlayerScreen: View {
             }
 
             if engine.showsServerSwitchNote {
-                Label("Ein anderer Server des Anbieters liefert wieder flüssig.", systemImage: "checkmark.circle.fill")
+                Label("Another server of the provider delivers smoothly again.", systemImage: "checkmark.circle.fill")
                     .font(.callout.weight(.medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 9)
@@ -147,7 +148,7 @@ struct PlayerScreen: View {
         }
         .ignoresSafeArea()
         .frame(minWidth: 480, minHeight: 270)
-        .navigationTitle(app.nowPlaying?.title ?? "Wiedergabe")
+        .navigationTitle(app.nowPlaying?.title ?? "Playback")
         .onAppear {
             app.playerEngine = engine
             PlayerWindow.appeared()
@@ -328,8 +329,8 @@ struct PlayerScreen: View {
     /// Why there is no sound, if there is a picture but no audio.
     private var audioBadge: AudioBadge? {
         guard engine.status == .playing || engine.status == .paused, let media = engine.media, media.hasVideo else { return nil }
-        if !media.hasAudio { return AudioBadge(text: String(localized: "Sender ohne Ton"), waiting: false) }
-        if engine.isAudioMissing { return AudioBadge(text: String(localized: "Kein Ton vom Sender – warte auf Ton …"), waiting: true) }
+        if !media.hasAudio { return AudioBadge(text: String(localized: "Channel without audio"), waiting: false) }
+        if engine.isAudioMissing { return AudioBadge(text: String(localized: "No audio from channel – waiting…"), waiting: true) }
         return nil
     }
 
@@ -708,18 +709,18 @@ struct PlayerScreen: View {
     /// connection is healthy (the plain spinner then).
     private var stallCard: (symbol: String, title: String, detail: String)? {
         if !app.isNetworkAvailable {
-            return ("wifi.slash", String(localized: "Keine Internetverbindung"),
-                    String(localized: "Fernsy spielt weiter, sobald das Netz zurück ist."))
+            return ("wifi.slash", String(localized: "No internet connection"),
+                    String(localized: "Fernsy continues as soon as the network is back."))
         }
         switch engine.connectionHealth {
         case .ok:
             return nil
         case .reconnecting(loadBalancer: true):
-            return ("tortoise", String(localized: "Der Sender kommt zu langsam vom Anbieter"),
-                    String(localized: "Fernsy wechselt zu einem anderen Server des Anbieters …"))
+            return ("tortoise", String(localized: "The channel arrives too slowly from the provider"),
+                    String(localized: "Fernsy is switching to another server of the provider …"))
         case .slow, .silent, .reconnecting:
-            return ("tortoise", String(localized: "Der Sender kommt zu langsam vom Anbieter"),
-                    String(localized: "Fernsy wartet auf Daten …"))
+            return ("tortoise", String(localized: "The channel arrives too slowly from the provider"),
+                    String(localized: "Fernsy is waiting for data …"))
         }
     }
 
@@ -732,7 +733,7 @@ struct PlayerScreen: View {
                     LogoTile(url: channel.icon, name: channel.displayName, width: 150)
                 }
                 ProgressView().controlSize(.large).tint(.white)
-                Text("\(app.nowPlaying?.title ?? "") wird geladen …")
+                Text("Loading \(app.nowPlaying?.title ?? "")…")
                     .font(.callout)
                     .foregroundStyle(.white.opacity(0.7))
             }
@@ -741,9 +742,9 @@ struct PlayerScreen: View {
             if engine.isReconnecting || engine.reconnectAttempt > 0 {
                 VStack(spacing: 10) {
                     ProgressView().controlSize(.regular).tint(.white)
-                    Text("Verbindung wird wiederhergestellt …").font(.callout.weight(.semibold))
+                    Text("Reconnecting…").font(.callout.weight(.semibold))
                     if engine.reconnectAttempt > 0 {
-                        Text("Versuch \(engine.reconnectAttempt) von \(PlayerEngine.maxReconnectAttempts)")
+                        Text("Attempt \(engine.reconnectAttempt) of \(PlayerEngine.maxReconnectAttempts)")
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.65))
                     }
@@ -781,24 +782,24 @@ struct PlayerScreen: View {
                     .foregroundStyle(Color(hex: 0x1A1300))
                     .frame(width: 38, height: 38)
                     .background(Theme.warning, in: Circle())
-                Text(offline ? String(localized: "Sender ist beim Anbieter offline") : message)
+                Text(offline ? String(localized: "Channel is offline at the provider") : message)
                     .font(.headline)
                     .multilineTextAlignment(.center)
                 if offline {
-                    Text("\(app.nowPlaying?.title ?? "") liefert gerade kein Bild. Das liegt am Anbieter, nicht an deiner Verbindung.")
+                    Text("\(app.nowPlaying?.title ?? "") is not sending a picture right now. This is the provider, not your connection.")
                         .font(.callout)
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
                 HStack(spacing: 10) {
-                    Button("Erneut versuchen") {
+                    Button("Try Again") {
                         if let item = loadedItem {
                             if item.isLive { app.retuneForPlayer() }
                             play(item)
                         }
                     }
                     if loadedItem?.isLive == true {
-                        Button("Nächster Sender  ↓") { zap(1) }
+                        Button("Next Channel  ↓") { zap(1) }
                             .buttonStyle(.borderedProminent)
                     }
                 }
@@ -814,7 +815,7 @@ struct PlayerScreen: View {
             Button {
                 engine.setPaused(false)
             } label: {
-                Label("Erneut abspielen", systemImage: "arrow.counterclockwise")
+                Label("Play Again", systemImage: "arrow.counterclockwise")
                     .padding(.horizontal, 10).padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
@@ -918,7 +919,7 @@ struct PlayerControls: View {
     private func recordingPill(until end: Date) -> some View {
         HStack(spacing: 7) {
             Circle().fill(.white).frame(width: 8, height: 8)
-            Text("Aufnahme · bis \(end.formatted(date: .omitted, time: .shortened))")
+            Text("Recording · until \(end.formatted(date: .omitted, time: .shortened))")
         }
         .font(.caption.weight(.bold))
         .foregroundStyle(.white)
@@ -940,15 +941,15 @@ struct PlayerControls: View {
         VStack(spacing: 12) {
             if item.isLive, let current {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    label("JETZT")
+                    label("NOW")
                     Text(verbatim: current.title).fontWeight(.semibold).lineLimit(1)
-                    Text("\(times(current)) · noch \(max(1, Int(current.end.timeIntervalSinceNow / 60))) Min.")
+                    Text("\(times(current)) · \(max(1, Int(current.end.timeIntervalSinceNow / 60))) min left")
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                         .fixedSize()
                     Spacer(minLength: 12)
                     if let next {
-                        label("DANACH")
+                        label("NEXT")
                         Text(verbatim: "\(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -982,17 +983,17 @@ struct PlayerControls: View {
     private var buttons: some View {
         HStack(spacing: 8) {
             if item.isLive {
-                roundButton("chevron.up", help: "Vorheriger Sender (↑)") { onZap(-1) }
-                roundButton("chevron.down", help: "Nächster Sender (↓)") { onZap(1) }
-                roundButton("list.bullet", help: "Senderliste (L)") { onChannelList() }
+                roundButton("chevron.up", help: "Previous channel (↑)") { onZap(-1) }
+                roundButton("chevron.down", help: "Next channel (↓)") { onZap(1) }
+                roundButton("list.bullet", help: "Channel List (L)") { onChannelList() }
                 Divider().frame(height: 20).padding(.horizontal, 4)
             }
             let seekable = !item.isLive || engine.isTimeshift
             if !item.isLive {
-                textButton("−60", help: "1 min zurück (⇧←)") { engine.seek(by: -60) }
+                textButton("−60", help: "1 min back (⇧←)") { engine.seek(by: -60) }
             }
             if seekable {
-                textButton("−10", help: "10 s zurück (←)") { engine.seek(by: -10) }
+                textButton("−10", help: "Back 10 s (←)") { engine.seek(by: -10) }
             }
             Button {
                 engine.togglePause()
@@ -1004,14 +1005,14 @@ struct PlayerControls: View {
                     .background(.fill.secondary, in: Circle())
             }
             .buttonStyle(.plain)
-            .help("Wiedergabe/Pause (Leertaste)")
+            .help("Play/Pause (Space)")
             if seekable {
-                textButton("+10", help: "10 s vor (→)") { engine.seek(by: 10) }
+                textButton("+10", help: "Forward 10 s (→)") { engine.seek(by: 10) }
                     .disabled(item.isLive && progress.followsLive)
                     .opacity(item.isLive && progress.followsLive ? 0.35 : 1)
             }
             if !item.isLive {
-                textButton("+60", help: "1 min vor (⇧→)") { engine.seek(by: 60) }
+                textButton("+60", help: "1 min forward (⇧→)") { engine.seek(by: 60) }
             }
             if liveRange != nil { liveState.padding(.leading, 6) }
 
@@ -1024,7 +1025,7 @@ struct PlayerControls: View {
                 } label: {
                     HStack(spacing: 7) {
                         Circle().fill(recordingEnd != nil ? .white : Theme.record).frame(width: 9, height: 9)
-                        Text(recordingEnd != nil ? "Aufnahme beenden" : "Aufnehmen")
+                        Text(recordingEnd != nil ? "Stop Recording" : "Record")
                         if recordingEnd == nil { Text(verbatim: "R").foregroundStyle(.secondary) }
                     }
                     .font(.caption.weight(.bold))
@@ -1033,7 +1034,7 @@ struct PlayerControls: View {
                     .background(recordingEnd != nil ? AnyShapeStyle(Theme.record) : AnyShapeStyle(.fill.tertiary), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .help(recordingEnd != nil ? "Aufnahme beenden (R)" : "Laufende Sendung aufnehmen (R)")
+                .help(recordingEnd != nil ? "Stop recording (R)" : "Record the current show (R)")
             }
 
             HStack(spacing: 6) {
@@ -1042,7 +1043,7 @@ struct PlayerControls: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .help("Ton aus (M)")
+                .help("Mute (M)")
                 Slider(value: Binding(get: { Double(engine.volume) }, set: { engine.volume = Float($0); onActivity() }), in: 0...1) { editing in
                     onDragging(editing)
                     onActivity()
@@ -1053,12 +1054,12 @@ struct PlayerControls: View {
             .padding(.horizontal, 6)
 
             tracksMenu
-            roundButton(showInfo ? "info.circle.fill" : "info", help: "Technische Infos (I)") { showInfo.toggle() }
+            roundButton(showInfo ? "info.circle.fill" : "info", help: "Technical info (I)") { showInfo.toggle() }
             if pipPossible {
-                roundButton("pip.enter", help: "Bild in Bild (P)") { onPictureInPicture() }
+                roundButton("pip.enter", help: "Picture in Picture (P)") { onPictureInPicture() }
             }
             roundButton(isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                        help: isFullScreen ? "Vollbild beenden (F, Esc)" : "Vollbild (F)") { onFullScreen() }
+                        help: isFullScreen ? "Exit full screen (F, Esc)" : "Full screen (F)") { onFullScreen() }
         }
     }
 
@@ -1074,7 +1075,7 @@ struct PlayerControls: View {
             } label: {
                 HStack(spacing: 8) {
                     Text("−" + formatTime(progress.behindLive)).font(.callout.weight(.bold)).monospacedDigit()
-                    Text("ZU LIVE ⇥")
+                    Text("TO LIVE ⇥")
                         .font(.caption2.weight(.bold))
                         .tracking(0.4)
                         .foregroundStyle(.white)
@@ -1085,7 +1086,7 @@ struct PlayerControls: View {
                 .background(.fill.tertiary, in: Capsule())
             }
             .buttonStyle(.plain)
-            .help("Zurück zu Live")
+            .help("Back to live")
         }
     }
 
@@ -1095,7 +1096,7 @@ struct PlayerControls: View {
         if let media = engine.media, media.audioTracks.count > 1 || !media.subtitleTracks.isEmpty {
             Menu {
                 if media.audioTracks.count > 1 {
-                    Picker("Tonspur", selection: Binding(
+                    Picker("Audio Track", selection: Binding(
                         get: { media.selectedAudio },
                         set: { id in if let track = media.audioTracks.first(where: { $0.id == id }) { onPickAudio(track) } }
                     )) {
@@ -1104,17 +1105,17 @@ struct PlayerControls: View {
                     .pickerStyle(.inline)
                 }
                 if !media.subtitleTracks.isEmpty {
-                    Picker("Untertitel", selection: Binding(
+                    Picker("Subtitles", selection: Binding(
                         get: { media.selectedSubtitle },
                         set: { id in onPickSubtitle(media.subtitleTracks.first { $0.id == id }) }
                     )) {
-                        Text("Aus").tag(Int32?.none)
+                        Text("Off").tag(Int32?.none)
                         ForEach(media.subtitleTracks) { track in Text(track.title).tag(Optional(track.id)) }
                     }
                     .pickerStyle(.inline)
                 }
             } label: {
-                Text("Ton & UT")
+                Text("Audio & Subtitles")
                     .font(.caption.weight(.bold))
                     .padding(.horizontal, 10).frame(height: 32)
                     .background(media.selectedSubtitle != nil ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary), in: Capsule())
@@ -1123,7 +1124,7 @@ struct PlayerControls: View {
             .buttonStyle(.plain)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help("Tonspur und Untertitel")
+            .help("Audio track and subtitles")
         }
     }
 
@@ -1213,7 +1214,7 @@ struct ChannelOSD: View {
             }
             HStack {
                 if let next {
-                    Text("Danach \(next.start.formatted(date: .omitted, time: .shortened)) \(next.title)")
+                    Text("Next \(next.start.formatted(date: .omitted, time: .shortened)) \(next.title)")
                         .lineLimit(1)
                 }
                 Spacer()
@@ -1273,8 +1274,8 @@ struct AudioStatusBadge: View {
             .background(.ultraThinMaterial, in: Capsule())
             .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
             .environment(\.colorScheme, .dark)
-            .help(waiting ? String(localized: "Der Sender liefert gerade keine Tondaten. Der Ton setzt automatisch wieder ein.")
-                          : String(localized: "Dieser Sender überträgt keine Tonspur."))
+            .help(waiting ? String(localized: "The channel is currently sending no audio. Sound will resume automatically.")
+                          : String(localized: "This channel has no audio track."))
     }
 }
 
@@ -1298,29 +1299,29 @@ struct StatsOverlay: View {
 
     private var grid: some View {
         Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
-            if let method = stats.playMethod { row("Wiedergabe", method) }
+            if let method = stats.playMethod { row("Playback", method) }
             row("Container", stats.container)
             row("Video", stats.videoCodec)
-            row("Auflösung", stats.resolution)
-            row("Bildrate", stats.frameRate > 0 ? String(format: "%.2f fps", stats.frameRate) : "–")
-            row("Dekoder", stats.decoder)
-            row("Pixelformat", stats.pixelFormat)
-            row("Dynamik", stats.dynamicRange)
+            row("Resolution", stats.resolution)
+            row("Frame rate", stats.frameRate > 0 ? String(format: "%.2f fps", stats.frameRate) : "–")
+            row("Decoder", stats.decoder)
+            row("Pixel format", stats.pixelFormat)
+            row("Dynamic range", stats.dynamicRange)
             row("Deinterlacing", stats.deinterlace.isEmpty ? "–" : stats.deinterlace)
             row("Audio", stats.audio)
-            row("Datenrate", String(format: "%.1f Mbit/s", stats.bitrateMbps))
+            row("Bit rate", String(format: "%.1f Mbit/s", stats.bitrateMbps))
             Divider().overlay(.white.opacity(0.25)).gridCellColumns(2)
-            row("Puffer", bufferText)
+            row("Buffer", bufferText)
             if let stored = stats.timeshiftStored {
-                row("Zeitpuffer", String(localized: "\(formatTime(stored)) gespeichert"))
+                row("Timeshift buffer", String(localized: "\(formatTime(stored)) stored"))
             }
-            row("Verbindung", stats.connectTime > 0 ? String(format: String(localized: "%.0f ms bis Antwort"), stats.connectTime * 1000) : "")
-            row("Startzeit", stats.startupTime > 0 ? String(format: String(localized: "%.1f s bis zum Bild"), stats.startupTime) : "")
+            row("Connection", stats.connectTime > 0 ? String(format: String(localized: "%.0f ms to first response"), stats.connectTime * 1000) : "")
+            row("Startup", stats.startupTime > 0 ? String(format: String(localized: "%.1f s to first frame"), stats.startupTime) : "")
             row("Reconnects", reconnectText)
-            row("Pufferungen", "\(stats.rebuffers)")
-            row("Verworfen", String(localized: "\(stats.droppedFrames) Frames") + (stats.duplicatesDropped > 0 ? " · " + String(localized: "\(stats.duplicatesDropped) Duplikate") : ""))
+            row("Rebuffers", "\(stats.rebuffers)")
+            row("Dropped", String(localized: "\(stats.droppedFrames) frames") + (stats.duplicatesDropped > 0 ? " · " + String(localized: "\(stats.duplicatesDropped) duplicates") : ""))
             if stats.decodeFailures > 0 {
-                row("Decodierfehler", String(localized: "\(stats.decodeFailures) Frames"))
+                row("Decode errors", String(localized: "\(stats.decodeFailures) frames"))
             }
         }
     }
@@ -1328,26 +1329,26 @@ struct StatsOverlay: View {
     private var bufferText: String {
         if let ahead = stats.timeshiftAhead {
             let disk = ahead >= 60 ? formatTime(ahead) : String(format: "%.1f s", ahead)
-            return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "Platte \(disk)")
+            return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "Disk \(disk)")
         }
         let network = Double(stats.networkBufferBytes)
         let networkText = network >= 1_000_000 ? String(format: "%.1f MB", network / 1_000_000) : String(format: "%.0f KB", network / 1000)
         // Network bytes in seconds at the average data rate, when it is known.
         let rate = history.averageMbps * 125_000
         let networkSeconds = rate > 0 ? String(format: " ≈ %.1f s", network / rate) : ""
-        return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "Netz \(networkText)\(networkSeconds)")
+        return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "network \(networkText)\(networkSeconds)")
     }
 
     private var reconnectText: String {
-        var parts = [String(localized: "\(stats.seamlessReconnects) nahtlos")]
-        if stats.restarts > 0 { parts.append(String(localized: "\(stats.restarts) Neustarts")) }
+        var parts = [String(localized: "\(stats.seamlessReconnects) seamless")]
+        if stats.restarts > 0 { parts.append(String(localized: "\(stats.restarts) restarts")) }
         var text = parts.joined(separator: " · ")
         if stats.isReconnecting {
-            text += " · " + String(localized: "verbindet …")
+            text += " · " + String(localized: "connecting…")
         } else if let at = stats.lastReconnectAt {
             let ago = Int(Date().timeIntervalSince(at))
-            let when = ago < 60 ? String(localized: "vor \(ago) s") : String(localized: "vor \(ago / 60) min")
-            text += "\n" + String(localized: "zuletzt \(when): \(stats.lastReconnectReason ?? "")")
+            let when = ago < 60 ? String(localized: "\(ago) s ago") : String(localized: "\(ago / 60) min ago")
+            text += "\n" + String(localized: "last \(when): \(stats.lastReconnectReason ?? "")")
         }
         return text
     }
@@ -1375,16 +1376,16 @@ struct BufferChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                Text("Puffer, letzte 2 min").foregroundStyle(.white.opacity(0.6))
+                Text("Buffer, last 2 min").foregroundStyle(.white.opacity(0.6))
                 Spacer()
                 legend(Self.playerColor, "Player")
-                legend(Self.networkColor, isTimeshift ? "Platte" : "Netz")
+                legend(Self.networkColor, isTimeshift ? "Disk" : "Net")
             }
             chart.frame(width: 300, height: 90)
             HStack(spacing: 10) {
                 legend(.orange, "Reconnect")
-                legend(.purple, "Neustart")
-                legend(.red, "Pufferung")
+                legend(.purple, "Restart")
+                legend(.red, "Rebuffer")
                 Spacer()
             }
             .font(.system(size: 9, design: .monospaced))
@@ -1399,21 +1400,21 @@ struct BufferChart: View {
         return Chart {
             ForEach(samples) { sample in
                 let x = sample.time.timeIntervalSince(now)
-                AreaMark(x: .value("Zeit", x), y: .value("Sekunden", sample.player), stacking: .standard)
-                    .foregroundStyle(by: .value("Anteil", "Player"))
-                AreaMark(x: .value("Zeit", x), y: .value("Sekunden", min(sample.network, max(0, Self.cap - sample.player))), stacking: .standard)
-                    .foregroundStyle(by: .value("Anteil", "Netz"))
+                AreaMark(x: .value("Time", x), y: .value("Seconds", sample.player), stacking: .standard)
+                    .foregroundStyle(by: .value("Share", "Player"))
+                AreaMark(x: .value("Time", x), y: .value("Seconds", min(sample.network, max(0, Self.cap - sample.player))), stacking: .standard)
+                    .foregroundStyle(by: .value("Share", "Net"))
                 ForEach(Array(sample.events.enumerated()), id: \.offset) { _, event in
-                    RuleMark(x: .value("Zeit", x))
+                    RuleMark(x: .value("Time", x))
                         .foregroundStyle(Self.color(for: event))
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                 }
             }
-            RuleMark(y: .value("Schwelle", 4))
+            RuleMark(y: .value("Threshold", 4))
                 .foregroundStyle(.white.opacity(0.4))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
         }
-        .chartForegroundStyleScale(["Player": Self.playerColor.opacity(0.8), "Netz": Self.networkColor.opacity(0.7)])
+        .chartForegroundStyleScale(["Player": Self.playerColor.opacity(0.8), "Net": Self.networkColor.opacity(0.7)])
         .chartLegend(.hidden)
         .chartXScale(domain: -BufferHistory.window...0)
         .chartYScale(domain: 0...max(10, (peak / 5).rounded(.up) * 5))
@@ -1422,7 +1423,7 @@ struct BufferChart: View {
                 AxisGridLine().foregroundStyle(.white.opacity(0.12))
                 AxisValueLabel {
                     if let seconds = value.as(Double.self) {
-                        Text(seconds == 0 ? "jetzt" : "\(Int(seconds)) s")
+                        Text(seconds == 0 ? "now" : "\(Int(seconds)) s")
                     }
                 }
                 .foregroundStyle(.white.opacity(0.6))
@@ -1476,13 +1477,13 @@ private struct NextEpisodeOverlay: View {
     var body: some View {
         if let next = playback.nextEpisode, !playback.autoplayCancelled {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Nächste Folge").font(.headline).foregroundStyle(.secondary)
+                Text("Next Up").font(.headline).foregroundStyle(.secondary)
                 Text(label(next)).font(.title2.weight(.semibold)).lineLimit(2)
                 HStack {
-                    Button("Jetzt abspielen (\(remaining))") { play(next) }
+                    Button("Play Now (\(remaining))") { play(next) }
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
-                    Button("Abbrechen") { playback.cancelAutoplay() }
+                    Button("Cancel") { playback.cancelAutoplay() }
                         .keyboardShortcut(.cancelAction)
                 }
             }

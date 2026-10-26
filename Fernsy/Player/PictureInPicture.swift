@@ -2,6 +2,7 @@ import AVKit
 import Combine
 import CoreImage
 import CoreText
+import FernsyCore
 
 /// System Picture in Picture for the player's display layer (every source renders into it).
 /// The player screen hides its window while PiP runs and reacts to "back" and "close".

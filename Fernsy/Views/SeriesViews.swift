@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 private let posterColumns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 20, alignment: .top)]
@@ -18,7 +19,7 @@ struct SeriesGridView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button(app.isFavorite("series:\(show.id)") ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen") {
+                        Button(app.isFavorite("series:\(show.id)") ? "Remove from Favorites" : "Add to Favorites") {
                             app.toggleFavorite("series:\(show.id)")
                         }
                     }
@@ -27,8 +28,8 @@ struct SeriesGridView: View {
             .padding(24)
         }
         .toolbar { SortMenu(sort: $sort) }
-        .navigationTitle("Serien")
-        .navigationSubtitle("\(list.count) Serien")
+        .navigationTitle("Series")
+        .navigationSubtitle("\(list.count) series")
     }
 }
 
@@ -59,7 +60,7 @@ struct SeriesDetailView: View {
                         Text(verbatim: series.name).font(.largeTitle.weight(.bold)).textSelection(.enabled)
                         HStack(spacing: 8) {
                             let parts = [series.releaseDate.map { String($0.prefix(4)) }, series.genre,
-                                         info.map { String(localized: "\($0.seasons.count) Staffeln") }].compactMap { $0 }
+                                         info.map { String(localized: "\($0.seasons.count) Seasons") }].compactMap { $0 }
                             Text(verbatim: parts.joined(separator: " · ")).lineLimit(1)
                             if let rating = series.rating, rating > 0 {
                                 Text(verbatim: "· ★ \(rating.formatted(.number.precision(.fractionLength(1))))")
@@ -70,7 +71,7 @@ struct SeriesDetailView: View {
                             if let next {
                                 Button { app.play(next, of: series) } label: {
                                     HStack(spacing: 8) {
-                                        Label("Nächste Episode", systemImage: "play.fill")
+                                        Label("Next Episode", systemImage: "play.fill")
                                         Text(verbatim: "S\(next.season) E\(next.number) · \(next.title)").lineLimit(1).opacity(0.8)
                                     }
                                     .padding(.horizontal, 8)
@@ -85,7 +86,7 @@ struct SeriesDetailView: View {
                                     .foregroundStyle(app.isFavorite("series:\(series.id)") ? .yellow : .primary)
                             }
                             .controlSize(.large)
-                            .help("Favorit")
+                            .help("Favorite")
                         }
                         if let plot = series.plot {
                             Text(verbatim: plot).foregroundStyle(.secondary).lineSpacing(3)
@@ -127,14 +128,14 @@ struct SeriesDetailView: View {
             let seasons = info.seasons.keys.sorted()
             VStack(alignment: .leading, spacing: 16) {
                 if seasons.count > 1 {
-                    Picker("Staffel", selection: Binding(get: { season }, set: { self.season = $0 })) {
-                        ForEach(seasons, id: \.self) { Text("Staffel \($0)").tag($0) }
+                    Picker("Season", selection: Binding(get: { season }, set: { self.season = $0 })) {
+                        ForEach(seasons, id: \.self) { Text("Season \($0)").tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .frame(maxWidth: min(CGFloat(seasons.count) * 110, 900))
                 } else {
-                    Text("Staffel \(season)").font(.title2.weight(.semibold))
+                    Text("Season \(season)").font(.title2.weight(.semibold))
                 }
                 LazyVStack(spacing: 10) {
                     ForEach((info.seasons[season] ?? []).sorted { $0.number < $1.number }) { episode in
@@ -189,24 +190,24 @@ struct EpisodeRow: View {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(verbatim: "\(episode.number). \(episode.title)").font(.headline).lineLimit(1)
                         if isNext {
-                            Text("Als Nächstes")
+                            Text("Up Next")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.tint)
                         } else if watched {
-                            Label("Gesehen", systemImage: "checkmark.circle.fill")
+                            Label("Watched", systemImage: "checkmark.circle.fill")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
                         if let d = episode.durationSeconds, d > 0 {
-                            Text("\(d / 60) Min.").foregroundStyle(.secondary).font(.callout)
+                            Text("\(d / 60) min").foregroundStyle(.secondary).font(.callout)
                         }
                     }
                     if let plot = episode.plot {
                         Text(verbatim: plot).font(.callout).foregroundStyle(.secondary).lineLimit(3)
                     }
                     if resume > 0 {
-                        Label("Fortsetzen bei \(formatTime(resume))", systemImage: "play.circle")
+                        Label("Resume at \(formatTime(resume))", systemImage: "play.circle")
                             .font(.caption).foregroundStyle(.tint)
                     }
                 }
@@ -235,7 +236,7 @@ struct FavoritesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 if !channels.isEmpty {
-                    Text("Sender").font(.title2.weight(.semibold))
+                    Text("Channels").font(.title2.weight(.semibold))
                     VStack(spacing: 2) {
                         ForEach(channels) { channel in
                             Button { app.play(channel) } label: {
@@ -248,7 +249,7 @@ struct FavoritesView: View {
                     }
                 }
                 if !movies.isEmpty {
-                    Text("Filme").font(.title2.weight(.semibold))
+                    Text("Movies").font(.title2.weight(.semibold))
                     LazyVGrid(columns: posterColumns, spacing: 24) {
                         ForEach(movies) { movie in
                             NavigationLink(value: movie) {
@@ -259,7 +260,7 @@ struct FavoritesView: View {
                     }
                 }
                 if !shows.isEmpty {
-                    Text("Serien").font(.title2.weight(.semibold))
+                    Text("Series").font(.title2.weight(.semibold))
                     LazyVGrid(columns: posterColumns, spacing: 24) {
                         ForEach(shows) { show in
                             NavigationLink(value: show) {
@@ -275,10 +276,10 @@ struct FavoritesView: View {
         }
         .overlay {
             if channels.isEmpty && movies.isEmpty && shows.isEmpty {
-                ContentUnavailableView("Noch keine Favoriten", systemImage: "star",
-                                       description: Text("Markiere Sender, Filme oder Serien mit dem Stern."))
+                ContentUnavailableView("No Favorites Yet", systemImage: "star",
+                                       description: Text("Mark channels, movies or series with the star."))
             }
         }
-        .navigationTitle("Favoriten")
+        .navigationTitle("Favorites")
     }
 }

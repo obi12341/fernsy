@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// The sources the toolbar search covers, in the order the results show them.

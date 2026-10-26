@@ -1,3 +1,4 @@
+import FernsyCore
 import Foundation
 
 /// Extracts an ADTS AAC elementary stream from one MPEG-TS PID, bypassing FFmpeg's PES

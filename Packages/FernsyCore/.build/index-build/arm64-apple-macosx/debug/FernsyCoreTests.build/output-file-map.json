@@ -1,0 +1,41 @@
+{
+  "": {
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/primary.swiftdeps"
+  },
+  "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/Tests/FernsyCoreTests/AppLogTests.swift": {
+    "dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/AppLogTests.d",
+    "object": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/AppLogTests.swift.o",
+    "swiftmodule": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/AppLogTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/AppLogTests.swiftdeps",
+    "diagnostics": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/AppLogTests.dia"  },
+  "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/Tests/FernsyCoreTests/ChannelNameTests.swift": {
+    "dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/ChannelNameTests.d",
+    "object": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/ChannelNameTests.swift.o",
+    "swiftmodule": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/ChannelNameTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/ChannelNameTests.swiftdeps",
+    "diagnostics": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/ChannelNameTests.dia"  },
+  "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/Tests/FernsyCoreTests/GapTrackerTests.swift": {
+    "dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/GapTrackerTests.d",
+    "object": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/GapTrackerTests.swift.o",
+    "swiftmodule": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/GapTrackerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/GapTrackerTests.swiftdeps",
+    "diagnostics": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/GapTrackerTests.dia"  },
+  "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/Tests/FernsyCoreTests/LocalizationTests.swift": {
+    "dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/LocalizationTests.d",
+    "object": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/LocalizationTests.swift.o",
+    "swiftmodule": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/LocalizationTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/LocalizationTests.swiftdeps",
+    "diagnostics": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/LocalizationTests.dia"  },
+  "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/Tests/FernsyCoreTests/RecordingPlanTests.swift": {
+    "dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/RecordingPlanTests.d",
+    "object": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/RecordingPlanTests.swift.o",
+    "swiftmodule": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/RecordingPlanTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/RecordingPlanTests.swiftdeps",
+    "diagnostics": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/RecordingPlanTests.dia"  },
+  "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/Tests/FernsyCoreTests/TrackChooserTests.swift": {
+    "dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/TrackChooserTests.d",
+    "object": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/TrackChooserTests.swift.o",
+    "swiftmodule": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/TrackChooserTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/TrackChooserTests.swiftdeps",
+    "diagnostics": "/Users/p.oberdorf/Projects/iptvmac/Packages/FernsyCore/.build/index-build/arm64-apple-macosx/debug/FernsyCoreTests.build/TrackChooserTests.dia"  }
+}

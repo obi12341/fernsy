@@ -1,4 +1,5 @@
 import Combine
+import FernsyCore
 import Foundation
 import Network
 import SwiftUI
@@ -17,13 +18,13 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .live: return String(localized: "Live TV")
-        case .movies: return String(localized: "Filme")
-        case .series: return String(localized: "Serien")
-        case .favorites: return String(localized: "Favoriten")
-        case .recordings: return String(localized: "Aufnahmen")
-        case .jellyfinHome: return String(localized: "Start")
-        case .jellyfinFilms: return String(localized: "Filme")
-        case .jellyfinSeries: return String(localized: "Serien")
+        case .movies: return String(localized: "Movies")
+        case .series: return String(localized: "Series")
+        case .favorites: return String(localized: "Favorites")
+        case .recordings: return String(localized: "Recordings")
+        case .jellyfinHome: return String(localized: "Home")
+        case .jellyfinFilms: return String(localized: "Movies")
+        case .jellyfinSeries: return String(localized: "Series")
         }
     }
 
@@ -524,11 +525,7 @@ final class AppModel: ObservableObject {
                 if spec[0] == "iptv" { logout() } else { jellyfin.signOut() }
             }
         }
-        if env["IPTV_TRACKSELFTEST"] == "1" { TrackChooser.selfTest() }
-        if env["IPTV_LOGSELFTEST"] == "1" { AppLog.shared.selfTest() }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
-        if env["IPTV_NAMETEST"] == "1" { ChannelName.selfTest() }
-        if env["IPTV_PLANTEST"] == "1" { RecordingPlan.selfTest() }
         if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
         if let spec = env["IPTV_TESTRESUME"] {
             // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run.
@@ -1002,9 +999,9 @@ final class AppModel: ObservableObject {
         }
         Task {
             let accepted = await Prompt.ask(
-                title: String(localized: "Aufnahme läuft"),
-                message: String(localized: "Gerade wird „\(first.title)“ auf \(first.channelName) aufgenommen. Dein Zugang erlaubt nur \(tuners.limit) Stream(s) gleichzeitig. Aufnahme beenden und auf \(channel.displayName) umschalten?"),
-                confirm: String(localized: "Aufnahme beenden und umschalten"), cancel: String(localized: "Abbrechen"))
+                title: String(localized: "Recording in Progress"),
+                message: String(localized: "“\(first.title)” is being recorded on \(first.channelName). Your account allows only \(tuners.limit) stream(s) at a time. Stop the recording and switch to \(channel.displayName)?"),
+                confirm: String(localized: "Stop Recording and Switch"), cancel: String(localized: "Cancel"))
             guard accepted else { return }
             for recording in blocking { recorder.stop(recording.id) }
             nowPlaying = item

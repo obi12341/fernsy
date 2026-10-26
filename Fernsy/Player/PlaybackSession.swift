@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreMedia
 import CoreVideo
+import FernsyCore
 
 // FFmpeg custom-I/O trampolines (must be plain C function pointers; FrameGrabber uses them too).
 /// Gives the C callbacks a concrete class to point at.
@@ -336,7 +337,7 @@ final class PlaybackSession {
     private func demuxMain() {
         defer { group.leave() }
         if let timeshift, !timeshift.waitForContent(seconds: 0, timeout: 25, cancelled: { isStopped }) {
-            if !isStopped { emit(.failed(String(localized: "Keine Daten vom Sender"), retry: true)) }
+            if !isStopped { emit(.failed(String(localized: "No data from the channel"), retry: true)) }
             return
         }
         do {
@@ -422,7 +423,7 @@ final class PlaybackSession {
             if isTuner {
                 let ret = av_read_frame(fmt, pkt)
                 if ret < 0 {
-                    if !isStopped { emit(.failed(String(localized: "Stream unterbrochen"), retry: true)) }
+                    if !isStopped { emit(.failed(String(localized: "Stream interrupted"), retry: true)) }
                     break
                 }
                 route(pkt, fmt: fmt)
@@ -444,12 +445,12 @@ final class PlaybackSession {
             if ret < 0 {
                 if isStopped { break }
                 if liveTimeline {
-                    emit(.failed(String(localized: "Stream unterbrochen"), retry: true))
+                    emit(.failed(String(localized: "Stream interrupted"), retry: true))
                     break
                 }
                 if ret != ffs_error_eof() && fmt.pointee.pb?.pointee.eof_reached == 0 {
                     // Network error mid-file: surface it rather than pretending we ended.
-                    emit(.failed(String(localized: "Verbindung verloren"), retry: false))
+                    emit(.failed(String(localized: "Connection lost"), retry: false))
                     break
                 }
                 markEOF()
@@ -697,12 +698,12 @@ final class PlaybackSession {
         let opaque = Unmanaged.passUnretained(sourceBox).toOpaque()
         let seekable: Int32 = (!isLive && source.supportsRanges) ? 1 : 0
         guard let pb = ffs_avio_alloc(opaque, 256 * 1024, seekable, ioRead, ioSeek) else {
-            throw PlayerError.message(String(localized: "Speicherfehler"))
+            throw PlayerError.message(String(localized: "Out of memory"))
         }
         self.pb = pb
 
         var ctx = avformat_alloc_context()
-        guard let allocated = ctx else { throw PlayerError.message(String(localized: "Speicherfehler")) }
+        guard let allocated = ctx else { throw PlayerError.message(String(localized: "Out of memory")) }
         allocated.pointee.pb = pb
         allocated.pointee.flags |= AVFMT_FLAG_CUSTOM_IO | AVFMT_FLAG_GENPTS
         if liveTimeline { allocated.pointee.flags |= AVFMT_FLAG_DISCARD_CORRUPT }
@@ -726,7 +727,7 @@ final class PlaybackSession {
         let ret = avformat_open_input(&ctx, url.absoluteString, hint, &opts)
         av_dict_free(&opts)
         guard ret >= 0, let ctx else {
-            throw PlayerError.message(isStopped ? String(localized: "Abgebrochen") : String(localized: "Stream konnte nicht geöffnet werden (\(Int(ret)))"))
+            throw PlayerError.message(isStopped ? String(localized: "Cancelled") : String(localized: "Could not open the stream (\(Int(ret)))"))
         }
         fmt = ctx
 
@@ -738,14 +739,14 @@ final class PlaybackSession {
         }
 
         if avformat_find_stream_info(ctx, nil) < 0 && !isStopped {
-            throw PlayerError.message(String(localized: "Keine abspielbaren Spuren gefunden"))
+            throw PlayerError.message(String(localized: "No playable tracks found"))
         }
-        if isStopped { throw PlayerError.message(String(localized: "Abgebrochen")) }
+        if isStopped { throw PlayerError.message(String(localized: "Cancelled")) }
         return ctx
     }
 
     private func selectStreams() throws {
-        guard let ctx = fmt else { throw PlayerError.message(String(localized: "Keine abspielbaren Spuren gefunden")) }
+        guard let ctx = fmt else { throw PlayerError.message(String(localized: "No playable tracks found")) }
 
         // Stream selection: best video, audio in the user's language if available.
         var v = av_find_best_stream(ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nil, 0)
@@ -762,14 +763,14 @@ final class PlaybackSession {
             if par.codec_type == AVMEDIA_TYPE_AUDIO {
                 // Unidentified audio (no sample rate) cannot be decoded; leave it out.
                 guard par.sample_rate > 0 else { continue }
-                var parts = [MediaNames.language(lang) ?? String(localized: "Spur \(audioTracks.count + 1)")]
+                var parts = [MediaNames.language(lang) ?? String(localized: "Track \(audioTracks.count + 1)")]
                 if let title, !title.isEmpty, title != lang { parts.append(title) }
                 parts.append(MediaNames.audioCodec(par.codec_id))
                 parts.append(MediaNames.channels(par.ch_layout.nb_channels))
                 audioTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · "), language: MediaNames.languageCode(lang),
                                               isDefault: st.pointee.disposition & AV_DISPOSITION_DEFAULT != 0))
             } else if par.codec_type == AVMEDIA_TYPE_SUBTITLE && (ffs_is_text_subtitle(par.codec_id) != 0 || Self.isBitmapSubtitle(par.codec_id)) {
-                var parts = [MediaNames.language(lang) ?? String(localized: "Untertitel \(subtitleTracks.count + 1)")]
+                var parts = [MediaNames.language(lang) ?? String(localized: "Subtitles \(subtitleTracks.count + 1)")]
                 if let title, !title.isEmpty, title != lang { parts.append(title) }
                 subtitleTracks.append(MediaTrack(id: i, title: parts.joined(separator: " · "), language: MediaNames.languageCode(lang),
                                                  isForced: st.pointee.disposition & AV_DISPOSITION_FORCED != 0 || MediaNames.titleSaysForced(title),
@@ -800,7 +801,7 @@ final class PlaybackSession {
         }
         if a < 0, audioTap != nil {
             a = Self.tappedAudioIndex
-            audioTracks.append(MediaTrack(id: a, title: String(localized: "Audio · AAC (aus TS-Strom repariert)")))
+            audioTracks.append(MediaTrack(id: a, title: String(localized: "Audio · AAC (repaired from TS stream)")))
         }
 
         lock.lock()
@@ -824,7 +825,7 @@ final class PlaybackSession {
             guard usable else { throw PlayerError.unsupported }
         }
 
-        guard v >= 0 || a >= 0 || a == Self.tappedAudioIndex else { throw PlayerError.message(String(localized: "Keine abspielbaren Spuren gefunden")) }
+        guard v >= 0 || a >= 0 || a == Self.tappedAudioIndex else { throw PlayerError.message(String(localized: "No playable tracks found")) }
 
         var duration: Double?
         if !liveTimeline && ctx.pointee.duration != ffs_nopts() && ctx.pointee.duration > 0 {
@@ -851,7 +852,7 @@ final class PlaybackSession {
             }
         }
         if a == Self.tappedAudioIndex {
-            stats.audio = String(localized: "AAC (TS-Reparatur)")
+            stats.audio = String(localized: "AAC (TS repair)")
         }
         if a >= 0, let st = ctx.pointee.streams[Int(a)] {
             let par = st.pointee.codecpar.pointee
@@ -859,7 +860,7 @@ final class PlaybackSession {
         }
         lock.unlock()
         if let unsupportedDolbyVision {
-            throw PlayerError.message(String(localized: "Dolby Vision \(unsupportedDolbyVision) wird auf diesem Mac nicht unterstützt"))
+            throw PlayerError.message(String(localized: "Dolby Vision \(unsupportedDolbyVision) is not supported on this Mac"))
         }
 
         let audioUsable = a >= 0 || a == Self.tappedAudioIndex
@@ -1128,7 +1129,7 @@ final class PlaybackSession {
            DVDecoder.supports(st.pointee.codecpar, config: config) {
             dv = DVDecoder(stream: st, config: config)
             if dv == nil && config.profile == 5 {
-                emit(.failed(String(localized: "Dolby Vision \(config.name) wird auf diesem Mac nicht unterstützt"), retry: false))
+                emit(.failed(String(localized: "Dolby Vision \(config.name) is not supported on this Mac"), retry: false))
             }
         }
         var ctx: UnsafeMutablePointer<AVCodecContext>?
@@ -1255,7 +1256,7 @@ final class PlaybackSession {
                 AppLog.error(.player, "Dolby Vision decode failed (\(status))")
                 dv = nil
                 if decoder.config.profile == 5 {
-                    emit(.failed(String(localized: "Dolby Vision \(decoder.config.name) wird auf diesem Mac nicht unterstützt"), retry: false))
+                    emit(.failed(String(localized: "Dolby Vision \(decoder.config.name) is not supported on this Mac"), retry: false))
                     return
                 }
                 ctx = ffs_open_decoder(st, 1)
@@ -1319,11 +1320,11 @@ final class PlaybackSession {
         let cvFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
         let formatName: String
         switch cvFormat {
-        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8 Bit)")
-        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange: formatName = String(localized: "P010 (10 Bit)")
+        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8-bit)")
+        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr10BiPlanarFullRange: formatName = String(localized: "P010 (10-bit)")
         // The Dolby Vision decoder hands out Apple's lossless-compressed layouts.
-        case kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8 Bit, komprimiert)")
-        case kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarFullRange: formatName = String(localized: "P010 (10 Bit, komprimiert)")
+        case kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarFullRange: formatName = String(localized: "NV12 (8-bit, compressed)")
+        case kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarVideoRange, kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarFullRange: formatName = String(localized: "P010 (10-bit, compressed)")
         default: formatName = String(format: "%c%c%c%c", (cvFormat >> 24) & 0xff, (cvFormat >> 16) & 0xff, (cvFormat >> 8) & 0xff, cvFormat & 0xff)
         }
 
@@ -1879,9 +1880,9 @@ enum PlayerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .message(let m): return m
-        case .offline: return String(localized: "Der Sender ist beim Anbieter derzeit offline.")
-        case .unsupported: return String(localized: "Zeitversetztes Fernsehen ist für diesen Sender nicht möglich.")
-        case .debugRealProvider: return String(localized: "Debug-Build: echte Anbieter nur mit IPTV_ALLOWREAL=1")
+        case .offline: return String(localized: "This channel is currently offline at your provider.")
+        case .unsupported: return String(localized: "Timeshift is not available for this channel.")
+        case .debugRealProvider: return String(localized: "Debug build: real providers only with IPTV_ALLOWREAL=1")
         }
     }
 

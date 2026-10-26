@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// Live TV in the player: the channels of a category over the picture, with what is on now,
@@ -48,7 +49,7 @@ struct PlayerChannelList: View {
                 .onChange(of: categoryID) { _, _ in proxy.scrollTo(highlighted ?? playingID, anchor: .center) }
             }
             if channels.isEmpty {
-                Text("Keine Sender").font(.callout).foregroundStyle(.secondary)
+                Text("No Channels").font(.callout).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -61,8 +62,8 @@ struct PlayerChannelList: View {
     private var header: some View {
         HStack {
             Menu {
-                Button("Favoriten") { categoryID = favoriteChannelsID }
-                Button("Zuletzt gesehen") { categoryID = recentChannelsID }
+                Button("Favorites") { categoryID = favoriteChannelsID }
+                Button("Recently Watched") { categoryID = recentChannelsID }
                 Divider()
                 ForEach(app.visibleCategories(app.liveCategories).filter { !app.isCategoryHidden($0.id) }) { category in
                     Button(category.displayName) { categoryID = category.id }
@@ -76,7 +77,7 @@ struct PlayerChannelList: View {
             Text(verbatim: "L").font(.caption.monospaced()).foregroundStyle(.tertiary)
                 .padding(.horizontal, 5).padding(.vertical, 1)
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(.tertiary, lineWidth: 0.5))
-                .help("Senderliste schließen (L, Esc)")
+                .help("Close Channel List (L, Esc)")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -84,10 +85,10 @@ struct PlayerChannelList: View {
 
     private var title: String {
         switch categoryID {
-        case favoriteChannelsID: String(localized: "Favoriten")
-        case recentChannelsID: String(localized: "Zuletzt gesehen")
-        case allCategoryID: String(localized: "Alle")
-        default: app.liveCategories.first { $0.id == categoryID }?.displayName ?? String(localized: "Alle")
+        case favoriteChannelsID: String(localized: "Favorites")
+        case recentChannelsID: String(localized: "Recently Watched")
+        case allCategoryID: String(localized: "All")
+        default: app.liveCategories.first { $0.id == categoryID }?.displayName ?? String(localized: "All")
         }
     }
 
@@ -156,11 +157,11 @@ private struct PlayerNowLine: View {
             VStack(alignment: .leading, spacing: 4) {
                 Group {
                     if offline {
-                        Text("Sender ist beim Anbieter offline")
+                        Text("Channel is offline at the provider")
                     } else if let current {
                         Text(verbatim: current.title)
                     } else if guide.entries != nil {
-                        Text("Keine Programmdaten")
+                        Text("No program data")
                     } else {
                         Text(verbatim: " ")
                     }

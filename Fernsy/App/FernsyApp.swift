@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 @main
@@ -28,7 +29,7 @@ struct FernsyApp: App {
             }
             #endif
             CommandGroup(after: .toolbar) {
-                Button("Katalog aktualisieren") {
+                Button("Refresh Catalog") {
                     Task { await app.loadCatalog(forceRefresh: true) }
                 }
                 .keyboardShortcut("r", modifiers: [.command])
@@ -37,7 +38,7 @@ struct FernsyApp: App {
         }
 
         // A single player window: Xtream accounts usually allow one stream at a time.
-        Window("Wiedergabe", id: "player") {
+        Window("Playback", id: "player") {
             PlayerScreen()
                 .environmentObject(app)
                 .environmentObject(app.recorder)
@@ -49,7 +50,7 @@ struct FernsyApp: App {
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
 
-        Window("Protokoll", id: "log") {
+        Window("Log", id: "log") {
             LogView()
         }
         .defaultSize(width: 980, height: 560)
@@ -120,12 +121,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let recorder = Self.app?.recorder, recorder.hasActiveOrUpcoming else { return .terminateNow }
         let running = recorder.recordings.contains { $0.status == .recording }
         let alert = NSAlert()
-        alert.messageText = running ? String(localized: "Eine Aufnahme läuft") : String(localized: "Aufnahmen sind geplant")
+        alert.messageText = running ? String(localized: "A Recording Is in Progress") : String(localized: "Recordings Are Scheduled")
         alert.informativeText = running
-            ? String(localized: "Wenn du Fernsy beendest, endet die Aufnahme jetzt. Das bisher Aufgenommene bleibt erhalten.")
-            : String(localized: "Aufnahmen laufen nur, solange Fernsy geöffnet ist. Du kannst alle Fenster schließen, Fernsy aber geöffnet lassen.")
-        alert.addButton(withTitle: String(localized: "Beenden"))
-        alert.addButton(withTitle: String(localized: "Abbrechen"))
+            ? String(localized: "If you quit Fernsy, the recording ends now. What has been recorded so far is kept.")
+            : String(localized: "Recordings only run while Fernsy is open. You can close all windows but keep Fernsy running.")
+        alert.addButton(withTitle: String(localized: "Quit"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
         recorder.flushForTermination()
         return .terminateNow

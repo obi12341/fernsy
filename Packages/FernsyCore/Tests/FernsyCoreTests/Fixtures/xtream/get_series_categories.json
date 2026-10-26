@@ -1,0 +1,22 @@
+[
+ {
+  "category_id": "20",
+  "category_name": "Crime",
+  "parent_id": 0
+ },
+ {
+  "category_id": "21",
+  "category_name": "Drama",
+  "parent_id": 0
+ },
+ {
+  "category_id": "22",
+  "category_name": "Comedy",
+  "parent_id": 0
+ },
+ {
+  "category_id": "23",
+  "category_name": "Docuseries",
+  "parent_id": 0
+ }
+]

@@ -1,0 +1,116 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld audio channels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Kanäle"
+          }
+        }
+      }
+    },
+    "Episode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Episode"
+          }
+        }
+      }
+    },
+    "Invalid server address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültige Server-Adresse"
+          }
+        }
+      }
+    },
+    "No Jellyfin server was found at this address.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter dieser Adresse wurde kein Jellyfin-Server gefunden."
+          }
+        }
+      }
+    },
+    "Server error (HTTP %lld)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server-Fehler (HTTP %lld)"
+          }
+        }
+      }
+    },
+    "Sign-in failed – wrong username or password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung fehlgeschlagen – Benutzername oder Passwort falsch"
+          }
+        }
+      }
+    },
+    "The Jellyfin server answers with HTTP %lld.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Jellyfin-Server antwortet mit HTTP %lld."
+          }
+        }
+      }
+    },
+    "The Jellyfin session has expired.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Jellyfin-Sitzung ist abgelaufen."
+          }
+        }
+      }
+    },
+    "The server address is not valid.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Serveradresse ist ungültig."
+          }
+        }
+      }
+    },
+    "Untitled": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbenannt"
+          }
+        }
+      }
+    },
+    "Username or password is wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzername oder Passwort ist falsch."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
