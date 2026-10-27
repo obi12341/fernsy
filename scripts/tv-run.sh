@@ -20,7 +20,8 @@ BUILD=1
 EXTRA=()
 while [ $# -gt 0 ]; do
     case "$1" in
-        --log) LOG="$2"; shift 2 ;;
+        # Absolute: simctl resolves --stdout in the simulator, where a relative path fails the launch.
+        --log) case "$2" in /*) LOG="$2" ;; *) LOG="$PWD/$2" ;; esac; shift 2 ;;
         --no-build) BUILD=0; shift ;;
         *=*) EXTRA+=("$1"); shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
