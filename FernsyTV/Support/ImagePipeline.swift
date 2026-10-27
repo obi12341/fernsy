@@ -1,4 +1,5 @@
 import CryptoKit
+import FernsyCore
 import ImageIO
 import SwiftUI
 import UIKit
@@ -14,6 +15,10 @@ final class ImagePipeline: @unchecked Sendable {
     private init() {
         memory.countLimit = 600
         folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("Images", isDirectory: true)
+        #if DEBUG
+        // IPTV_FRESHIMAGES=1: start without the images of earlier runs (counting loads in tests).
+        if ProcessInfo.processInfo.environment["IPTV_FRESHIMAGES"] == "1" { try? FileManager.default.removeItem(at: folder) }
+        #endif
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     }
 
@@ -36,6 +41,7 @@ final class ImagePipeline: @unchecked Sendable {
                   (response as? HTTPURLResponse)?.statusCode ?? 200 < 400,
                   let image = Self.downsample(data, maxPixel: maxPixel) else { return nil }
             if let jpeg = image.jpegData(compressionQuality: 0.85) { try? jpeg.write(to: file, options: .atomic) }
+            AppLog.detail(.app, "image loaded: \(url.lastPathComponent)")
             return image
         }.value
         if let image { memory.setObject(image, forKey: name as NSString) }

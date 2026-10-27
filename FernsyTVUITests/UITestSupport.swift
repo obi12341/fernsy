@@ -43,20 +43,35 @@ class FernsyUITestCase: XCTestCase {
         super.record(issue)
     }
 
-    /// The app's log from its debug MCP server (port 52325).
-    private func attachLog() {
+    /// Calls a tool of the app's debug MCP server (port 52325) and returns the raw answer.
+    func mcpCall(_ tool: String, _ arguments: String = "{}") -> String {
         var request = URLRequest(url: URL(string: "http://127.0.0.1:52325/mcp")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer test", forHTTPHeaderField: "Authorization")
-        request.httpBody = Data(#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_log","arguments":{"level":"detail","limit":300}}}"#.utf8)
+        request.httpBody = Data(#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\#(tool)","arguments":\#(arguments)}}"#.utf8)
         let done = DispatchSemaphore(value: 0)
         var text = "no answer"
         URLSession.shared.dataTask(with: request) { data, _, _ in
             text = data.flatMap { String(data: $0, encoding: .utf8) } ?? "no data"
             done.signal()
         }.resume()
-        _ = done.wait(timeout: .now() + 5)
+        _ = done.wait(timeout: .now() + 10)
+        return text
+    }
+
+    /// The app's log lines (detail level and up) that contain `query`.
+    func appLog(_ query: String) -> [String] {
+        let text = mcpCall("get_log", #"{"level":"detail","limit":2000,"query":"\#(query)"}"#)
+        guard let json = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any],
+              let result = json["result"] as? [String: Any], let content = result["structuredContent"] as? [String: Any],
+              let entries = content["entries"] as? [String] else { return [] }
+        return entries
+    }
+
+    /// The app's log from its debug MCP server, as an attachment.
+    private func attachLog() {
+        let text = mcpCall("get_log", #"{"level":"detail","limit":300}"#)
         let log = XCTAttachment(string: text)
         log.name = "app-log"
         log.lifetime = .keepAlways

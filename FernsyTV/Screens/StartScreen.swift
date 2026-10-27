@@ -193,29 +193,31 @@ struct LibraryGridScreen: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 30) {
-                HStack(spacing: 20) {
-                    Text(kind == .movies ? "Films" : "Series").font(.system(size: 44, weight: .bold)).padding(.trailing, 12)
-                    Menu {
-                        Button("All") { category = nil }
-                        ForEach(categories) { item in Button(item.displayName) { category = item } }
-                    } label: {
-                        Text("Category: \(category?.displayName ?? String(localized: "All"))").font(.system(size: 23, weight: .semibold))
-                    }
-                    .accessibilityIdentifier("grid.category")
-                    Spacer()
-                    HStack(spacing: 6) {
-                        ForEach(Sort.allCases, id: \.self) { value in
-                            Button { sort = value } label: { Text(Self.title(value)).font(.system(size: 22, weight: .semibold)).padding(.horizontal, 22).frame(height: 46) }
-                                .buttonStyle(SortStyle(selected: sort == value))
-                                .accessibilityIdentifier("grid.sort.\(value)")
+            // The header scrolls with the grid: outside it, Up from the first row went straight to
+            // the tab bar and the category and sorting could not be reached.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 30) {
+                    HStack(spacing: 20) {
+                        Text(kind == .movies ? "Films" : "Series").font(.system(size: 44, weight: .bold)).padding(.trailing, 12)
+                        Menu {
+                            Button("All") { category = nil }
+                            ForEach(categories) { item in Button(item.displayName) { category = item } }
+                        } label: {
+                            Text("Category: \(category?.displayName ?? String(localized: "All"))").font(.system(size: 23, weight: .semibold))
                         }
+                        .accessibilityIdentifier("grid.category")
+                        Spacer()
+                        HStack(spacing: 6) {
+                            ForEach(Sort.allCases, id: \.self) { value in
+                                Button { sort = value } label: { Text(Self.title(value)).font(.system(size: 22, weight: .semibold)).padding(.horizontal, 22).frame(height: 46) }
+                                    .buttonStyle(SortStyle(selected: sort == value))
+                                    .accessibilityIdentifier("grid.sort.\(value)")
+                            }
+                        }
+                        .padding(6)
+                        .background(Color.white.opacity(0.08), in: .capsule)
                     }
-                    .padding(6)
-                    .background(Color.white.opacity(0.08), in: .capsule)
                     .focusSection()
-                }
-                ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(200), spacing: 56), count: 7), alignment: .leading, spacing: 44) {
                         switch kind {
                         case .movies:
@@ -241,9 +243,11 @@ struct LibraryGridScreen: View {
                         }
                     }
                     .padding(.vertical, 20)
+                    .focusSection()
                 }
-                .scrollClipDisabled()
+                .padding(.top, 10)
             }
+            .scrollClipDisabled()
             .padding(.horizontal, 90)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(TVTheme.background.ignoresSafeArea())

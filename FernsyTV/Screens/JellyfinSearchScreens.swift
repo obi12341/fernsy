@@ -36,10 +36,12 @@ struct JellyfinScreen: View {
                     }
                     .padding(6)
                     .background(Color.white.opacity(0.08), in: .capsule)
-                    .focusSection()
                 }
+                // Header and content as focus sections: otherwise Up from the content skips the
+                // views and goes to the tab bar (as in the film grid).
+                .focusSection()
                 if store.isOffline {
-                    Text("The server cannot be reached. Shown is what was loaded last.")
+                    Text("The server cannot be reached. Showing what was loaded last.")
                         .font(.system(size: 22)).foregroundStyle(TVTheme.warning)
                         .accessibilityIdentifier("jellyfin.offline")
                 }
@@ -56,6 +58,7 @@ struct JellyfinScreen: View {
                     .padding(.vertical, 10)
                 }
                 .scrollClipDisabled()
+                .focusSection()
             }
             .padding(.horizontal, 90)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -86,6 +86,18 @@ final class TVModel: ObservableObject {
         jellyfin = JellyfinStore(skipKeychain: Self.skipKeychain)
         tuners.keepSeconds = Self.timeshiftSeconds
         recorder.host = self
+        #if DEBUG
+        // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run, as on
+        // the Mac (keys such as movie.500, episode.<id>).
+        if let spec = ProcessInfo.processInfo.environment["IPTV_TESTRESUME"] {
+            for item in spec.split(separator: ",") {
+                let p = item.split(separator: ":")
+                if p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) {
+                    resume.save(String(p[0]), position: position, duration: duration)
+                }
+            }
+        }
+        #endif
         // Screens observe the model: the recorder's list changes are the model's changes too.
         recorderChanges = recorder.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         jellyfinChanges = jellyfin.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }

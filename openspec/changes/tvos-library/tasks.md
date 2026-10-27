@@ -12,11 +12,11 @@
 
 ## 3. Library screens
 
-- [ ] 3.1 Start per design C (screen `home`). Verify: after playing a demo film for a minute and a Jellyfin fixture clip, Start shows both in "Weiterschauen" with their source; screenshot next to the design.
-- [ ] 3.2 Filme and Serien grids with category picker and sorting, image pipeline (design E, screen `filme`). Verify: demo-server screenshots; "Bewertung" orders by rating; scrolling the grid does not reload posters (log).
-- [ ] 3.3 Film page (screen `film`) with Fortsetzen, Von vorn and favourite. Verify: a demo film resumes at the stored position; "Von vorn" starts at 0.
-- [ ] 3.4 Series page (screen `serie`) with seasons, episodes, "Nächste Episode" and "Als Nächstes". Verify: a demo series and a fixture series show the next episode as in the scenario.
-- [ ] 3.5 Jellyfin tab (screen `jellyfin`) with Übersicht, Filme, Serien, Bibliotheken, unwatched counts and the not-reachable state. Verify: Docker Jellyfin screenshots; stopping the container shows the cached lists with the message.
+- [x] 3.1 Start per design C (screen `home`). Verify: Start shows an IPTV film and a Jellyfin film in "Weiterschauen" with their source, newest first, the newest as the large entry; screenshot next to the design. The demo films are under a minute and the fixture episodes two minutes, so playing them marks them watched instead of keeping a position (Mac rule: last 90 s; Jellyfin: under 5 minutes): the IPTV entry comes from `IPTV_TESTRESUME`, the Jellyfin one from playing the 8-minute fixture film; saving positions is covered by `LibraryStateTests`.
+- [x] 3.2 Filme and Serien grids with category picker and sorting, image pipeline (design E, screen `filme`). Verify: demo-server screenshots; "Bewertung" orders by rating; scrolling the grid does not reload posters (log).
+- [x] 3.3 Film page (screen `film`) with Fortsetzen, Von vorn and favourite. Verify: a demo film resumes at the stored position; "Von vorn" starts at 0.
+- [x] 3.4 Series page (screen `serie`) with seasons, episodes, "Nächste Episode" and "Als Nächstes". Verify: a demo series and a fixture series show the next episode as in the scenario.
+- [x] 3.5 Jellyfin tab (screen `jellyfin`) with Übersicht, Filme, Serien, Bibliotheken, unwatched counts and the not-reachable state. Verify: Docker Jellyfin screenshots; stopping the container shows the cached lists with the message.
 
 ## 4. Search and playback
 

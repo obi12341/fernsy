@@ -224,7 +224,8 @@ struct SeriesScreen: View {
                     Spacer().frame(height: 130)
                     HStack(spacing: 14) {
                         Tag(text: Text(verbatim: sourceName), background: TVTheme.accentLight.opacity(0.3), foreground: Color(hex: 0xDAD8FF))
-                        Text("Series · \(seasonKeys.count) seasons").font(.system(size: 24)).foregroundStyle(TVTheme.text.opacity(0.75))
+                        Text(seasonKeys.count == 1 ? "Series · 1 season" : "Series · \(seasonKeys.count) seasons")
+                            .font(.system(size: 24)).foregroundStyle(TVTheme.text.opacity(0.75))
                     }
                     Text(verbatim: title).font(.system(size: 88, weight: .bold)).lineLimit(2).minimumScaleFactor(0.6)
                     if let overview, !overview.isEmpty {
