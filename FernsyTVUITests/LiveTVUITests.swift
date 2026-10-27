@@ -67,9 +67,23 @@ final class LiveTVUITests: FernsyUITestCase {
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "guide.\(channelId).")).firstMatch.exists,
                        "the hidden channel is in the guide")
         showTab("Live TV", app)
+        // The column's source follows the focus: on the way back it may have passed the empty
+        // Favourites (seen on CI). Choose All Channels explicitly.
+        let all = app.buttons["live.all"]
+        XCTAssertTrue(all.waitForExistence(timeout: 15), "no category column:\n\(app.debugDescription)")
+        XCUIRemote.shared.press(.down)
+        for direction in [XCUIRemote.Button.left, .left, .left, .up, .up, .down, .down, .down] where !all.hasFocus {
+            XCUIRemote.shared.press(direction)
+            Thread.sleep(forTimeInterval: 0.4)
+        }
+        XCTAssertTrue(all.hasFocus, "All Channels has no focus:\n\(app.debugDescription)")
+        XCUIRemote.shared.press(.select)
         let next = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 15), "Live TV lists no channel:\n\(app.debugDescription)")
-        for _ in 0..<3 where !next.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 1) }
+        // Right from the column lands on the row at its height; Up to the first one.
+        XCUIRemote.shared.press(.right)
+        Thread.sleep(forTimeInterval: 0.6)
+        for _ in 0..<6 where !next.hasFocus { XCUIRemote.shared.press(.up); Thread.sleep(forTimeInterval: 0.6) }
         XCTAssertTrue(next.hasFocus, "the first channel has no focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.select)
         let state = app.descendants(matching: .any)["player.state"]
