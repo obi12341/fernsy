@@ -2,7 +2,7 @@ import XCTest
 
 /// Live TV (tvos-live 3.2, 3.3): the pane previews the focused channel; with a single-stream
 /// account whose stream a recording holds, it shows no preview; long press hides a channel.
-final class LiveTVUITests: XCTestCase {
+final class LiveTVUITests: FernsyUITestCase {
     override func setUp() {
         continueAfterFailure = false
     }
@@ -68,12 +68,17 @@ final class LiveTVUITests: XCTestCase {
                        "the hidden channel is in the guide")
         showTab("Live TV", app)
         let next = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
-        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(next.waitForExistence(timeout: 5), "Live TV lists no channel:\n\(app.debugDescription)")
         for _ in 0..<3 where !next.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 1) }
+        XCTAssertTrue(next.hasFocus, "the first channel has no focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.select)
-        XCTAssertTrue(app.descendants(matching: .any)["player.state"].waitForExistence(timeout: 15))
+        let state = app.descendants(matching: .any)["player.state"]
+        XCTAssertTrue(wait(30) { state.exists && state.value as? String == "playing" }, "the player does not play:\n\(app.debugDescription)")
+        // The player takes focus a moment after it appears; an earlier Down goes nowhere (slow CI runners).
+        Thread.sleep(forTimeInterval: 2)
         XCUIRemote.shared.press(.down)
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'strip.'")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'strip.'")).firstMatch.waitForExistence(timeout: 5),
+                      "Down did not open the channel strip:\n\(app.debugDescription)")
         XCTAssertFalse(app.buttons["strip.\(channelId)"].exists, "the hidden channel is in the strip")
     }
 }
