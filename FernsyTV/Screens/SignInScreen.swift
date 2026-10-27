@@ -1,10 +1,10 @@
 import FernsyCore
 import SwiftUI
 
-/// First launch (design screen `login`): what Fernsy is and which account to add. The
-/// Jellyfin card comes with tvos-library.
+/// First launch (design screen `login`): what Fernsy is and which account to add.
 struct WelcomeScreen: View {
     @State private var showIPTV = false
+    @State private var showJellyfin = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +29,12 @@ struct WelcomeScreen: View {
                         }
                         .buttonStyle(TVTileStyle(radius: 28, scale: 1.06))
                         .accessibilityIdentifier("welcome.iptv")
+                        Button { showJellyfin = true } label: {
+                            AccountTypeCard(symbol: "play.rectangle.fill", title: "Jellyfin Server",
+                                            detail: "Your own library with films, series and watched state.")
+                        }
+                        .buttonStyle(TVTileStyle(rest: .white.opacity(0.07), radius: 28, scale: 1.06))
+                        .accessibilityIdentifier("welcome.jellyfin")
                     }
                     .padding(.top, 80)
                     Spacer()
@@ -41,6 +47,7 @@ struct WelcomeScreen: View {
             }
             .foregroundStyle(TVTheme.text)
             .navigationDestination(isPresented: $showIPTV) { IPTVSignInScreen() }
+            .navigationDestination(isPresented: $showJellyfin) { JellyfinSignInScreen() }
         }
     }
 }
@@ -158,6 +165,81 @@ struct IPTVSignInScreen: View {
         .foregroundStyle(TVTheme.text)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(TVTheme.background)
+    }
+}
+
+/// The Jellyfin form: server, username, password; signs in as on the Mac.
+struct JellyfinSignInScreen: View {
+    @EnvironmentObject private var model: TVModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var server = ""
+    @State private var username = ""
+    @State private var password = ""
+    @State private var busy = false
+    @State private var error: String?
+    @FocusState private var focus: Field?
+
+    private enum Field { case server, username, password, submit }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 150) {
+            VStack(alignment: .leading, spacing: 22) {
+                Image(systemName: "play.rectangle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(TVTheme.accentSoft)
+                    .frame(width: 84, height: 84)
+                    .background(TVTheme.accentLight.opacity(0.18), in: .rect(cornerRadius: 24))
+                Text("Add Jellyfin Server").font(.system(size: 54, weight: .bold))
+                Text("The address of your Jellyfin server, for example http://192.168.1.20:8096, and your user. They are kept in the keychain.")
+                    .font(.system(size: 24)).lineSpacing(8).foregroundStyle(TVTheme.secondary)
+            }
+            .frame(width: 640)
+            VStack(alignment: .leading, spacing: 18) {
+                FormField(label: "Server Address", text: $server, isFocused: focus == .server) {
+                    TextField("", text: $server).textContentType(.URL).keyboardType(.URL)
+                        .focused($focus, equals: .server).accessibilityIdentifier("jfsignin.server")
+                }
+                FormField(label: "Username", text: $username, isFocused: focus == .username) {
+                    TextField("", text: $username).textContentType(.username)
+                        .focused($focus, equals: .username).accessibilityIdentifier("jfsignin.username")
+                }
+                FormField(label: "Password", text: $password, isFocused: focus == .password) {
+                    SecureField("", text: $password).textContentType(.password)
+                        .focused($focus, equals: .password).accessibilityIdentifier("jfsignin.password")
+                        .onMoveCommand { if $0 == .down { focus = .submit } }
+                }
+                if let error {
+                    Text(verbatim: error).font(.system(size: 22, weight: .medium)).foregroundStyle(TVTheme.warning)
+                        .accessibilityIdentifier("jfsignin.error")
+                }
+                Button {
+                    Task {
+                        busy = true
+                        defer { busy = false }
+                        do {
+                            try await model.jellyfin.signIn(server: server, username: username, password: password)
+                            error = nil
+                            dismiss()
+                        } catch {
+                            self.error = error.localizedDescription
+                        }
+                    }
+                } label: {
+                    if busy { ProgressView() } else { Text("Sign In") }
+                }
+                .buttonStyle(TVPillStyle())
+                .disabled(server.isEmpty || username.isEmpty || busy)
+                .focused($focus, equals: .submit)
+                .accessibilityIdentifier("jfsignin.submit")
+                .padding(.top, 16)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 90)
+        .foregroundStyle(TVTheme.text)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(TVTheme.background.ignoresSafeArea())
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

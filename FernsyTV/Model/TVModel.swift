@@ -2,6 +2,7 @@ import Combine
 import FernsyCore
 import FernsyPlayer
 import Foundation
+import UIKit
 
 /// Everything the Apple TV screens read: the account, the live catalog with its guide, and
 /// playback. Screens call only this; the provider, guide and playback logic come from
@@ -28,6 +29,19 @@ final class TVModel: ObservableObject {
     private var previewSound = false
     /// The recording in the player (TVModel+Recordings.swift), nil when none plays.
     @Published var playingRecording: Recording?
+
+    // Films and series (TVModel+Library.swift).
+    @Published var movieCategories: [XCategory] = []
+    @Published var movies: [Movie] = []
+    @Published var seriesCategories: [XCategory] = []
+    @Published var series: [Series] = []
+    @Published var movieInfo: [Int: MovieDetails] = [:]
+    @Published var seriesInfo: [Int: SeriesInfo] = [:]
+    /// The film, episode or Jellyfin item in the player, nil when none plays.
+    @Published var playingVOD: VODItem?
+    var jellyfinPlayback: JellyfinPlayback?
+    /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory.
+    let resume = ResumeStore(defaults: TVModel.skipKeychain ? nil : .standard)
     /// Where the playing channel was started from: the player's channel strip zaps through it.
     var zapSource: LiveSource = .all
     /// The engine's mute state outside the preview (debug builds start muted).
@@ -45,6 +59,8 @@ final class TVModel: ObservableObject {
     let guide = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
+    /// The Jellyfin account (FernsyCore), as on the Mac; created after its device name is set.
+    let jellyfin: JellyfinStore
     /// A question of the recorder, shown as an alert (TVModel+Recordings.swift).
     @Published var question: RecorderQuestion?
     /// A message about a recording just planned (refused, or padding shortened).
@@ -57,12 +73,22 @@ final class TVModel: ObservableObject {
     static let timeshiftSeconds: Double = 30 * 60
 
     private var recorderChanges: AnyCancellable?
+    private var jellyfinChanges: AnyCancellable?
 
     private init() {
+        // The server lists this Apple TV by its name; debug builds are a device of their own.
+        #if DEBUG
+        JellyfinClient.deviceName = UIDevice.current.name + " (Debug)"
+        #else
+        JellyfinClient.deviceName = UIDevice.current.name
+        #endif
+        JellyfinStore.cacheBase = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        jellyfin = JellyfinStore(skipKeychain: Self.skipKeychain)
         tuners.keepSeconds = Self.timeshiftSeconds
         recorder.host = self
         // Screens observe the model: the recorder's list changes are the model's changes too.
         recorderChanges = recorder.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        jellyfinChanges = jellyfin.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         if let credentials = Self.debugCredentials ?? (Self.skipKeychain ? nil : CredentialStore.load()) {
             startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
@@ -105,6 +131,7 @@ final class TVModel: ObservableObject {
             signIn = .signedIn
             AppLog.info(.app, "signed in, \(maxConnections) stream(s)")
             try await loadCatalog()
+            Task { await loadLibraryCatalog() }
             #if DEBUG
             autoplay()
             testRecord()
@@ -182,6 +209,7 @@ final class TVModel: ObservableObject {
 
     func stop() {
         if playingRecording != nil { stopRecordingPlayback(); return }
+        if playingVOD != nil { stopVOD(); return }
         guard let playing else { return }
         AppLog.info(.player, "stop channel \(playing.id)")
         engine.stop()
