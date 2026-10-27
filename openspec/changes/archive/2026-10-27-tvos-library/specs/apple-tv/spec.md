@@ -2,12 +2,13 @@
 
 ### Requirement: Navigation on Apple TV
 The Apple TV app SHALL have a tab bar at the top with Start, Live TV, Programm, Filme, Serien,
-Jellyfin, Aufnahmen, a search icon and a gear for the settings, and SHALL open on Start once an
-account is signed in. Tabs whose source is missing SHALL be left out: Live TV, Programm, Filme,
-Serien and Aufnahmen without an IPTV account (Filme and Serien also while switched off for the
-account, as on the Mac), Jellyfin without a Jellyfin account. Moving up from a screen's first
-row SHALL reach the tab bar; Back on a tab's top level SHALL go to the tab bar and from there
-leave the app as tvOS does.
+Jellyfin, Aufnahmen, a search icon and a gear for the settings, SHALL open on Start once an
+account is signed in, and SHALL leave out the tabs whose source is not signed in. Moving up from
+a screen's first row SHALL reach the tab bar; Back on a tab's top level SHALL go to the tab bar.
+
+#### Scenario: Only an IPTV account
+- **WHEN** only an IPTV account is signed in
+- **THEN** the tab bar shows all tabs except Jellyfin
 
 #### Scenario: Switching tabs
 - **WHEN** the user moves focus up to the tab bar and to "Programm"
@@ -19,12 +20,14 @@ leave the app as tvOS does.
 
 ### Requirement: First launch and sign-in on Apple TV
 Without an account, the Apple TV app SHALL show a welcome screen that explains that Fernsy
-brings no content and offers an IPTV account and a Jellyfin server as two cards. The IPTV form
-SHALL ask for server address, username and password, which can also be typed on a nearby
-iPhone, store them in the keychain, and offer "Demo-Zugang testen", which signs in to the
-public demo server. The Jellyfin form SHALL ask for server address, username and password and
-sign in as on the Mac. A failed sign-in SHALL say why and keep the entered values. Settings ›
-Konto hinzufügen SHALL offer the kind of account not yet signed in.
+brings no content and offers an IPTV account and a Jellyfin server as two cards. Each form SHALL
+ask for server address, username and password (typing on a nearby iPhone works) and keep them in
+the keychain; the IPTV form SHALL also offer "Demo-Zugang testen". A failed sign-in SHALL say why
+and keep the entered values.
+
+#### Scenario: Adding the other account
+- **WHEN** an IPTV account is signed in and the user opens Settings › Konto hinzufügen
+- **THEN** the Jellyfin server is offered, and signing in adds the Jellyfin tab
 
 #### Scenario: Signing in to a provider
 - **WHEN** the user enters a valid server, username and password and chooses "Anmelden"
