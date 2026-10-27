@@ -94,4 +94,22 @@ struct LiveStateTests {
         #expect(value.hiddenCategories == ["12"])
         #expect(value.hiddenChannels == [101])
     }
+
+    @Test func liveSourceIsStoredAsText() {
+        for source in [LiveSource.favorites, .recent, .all, .category("12")] {
+            #expect(LiveSource(rawValue: source.rawValue) == source)
+        }
+        #expect(LiveSource(rawValue: "category:") == nil)
+        #expect(LiveSource(rawValue: "guide") == nil)
+    }
+
+    @Test func liveSourceFallsBackWhenItCannotBeShown() {
+        let visible: (String) -> Bool = { $0 == "12" }
+        #expect(LiveSource.resolved(.category("12"), hasFavorites: { true }, isVisibleCategory: visible) == .category("12"))
+        #expect(LiveSource.resolved(.recent, hasFavorites: { true }, isVisibleCategory: visible) == .recent)
+        // Gone or hidden: Favourites when there are any, else All Channels.
+        #expect(LiveSource.resolved(.category("99"), hasFavorites: { true }, isVisibleCategory: visible) == .favorites)
+        #expect(LiveSource.resolved(.category("99"), hasFavorites: { false }, isVisibleCategory: visible) == .all)
+        #expect(LiveSource.resolved(nil, hasFavorites: { false }, isVisibleCategory: visible) == .all)
+    }
 }

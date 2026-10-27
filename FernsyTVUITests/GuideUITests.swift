@@ -17,7 +17,7 @@ final class GuideUITests: XCTestCase {
         ]
         app.launch()
         let remote = XCUIRemote.shared
-        showTab("Guide", app)
+        showLiveView("live.view.guide", app)
 
         let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
         XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide cells:\n\(app.debugDescription)")
@@ -27,9 +27,11 @@ final class GuideUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
 
-        // Down from the tab bar lands on a show of the first row; walk to the one running now.
-        remote.press(.down)
+        // Down from the switch lands on the rail or a show of the first row; walk to the one running now.
         let focused = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.' AND hasFocus == true")).firstMatch
+        for direction in [XCUIRemote.Button.down, .right, .right] where !focused.exists {
+            remote.press(direction); Thread.sleep(forTimeInterval: 0.6)
+        }
         XCTAssertTrue(focused.waitForExistence(timeout: 5), "no show has focus:\n\(app.debugDescription)")
         var running = false
         for _ in 0..<6 {

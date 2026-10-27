@@ -19,17 +19,7 @@ final class LiveTVUITests: FernsyUITestCase {
         return app
     }
 
-    private func focusFirstChannel(_ app: XCUIApplication) -> XCUIElement {
-        showTab("Live TV", app)
-        let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
-        XCTAssertTrue(first.waitForExistence(timeout: 30), "no channels")
-        for _ in 0..<3 where !first.hasFocus {
-            XCUIRemote.shared.press(.down)
-            Thread.sleep(forTimeInterval: 1)
-        }
-        XCTAssertTrue(first.hasFocus, "the first channel has no focus:\n\(app.debugDescription)")
-        return first
-    }
+    private func focusFirstChannel(_ app: XCUIApplication) -> XCUIElement { focusFirstLiveChannel(app) }
 
     func testPreviewOfTheFocusedChannel() {
         let app = launch()
@@ -61,19 +51,17 @@ final class LiveTVUITests: FernsyUITestCase {
         // Not in the guide either, and not in the player's channel strip.
         let channelId = id.dropFirst("channel.".count)
         XCUIRemote.shared.press(.menu)
-        showTab("Guide", app)
+        showLiveView("live.view.guide", app)
         let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
         XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide")
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "guide.\(channelId).")).firstMatch.exists,
                        "the hidden channel is in the guide")
-        showTab("Live TV", app)
-        // The column's source follows the focus: on the way back it may have passed the empty
-        // Favourites (seen on CI). Choose All Channels explicitly.
+        showLiveView("live.view.list", app)
+        // Choose All Channels explicitly (the source changes only on a click).
         let all = app.buttons["live.all"]
         XCTAssertTrue(all.waitForExistence(timeout: 15), "no category column:\n\(app.debugDescription)")
-        XCUIRemote.shared.press(.down)
-        for direction in [XCUIRemote.Button.left, .left, .left, .up, .up, .down, .down, .down] where !all.hasFocus {
-            XCUIRemote.shared.press(direction)
+        for _ in 0..<5 where !all.hasFocus {
+            XCUIRemote.shared.press(.down)
             Thread.sleep(forTimeInterval: 0.4)
         }
         XCTAssertTrue(all.hasFocus, "All Channels has no focus:\n\(app.debugDescription)")

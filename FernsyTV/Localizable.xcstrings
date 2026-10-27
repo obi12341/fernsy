@@ -353,16 +353,6 @@
         }
       }
     },
-    "Click: Watch": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Klicken: Einschalten"
-          }
-        }
-      }
-    },
     "connected": {
       "localizations": {
         "de": {
@@ -633,16 +623,6 @@
         }
       }
     },
-    "Hold: Record, Favourite, Hide": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gedrückt halten: Aufnehmen, Favorit, Ausblenden"
-          }
-        }
-      }
-    },
     "Incomplete: Fernsy was left during the recording": {
       "localizations": {
         "de": {
@@ -739,6 +719,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "LIVE"
+          }
+        }
+      }
+    },
+    "List": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste"
           }
         }
       }
@@ -1049,16 +1039,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jetzt abspielen"
-          }
-        }
-      }
-    },
-    "Play/Pause: Preview with sound": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "▶︎❙❙: Vorschau mit Ton"
           }
         }
       }

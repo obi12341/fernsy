@@ -1,19 +1,25 @@
 import FernsyCore
 import SwiftUI
 
-/// The guide (design screen `guide`, design G of tvos-live): three hours of a source's channels
-/// on a time axis with the current time marked. A running show plays its channel, a later one
-/// offers to record it; moving past the window's edge pages it by an hour.
+/// Live TV's guide view (design screen `guide`, design G of tvos-live; tvos-live-and-guide):
+/// three hours of the source's channels on a time axis with the current time marked. A running
+/// show plays its channel, a later one offers to record it; moving past the window's edge pages
+/// it by an hour. The category column narrows to a rail; clicking it opens the column over the
+/// grid.
 struct GuideScreen: View {
     @EnvironmentObject private var model: TVModel
-    @State private var source: TVModel.LiveSource?
+    @Binding var columnOpen: Bool
+    @Binding var showAll: Bool
     @State private var windowStart = GuideScreen.defaultStart()
     @State private var asked: (show: EPGEntry, channel: LiveChannel)?
+    @FocusState private var railFocused: Bool
+    @FocusState private var focusedEntry: TVModel.LiveSource?
 
     static let span: TimeInterval = 3 * 3600
-    /// Points per second on the axis: 1440 points for three hours, as in the design.
-    static let axisWidth: CGFloat = 1440
+    /// Points for three hours on the axis (the design's 1440, less the rail's width).
+    static let axisWidth: CGFloat = 1380
     static let channelColumn: CGFloat = 300
+    static let railWidth: CGFloat = 80
 
     /// Half an hour before the current half hour.
     static func defaultStart(_ now: Date = Date()) -> Date {
@@ -21,33 +27,36 @@ struct GuideScreen: View {
         return Date(timeIntervalSince1970: half - 1800)
     }
 
-    private var current: TVModel.LiveSource {
-        source ?? (model.channels(for: .favorites).isEmpty ? .all : .favorites)
-    }
-
     var body: some View {
-        let channels = model.channels(for: current)
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            hours.padding(.leading, Self.channelColumn).padding(.top, 26)
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    ForEach(channels) { channel in
-                        GuideRow(channel: channel, guide: model.guide.guide(channel.id), windowStart: $windowStart) { show in
-                            select(show, on: channel)
+        let source = model.liveSource
+        let channels = model.channels(for: source)
+        HStack(alignment: .top, spacing: 16) {
+            rail
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                hours.padding(.leading, Self.channelColumn).padding(.top, 20)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        ForEach(channels) { channel in
+                            GuideRow(channel: channel, guide: model.guide.guide(channel.id), windowStart: $windowStart) { show in
+                                select(show, on: channel)
+                            }
                         }
                     }
+                    .padding(.vertical, 12)
                 }
-                .padding(.vertical, 12)
+                .overlay(alignment: .topLeading) { nowLine }
+                // Rows and the now line run to the screen's edge, under the bottom safe area.
+                .ignoresSafeArea(edges: .bottom)
+                .focusSection()
             }
-            .overlay(alignment: .topLeading) { nowLine }
-            .focusSection()
         }
-        .padding(.horizontal, 90)
-        .padding(.top, 10)
+        .disabled(columnOpen)
+        .overlay { if columnOpen { Color.black.opacity(0.5).padding(-40).allowsHitTesting(false) } }
+        .overlay(alignment: .topLeading) { if columnOpen { column } }
+        .padding(.leading, 80)
+        .padding(.trailing, 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(TVTheme.background)
-        .foregroundStyle(TVTheme.text)
         .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                             presenting: asked) { item in
             if model.isScheduled(item.show, on: item.channel) {
@@ -60,23 +69,73 @@ struct GuideScreen: View {
         }
     }
 
+    /// The collapsed category column: the source's name, read top to bottom.
+    private var rail: some View {
+        Button(action: openColumn) {
+            VStack(spacing: 22) {
+                Image(systemName: "list.bullet").font(.system(size: 26, weight: .semibold))
+                Text(verbatim: sourceName)
+                    .font(.system(size: 22, weight: .semibold))
+                    .lineLimit(1)
+                    .frame(width: 560, alignment: .leading)
+                    .rotationEffect(.degrees(90))
+                    .frame(width: 40, height: 560)
+            }
+            .padding(.vertical, 26)
+            .frame(width: Self.railWidth)
+        }
+        .buttonStyle(TVTileStyle(rest: Color.white.opacity(0.06), radius: 18, scale: 1.03))
+        // While the window is paged ahead, Left at its edge pages back instead of leaving the grid.
+        .disabled(windowStart > Self.defaultStart())
+        .focused($railFocused)
+        .accessibilityIdentifier("rail.source")
+        .accessibilityValue(sourceName)
+    }
+
+    /// The category column opened over the grid; a click chooses and closes it, Right or Back
+    /// closes it without a change.
+    private var column: some View {
+        CategoryColumn(focus: $focusedEntry,
+                       choose: { model.chooseLiveSource($0); closeColumn() },
+                       showAll: { closeColumn(); showAll = true })
+            .frame(width: 330)
+            .padding(20)
+            .background(Color(hex: 0x1C1B22), in: .rect(cornerRadius: 26))
+            .shadow(color: .black.opacity(0.6), radius: 40, x: 20)
+            .onExitCommand { closeColumn() }
+            .onMoveCommand { if $0 == .right { closeColumn() } }
+            // A container of its own: an identifier on the column alone would replace its entries'.
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("rail.column")
+    }
+
+    private func openColumn() {
+        columnOpen = true
+        let source = model.liveSource
+        // The column lists the chosen source (an unpinned category too); its entries exist
+        // from the next update on.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            focusedEntry = source
+        }
+    }
+
+    private func closeColumn() {
+        columnOpen = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            railFocused = true
+        }
+    }
+
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 22) {
             Text(dayTitle).font(.system(size: 44, weight: .bold))
-            Menu {
-                Button("Favorites") { source = .favorites }
-                Button("Recently Watched") { source = .recent }
-                Button("All Channels") { source = .all }
-                ForEach(model.pinnedCategories) { category in
-                    Button(category.displayName) { source = .category(category.id) }
-                }
-            } label: {
-                Text("\(sourceName) · \(TimeSpan.of(windowStart, windowStart.addingTimeInterval(Self.span)))")
-                    .font(.system(size: 26))
-            }
-            .accessibilityIdentifier("guide.source")
+            Text("\(sourceName) · \(TimeSpan.of(windowStart, windowStart.addingTimeInterval(Self.span)))")
+                .font(.system(size: 26))
+                .foregroundStyle(TVTheme.secondary)
+                .accessibilityIdentifier("guide.source")
         }
-        .focusSection()
     }
 
     private var dayTitle: LocalizedStringKey {
@@ -84,7 +143,7 @@ struct GuideScreen: View {
     }
 
     private var sourceName: String {
-        switch current {
+        switch model.liveSource {
         case .favorites: String(localized: "Favorites")
         case .recent: String(localized: "Recently Watched")
         case .all: String(localized: "All Channels")
@@ -118,7 +177,7 @@ struct GuideScreen: View {
     private func select(_ show: EPGEntry, on channel: LiveChannel) {
         let now = Date()
         if show.start <= now && now < show.end {
-            model.zapSource = current
+            model.zapSource = model.liveSource
             model.play(channel)
         } else if show.start > now {
             asked = (show, channel)
@@ -187,7 +246,9 @@ private struct GuideRow: View {
     private func page(_ direction: MoveCommandDirection, show: EPGEntry, windowEnd: Date) {
         switch direction {
         case .right where show.end >= windowEnd: windowStart = windowStart.addingTimeInterval(3600)
-        case .left where show.start <= windowStart: windowStart = windowStart.addingTimeInterval(-3600)
+        // Back only to the window it opens with: from there Left goes on to the rail.
+        case .left where show.start <= windowStart && windowStart > GuideScreen.defaultStart():
+            windowStart = windowStart.addingTimeInterval(-3600)
         default: break
         }
     }

@@ -490,7 +490,8 @@ images, `IPTV_TESTRESUME=<key>:<position s>:<duration s>,…` and `IPTV_TESTHIDE
 work as on the Mac (in memory), `JF_SERVER`/`JF_USER`/`JF_PASS` and `JF_CACHEONLY` as on the Mac,
 `IPTV_TESTNOSPACE=1` refuses
 recordings as if space were short, `IPTV_PLAYERMODE=info|strip` opens the player with that
-overlay (screenshots without a remote). The
+overlay (screenshots without a remote), `IPTV_KEEPLIVE=1` keeps Live TV's source and view
+(List/Guide) across launches in keychain-less runs (otherwise they stay in memory). The
 player's test switches (`IPTV_TESTNET`, `IPTV_TRICKLEMORE`, `IPTV_TRICKLEKBIT`,
 `IPTV_TESTSTALL`, `IPTV_TESTNODATA`, `IPTV_TESTNOVIDEO`, `IPTV_TESTSLOWSTART`,
 `IPTV_TESTNOCONTINUE`, `IPTV_TESTCLOCK`, `IPTV_TESTJUMP`, `IPTV_LIVELEAD`, `IPTV_AUDIOLEVEL`) are
