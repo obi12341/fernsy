@@ -120,20 +120,14 @@ struct IPTVSignInScreen: View {
             .frame(width: 640)
 
             VStack(alignment: .leading, spacing: 18) {
-                FormField(label: "Server Address", text: $server, isFocused: focus == .server) {
-                    TextField("", text: $server).textContentType(.URL).keyboardType(.URL)
-                        .focused($focus, equals: .server).accessibilityIdentifier("signin.server")
-                }
-                FormField(label: "Username", text: $username, isFocused: focus == .username) {
-                    TextField("", text: $username).textContentType(.username)
-                        .focused($focus, equals: .username).accessibilityIdentifier("signin.username")
-                }
-                FormField(label: "Password", text: $password, isFocused: focus == .password) {
-                    SecureField("", text: $password).textContentType(.password)
-                        .focused($focus, equals: .password).accessibilityIdentifier("signin.password")
-                        // Down lands on "Sign In", not on the closer demo button.
-                        .onMoveCommand { if $0 == .down { focus = .submit } }
-                }
+                TVFormField(label: "Server Address", text: $server, content: .url)
+                    .focused($focus, equals: .server).accessibilityIdentifier("signin.server")
+                TVFormField(label: "Username", text: $username, content: .username)
+                    .focused($focus, equals: .username).accessibilityIdentifier("signin.username")
+                TVFormField(label: "Password", text: $password, content: .password)
+                    .focused($focus, equals: .password).accessibilityIdentifier("signin.password")
+                    // Down lands on "Sign In", not on the closer demo button.
+                    .onMoveCommand { if $0 == .down { focus = .submit } }
                 if case .failed(let message) = model.signIn {
                     Text(message)
                         .font(.system(size: 22, weight: .medium))
@@ -195,19 +189,13 @@ struct JellyfinSignInScreen: View {
             }
             .frame(width: 640)
             VStack(alignment: .leading, spacing: 18) {
-                FormField(label: "Server Address", text: $server, isFocused: focus == .server) {
-                    TextField("", text: $server).textContentType(.URL).keyboardType(.URL)
-                        .focused($focus, equals: .server).accessibilityIdentifier("jfsignin.server")
-                }
-                FormField(label: "Username", text: $username, isFocused: focus == .username) {
-                    TextField("", text: $username).textContentType(.username)
-                        .focused($focus, equals: .username).accessibilityIdentifier("jfsignin.username")
-                }
-                FormField(label: "Password", text: $password, isFocused: focus == .password) {
-                    SecureField("", text: $password).textContentType(.password)
-                        .focused($focus, equals: .password).accessibilityIdentifier("jfsignin.password")
-                        .onMoveCommand { if $0 == .down { focus = .submit } }
-                }
+                TVFormField(label: "Server Address", text: $server, content: .url)
+                    .focused($focus, equals: .server).accessibilityIdentifier("jfsignin.server")
+                TVFormField(label: "Username", text: $username, content: .username)
+                    .focused($focus, equals: .username).accessibilityIdentifier("jfsignin.username")
+                TVFormField(label: "Password", text: $password, content: .password)
+                    .focused($focus, equals: .password).accessibilityIdentifier("jfsignin.password")
+                    .onMoveCommand { if $0 == .down { focus = .submit } }
                 if let error {
                     Text(verbatim: error).font(.system(size: 22, weight: .medium)).foregroundStyle(TVTheme.warning)
                         .accessibilityIdentifier("jfsignin.error")
@@ -240,31 +228,5 @@ struct JellyfinSignInScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(TVTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .tabBar)
-    }
-}
-
-/// A form field of the design: a small label over the value, light while focused.
-private struct FormField<Field: View>: View {
-    let label: LocalizedStringKey
-    @Binding var text: String
-    let isFocused: Bool
-    @ViewBuilder let field: Field
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.system(size: 18, weight: .semibold)).opacity(0.6)
-            field
-                .textFieldStyle(.plain)
-                .font(.system(size: 27, weight: .medium))
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-        }
-        .padding(.horizontal, 30)
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-        .foregroundStyle(isFocused ? TVTheme.focusedText : TVTheme.text)
-        .background(isFocused ? TVTheme.focused : TVTheme.tile, in: .rect(cornerRadius: 18))
-        .scaleEffect(isFocused ? 1.05 : 1)
-        .shadow(color: .black.opacity(isFocused ? 0.5 : 0), radius: 20, y: 20)
-        .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 }

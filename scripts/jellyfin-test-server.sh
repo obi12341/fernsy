@@ -22,7 +22,9 @@ docker run -d --name fernsy-jf-fixtures -p 127.0.0.1:8097:8096 -v "$M:/media:ro"
 J=http://127.0.0.1:8097
 until curl -sf $J/System/Info/Public >/dev/null; do sleep 2; done
 H='Content-Type: application/json'
-curl -sf -X POST $J/Startup/Configuration -H "$H" -d '{"UICulture":"en-US","MetadataCountryCode":"US","PreferredMetadataLanguage":"en"}' >/dev/null
+# The startup wizard answers a while after /System/Info/Public; with set -e a first early call
+# ended the script silently and left the wizard open.
+until curl -sf -X POST $J/Startup/Configuration -H "$H" -d '{"UICulture":"en-US","MetadataCountryCode":"US","PreferredMetadataLanguage":"en"}' >/dev/null; do sleep 2; done
 curl -sf $J/Startup/User >/dev/null
 curl -sf -X POST $J/Startup/User -H "$H" -d '{"Name":"fixture","Password":"fixture-pass"}' >/dev/null
 curl -sf -X POST $J/Startup/RemoteAccess -H "$H" -d '{"EnableRemoteAccess":true,"EnableAutomaticPortMapping":false}' >/dev/null
@@ -37,4 +39,11 @@ for i in $(seq 1 60); do
     n=$(curl -sf "$J/Items?recursive=true&includeItemTypes=Movie,Episode" -H "$A" | python3 -c "import json,sys;print(json.load(sys.stdin)['TotalRecordCount'])")
     [ "$n" -ge 4 ] && break; sleep 2
 done
+# The state the detail page tests expect (DetailPagesUITests): the film resumes at 2:30 and
+# S01E01-02 are watched, so S01E03 is next.
+UID_=$(curl -sf "$J/Users/Me" -H "$A" | python3 -c "import json,sys;print(json.load(sys.stdin)['Id'])")
+item() { curl -sf "$J/Items?userId=$UID_&recursive=true&includeItemTypes=$1&searchTerm=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$2")" -H "$A" \
+    | python3 -c "import json,sys;print(json.load(sys.stdin)['Items'][0]['Id'])"; }
+curl -sf -X POST "$J/UserItems/$(item Movie 'Fixture Film')/UserData?userId=$UID_" -H "$A" -H "$H" -d '{"PlaybackPositionTicks":1500000000}' >/dev/null
+for e in 1 2; do curl -sf -X POST "$J/UserPlayedItems/$(item Episode "S01E0$e")?userId=$UID_" -H "$A" >/dev/null; done
 echo "Jellyfin on $J: $n items (fixture / fixture-pass)"

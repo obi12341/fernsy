@@ -508,7 +508,8 @@ simulator (about 12 minutes for all): sign-in, tab bar, Live TV (preview, single
 pinning), guide, player and strip, recordings, settings, Start, grids, film and series pages,
 Jellyfin, search. Tests that need the local test Jellyfin skip without it (CI has none): start it
 with `scripts/jellyfin-test-server.sh` (Docker; container `fernsy-jf-fixtures` on 127.0.0.1:8097,
-user `fixture`, an 8-minute film and three 2-minute episodes) and remove it afterwards with
+user `fixture`, an 8-minute film resuming at 2:30 and three 2-minute episodes, the first two
+watched) and remove it afterwards with
 `docker rm -f fernsy-jf-fixtures`. Jellyfin keeps no resume position for items under 5 minutes and
 the demo films are under a minute, so resume tests use the fixture film or `IPTV_TESTRESUME`. Further arguments go to `xcodebuild`, e.g.
 `scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"`. Tests derive from

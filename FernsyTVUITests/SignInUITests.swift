@@ -18,19 +18,19 @@ final class SignInUITests: XCTestCase {
         XCTAssertTrue(card.waitForExistence(timeout: 15), "no welcome screen:\n\(app.debugDescription)")
         remote.press(.select)
 
-        let server = app.textFields["signin.server"]
+        let server = app.buttons["signin.server"]
         XCTAssertTrue(server.waitForExistence(timeout: 10), "the IPTV form did not open")
         enter("https://fernsy-demo.mobilistics.workers.dev", into: server, app: app)
-        move(.down, to: app.textFields["signin.username"], app: app)
-        enter("demo", into: app.textFields["signin.username"], app: app)
-        move(.down, to: app.secureTextFields["signin.password"], app: app)
-        enter("wrong", into: app.secureTextFields["signin.password"], app: app)
+        move(.down, to: app.buttons["signin.username"], app: app)
+        enter("demo", into: app.buttons["signin.username"], app: app)
+        move(.down, to: app.buttons["signin.password"], app: app)
+        enter("wrong", into: app.buttons["signin.password"], app: app)
         move(.down, to: app.buttons["signin.submit"], app: app)
         remote.press(.select)
 
         let error = app.staticTexts["signin.error"]
         XCTAssertTrue(error.waitForExistence(timeout: 20), "no error after a wrong password")
-        XCTAssertEqual(app.textFields["signin.username"].value as? String, "demo", "the username was not kept")
+        XCTAssertEqual(app.buttons["signin.username"].value as? String, "demo", "the username was not kept")
 
         move(.right, to: app.buttons["signin.demo"], app: app)
         remote.press(.select)
@@ -45,6 +45,8 @@ final class SignInUITests: XCTestCase {
         app.typeText(text)
         XCUIRemote.shared.press(.menu)
         XCTAssertTrue(waitForFocus(field), "back from the keyboard, \(field.identifier) has no focus")
+        let shown = field.identifier.hasSuffix("password") ? String(repeating: "•", count: text.count) : text
+        XCTAssertEqual(field.value as? String, shown, "\(field.identifier) does not show what was typed:\n\(app.debugDescription)")
     }
 
     /// Presses `direction` until `element` has focus (the focus engine may still be settling).

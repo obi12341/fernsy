@@ -41,17 +41,25 @@ struct AllCategoriesScreen: View {
                 Text("All Categories").font(.system(size: 52, weight: .bold))
                 Text(verbatim: "\(categories.count)").font(.system(size: 24)).foregroundStyle(TVTheme.text.opacity(0.55))
                 Spacer()
-                HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass")
-                    TextField("Search categories", text: $query)
-                        .textFieldStyle(.plain)
-                        .accessibilityIdentifier("categories.search")
+                TVTextEntry(text: $query, prompt: String(localized: "Search categories")) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                        if query.isEmpty {
+                            Text("Search categories").opacity(0.55)
+                        } else {
+                            Text(verbatim: query).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .font(.system(size: 23))
+                    .padding(.horizontal, 24)
+                    .frame(width: 420, height: 60)
                 }
-                .font(.system(size: 23))
-                .padding(.horizontal, 24)
-                .frame(width: 420, height: 60)
-                .background(Color.white.opacity(0.1), in: .capsule)
+                .buttonStyle(TVTileStyle(rest: Color.white.opacity(0.1), radius: 30))
+                .accessibilityIdentifier("categories.search")
             }
+            // Up from the chips reaches the search on the right only through a focus section.
+            .focusSection()
             .padding(.top, 70)
 
             ScrollView(.horizontal) {

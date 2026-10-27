@@ -15,16 +15,16 @@ final class JellyfinSignInUITests: FernsyUITestCase {
         XCUIRemote.shared.press(.select)
         fill(app, password: "wrong")
         XCTAssertTrue(app.staticTexts["jfsignin.error"].waitForExistence(timeout: 20), "no error after a wrong password")
-        XCTAssertEqual(app.textFields["jfsignin.username"].value as? String, "fixture", "the username was not kept")
+        XCTAssertEqual(app.buttons["jfsignin.username"].value as? String, "fixture", "the username was not kept")
         // The right password: clear and type it again.
-        move(.up, to: app.secureTextFields["jfsignin.password"], app)
+        move(.up, to: app.buttons["jfsignin.password"], app)
         XCUIRemote.shared.press(.select)
         for _ in 0..<8 { app.typeText(XCUIKeyboardKey.delete.rawValue) }
         app.typeText("fixture-pass")
         XCUIRemote.shared.press(.menu)
         move(.down, to: app.buttons["jfsignin.submit"], app)
         XCUIRemote.shared.press(.select)
-        XCTAssertTrue(app.tabBars.firstMatch.buttons["Jellyfin"].waitForExistence(timeout: 20), "no Jellyfin tab after signing in")
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Jellyfin"].waitForExistence(timeout: 20), "no Jellyfin tab after signing in:\n\(app.debugDescription)")
     }
 
     func testFromSettings() throws {
@@ -48,13 +48,13 @@ final class JellyfinSignInUITests: FernsyUITestCase {
 
     /// Server, user and the given password, then Sign In.
     private func fill(_ app: XCUIApplication, password: String) {
-        let server = app.textFields["jfsignin.server"]
+        let server = app.buttons["jfsignin.server"]
         XCTAssertTrue(server.waitForExistence(timeout: 10), "no Jellyfin form")
         XCTAssertTrue(wait(5) { server.hasFocus }, "the server field has no focus")
         enter("http://127.0.0.1:8097", app)
-        move(.down, to: app.textFields["jfsignin.username"], app)
+        move(.down, to: app.buttons["jfsignin.username"], app)
         enter("fixture", app)
-        move(.down, to: app.secureTextFields["jfsignin.password"], app)
+        move(.down, to: app.buttons["jfsignin.password"], app)
         enter(password, app)
         move(.down, to: app.buttons["jfsignin.submit"], app)
         XCUIRemote.shared.press(.select)

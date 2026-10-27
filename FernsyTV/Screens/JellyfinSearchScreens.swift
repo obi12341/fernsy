@@ -203,16 +203,21 @@ struct SearchScreen: View {
                         }
                     }
                     .focusSection()
-                    TextField("Dictate with the Siri button or type on your iPhone", text: $query)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 19))
-                        .foregroundStyle(TVTheme.tertiary)
-                        // As wide as the letter row: Down from any key reaches it.
-                        .frame(maxWidth: .infinity)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("search.field")
-                        .focusSection()
-                    results.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 30)
+                    // The query shows above; this line opens tvOS' text entry for it.
+                    TVTextEntry(text: $query, prompt: String(localized: "Search")) {
+                        Text("Dictate with the Siri button or type on your iPhone")
+                            .font(.system(size: 19))
+                            .opacity(0.55)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(TVTileStyle(rest: .clear, radius: 12))
+                    .accessibilityIdentifier("search.field")
+                    // As wide as the letter row: Down from any key reaches it.
+                    .frame(maxWidth: .infinity)
+                    .focusSection()
+                    // A focus section: Down from the centred search line reaches the first hit on the left.
+                    results.frame(maxWidth: .infinity, alignment: .leading).focusSection().padding(.top, 30)
                 }
                 .padding(.horizontal, 90)
                 .padding(.vertical, 20)

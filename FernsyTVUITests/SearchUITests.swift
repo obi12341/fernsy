@@ -12,7 +12,7 @@ final class SearchUITests: FernsyUITestCase {
     }
 
     private func type(_ text: String, _ app: XCUIApplication) {
-        let field = app.textFields["search.field"]
+        let field = app.buttons["search.field"]
         for _ in 0..<4 where !field.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.4) }
         XCTAssertTrue(field.hasFocus, "the search field has no focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.select)
@@ -104,7 +104,7 @@ final class StartAndSearchFlowUITests: FernsyUITestCase {
         let tab = app.tabBars.firstMatch.buttons["Search"]
         XCTAssertTrue(tab.waitForExistence(timeout: 30))
         for _ in 0..<12 where !tab.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.3) }
-        let field = app.textFields["search.field"]
+        let field = app.buttons["search.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         for _ in 0..<4 where !field.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.4) }
         XCUIRemote.shared.press(.select)
