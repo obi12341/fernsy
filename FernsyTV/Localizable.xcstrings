@@ -33,6 +33,16 @@
         }
       }
     },
+    "%@ · on now, %lld min left": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · läuft, noch %2$lld Min."
+          }
+        }
+      }
+    },
     "%@ · until %@": {
       "localizations": {
         "de": {
@@ -59,6 +69,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld Sender"
+          }
+        }
+      }
+    },
+    "%lld hr %lld min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld Std. %2$lld Min."
           }
         }
       }
@@ -143,6 +163,26 @@
         }
       }
     },
+    "Add Jellyfin Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin-Server hinzufügen"
+          }
+        }
+      }
+    },
+    "Address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse"
+          }
+        }
+      }
+    },
     "All": {
       "localizations": {
         "de": {
@@ -213,6 +253,16 @@
         }
       }
     },
+    "A–Z": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A–Z"
+          }
+        }
+      }
+    },
     "Back: Live TV": {
       "localizations": {
         "de": {
@@ -239,6 +289,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Puffer seit %@"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Category: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorie: %@"
           }
         }
       }
@@ -293,12 +363,62 @@
         }
       }
     },
+    "connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verbunden"
+          }
+        }
+      }
+    },
+    "Continue Watching": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiterschauen"
+          }
+        }
+      }
+    },
+    "CONTINUE WATCHING · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WEITERSCHAUEN · %@"
+          }
+        }
+      }
+    },
     "Delete": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Löschen"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        }
+      }
+    },
+    "Dictate with the Siri button or type on your iPhone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktieren mit der Siri-Taste · Eingabe über das iPhone möglich"
           }
         }
       }
@@ -403,6 +523,46 @@
         }
       }
     },
+    "Fernsy uses one IPTV account and one Jellyfin server at a time; sign out to use another one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy nutzt einen IPTV-Zugang und einen Jellyfin-Server zugleich; für andere meldest du dich zuerst ab."
+          }
+        }
+      }
+    },
+    "FILM": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FILM"
+          }
+        }
+      }
+    },
+    "Films": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filme"
+          }
+        }
+      }
+    },
+    "Films and Series": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filme und Serien"
+          }
+        }
+      }
+    },
     "Forced Only": {
       "localizations": {
         "de": {
@@ -419,6 +579,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "nur erzwungene Untertitel"
+          }
+        }
+      }
+    },
+    "From the Beginning": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von vorn"
           }
         }
       }
@@ -513,12 +683,52 @@
         }
       }
     },
+    "IPTV and Jellyfin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV und Jellyfin"
+          }
+        }
+      }
+    },
+    "Jellyfin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin"
+          }
+        }
+      }
+    },
+    "Jellyfin Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin-Server"
+          }
+        }
+      }
+    },
     "Keep Recording": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Weiter aufnehmen"
+          }
+        }
+      }
+    },
+    "Libraries": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bibliotheken"
           }
         }
       }
@@ -603,6 +813,16 @@
         }
       }
     },
+    "New": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu"
+          }
+        }
+      }
+    },
     "NEXT": {
       "localizations": {
         "de": {
@@ -619,6 +839,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Danach %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Next episode in %lld s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Episode in %lld s"
+          }
+        }
+      }
+    },
+    "Next Episode · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Episode · %@"
           }
         }
       }
@@ -683,6 +923,26 @@
         }
       }
     },
+    "not reachable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nicht erreichbar"
+          }
+        }
+      }
+    },
+    "Nothing found for “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts gefunden für „%@“."
+          }
+        }
+      }
+    },
     "NOW · %@": {
       "localizations": {
         "de": {
@@ -709,6 +969,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
+          }
+        }
+      }
+    },
+    "on now and later": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "läuft gerade und später"
+          }
+        }
+      }
+    },
+    "Overview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Übersicht"
           }
         }
       }
@@ -763,6 +1043,16 @@
         }
       }
     },
+    "Play Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt abspielen"
+          }
+        }
+      }
+    },
     "Play/Pause: Preview with sound": {
       "localizations": {
         "de": {
@@ -793,12 +1083,32 @@
         }
       }
     },
+    "Rating": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bewertung"
+          }
+        }
+      }
+    },
     "REC": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "REC"
+          }
+        }
+      }
+    },
+    "Recently Added": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuletzt hinzugefügt"
           }
         }
       }
@@ -843,6 +1153,26 @@
         }
       }
     },
+    "RECORDING": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUFNAHME"
+          }
+        }
+      }
+    },
+    "Recording · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme · %@"
+          }
+        }
+      }
+    },
     "Recording · until %@": {
       "localizations": {
         "de": {
@@ -863,12 +1193,42 @@
         }
       }
     },
+    "Release Year": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erscheinungsjahr"
+          }
+        }
+      }
+    },
     "Remove Favourite": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Kein Favorit mehr"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsetzen"
+          }
+        }
+      }
+    },
+    "Resume · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsetzen · %@"
           }
         }
       }
@@ -903,12 +1263,72 @@
         }
       }
     },
+    "Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suche"
+          }
+        }
+      }
+    },
     "Search categories": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Kategorie suchen"
+          }
+        }
+      }
+    },
+    "Season %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Staffel %lld"
+          }
+        }
+      }
+    },
+    "SERIES": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SERIE"
+          }
+        }
+      }
+    },
+    "Series": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serien"
+          }
+        }
+      }
+    },
+    "Series · %lld seasons": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serie · %lld Staffeln"
+          }
+        }
+      }
+    },
+    "Series · 1 season": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serie · 1 Staffel"
           }
         }
       }
@@ -983,6 +1403,16 @@
         }
       }
     },
+    "Sign out of this Jellyfin server?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von diesem Jellyfin-Server abmelden?"
+          }
+        }
+      }
+    },
     "Signed in": {
       "localizations": {
         "de": {
@@ -999,6 +1429,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anmelden …"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
           }
         }
       }
@@ -1113,12 +1553,32 @@
         }
       }
     },
+    "The address of your Jellyfin server, for example http://192.168.1.20:8096, and your user. They are kept in the keychain.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Adresse deines Jellyfin-Servers, zum Beispiel http://192.168.1.20:8096, und dein Benutzer. Sie werden im Schlüsselbund gesichert."
+          }
+        }
+      }
+    },
     "The file of this recording is gone; tvOS may have removed it to free space.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Die Datei dieser Aufnahme fehlt; tvOS hat sie vermutlich gelöscht, um Speicher frei zu machen."
+          }
+        }
+      }
+    },
+    "The server cannot be reached. Showing what was loaded last.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server ist nicht erreichbar. Angezeigt wird, was zuletzt geladen wurde."
           }
         }
       }
@@ -1169,6 +1629,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nicht mehr anheften"
+          }
+        }
+      }
+    },
+    "Up Next": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als Nächstes"
+          }
+        }
+      }
+    },
+    "Up: Audio · Down: Subtitles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach oben: Ton · Nach unten: Untertitel"
+          }
+        }
+      }
+    },
+    "User": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzer"
           }
         }
       }
@@ -1233,6 +1723,26 @@
         }
       }
     },
+    "Your films and series appear here once the library has loaded.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Filme und Serien erscheinen hier, sobald die Mediathek geladen ist."
+          }
+        }
+      }
+    },
+    "Your own library with films, series and watched state.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine eigene Mediathek mit Filmen, Serien und Gesehen-Status."
+          }
+        }
+      }
+    },
     "“%@” Is Being Recorded": {
       "localizations": {
         "de": {
@@ -1249,6 +1759,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "● REC"
+          }
+        }
+      }
+    },
+    "★ %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "★ %@"
           }
         }
       }

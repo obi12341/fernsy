@@ -7,10 +7,7 @@ final class RecordingsUITests: FernsyUITestCase {
         // 101 from now for 20 s, 102 in ten minutes.
         let app = launchDemo(["IPTV_TESTRECORD": "101:0:20:0:0,102:600:60:0:0", "IPTV_FRESHRECORDINGS": "1"])
         let remote = XCUIRemote.shared
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch.waitForExistence(timeout: 30))
-        let tab = app.tabBars.firstMatch.buttons["Recordings"]
-        for _ in 0..<2 { remote.press(.right); Thread.sleep(forTimeInterval: 0.5) }
-        XCTAssertTrue(wait(5) { tab.hasFocus }, "Recordings tab has no focus")
+        showTab("Recordings", app)
 
         let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'recording.'"))
         XCTAssertTrue(cards.firstMatch.waitForExistence(timeout: 10), "no recordings:\n\(app.debugDescription)")

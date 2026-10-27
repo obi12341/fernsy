@@ -1,7 +1,6 @@
 import CFFShim
 import Combine
 import FernsyCore
-import FernsyPlayer
 import Foundation
 import VideoToolbox
 
@@ -9,18 +8,18 @@ import VideoToolbox
 /// when Fernsy can play it, otherwise (or when opening fails) a progressive transcode by the
 /// server. Reports start, progress and stop to Jellyfin.
 @MainActor
-final class JellyfinPlayback: ObservableObject {
-    enum Method { case direct, transcode }
+public final class JellyfinPlayback: ObservableObject {
+    public enum Method { case direct, transcode }
 
-    let item: JFItem
-    @Published private(set) var nextEpisode: JFItem? {
+    public let item: JFItem
+    @Published public private(set) var nextEpisode: JFItem? {
         didSet { startAutoplayIfDue() }
     }
     /// When the next episode starts after the end (the countdown), nil while none runs.
-    @Published private(set) var autoplayAt: Date?
-    @Published private(set) var autoplayCancelled = false
-    private(set) var method: Method = .direct
-    static let autoplayDelay: TimeInterval = 10
+    @Published public private(set) var autoplayAt: Date?
+    @Published public private(set) var autoplayCancelled = false
+    public private(set) var method: Method = .direct
+    public static let autoplayDelay: TimeInterval = 10
 
     private let store: JellyfinStore
     private let engine: PlayerEngine
@@ -28,7 +27,7 @@ final class JellyfinPlayback: ObservableObject {
     private var playSessionId: String?
     /// Jellyfin stream indices of the current choice (nil audio = the player's default).
     private var audioIndex: Int?
-    private(set) var subtitleIndex: Int?
+    public private(set) var subtitleIndex: Int?
     private var fellBack = false
     /// Text subtitles fetched from the server, kept for stream restarts.
     private var loadedCues: (index: Int, cues: [SubtitleCue])?
@@ -40,7 +39,7 @@ final class JellyfinPlayback: ObservableObject {
     private var observers: Set<AnyCancellable> = []
 
     /// Container of the progressive transcode.
-    static var transcodeContainer = "mkv"
+    public static var transcodeContainer = "mkv"
     /// Track ids for files the stream does not contain: external text and bitmap subtitles.
     private static let externalTextBase: Int32 = 10_000
     private static let externalBitmapBase: Int32 = 20_000
@@ -53,7 +52,7 @@ final class JellyfinPlayback: ObservableObject {
     }
 
     /// Loads the item's media information and prepares playback.
-    static func make(itemId: String, store: JellyfinStore, engine: PlayerEngine) async -> JellyfinPlayback? {
+    public static func make(itemId: String, store: JellyfinStore, engine: PlayerEngine) async -> JellyfinPlayback? {
         await store.loadDetail(itemId)
         guard let item = store.details[itemId], let source = item.mediaSources?.first else { return nil }
         return JellyfinPlayback(item: item, source: source, store: store, engine: engine)
@@ -79,7 +78,7 @@ final class JellyfinPlayback: ObservableObject {
     // MARK: Decision
 
     /// Why Fernsy cannot play the original itself, or nil.
-    var transcodeReason: String? {
+    public var transcodeReason: String? {
         guard let video = streams.first(where: { $0.type == "Video" }) else { return nil }
         // Profile 5 has no HDR10/SDR base layer: without a Dolby Vision decoder the colours are wrong.
         if video.videoRangeType == "DOVI" && !DVDecoder.isAvailable { return "Dolby Vision Profil 5" }
@@ -102,7 +101,7 @@ final class JellyfinPlayback: ObservableObject {
         AppLog.detail(.jellyfin, "tracks: audio \(audioIndex.map(String.init) ?? "-"), subtitle \(subtitleIndex.map(String.init) ?? "-")")
     }
 
-    func start(at position: Double) {
+    public func start(at position: Double) {
         observeEngine()
         chooseTracks()
         if let reason = transcodeReason {
@@ -129,7 +128,7 @@ final class JellyfinPlayback: ObservableObject {
         }
     }
 
-    func stop() {
+    public func stop() {
         guard !stopped else { return }
         stopped = true
         timer?.invalidate()
@@ -161,7 +160,7 @@ final class JellyfinPlayback: ObservableObject {
         #endif
         method = .direct
         var external = ExternalPlayback()
-        external.methodLabel = String(localized: "Direct (original file)")
+        external.methodLabel = String(localized: "Direct (original file)", bundle: .module)
         external.onFailedBeforeStart = { [weak self] message in
             guard let self, !self.fellBack else { return false }
             self.fellBack = true
@@ -207,7 +206,7 @@ final class JellyfinPlayback: ObservableObject {
                 }
                 playSessionId = result.playSessionId
                 var external = ExternalPlayback(timelineOffset: position, duration: duration)
-                external.methodLabel = String(localized: "Transcoding (Jellyfin)")
+                external.methodLabel = String(localized: "Transcoding (Jellyfin)", bundle: .module)
                 external.restartAt = { [weak self] target in self?.startTranscode(at: target) }
                 external.selectAudio = { [weak self] track in
                     guard let self else { return true }
@@ -222,7 +221,7 @@ final class JellyfinPlayback: ObservableObject {
                 engine.load(url: result.url, isLive: false, startAt: 0, external: external)
             } catch {
                 AppLog.error(.jellyfin, "transcode request failed: \(error.localizedDescription)")
-                store.lastError = String(localized: "Jellyfin could not transcode the title: \(error.localizedDescription)")
+                store.lastError = String(localized: "Jellyfin could not transcode the title: \(error.localizedDescription)", bundle: .module)
             }
         }
     }
@@ -236,7 +235,7 @@ final class JellyfinPlayback: ObservableObject {
         let externalTracks: [MediaTrack] = streams.filter { $0.type == "Subtitle" && $0.isExternal == true }.compactMap { s in
             guard let index = s.index else { return nil }
             let base = s.isTextSubtitleStream == true ? Self.externalTextBase : Self.externalBitmapBase
-            return s.track(id: base + Int32(index), suffix: " · " + String(localized: "external"))
+            return s.track(id: base + Int32(index), suffix: " · " + String(localized: "external", bundle: .module))
         }
         if method == .direct {
             engine.addSubtitleTracks(externalTracks)
@@ -327,7 +326,7 @@ final class JellyfinPlayback: ObservableObject {
                 loadedCues = (index, cues)
                 engine.showExternalSubtitles(cues, trackId: trackId)
             } catch {
-                store.lastError = String(localized: "Subtitles could not be loaded: \(error.localizedDescription)")
+                store.lastError = String(localized: "Subtitles could not be loaded: \(error.localizedDescription)", bundle: .module)
             }
         }
     }
@@ -381,7 +380,7 @@ final class JellyfinPlayback: ObservableObject {
         autoplayAt = Date().addingTimeInterval(Self.autoplayDelay)
     }
 
-    func cancelAutoplay() {
+    public func cancelAutoplay() {
         autoplayCancelled = true
         autoplayAt = nil
     }
@@ -427,7 +426,7 @@ final class JellyfinPlayback: ObservableObject {
         let position = engine.progress.position
         Task {
             guard await store.renewSession(), !stopped else {
-                engine.reportFailure(String(localized: "The Jellyfin session has expired."))
+                engine.reportFailure(String(localized: "The Jellyfin session has expired.", bundle: .module))
                 return
             }
             AppLog.warning(.jellyfin, "reloading at \(Int(position)) s after renewing the session")
@@ -438,8 +437,8 @@ final class JellyfinPlayback: ObservableObject {
 }
 
 /// Minimal SRT reader for subtitles delivered by the server.
-enum SRTParser {
-    static func parse(_ text: String) -> [SubtitleCue] {
+public enum SRTParser {
+    public static func parse(_ text: String) -> [SubtitleCue] {
         var cues: [SubtitleCue] = []
         let blocks = text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n\n")
         for block in blocks {

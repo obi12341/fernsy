@@ -41,6 +41,7 @@ struct GuideScreen: View {
                 .padding(.vertical, 12)
             }
             .overlay(alignment: .topLeading) { nowLine }
+            .focusSection()
         }
         .padding(.horizontal, 90)
         .padding(.top, 10)
@@ -75,6 +76,7 @@ struct GuideScreen: View {
             }
             .accessibilityIdentifier("guide.source")
         }
+        .focusSection()
     }
 
     private var dayTitle: LocalizedStringKey {

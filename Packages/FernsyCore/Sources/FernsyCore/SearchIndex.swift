@@ -1,28 +1,33 @@
-import FernsyCore
 import Foundation
 
 /// The sources the toolbar search covers, in the order the results show them.
-enum SearchSource: Int, CaseIterable, Sendable {
+public enum SearchSource: Int, CaseIterable, Sendable {
     case channels, movies, series, recordings, jellyfinFilms, jellyfinSeries
 }
 
 /// One searchable name: `index` points into that source's list, `key` is the name folded with
 /// `makeSearchKey` (case and diacritics ignored).
-struct SearchEntry: Sendable {
-    let source: SearchSource
-    let index: Int
-    let key: String
+public struct SearchEntry: Sendable {
+    public let source: SearchSource
+    public let index: Int
+    public let key: String
+
+    public init(source: SearchSource, index: Int, key: String) {
+        self.source = source
+        self.index = index
+        self.key = key
+    }
 }
 
 /// All searchable names of all sources in one flat list. Built off the main thread whenever a
 /// source changes; a query only compares strings (about 20 ms for 50,000 entries).
-struct SearchIndex: Sendable {
-    let entries: [SearchEntry]
+public struct SearchIndex: Sendable {
+    public let entries: [SearchEntry]
 
     /// Indices per source, best hits first: the name starts with the query, then a word in it
     /// starts with the query, then it contains it anywhere; alphabetical within each rank.
     /// `needle` must already be folded with `makeSearchKey`.
-    func search(_ needle: String) -> [SearchSource: [Int]] {
+    public func search(_ needle: String) -> [SearchSource: [Int]] {
         guard !needle.isEmpty else { return [:] }
         var hits: [SearchSource: [(rank: UInt8, key: String, index: Int)]] = [:]
         for entry in entries {
@@ -42,6 +47,10 @@ struct SearchIndex: Sendable {
             guard let next = key.range(of: needle, range: key.index(after: range.lowerBound)..<key.endIndex) else { return 2 }
             range = next
         }
+    }
+
+    public init(entries: [SearchEntry]) {
+        self.entries = entries
     }
 }
 

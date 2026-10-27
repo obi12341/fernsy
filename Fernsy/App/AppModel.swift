@@ -251,6 +251,11 @@ final class AppModel: ObservableObject {
         showsIPTVMovies = UserDefaults.standard.object(forKey: "library.iptvMovies") as? Bool ?? true
         showsIPTVSeries = UserDefaults.standard.object(forKey: "library.iptvSeries") as? Bool ?? true
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
+        #if DEBUG
+        JellyfinClient.deviceName = (Host.current().localizedName ?? "Mac") + " (Debug)"
+        #else
+        JellyfinClient.deviceName = Host.current().localizedName ?? "Mac"
+        #endif
         recorder.host = self
         Recorder.registerMacDefaults()
         recorder.keepAwakePolicy = Recorder.macKeepAwakePolicy
@@ -537,7 +542,7 @@ final class AppModel: ObservableObject {
             for item in spec.split(separator: ",") {
                 let p = item.split(separator: ":")
                 if p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) {
-                    testResume[String(p[0])] = (position, duration)
+                    resume.save(String(p[0]), position: position, duration: duration)
                 }
             }
         }
@@ -1111,53 +1116,25 @@ final class AppModel: ObservableObject {
 
     // MARK: Resume positions
 
-    func resumePosition(_ key: String) -> Double {
-        if Self.skipKeychain { return testResume[key]?.position ?? 0 }
-        return UserDefaults.standard.double(forKey: "resume." + key)
-    }
+    /// Resume positions and watched marks (FernsyCore). Test runs (no keychain) share the
+    /// installed app's defaults, so they keep them in memory.
+    lazy var resume = ResumeStore(defaults: Self.skipKeychain ? nil : .standard)
 
-    private var testResume: [String: (position: Double, duration: Double)] = [:]
-    private var testWatched: Set<String> = []
+    func resumePosition(_ key: String) -> Double { resume.position(key) }
 
     func saveResume(_ key: String, position: Double, duration: Double) {
-        let finished = duration > 0 && position > duration - 90
-        // Test runs (no keychain) share the installed app's defaults: they keep this in memory.
-        if Self.skipKeychain {
-            testResume[key] = position < 30 || finished ? nil : (position, duration)
-            if finished { testWatched.insert(key) }
-            objectWillChange.send()
-            return
-        }
-        if position < 30 || finished {
-            UserDefaults.standard.removeObject(forKey: "resume." + key)
-            UserDefaults.standard.removeObject(forKey: "resume." + key + ".duration")
-        } else {
-            UserDefaults.standard.set(position, forKey: "resume." + key)
-            if duration > 0 { UserDefaults.standard.set(duration, forKey: "resume." + key + ".duration") }
-        }
-        if finished {
-            UserDefaults.standard.set(true, forKey: "watched." + key)
-            AppLog.detail(.player, "watched \(key)")
-        }
+        if resume.save(key, position: position, duration: duration) { AppLog.detail(.player, "watched \(key)") }
         objectWillChange.send()
     }
 
     /// 0…1 of a started item, nil without a stored duration.
-    func resumeFraction(_ key: String) -> Double? {
-        let position = resumePosition(key)
-        let duration = Self.skipKeychain ? (testResume[key]?.duration ?? 0)
-            : UserDefaults.standard.double(forKey: "resume." + key + ".duration")
-        guard position > 0, duration > 0 else { return nil }
-        return min(1, position / duration)
-    }
+    func resumeFraction(_ key: String) -> Double? { resume.fraction(key) }
 
     /// Played to its end (within the last 90 s) at some point.
-    func isWatched(_ key: String) -> Bool {
-        Self.skipKeychain ? testWatched.contains(key) : UserDefaults.standard.bool(forKey: "watched." + key)
-    }
+    func isWatched(_ key: String) -> Bool { resume.isWatched(key) }
 
     #if DEBUG
     /// IPTV_TESTWATCHED=<key>,…: these items count as watched (in memory).
-    func markWatchedForTest(_ keys: [String]) { testWatched.formUnion(keys) }
+    func markWatchedForTest(_ keys: [String]) { resume.markWatched(keys) }
     #endif
 }

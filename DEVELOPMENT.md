@@ -433,8 +433,13 @@ styles in `FernsyTV/Design/TVTheme.swift`; the design is 1920×1080, the Apple T
 
 | Screen | Design screen | Shows |
 |---|---|---|
-| `RootScreen` (`MainTabs`) | – | welcome without an account, else the tab bar: Live TV, Guide, Recordings, gear |
-| `SignInScreen` (`WelcomeScreen`, `IPTVSignInScreen`) | `login`, `login2` | account choice, IPTV form, "Try the Demo" |
+| `RootScreen` (`MainTabs`) | – | welcome without an account, else the tab bar; a tab shows only with its source |
+| `SignInScreen` (`WelcomeScreen`, `IPTVSignInScreen`, `JellyfinSignInScreen`) | `login`, `login2` | account choice, IPTV form with "Try the Demo", Jellyfin form |
+| `StartScreen` | `home` | newest item to continue over its backdrop, Continue Watching, Recently Added |
+| `LibraryGridScreen` (in `StartScreen.swift`) | `filme` | IPTV films or series: category, sorting, posters |
+| `FilmScreen`, `SeriesScreen` (`DetailScreens.swift`) | `film`, `serie` | pages for IPTV and Jellyfin items |
+| `JellyfinScreen`, `SearchScreen` (`JellyfinSearchScreens.swift`) | `jellyfin`, `suche` | Jellyfin views; search with letter row and system field |
+| `VODPlayerScreen` | – | films, episodes, Jellyfin items; next-episode countdown |
 | `ChannelListScreen` | `live` | category column, channel rows, pane with preview and now/next, long-press menu |
 | `AllCategoriesScreen` | `kategorien` | category tiles with country chips, search, pin and hide |
 | `GuideScreen` | `guide` | three hours per source on a time axis, play or record |
@@ -442,7 +447,12 @@ styles in `FernsyTV/Design/TVTheme.swift`; the design is 1920×1080, the Apple T
 | `RecordingsScreen` (and `RecordingPlayerScreen`) | `aufnahmen` | running, scheduled, recorded; playback with resume |
 | `SettingsScreen` | `einstellungen` | account, add account, playback languages, padding, log, version |
 
-Films, series, Jellyfin, Start and search follow in change `tvos-library`.
+Films, series and Jellyfin come from the shared code (`ResumeStore` and `LibraryRules`,
+`JellyfinStore`, `JellyfinPlayback`, `SearchIndex`); `TVModel+Library.swift` merges Start's rows.
+Posters and backdrops load through `FernsyTV/Support/ImagePipeline.swift` (downsampled, memory
+and `Caches/Images`). The Jellyfin library cache is in Caches (`JellyfinStore.cacheBase`), the
+device id in UserDefaults (each Apple TV is its own device on the server). Headers above a scroll
+view are focus sections, otherwise Up from the content skips them and reaches the tab bar.
 
 The picture comes from `FernsyTV/Player/TVVideoSurface.swift`, which hosts the engine's display
 layer; Live TV's preview and the player share the engine and the connection, so clicking a
@@ -475,7 +485,10 @@ without the keychain (`FERNSY_NO_KEYCHAIN=1` keeps it out entirely); they start 
 empty `IPTV_SERVER=` starts without an account (welcome screen). Apple TV only:
 `IPTV_MAXCONN=<n>` sets the stream limit (single-stream tests), `IPTV_TESTRECORD=<channel>:<starts
 in s>:<seconds>[:<before min>:<after min>],…` plans recordings as on the Mac,
-`IPTV_FRESHRECORDINGS=1` starts without earlier recordings, `IPTV_TESTNOSPACE=1` refuses
+`IPTV_FRESHRECORDINGS=1` starts without earlier recordings, `IPTV_FRESHIMAGES=1` without cached
+images, `IPTV_TESTRESUME=<key>:<position s>:<duration s>,…` and `IPTV_TESTHIDE=category:<id>,channel:<id>`
+work as on the Mac (in memory), `JF_SERVER`/`JF_USER`/`JF_PASS` and `JF_CACHEONLY` as on the Mac,
+`IPTV_TESTNOSPACE=1` refuses
 recordings as if space were short, `IPTV_PLAYERMODE=info|strip` opens the player with that
 overlay (screenshots without a remote). The
 player's test switches (`IPTV_TESTNET`, `IPTV_TRICKLEMORE`, `IPTV_TRICKLEKBIT`,
@@ -486,12 +499,18 @@ read in `FernsyPlayer` and work the same on both platforms.
 **Debug MCP.** With `IPTV_MCP=1` and `IPTV_MCPTOKEN=<token>` (tv-run sets the token `test`) a
 debug build listens on `http://127.0.0.1:52325/mcp` (the simulator shares the Mac's network):
 `play`, `stop_playback`, `seek`, `now_playing` (also the preview), `playback_diagnostics`,
-`snapshot`, `get_log`, `record`, `list_recordings`, `cancel_recording`
+`snapshot`, `get_log`, `record`, `list_recordings`, `cancel_recording`, `play_item` (films
+`movie:<id>`, IPTV episodes `episode:<series id>:<episode id>`, Jellyfin `jellyfin:<id>`)
 (`FernsyTV/Debug/TVTools.swift`). Release builds have no listener.
 
 **UI tests.** `scripts/tv-uitest.sh` builds the app and "Fernsy TV UITests" and runs them on the
-simulator (about 6 minutes for all): sign-in, tab bar, Live TV (preview, single stream, hiding,
-pinning), guide, player and strip, recordings, settings. Further arguments go to `xcodebuild`, e.g.
+simulator (about 12 minutes for all): sign-in, tab bar, Live TV (preview, single stream, hiding,
+pinning), guide, player and strip, recordings, settings, Start, grids, film and series pages,
+Jellyfin, search. Tests that need the local test Jellyfin skip without it (CI has none): start it
+with `scripts/jellyfin-test-server.sh` (Docker; container `fernsy-jf-fixtures` on 127.0.0.1:8097,
+user `fixture`, an 8-minute film and three 2-minute episodes) and remove it afterwards with
+`docker rm -f fernsy-jf-fixtures`. Jellyfin keeps no resume position for items under 5 minutes and
+the demo films are under a minute, so resume tests use the fixture film or `IPTV_TESTRESUME`. Further arguments go to `xcodebuild`, e.g.
 `scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"`. Tests derive from
 `FernsyUITestCase` (`UITestSupport.swift`): the demo account with the debug MCP, and on a
 failure the app's log as an attachment. The script passes `-collect-test-diagnostics never`;

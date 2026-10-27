@@ -34,7 +34,15 @@ struct SettingsScreen: View {
                             }
                             .accessibilityIdentifier("settings.account")
                         }
+                        if let session = model.jellyfin.session {
+                            NavigationLink { JellyfinAccountScreen() } label: {
+                                SettingsRow(title: Text(verbatim: session.serverName), value: Text("Jellyfin"),
+                                            dot: model.jellyfin.isOffline ? TVTheme.warning : Color(hex: 0x4CD07D))
+                            }
+                            .accessibilityIdentifier("settings.jellyfin")
+                        }
                         NavigationLink { AddAccountScreen() } label: { SettingsRow(title: Text("Add Account")) }
+                            .accessibilityIdentifier("settings.addAccount")
                         header("APP")
                         NavigationLink { PlaybackSettingsScreen() } label: {
                             SettingsRow(title: Text("Playback"), value: Text(playbackSummary))
@@ -170,12 +178,50 @@ private struct AccountScreen: View {
     }
 }
 
+/// Offers the kind of account not yet signed in.
 private struct AddAccountScreen: View {
+    @EnvironmentObject private var model: TVModel
+
     var body: some View {
         SettingsPage(title: "Add Account") {
-            SettingsRow(title: Text("IPTV Account"), value: Text("Signed in")).opacity(0.5).padding(.trailing, -40)
-            Text("Fernsy on Apple TV uses one IPTV account. To use another one, sign out first. Jellyfin servers follow in a later version.")
+            if model.credentials == nil {
+                NavigationLink { IPTVSignInScreen() } label: { SettingsRow(title: Text("IPTV Account")) }
+                    .accessibilityIdentifier("add.iptv")
+            } else {
+                SettingsRow(title: Text("IPTV Account"), value: Text("Signed in")).opacity(0.5).padding(.trailing, -40)
+            }
+            if model.jellyfin.session == nil {
+                NavigationLink { JellyfinSignInScreen() } label: { SettingsRow(title: Text("Jellyfin Server")) }
+                    .accessibilityIdentifier("add.jellyfin")
+            } else {
+                SettingsRow(title: Text("Jellyfin Server"), value: Text("Signed in")).opacity(0.5).padding(.trailing, -40)
+            }
+            Text("Fernsy uses one IPTV account and one Jellyfin server at a time; sign out to use another one.")
                 .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
+        }
+    }
+}
+
+private struct JellyfinAccountScreen: View {
+    @EnvironmentObject private var model: TVModel
+    @State private var confirm = false
+
+    var body: some View {
+        SettingsPage(title: "Jellyfin Server") {
+            if let session = model.jellyfin.session {
+                SettingsRow(title: Text("Server"), value: Text(verbatim: "\(session.serverName) · \(session.version)")).padding(.trailing, -40)
+                SettingsRow(title: Text("Address"), value: Text(verbatim: session.server)).padding(.trailing, -40)
+                SettingsRow(title: Text("User"), value: Text(verbatim: session.userName)).padding(.trailing, -40)
+            }
+            Button { confirm = true } label: {
+                Text("Sign Out").font(.system(size: 26, weight: .semibold)).foregroundStyle(TVTheme.live)
+                    .padding(.horizontal, 28).frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+            }
+            .padding(.top, 30)
+            .accessibilityIdentifier("settings.jellyfinSignOut")
+        }
+        .confirmationDialog("Sign out of this Jellyfin server?", isPresented: $confirm) {
+            Button("Sign Out", role: .destructive) { model.jellyfin.signOut() }
         }
     }
 }

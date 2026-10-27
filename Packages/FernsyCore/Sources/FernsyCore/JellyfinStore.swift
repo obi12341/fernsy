@@ -1,4 +1,3 @@
-import FernsyCore
 import Foundation
 
 /// The Jellyfin account and its film and series library.
@@ -8,31 +7,31 @@ import Foundation
 /// renewed without asking; the library is cached on disk and shown before the background
 /// refresh, like the IPTV catalog.
 @MainActor
-final class JellyfinStore: ObservableObject {
-    @Published private(set) var session: JFSession?
+public final class JellyfinStore: ObservableObject {
+    @Published public private(set) var session: JFSession?
     /// The server rejected the token (session ended in the dashboard, password changed).
-    @Published private(set) var isExpired = false
+    @Published public private(set) var isExpired = false
     /// The last refresh could not reach the server; the cached library is shown.
-    @Published private(set) var isOffline = false
-    @Published private(set) var isLoading = false
-    @Published var lastError: String?
+    @Published public private(set) var isOffline = false
+    @Published public private(set) var isLoading = false
+    @Published public var lastError: String?
 
     /// Film and series libraries, in the server's order.
-    @Published private(set) var libraries: [JFItem] = []
-    @Published private(set) var films: [JFItem] = []
-    @Published private(set) var series: [JFItem] = []
+    @Published public private(set) var libraries: [JFItem] = []
+    @Published public private(set) var films: [JFItem] = []
+    @Published public private(set) var series: [JFItem] = []
     /// Item id → ids of the libraries it is in.
-    private(set) var membership: [String: Set<String>] = [:]
+    public private(set) var membership: [String: Set<String>] = [:]
 
-    @Published private(set) var resume: [JFItem] = []
-    @Published private(set) var nextUp: [JFItem] = []
-    @Published private(set) var latestFilms: [JFItem] = []
-    @Published private(set) var latestSeries: [JFItem] = []
+    @Published public private(set) var resume: [JFItem] = []
+    @Published public private(set) var nextUp: [JFItem] = []
+    @Published public private(set) var latestFilms: [JFItem] = []
+    @Published public private(set) var latestSeries: [JFItem] = []
 
     /// Detail data loaded on demand, updated together with the lists when marks change.
-    @Published private(set) var details: [String: JFItem] = [:]
-    @Published private(set) var seasons: [String: [JFItem]] = [:]
-    @Published private(set) var episodes: [String: [JFItem]] = [:]
+    @Published public private(set) var details: [String: JFItem] = [:]
+    @Published public private(set) var seasons: [String: [JFItem]] = [:]
+    @Published public private(set) var episodes: [String: [JFItem]] = [:]
 
     private let skipKeychain: Bool
     private var refreshTask: Task<Void, Never>?
@@ -50,7 +49,7 @@ final class JellyfinStore: ObservableObject {
     }
     private static var passwordAccount: String { keychainAccount + ".password" }
 
-    init(skipKeychain: Bool) {
+    public init(skipKeychain: Bool) {
         self.skipKeychain = skipKeychain
         if !skipKeychain, let saved = Keychain.load(JFSession.self, account: Self.keychainAccount) {
             session = saved
@@ -62,14 +61,14 @@ final class JellyfinStore: ObservableObject {
         #endif
     }
 
-    var client: JellyfinClient? {
+    public var client: JellyfinClient? {
         guard let session, let base = session.baseURL else { return nil }
         return JellyfinClient(base: base, token: session.token)
     }
 
     // MARK: Session
 
-    func signIn(server: String, username: String, password: String) async throws {
+    public func signIn(server: String, username: String, password: String) async throws {
         guard let base = JFSession.normalize(server) else { throw JellyfinError.invalidURL }
         let anonymous = JellyfinClient(base: base, token: nil)
         let info: JFPublicInfo
@@ -95,7 +94,7 @@ final class JellyfinStore: ObservableObject {
         await loadLibrary(forceRefresh: true)
     }
 
-    func signOut() {
+    public func signOut() {
         AppLog.info(.jellyfin, "signed out")
         if let client { Task { await client.logout() } }
         if !skipKeychain {
@@ -120,7 +119,7 @@ final class JellyfinStore: ObservableObject {
     /// Every request goes through here: a rejected token is renewed with the stored password and
     /// the request repeated once; only when that fails is the session marked expired. An
     /// unreachable server marks it offline.
-    func call<T>(_ body: (JellyfinClient, String) async throws -> T) async throws -> T {
+    public func call<T>(_ body: (JellyfinClient, String) async throws -> T) async throws -> T {
         guard let client, let userId = session?.userId else { throw JellyfinError.unauthorized }
         do {
             let result = try await body(client, userId)
@@ -144,7 +143,7 @@ final class JellyfinStore: ObservableObject {
 
     /// Signs in again with the stored password after the server rejected the token. Callers
     /// that arrive while a renewal runs wait for the same one. True when there is a new token.
-    func renewSession() async -> Bool {
+    public func renewSession() async -> Bool {
         if let renewal { return await renewal.value }
         guard let session, let password, let base = session.baseURL else { return false }
         let task = Task { @MainActor () -> Bool in
@@ -170,7 +169,7 @@ final class JellyfinStore: ObservableObject {
     // MARK: Library
 
     /// Shows the cached library first, then refreshes it from the server.
-    func loadLibrary(forceRefresh: Bool) async {
+    public func loadLibrary(forceRefresh: Bool) async {
         guard session != nil else { return }
         if films.isEmpty && series.isEmpty { loadCache() }
         // One refresh at a time; a forced one replaces a running one.
@@ -227,7 +226,7 @@ final class JellyfinStore: ObservableObject {
     }
 
     /// Watched state and favorites of everything, e.g. after watching on another client.
-    func refreshUserData() async {
+    public func refreshUserData() async {
         guard !libraries.isEmpty else { return }
         do {
             var updates: [String: JFUserData] = [:]
@@ -242,7 +241,7 @@ final class JellyfinStore: ObservableObject {
         } catch {}
     }
 
-    func refreshHome() async {
+    public func refreshHome() async {
         guard session != nil else { return }
         resume = (try? await call { try await $0.resume(userId: $1) }) ?? resume
         nextUp = (try? await call { try await $0.nextUp(userId: $1) }) ?? nextUp
@@ -264,24 +263,24 @@ final class JellyfinStore: ObservableObject {
         if resume.isEmpty { resume = films.filter { $0.progress != nil } }
     }
 
-    func libraries(of item: JFItem) -> Set<String> { membership[item.id] ?? [] }
+    public func libraries(of item: JFItem) -> Set<String> { membership[item.id] ?? [] }
 
     // MARK: Details
 
-    func loadDetail(_ id: String) async {
+    public func loadDetail(_ id: String) async {
         if let item = try? await call({ try await $0.item(userId: $1, id: id) }) { details[id] = item }
     }
 
-    func loadSeasons(_ seriesId: String) async {
+    public func loadSeasons(_ seriesId: String) async {
         if let list = try? await call({ try await $0.seasons(userId: $1, seriesId: seriesId) }) { seasons[seriesId] = list }
     }
 
-    func loadEpisodes(seriesId: String, seasonId: String) async {
+    public func loadEpisodes(seriesId: String, seasonId: String) async {
         if let list = try? await call({ try await $0.episodes(userId: $1, seriesId: seriesId, seasonId: seasonId) }) { episodes[seasonId] = list }
     }
 
     /// After playback: the item's (and its series') new watched state and position.
-    func refreshAfterPlayback(_ id: String) async {
+    public func refreshAfterPlayback(_ id: String) async {
         guard let item = try? await call({ try await $0.item(userId: $1, id: id) }) else { return }
         details[id] = item
         if let data = item.userData { apply([id: data]) }
@@ -289,7 +288,7 @@ final class JellyfinStore: ObservableObject {
     }
 
     /// The episode to start for "Play" on a series: Next Up, else the first episode.
-    func episodeToPlay(seriesId: String) async -> JFItem? {
+    public func episodeToPlay(seriesId: String) async -> JFItem? {
         if let next = nextUp.first(where: { $0.seriesId == seriesId }) { return next }
         await loadSeasons(seriesId)
         guard let first = seasons[seriesId]?.first else { return nil }
@@ -301,9 +300,9 @@ final class JellyfinStore: ObservableObject {
 
     /// Only these may be marked: marking a library folder (or the user's root folder, which an
     /// unknown id can resolve to) as played marks everything below it.
-    static let markableTypes: Set<String> = ["Movie", "Episode", "Season", "Series"]
+    public static let markableTypes: Set<String> = ["Movie", "Episode", "Season", "Series"]
 
-    func setPlayed(_ item: JFItem, _ played: Bool) async {
+    public func setPlayed(_ item: JFItem, _ played: Bool) async {
         guard Self.markableTypes.contains(item.type) else { return }
         var optimistic = item.userData ?? JFUserData()
         optimistic.played = played
@@ -318,11 +317,11 @@ final class JellyfinStore: ObservableObject {
             await reloadAround(item)
         } catch {
             if let previous { apply([item.id: previous]) }
-            lastError = String(localized: "Could not mark “\(item.name)”: \(error.localizedDescription)")
+            lastError = String(localized: "Could not mark “\(item.name)”: \(error.localizedDescription)", bundle: .module)
         }
     }
 
-    func setFavorite(_ item: JFItem, _ favorite: Bool) async {
+    public func setFavorite(_ item: JFItem, _ favorite: Bool) async {
         guard Self.markableTypes.contains(item.type) else { return }
         var optimistic = item.userData ?? JFUserData()
         optimistic.isFavorite = favorite
@@ -333,7 +332,7 @@ final class JellyfinStore: ObservableObject {
             apply([item.id: data])
         } catch {
             if let previous { apply([item.id: previous]) }
-            lastError = String(localized: "Could not change “\(item.name)”: \(error.localizedDescription)")
+            lastError = String(localized: "Could not change “\(item.name)”: \(error.localizedDescription)", bundle: .module)
         }
     }
 
@@ -366,7 +365,7 @@ final class JellyfinStore: ObservableObject {
 
     // MARK: Artwork
 
-    func posterURL(_ item: JFItem, height: Int = 450) -> String? {
+    public func posterURL(_ item: JFItem, height: Int = 450) -> String? {
         if let tag = item.imageTags?["Primary"] { return client?.imageURL(itemId: item.id, type: "Primary", tag: tag, maxHeight: height) }
         if let seriesId = item.seriesId, let tag = item.seriesPrimaryImageTag {
             return client?.imageURL(itemId: seriesId, type: "Primary", tag: tag, maxHeight: height)
@@ -374,7 +373,7 @@ final class JellyfinStore: ObservableObject {
         return nil
     }
 
-    func backdropURL(_ item: JFItem, height: Int = 900) -> String? {
+    public func backdropURL(_ item: JFItem, height: Int = 900) -> String? {
         if let tag = item.backdropImageTags?.first { return client?.imageURL(itemId: item.id, type: "Backdrop", tag: tag, maxHeight: height) }
         if let parent = item.parentBackdropItemId, let tag = item.parentBackdropImageTags?.first {
             return client?.imageURL(itemId: parent, type: "Backdrop", tag: tag, maxHeight: height)
@@ -383,7 +382,7 @@ final class JellyfinStore: ObservableObject {
     }
 
     /// Landscape still for episodes and home rows; falls back to the series' artwork.
-    func thumbURL(_ item: JFItem, height: Int = 360) -> String? {
+    public func thumbURL(_ item: JFItem, height: Int = 360) -> String? {
         if let tag = item.imageTags?["Primary"], item.type == "Episode" {
             return client?.imageURL(itemId: item.id, type: "Primary", tag: tag, maxHeight: height)
         }
@@ -403,10 +402,12 @@ final class JellyfinStore: ObservableObject {
         var membership: [String: Set<String>]
     }
 
+    /// Where the library cache lives: Application Support on the Mac; the Apple TV sets Caches.
+    nonisolated(unsafe) public static var cacheBase = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+
     private var cacheURL: URL? {
         guard let session else { return nil }
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Fernsy/\(session.cacheKey)", isDirectory: true)
+        let dir = Self.cacheBase.appendingPathComponent("Fernsy/\(session.cacheKey)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("library.json")
     }

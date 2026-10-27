@@ -136,10 +136,8 @@ extension TVModel: RecorderHost {
         playingRecording = nil
     }
 
-    private func resumeKey(_ recording: Recording) -> String { "resume.recording.\(recording.id.uuidString)" }
-
     func resumePosition(_ recording: Recording) -> Double {
-        UserDefaults.standard.double(forKey: resumeKey(recording))
+        resume.position(ResumeStore.recordingKey(recording.id))
     }
 
     /// The share watched (0…1), for the card's bar.
@@ -150,12 +148,7 @@ extension TVModel: RecorderHost {
 
     /// As on the Mac: under 30 s or within the last 90 s nothing is kept.
     private func saveResume(_ recording: Recording, position: Double, duration: Double) {
-        let finished = duration > 0 && position > duration - 90
-        if position < 30 || finished {
-            UserDefaults.standard.removeObject(forKey: resumeKey(recording))
-        } else {
-            UserDefaults.standard.set(position, forKey: resumeKey(recording))
-        }
+        resume.save(ResumeStore.recordingKey(recording.id), position: position, duration: duration)
     }
 
     #if DEBUG

@@ -55,6 +55,8 @@ struct TVTools {
         tool("snapshot", "The picture shown now, as a JPEG.", [:]),
         tool("get_log", "The app log of this run: minimum level (detail, info, warning, error), optional query.",
              ["level": ["type": "string"], "query": ["type": "string"], "limit": ["type": "integer"]]),
+        tool("play_item", "Play a film (movie:<id>), an IPTV episode (episode:<series id>:<episode id>) or a Jellyfin item (jellyfin:<id>), from its resume position unless from_start.",
+             ["item_id": ["type": "string"], "from_start": ["type": "boolean"]], required: ["item_id"]),
         tool("record", "Record a live channel: the show on now (channel_id), or a later show (channel_id and start, ISO 8601, of a show in its guide).",
              ["channel_id": ["type": "integer"], "start": ["type": "string"]], required: ["channel_id"]),
         tool("list_recordings", "The recordings on this Apple TV: running, scheduled, finished, failed and missed, with file size.", [:]),
@@ -80,7 +82,7 @@ struct TVTools {
             model.stop()
             return ["result": "stopped"]
         case "seek":
-            guard model.playing != nil else { throw ToolError("Nothing is playing") }
+            guard model.playing != nil || model.playingVOD != nil else { throw ToolError("Nothing is playing") }
             if args["to_live"] as? Bool == true { model.goLive() } else if let by = (args["by_seconds"] as? NSNumber)?.doubleValue {
                 model.skip(by: by)
             } else { throw ToolError("Pass by_seconds or to_live") }
@@ -97,6 +99,29 @@ struct TVTools {
             let result = AppLog.shared.query(minimum: levels[args["level"] as? String ?? "info"] ?? .info,
                                              query: args["query"] as? String ?? "", limit: args["limit"] as? Int ?? 200)
             return ["entries": result.entries.map { $0.line }, "truncated": result.truncated]
+        case "play_item":
+            guard let item = args["item_id"] as? String else { throw ToolError("Pass item_id") }
+            let parts = item.split(separator: ":").map(String.init)
+            let fromStart = args["from_start"] as? Bool == true
+            switch parts.first {
+            case "movie":
+                guard parts.count == 2, let id = Int(parts[1]), let movie = model.movies.first(where: { $0.id == id }) else { throw ToolError("No film \(item)") }
+                model.play(.movie(movie), fromStart: fromStart)
+            case "episode":
+                guard parts.count == 3, let seriesId = Int(parts[1]), let show = model.series.first(where: { $0.id == seriesId }),
+                      let info = await model.seriesDetails(show),
+                      let episode = info.seasons.values.flatMap({ $0 }).first(where: { $0.id == parts[2] }) else { throw ToolError("No episode \(item)") }
+                model.play(.episode(episode, show), fromStart: fromStart)
+            case "jellyfin":
+                guard parts.count == 2 else { throw ToolError("item_id must look like jellyfin:<id>") }
+                await model.jellyfin.loadDetail(parts[1])
+                guard let jfItem = model.jellyfin.details[parts[1]] else { throw ToolError("No Jellyfin item \(parts[1])") }
+                model.play(.jellyfin(jfItem), fromStart: fromStart)
+            default:
+                throw ToolError("item_id must start with movie:, episode: or jellyfin:")
+            }
+            try? await Task.sleep(for: .seconds(2))
+            return nowPlaying()
         case "record":
             guard let id = args["channel_id"] as? Int, let channel = model.channels.first(where: { $0.id == id }) else {
                 throw ToolError("Pass the channel_id of a live channel")
@@ -125,6 +150,14 @@ struct TVTools {
     }
 
     private func nowPlaying() -> [String: Any] {
+        if let item = model.playingVOD {
+            let progress = model.engine.progress
+            var value: [String: Any] = ["playing": true, "title": item.title, "state": "\(model.engine.status)",
+                                        "position_seconds": Int(progress.position), "duration_seconds": Int(progress.duration)]
+            if let subtitle = item.subtitle { value["subtitle"] = subtitle }
+            if let next = model.nextAfterPlaying { value["next"] = next.subtitle ?? next.title }
+            return value
+        }
         guard let channel = model.playing ?? model.previewing else { return ["playing": false] }
         let engine = model.engine, progress = engine.progress
         var value: [String: Any] = [
