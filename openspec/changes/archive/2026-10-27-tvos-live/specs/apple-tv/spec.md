@@ -4,9 +4,12 @@
 Fernsy SHALL have an app for Apple TV 4K (tvOS 27) that signs in to an Xtream account, shows
 its live channels by category with now and next, a program guide and recordings, and plays a
 live channel full screen with pause, skipping within the timeshift buffer, back to live and
-zapping. It SHALL use the same provider, guide and playback behavior as the Mac app, including
-channel-name cleanup, seamless reconnects, slow-delivery handling and the timeshift buffer,
-and be operated with the Siri Remote alone.
+zapping. It SHALL use the Mac app's provider, guide and playback behavior and be operated with
+the Siri Remote alone.
+
+#### Scenario: Same behavior as the Mac
+- **WHEN** a channel plays on Apple TV
+- **THEN** its name is cleaned up, reconnects are seamless and the timeshift buffer works as in the Mac app
 
 #### Scenario: Watching a live channel
 - **WHEN** the user clicks a channel in Live TV with the Siri Remote
