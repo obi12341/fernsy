@@ -115,6 +115,13 @@ price and reviews, and buyers of the Mac app would pay again.
 Rejected: a separate Xcode project or a Swift Playgrounds-style package app. One project
 keeps one scheme list, one CI build and shared settings.
 
+Info.plist: `Config/Info-TV.plist` next to the generated keys, with the Mac app's ATS exception
+`NSAllowsArbitraryLoads` (establish-baseline) and its local-network text
+(`FernsyTV/InfoPlist.xcstrings`). Pitfall: the target first had only generated keys, so tvOS
+allowed HTTPS only and sign-in to a plain-HTTP provider failed with "App Transport Security
+policy requires the use of a secure connection". Tests did not notice: the demo server is HTTPS
+and the test Jellyfin runs on 127.0.0.1, which ATS exempts.
+
 ### D. A thin model and placeholder screens, shaped for the designs
 
 `FernsyTV/Model/TVModel.swift` (`@MainActor ObservableObject`) owns what screens read:

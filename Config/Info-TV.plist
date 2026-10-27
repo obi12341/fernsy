@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The Apple TV app's keys next to the generated ones; the same ATS exception as the Mac
+	     (Config/Info.plist): Xtream servers, their stream redirects and Jellyfin in the home
+	     network are plain HTTP.
+	     Do not add NSAllowsArbitraryLoadsForMedia: it makes ATS ignore NSAllowsArbitraryLoads. -->
+	<!-- Only standard HTTPS/TLS from the system: exempt from export documentation. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Fernsy connects to your Jellyfin server or IPTV provider on your local network.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
