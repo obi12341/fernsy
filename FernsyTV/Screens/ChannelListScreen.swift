@@ -1,59 +1,32 @@
 import FernsyCore
 import SwiftUI
 
-/// Live TV (design screen `live`): the category column, the channel rows of the chosen source
-/// and a pane for the focused channel with now and next.
+/// Live TV (design screens `live` and `guide`, tvos-live-and-guide): a switch between the
+/// channel list and the guide, both over the one source chosen in the category column.
 struct ChannelListScreen: View {
     @EnvironmentObject private var model: TVModel
-    @State private var source: TVModel.LiveSource?
     @State private var showAllCategories = false
-    @FocusState private var focusedChannel: Int?
-
-    /// Favourites when there are any, otherwise all channels.
-    private var current: TVModel.LiveSource {
-        source ?? (model.channels(for: .favorites).isEmpty ? .all : .favorites)
-    }
+    /// The guide's category column is open over the grid: the switch above waits.
+    @State private var columnOpen = false
 
     var body: some View {
         NavigationStack {
-            let list = model.channels(for: current)
-            HStack(alignment: .top, spacing: 40) {
-                CategoryColumn(selection: Binding(get: { current }, set: { source = $0 }), showAll: $showAllCategories)
-                    .frame(width: 330)
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(Array(list.enumerated()), id: \.element.id) { index, channel in
-                            ChannelRowButton(channel: channel, number: index + 1, source: current, guide: model.guide.guide(channel.id))
-                                .focused($focusedChannel, equals: channel.id)
-                        }
-                        if list.isEmpty { EmptySource(source: current) }
-                    }
-                    .padding(.vertical, 16)
-                    .padding(.horizontal, 20)
+            VStack(alignment: .leading, spacing: 0) {
+                ViewSwitch()
+                    .padding(.leading, 80)
+                    .padding(.bottom, 14)
+                    .disabled(columnOpen)
+                switch model.liveView {
+                case .list: ChannelListView(showAll: $showAllCategories)
+                case .guide: GuideScreen(columnOpen: $columnOpen, showAll: $showAllCategories)
                 }
-                .frame(width: 820)
-                .focusSection()
-                ChannelPane(channel: list.first { $0.id == focusedChannel } ?? list.first)
-                    .frame(width: 540)
-                    .padding(.top, 12)
-                    // The preview starts once focus rests on a row for a second (design E).
-                    .task(id: focusedChannel) {
-                        guard let id = focusedChannel, let channel = list.first(where: { $0.id == id }) else { return }
-                        try? await Task.sleep(for: .seconds(1))
-                        if !Task.isCancelled { model.startPreview(channel) }
-                    }
             }
-            .padding(.leading, 80)
-            .padding(.top, 10)
-            .padding(.bottom, 100)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .overlay(alignment: .bottomLeading) { Hints().padding(.leading, 460).padding(.bottom, 44) }
             .background(TVTheme.background)
             .foregroundStyle(TVTheme.text)
-            .onDisappear { model.stopPreview() }
             .navigationDestination(isPresented: $showAllCategories) {
                 AllCategoriesScreen { category in
-                    source = .category(category.id)
+                    model.chooseLiveSource(.category(category.id))
                     showAllCategories = false
                 }
             }
@@ -61,30 +34,111 @@ struct ChannelListScreen: View {
     }
 }
 
-// MARK: Category column
-
-private struct CategoryColumn: View {
+/// "List | Guide" above Live TV, a focus section between the tab bar and the content.
+private struct ViewSwitch: View {
     @EnvironmentObject private var model: TVModel
-    @Binding var selection: TVModel.LiveSource
-    @Binding var showAll: Bool
-    @FocusState private var focused: TVModel.LiveSource?
 
     var body: some View {
+        HStack(spacing: 12) {
+            pill("List", .list, id: "live.view.list")
+            pill("Guide", .guide, id: "live.view.guide")
+        }
+        // As wide as the screen: Down from the tab bar and Up from the first row reach it.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .focusSection()
+    }
+
+    private func pill(_ title: LocalizedStringKey, _ view: TVModel.LiveView, id: String) -> some View {
+        Button { model.liveView = view } label: {
+            Text(title)
+                .font(.system(size: 22, weight: .semibold))
+                .padding(.horizontal, 30)
+                .frame(height: 52)
+        }
+        .buttonStyle(ChipStyle(selected: model.liveView == view))
+        .accessibilityIdentifier(id)
+        .accessibilityValue(model.liveView == view ? "selected" : "")
+    }
+}
+
+/// The list view: the category column, the source's channel rows and a pane for the focused
+/// channel with now and next.
+private struct ChannelListView: View {
+    @EnvironmentObject private var model: TVModel
+    @Binding var showAll: Bool
+    @FocusState private var focusedChannel: Int?
+    @FocusState private var focusedEntry: TVModel.LiveSource?
+
+    var body: some View {
+        let source = model.liveSource
+        let list = model.channels(for: source)
+        HStack(alignment: .top, spacing: 40) {
+            CategoryColumn(focus: $focusedEntry, choose: { model.chooseLiveSource($0) }, showAll: { showAll = true })
+                .frame(width: 330)
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(Array(list.enumerated()), id: \.element.id) { index, channel in
+                        ChannelRowButton(channel: channel, number: index + 1, source: source, guide: model.guide.guide(channel.id))
+                            .focused($focusedChannel, equals: channel.id)
+                    }
+                    if list.isEmpty { EmptySource(source: source) }
+                }
+                .padding(.vertical, 16)
+                .padding(.horizontal, 20)
+            }
+            .frame(width: 820)
+            // Down to the screen's edge: the rows scroll under the bottom safe area.
+            .ignoresSafeArea(edges: .bottom)
+            .focusSection()
+            ChannelPane(channel: list.first { $0.id == focusedChannel } ?? list.first)
+                .frame(width: 540)
+                .padding(.top, 12)
+                // The preview starts once focus rests on a row for a second (design E).
+                .task(id: focusedChannel) {
+                    guard let id = focusedChannel, let channel = list.first(where: { $0.id == id }) else { return }
+                    try? await Task.sleep(for: .seconds(1))
+                    if !Task.isCancelled { model.startPreview(channel) }
+                }
+        }
+        .padding(.leading, 80)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onDisappear { model.stopPreview() }
+    }
+}
+
+// MARK: Category column
+
+/// The source entries of Live TV, in the list and in the guide's open column. An entry becomes
+/// the source when clicked, not when focus passes it (tvos-live-and-guide design C).
+struct CategoryColumn: View {
+    @EnvironmentObject private var model: TVModel
+    var focus: FocusState<TVModel.LiveSource?>.Binding
+    let choose: (TVModel.LiveSource) -> Void
+    let showAll: () -> Void
+
+    var body: some View {
+        let selected = model.liveSource
         VStack(alignment: .leading, spacing: 4) {
-            entry("Favorites", .favorites)
-            entry("Recently Watched", .recent)
-            entry("All Channels", .all)
+            entry("Favorites", .favorites, selected: selected)
+            entry("Recently Watched", .recent, selected: selected)
+            entry("All Channels", .all, selected: selected)
             let pinned = model.pinnedCategories
+            // A category chosen in All Categories and not pinned: shown, so the source has a name.
+            if case .category(let id) = selected, !pinned.contains(where: { $0.id == id }),
+               let category = model.visibleCategories.first(where: { $0.id == id }) {
+                entry(LocalizedStringKey(category.displayName), selected, tag: category.parsed.country, selected: selected)
+                    .padding(.top, 18)
+            }
             if !pinned.isEmpty {
                 Text("PINNED")
                     .font(.system(size: 18, weight: .bold)).tracking(1.3)
                     .foregroundStyle(TVTheme.text.opacity(0.45))
                     .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 6)
                 ForEach(pinned) { category in
-                    entry(LocalizedStringKey(category.displayName), .category(category.id), tag: category.parsed.country)
+                    entry(LocalizedStringKey(category.displayName), .category(category.id), tag: category.parsed.country, selected: selected)
                 }
             }
-            Button { showAll = true } label: {
+            Button { showAll() } label: {
                 CategoryLabel(title: "All Categories", count: "\(model.visibleCategories.count) ›", selected: true)
             }
             .buttonStyle(CategoryButtonStyle(outlined: true))
@@ -92,16 +146,17 @@ private struct CategoryColumn: View {
             .accessibilityIdentifier("live.allCategories")
         }
         .focusSection()
-        .onChange(of: focused) { _, value in if let value { selection = value } }
     }
 
-    private func entry(_ title: LocalizedStringKey, _ source: TVModel.LiveSource, tag: String? = nil) -> some View {
-        Button { selection = source } label: {
-            CategoryLabel(title: title, tag: tag, count: "\(model.channels(for: source).count)", selected: selection == source)
+    private func entry(_ title: LocalizedStringKey, _ source: TVModel.LiveSource, tag: String? = nil,
+                       selected: TVModel.LiveSource) -> some View {
+        Button { choose(source) } label: {
+            CategoryLabel(title: title, tag: tag, count: "\(model.channels(for: source).count)", selected: selected == source)
         }
-        .buttonStyle(CategoryButtonStyle(selected: selection == source))
-        .focused($focused, equals: source)
+        .buttonStyle(CategoryButtonStyle(selected: selected == source))
+        .focused(focus, equals: source)
         .accessibilityIdentifier(Self.identifier(source))
+        .accessibilityValue(selected == source ? "selected" : "")
     }
 
     static func identifier(_ source: TVModel.LiveSource) -> String {
@@ -429,17 +484,5 @@ struct LiveBadge: View {
             .frame(height: 30)
             .background(TVTheme.live, in: .capsule)
             .foregroundStyle(.white)
-    }
-}
-
-private struct Hints: View {
-    var body: some View {
-        HStack(spacing: 34) {
-            Text("Click: Watch")
-            Text("Hold: Record, Favourite, Hide")
-            Text("Play/Pause: Preview with sound")
-        }
-        .font(.system(size: 20))
-        .foregroundStyle(TVTheme.text.opacity(0.55))
     }
 }

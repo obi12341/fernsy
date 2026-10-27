@@ -38,7 +38,7 @@ struct RootScreen: View {
 
 /// The top tab bar in the design's order; tabs whose source is not signed in are left out.
 struct MainTabs: View {
-    enum Tab: Hashable { case start, live, guide, films, series, jellyfin, recordings, search, settings }
+    enum Tab: Hashable { case start, live, films, series, jellyfin, recordings, search, settings }
 
     @EnvironmentObject private var model: TVModel
     @State private var selection: Tab = .start
@@ -50,7 +50,6 @@ struct MainTabs: View {
             SwiftUI.Tab(value: Tab.start) { StartScreen() } label: { Text("Start") }
             if iptv {
                 SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
-                SwiftUI.Tab(value: Tab.guide) { GuideScreen() } label: { Text("Guide") }
                 SwiftUI.Tab(value: Tab.films) { LibraryGridScreen(kind: .movies) } label: { Text("Films") }
                 SwiftUI.Tab(value: Tab.series) { LibraryGridScreen(kind: .series) } label: { Text("Series") }
             }

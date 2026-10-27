@@ -62,12 +62,37 @@ Rejected:
 
 ### B. The column in both views; a rail in Programm
 
-The same `CategoryColumn` serves both. In Programm it collapses to a rail (about 90 pt) showing
+The same `CategoryColumn` serves both. In Programm it collapses to a rail (80 pt) showing
 the source's name, so the grid gets the width (as the Mac gives the column's width to the
-grid). When focus moves left out of the guide's channel column, the column expands over the
-grid's left edge; clicking an entry sets the source and collapses it; Right or Back collapses
-it without a change. "Alle Kategorien" opens the tiles screen from either view and returns to
+grid; the axis shrinks from 1440 to 1380 pt for it). Left from the grid reaches the rail;
+clicking it opens the column over the grid's left edge with focus on the chosen entry (All
+Channels when the source is an unpinned category); clicking an entry sets the source and
+collapses it; Right or Back collapses it without a change. Focus returns to the rail. While
+the column is open the grid and the switch are disabled, so focus stays in it.
+
+Changed while building: the plan opened the column as soon as focus reached the rail. A
+click is used instead: it matches "choosing is a click" (C), and opening on focus made
+closing land focus on the rail and open it again. "Alle Kategorien" opens the tiles screen from either view and returns to
 the view it came from with the clicked category.
+
+Pitfalls found while building it:
+- The switch's focus section must span the screen's width; as wide as its two pills, Down from
+  the tab bar went past it into the rows.
+- An accessibility identifier on the open column replaced its entries' identifiers; it is a
+  container of its own (`accessibilityElement(children: .contain)`).
+- The rail's identifier must not start with `guide.`: tests find the grid's cells by that
+  prefix.
+
+Also changed while building (seen in screenshots):
+- Left at the window's edge paged the guide an hour back and moved focus to the rail in the
+  same press. The guide now pages back only to the window it opens with (half an hour before
+  now), and the rail is disabled while the window is paged ahead; from the opening window,
+  Left goes to the rail. Shows before that window are no longer reachable; on TV they matter
+  little (rejected: a separate "earlier" control, more to learn for a rare need).
+- The open column dims the grid behind it.
+- A category chosen in All Categories and not pinned had no name anywhere in the list view;
+  the column now shows it as a selected entry after All Channels (also in the guide's column,
+  where focus starts on it).
 
 ### C. Select on click
 

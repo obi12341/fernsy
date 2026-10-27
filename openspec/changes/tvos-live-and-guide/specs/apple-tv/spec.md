@@ -50,8 +50,8 @@ SHALL play it full screen. Source and view SHALL be kept across launches.
 Live TV's Programm view SHALL show a guide grid for the chosen source: a channel column with
 logo and name, the shows on a time axis with the current time marked, past shows dimmed,
 running shows highlighted and recorded or scheduled shows marked. The category column SHALL
-narrow to a rail with the source's name and open again by moving left. Clicking a running show
-SHALL play the channel, a later one SHALL offer to record it.
+narrow to a rail with the source's name that opens the column when clicked. Clicking a running
+show SHALL play the channel, a later one SHALL offer to record it.
 
 #### Scenario: Playing from the guide
 - **WHEN** the user clicks a show that is running now
@@ -62,7 +62,7 @@ SHALL play the channel, a later one SHALL offer to record it.
 - **THEN** the show is scheduled and marked in the grid and in Aufnahmen
 
 #### Scenario: Changing the category in the guide
-- **WHEN** the user moves left from the guide's channel column and clicks "Favoriten"
+- **WHEN** the user moves left to the rail, clicks it and clicks "Favoriten"
 - **THEN** the column narrows again and the guide shows the favourite channels
 
 #### Scenario: Any category in the guide

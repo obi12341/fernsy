@@ -99,6 +99,47 @@ enum AccountFile {
     }
 }
 
+/// The channels Live TV on Apple TV shows, in its list and its guide alike
+/// (tvos-live-and-guide): one of the fixed entries of the category column or a category.
+public enum LiveSource: Hashable, Sendable {
+    case favorites, recent, all
+    case category(String)
+
+    /// For storing: "favorites", "recent", "all" or "category:<id>".
+    public var rawValue: String {
+        switch self {
+        case .favorites: "favorites"
+        case .recent: "recent"
+        case .all: "all"
+        case .category(let id): "category:\(id)"
+        }
+    }
+
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "favorites": self = .favorites
+        case "recent": self = .recent
+        case "all": self = .all
+        default:
+            guard rawValue.hasPrefix("category:"), rawValue.count > "category:".count else { return nil }
+            self = .category(String(rawValue.dropFirst("category:".count)))
+        }
+    }
+
+    /// The stored choice while it can be shown; otherwise Favourites when there are any, else
+    /// All Channels. A category that is gone, hidden or adult cannot be shown.
+    public static func resolved(_ stored: LiveSource?, hasFavorites: () -> Bool,
+                                isVisibleCategory: (String) -> Bool) -> LiveSource {
+        switch stored {
+        case .favorites?: .favorites
+        case .recent?: .recent
+        case .all?: .all
+        case .category(let id)? where isVisibleCategory(id): .category(id)
+        default: hasFavorites() ? .favorites : .all
+        }
+    }
+}
+
 /// Rules of the live lists shared by the Mac and the Apple TV app: stored keys, recently
 /// watched channels, adult detection and the zap order.
 public enum LiveRules {

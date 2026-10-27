@@ -59,6 +59,10 @@ final class TVModel: ObservableObject {
     @Published var recentChannels: [Int] = []
     @Published var visibility = ChannelVisibility()
     @Published var pinned = PinnedCategories()
+    /// Live TV's source as chosen in the category column (`liveSource` resolves it) and its
+    /// view, for the signed-in account (tvos-live-and-guide).
+    @Published var chosenLiveSource: LiveSource?
+    @Published var liveView: LiveView = .list { didSet { storeLive(liveView.rawValue, as: "live.view") } }
 
     let engine = PlayerEngine()
     let guide = EPGStore()

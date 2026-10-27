@@ -7,11 +7,11 @@ import Foundation
 /// Favourites and the history use the Mac's UserDefaults keys; the per-account values live in
 /// UserDefaults too, because tvOS keeps nothing else for sure (design D of tvos-live).
 extension TVModel {
-    /// What Live TV's category column can show.
-    enum LiveSource: Hashable {
-        case favorites, recent, all
-        case category(String)
-    }
+    /// What Live TV's category column can show (FernsyCore, with its stored form).
+    typealias LiveSource = FernsyCore.LiveSource
+
+    /// Live TV's two views over one source.
+    enum LiveView: String { case list, guide }
 
     // MARK: Loading and storing
 
@@ -22,8 +22,10 @@ extension TVModel {
     /// Reads the stored lists for the signed-in account. Test runs without the keychain keep
     /// everything in memory (they share the defaults with nothing, but stay repeatable).
     func loadLiveState() {
-        guard !Self.skipKeychain else { return }
         let defaults = UserDefaults.standard
+        if let view = liveKey("live.view").flatMap({ defaults.string(forKey: $0) }).flatMap(LiveView.init(rawValue:)) { liveView = view }
+        chosenLiveSource = liveKey("live.source").flatMap { defaults.string(forKey: $0) }.flatMap(LiveSource.init(rawValue:))
+        guard !Self.skipKeychain else { return }
         favorites = Set(defaults.stringArray(forKey: LiveRules.favoritesKey) ?? [])
         recentChannels = defaults.array(forKey: LiveRules.recentKey) as? [Int] ?? []
         visibility = ChannelVisibility.decoded(key("live.visibility").flatMap { defaults.data(forKey: $0) })
@@ -33,6 +35,31 @@ extension TVModel {
     private func store(_ data: Data?, as name: String) {
         guard !Self.skipKeychain, let key = key(name) else { return }
         UserDefaults.standard.set(data, forKey: key)
+    }
+
+    /// Live TV's source and view. Test runs keep them in memory too, unless `IPTV_KEEPLIVE=1`
+    /// (a UI test that relaunches) keeps them under their own keys.
+    private func liveKey(_ name: String) -> String? {
+        guard !Self.skipKeychain || ProcessInfo.processInfo.environment["IPTV_KEEPLIVE"] == "1" else { return nil }
+        return key(name).map { Self.skipKeychain ? "uitest.\($0)" : $0 }
+    }
+
+    func storeLive(_ value: String, as name: String) {
+        guard let key = liveKey(name) else { return }
+        UserDefaults.standard.set(value, forKey: key)
+    }
+
+    /// The source both views show: the chosen one while it can be shown, otherwise Favourites
+    /// when there are any, else All Channels.
+    var liveSource: LiveSource {
+        LiveSource.resolved(chosenLiveSource, hasFavorites: { !channels(for: .favorites).isEmpty },
+                            isVisibleCategory: { id in visibleCategories.contains { $0.id == id } })
+    }
+
+    /// A click on an entry of the category column (or a tile of All Categories).
+    func chooseLiveSource(_ source: LiveSource) {
+        chosenLiveSource = source
+        storeLive(source.rawValue, as: "live.source")
     }
 
     // MARK: Favourites and history

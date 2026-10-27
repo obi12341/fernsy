@@ -152,7 +152,8 @@ private struct CategoryTile: View {
     }
 }
 
-private struct ChipStyle: ButtonStyle {
+/// The design's filter chips (also Live TV's "List | Guide").
+struct ChipStyle: ButtonStyle {
     let selected: Bool
 
     func makeBody(configuration: Configuration) -> some View {

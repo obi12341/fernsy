@@ -107,4 +107,49 @@ extension XCTestCase {
         XCTAssertTrue(tab.hasFocus, "the \(name) tab has no focus")
         Thread.sleep(forTimeInterval: 1)   // the tab's screen follows the focus
     }
+
+    /// Live TV in the view of the switch pill `id` ("live.view.list" or "live.view.guide"),
+    /// with focus left on that pill (tvos-live-and-guide).
+    func showLiveView(_ id: String, _ app: XCUIApplication) {
+        let pill = app.buttons[id]
+        let pills = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'live.view.'"))
+        let inLiveTV = pill.exists && !app.tabBars.firstMatch.buttons.allElementsBoundByIndex.contains(where: \.hasFocus)
+        if !inLiveTV { showTab("Live TV", app) }
+        XCTAssertTrue(pill.waitForExistence(timeout: 30), "no \(id):\n\(app.debugDescription)")
+        // From the tab bar Down, from inside Live TV Up reaches the switch.
+        for _ in 0..<6 where !pills.allElementsBoundByIndex.contains(where: \.hasFocus) {
+            XCUIRemote.shared.press(inLiveTV ? .up : .down); Thread.sleep(forTimeInterval: 0.5)
+        }
+        for direction in [XCUIRemote.Button.right, .left, .right] where !pill.hasFocus {
+            XCUIRemote.shared.press(direction); Thread.sleep(forTimeInterval: 0.5)
+        }
+        XCTAssertTrue(pill.hasFocus, "\(id) has no focus:\n\(app.debugDescription)")
+        XCUIRemote.shared.press(.select)
+        XCTAssertTrue(waitUntil(5) { pill.value as? String == "selected" }, "\(id) was not selected")
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// Live TV's first channel row with focus: Down past the view switch into the column, Right
+    /// into the rows, Up to the first one.
+    @discardableResult
+    func focusFirstLiveChannel(_ app: XCUIApplication) -> XCUIElement {
+        showTab("Live TV", app)
+        let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 30), "the channel list did not appear")
+        for direction in [XCUIRemote.Button.down, .down, .right, .up, .up, .up] where !first.hasFocus {
+            XCUIRemote.shared.press(direction)
+            Thread.sleep(forTimeInterval: 0.8)
+        }
+        XCTAssertTrue(first.hasFocus, "the first channel has no focus:\n\(app.debugDescription)")
+        return first
+    }
+
+    func waitUntil(_ timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return condition()
+    }
 }

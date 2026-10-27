@@ -19,10 +19,7 @@ final class ChannelPlaybackUITests: XCTestCase {
         app.launch()
         let remote = XCUIRemote.shared
 
-        showTab("Live TV", app)
-        let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
-        XCTAssertTrue(first.waitForExistence(timeout: 30), "the channel list did not appear")
-        remote.press(.down)
+        focusFirstLiveChannel(app)
         // The focused element: SwiftUI may report a list row as a cell or as a button.
         let focused = app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch
         XCTAssertTrue(focused.waitForExistence(timeout: 5), "nothing has focus:\n\(app.debugDescription)")
