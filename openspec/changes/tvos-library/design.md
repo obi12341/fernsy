@@ -29,16 +29,28 @@ Non-goals: new library features beyond the design; Mac behavior changes.
 Apple TV name), image loading and the windows. Rejected: tvOS copies (the play-method and
 progress-reporting rules of `jellyfin-playback` are subtle and tested on the Mac).
 
+The IPTV film and series state that moves is the resume and watched store (`ResumeStore`, the
+Mac's `resume.<key>` and `watched.<key>` keys, plus `resume.<key>.at` for "last played", which
+Start sorts by) and `LibraryRules`: "Neu" means added within 14 days (the Mac has no such
+badge). The Jellyfin library cache location is set per app (`JellyfinStore.cacheBase`):
+Application Support on the Mac, Caches on Apple TV.
+
+Pitfall found with the test server: Jellyfin keeps no resume position for items shorter than its
+minimum resume duration (5 minutes by default) and marks them played instead; test films for
+resume must be longer.
+
 ### B. Device identity on Apple TV
 
-The Apple TV app sends its own stable device id (stored in its keychain) and the Apple TV's
-name, so the server lists it next to the Mac. Debug builds use a separate id, as on the Mac.
+The Apple TV app sends its own stable device id and the Apple TV's name, so the server lists it
+next to the Mac. The id is kept in UserDefaults under the Mac's keys (`jellyfin.deviceId`, debug
+`jellyfin.deviceId.debug`): UserDefaults are per device, so an Apple TV never shares the Mac's id
+even with the same bundle id. `JellyfinClient.deviceName` is set by each app at launch.
 Rejected: sharing the Mac's device id (universal purchase shares the bundle id, not the
 keychain item on another device, and a shared id signs devices out, see `dev-build-isolation`).
 
 ### C. Start merges sources by recency
 
-"Weiterschauen" merges IPTV resume entries (`ContentHistory`), Jellyfin's resume list and
+"Weiterschauen" merges IPTV resume entries (`ResumeStore`), Jellyfin's resume list and
 partly watched recordings, sorted by last played. The large entry is the newest of them.
 "Zuletzt hinzugefügt" interleaves the newest IPTV films/series and Jellyfin items by added
 date. Rejected: one row per source (the design shows one row with source badges).

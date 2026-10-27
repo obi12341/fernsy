@@ -1322,26 +1322,6 @@
         }
       }
     },
-    "Could not change “%@”: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "„%1$@“ konnte nicht geändert werden: %2$@"
-          }
-        }
-      }
-    },
-    "Could not mark “%@”: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "„%1$@“ konnte nicht markiert werden: %2$@"
-          }
-        }
-      }
-    },
     "Current Launch": {
       "localizations": {
         "de": {
@@ -1408,16 +1388,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erkannte Kategorien (%lld)"
-          }
-        }
-      }
-    },
-    "Direct (original file)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Direkt (Originaldatei)"
           }
         }
       }
@@ -2038,16 +2008,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jellyfin-Sitzung abgelaufen"
-          }
-        }
-      }
-    },
-    "Jellyfin could not transcode the title: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jellyfin konnte den Titel nicht umwandeln: %@"
           }
         }
       }
@@ -4042,16 +4002,6 @@
         }
       }
     },
-    "Subtitles could not be loaded: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Untertitel konnten nicht geladen werden: %@"
-          }
-        }
-      }
-    },
     "Switch Channel": {
       "localizations": {
         "de": {
@@ -4118,16 +4068,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sagt, was gerade auf deinen Lieblingssendern läuft."
-          }
-        }
-      }
-    },
-    "The Jellyfin session has expired.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Jellyfin-Sitzung ist abgelaufen."
           }
         }
       }
@@ -4308,16 +4248,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Morgen"
-          }
-        }
-      }
-    },
-    "Transcoding (Jellyfin)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Transcoding (Jellyfin)"
           }
         }
       }

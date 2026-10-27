@@ -2,7 +2,7 @@
 
 ## 1. Shared code
 
-- [ ] 1.1 Jellyfin client and store into `FernsyCore`, Jellyfin playback into `FernsyPlayer`, the search index and the IPTV film/series state into `FernsyCore` (design A), with tests. Verify: `scripts/test.sh --tvos-sim` passes; Mac regression on the Docker Jellyfin (127.0.0.1:8097): play, resume, progress on the server, next-episode countdown; Mac search finds channels, films and series as before; Debug, Direct and Release with 0 warnings.
+- [x] 1.1 Jellyfin client and store into `FernsyCore`, Jellyfin playback into `FernsyPlayer`, the search index and the IPTV film/series state into `FernsyCore` (design A), with tests. Verify: `scripts/test.sh --tvos-sim` passes; Mac regression on the Docker Jellyfin (127.0.0.1:8097): play, resume, progress on the server, next-episode countdown; Mac search finds channels, films and series as before; Debug, Direct and Release with 0 warnings.
 - [ ] 1.2 Device identity per design B. Verify: after an Apple TV debug sign-in the Docker Jellyfin's devices list shows the Apple TV debug device next to the Mac's, and the Mac's session stays signed in.
 
 ## 2. Navigation and sign-in

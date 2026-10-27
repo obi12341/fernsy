@@ -91,12 +91,32 @@
         }
       }
     },
+    "Direct (original file)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direkt (Originaldatei)"
+          }
+        }
+      }
+    },
     "Dolby Vision %@ is not supported on this Mac": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Dolby Vision %@ wird auf diesem Mac nicht unterstützt"
+          }
+        }
+      }
+    },
+    "Jellyfin could not transcode the title: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin konnte den Titel nicht umwandeln: %@"
           }
         }
       }
@@ -291,12 +311,32 @@
         }
       }
     },
+    "Subtitles could not be loaded: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel konnten nicht geladen werden: %@"
+          }
+        }
+      }
+    },
     "Switch and Record": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Umschalten und aufnehmen"
+          }
+        }
+      }
+    },
+    "The Jellyfin session has expired.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Jellyfin-Sitzung ist abgelaufen."
           }
         }
       }
@@ -361,6 +401,16 @@
         }
       }
     },
+    "Transcoding (Jellyfin)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcoding (Jellyfin)"
+          }
+        }
+      }
+    },
     "VideoToolbox (Dolby Vision)": {
       "localizations": {
         "de": {
@@ -387,6 +437,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dein Zugang erlaubt %lld Stream(s) gleichzeitig, deshalb ist weniger Puffer möglich:"
+          }
+        }
+      }
+    },
+    "external": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "extern"
           }
         }
       }

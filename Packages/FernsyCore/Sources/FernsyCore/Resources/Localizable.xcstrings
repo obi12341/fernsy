@@ -11,6 +11,26 @@
         }
       }
     },
+    "Could not change “%@”: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%1$@“ konnte nicht geändert werden: %2$@"
+          }
+        }
+      }
+    },
+    "Could not mark “%@”: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%1$@“ konnte nicht markiert werden: %2$@"
+          }
+        }
+      }
+    },
     "Episode": {
       "localizations": {
         "de": {
