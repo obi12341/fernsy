@@ -1298,66 +1298,16 @@ struct StatsOverlay: View {
         .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
     }
 
+    /// The rows shared with the Apple TV (FernsyCore `StreamInfo`).
     private var grid: some View {
         Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
-            if let method = stats.playMethod { row("Playback", method) }
-            row("Container", stats.container)
-            row("Video", stats.videoCodec)
-            row("Resolution", stats.resolution)
-            row("Frame rate", stats.frameRate > 0 ? String(format: "%.2f fps", stats.frameRate) : "–")
-            row("Decoder", stats.decoder)
-            row("Pixel format", stats.pixelFormat)
-            row("Dynamic range", stats.dynamicRange)
-            row("Deinterlacing", stats.deinterlace.isEmpty ? "–" : stats.deinterlace)
-            row("Audio", stats.audio)
-            row("Bit rate", String(format: "%.1f Mbit/s", stats.bitrateMbps))
-            Divider().overlay(.white.opacity(0.25)).gridCellColumns(2)
-            row("Buffer", bufferText)
-            if let stored = stats.timeshiftStored {
-                row("Timeshift buffer", String(localized: "\(formatTime(stored)) stored"))
+            ForEach(StreamInfo.rows(stats, averageMbps: history.averageMbps), id: \.label) { row in
+                if row.startsSection { Divider().overlay(.white.opacity(0.25)).gridCellColumns(2) }
+                GridRow {
+                    Text(verbatim: row.label).foregroundStyle(.white.opacity(0.6))
+                    Text(verbatim: row.value)
+                }
             }
-            row("Connection", stats.connectTime > 0 ? String(format: String(localized: "%.0f ms to first response"), stats.connectTime * 1000) : "")
-            row("Startup", stats.startupTime > 0 ? String(format: String(localized: "%.1f s to first frame"), stats.startupTime) : "")
-            row("Reconnects", reconnectText)
-            row("Rebuffers", "\(stats.rebuffers)")
-            row("Dropped", String(localized: "\(stats.droppedFrames) frames") + (stats.duplicatesDropped > 0 ? " · " + String(localized: "\(stats.duplicatesDropped) duplicates") : ""))
-            if stats.decodeFailures > 0 {
-                row("Decode errors", String(localized: "\(stats.decodeFailures) frames"))
-            }
-        }
-    }
-
-    private var bufferText: String {
-        if let ahead = stats.timeshiftAhead {
-            let disk = ahead >= 60 ? formatTime(ahead) : String(format: "%.1f s", ahead)
-            return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "Disk \(disk)")
-        }
-        let network = Double(stats.networkBufferBytes)
-        let networkText = network >= 1_000_000 ? String(format: "%.1f MB", network / 1_000_000) : String(format: "%.0f KB", network / 1000)
-        // Network bytes in seconds at the average data rate, when it is known.
-        let rate = history.averageMbps * 125_000
-        let networkSeconds = rate > 0 ? String(format: " ≈ %.1f s", network / rate) : ""
-        return String(format: "%.1f s", stats.bufferSeconds) + " + " + String(localized: "network \(networkText)\(networkSeconds)")
-    }
-
-    private var reconnectText: String {
-        var parts = [String(localized: "\(stats.seamlessReconnects) seamless")]
-        if stats.restarts > 0 { parts.append(String(localized: "\(stats.restarts) restarts")) }
-        var text = parts.joined(separator: " · ")
-        if stats.isReconnecting {
-            text += " · " + String(localized: "connecting…")
-        } else if let at = stats.lastReconnectAt {
-            let ago = Int(Date().timeIntervalSince(at))
-            let when = ago < 60 ? String(localized: "\(ago) s ago") : String(localized: "\(ago / 60) min ago")
-            text += "\n" + String(localized: "last \(when): \(stats.lastReconnectReason ?? "")")
-        }
-        return text
-    }
-
-    private func row(_ label: LocalizedStringKey, _ value: String) -> some View {
-        GridRow {
-            Text(label).foregroundStyle(.white.opacity(0.6))
-            Text(value.isEmpty ? "–" : value)
         }
     }
 }

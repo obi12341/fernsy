@@ -229,6 +229,7 @@ private struct JellyfinAccountScreen: View {
 private struct PlaybackSettingsScreen: View {
     @AppStorage(TrackPreferences.audioKey) private var audioLanguage = ""
     @AppStorage(TrackPreferences.subtitlesKey) private var subtitles = "off"
+    @AppStorage(StreamInfoSetting.key) private var showStreamInfo = false
 
     var body: some View {
         SettingsPage(title: "Playback") {
@@ -244,6 +245,12 @@ private struct PlaybackSettingsScreen: View {
                 ChoiceRow(title: Text(verbatim: LanguageChoice.name(code)), chosen: subtitles == code) { subtitles = code }
             }
             Text("Applies when playback starts, if the channel has the track.")
+                .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
+            Text("PLAYER").font(.system(size: 20, weight: .bold)).tracking(1.4).opacity(0.5).padding(.horizontal, 28).padding(.top, 24)
+            ChoiceRow(title: Text("Technical Info"), chosen: showStreamInfo) { showStreamInfo.toggle() }
+                .accessibilityIdentifier("settings.streamInfo")
+                .accessibilityValue(showStreamInfo ? "on" : "off")
+            Text("Shows codec, decoder, buffer, reconnects and a buffer chart in the player, to look into stutters.")
                 .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
         }
     }

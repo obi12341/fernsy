@@ -42,26 +42,6 @@
         }
       }
     },
-    "%.0f ms to first response": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%.0f ms bis Antwort"
-          }
-        }
-      }
-    },
-    "%.1f s to first frame": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%.1f s bis zum Bild"
-          }
-        }
-      }
-    },
     "%@": {
       "localizations": {
         "de": {
@@ -78,16 +58,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ liefert gerade kein Bild. Das liegt am Anbieter, nicht an deiner Verbindung."
-          }
-        }
-      }
-    },
-    "%@ stored": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ gespeichert"
           }
         }
       }
@@ -202,86 +172,6 @@
         }
       }
     },
-    "%lld duplicates": {
-      "localizations": {
-        "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Duplikat"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Duplikate"
-                }
-              }
-            }
-          }
-        },
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld duplicate"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld duplicates"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "%lld frames": {
-      "localizations": {
-        "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Frame"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Frames"
-                }
-              }
-            }
-          }
-        },
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld frame"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld frames"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld gaps, %@ in total – %@": {
       "localizations": {
         "de": {
@@ -332,16 +222,6 @@
         }
       }
     },
-    "%lld min ago": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "vor %lld min"
-          }
-        }
-      }
-    },
     "%lld min left": {
       "localizations": {
         "de": {
@@ -362,46 +242,6 @@
         }
       }
     },
-    "%lld restarts": {
-      "localizations": {
-        "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Neustart"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Neustarts"
-                }
-              }
-            }
-          }
-        },
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld restart"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld restarts"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld running": {
       "localizations": {
         "de": {
@@ -418,26 +258,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld s"
-          }
-        }
-      }
-    },
-    "%lld s ago": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "vor %lld s"
-          }
-        }
-      }
-    },
-    "%lld seamless": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld nahtlos"
           }
         }
       }
@@ -932,26 +752,6 @@
         }
       }
     },
-    "Bit rate": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Datenrate"
-          }
-        }
-      }
-    },
-    "Buffer": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Puffer"
-          }
-        }
-      }
-    },
     "Buffer %@ h": {
       "localizations": {
         "de": {
@@ -1242,26 +1042,6 @@
         }
       }
     },
-    "Connection": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbindung"
-          }
-        }
-      }
-    },
-    "Container": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Container"
-          }
-        }
-      }
-    },
     "Continue Watching": {
       "localizations": {
         "de": {
@@ -1332,36 +1112,6 @@
         }
       }
     },
-    "Decode errors": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Decodierfehler"
-          }
-        }
-      }
-    },
-    "Decoder": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dekoder"
-          }
-        }
-      }
-    },
-    "Deinterlacing": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deinterlacing"
-          }
-        }
-      }
-    },
     "Delete": {
       "localizations": {
         "de": {
@@ -1412,42 +1162,12 @@
         }
       }
     },
-    "Disk %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Platte %@"
-          }
-        }
-      }
-    },
     "Done": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Fertig"
-          }
-        }
-      }
-    },
-    "Dropped": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verworfen"
-          }
-        }
-      }
-    },
-    "Dynamic range": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dynamik"
           }
         }
       }
@@ -1758,16 +1478,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "10 s vor (→)"
-          }
-        }
-      }
-    },
-    "Frame rate": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bildrate"
           }
         }
       }
@@ -2852,16 +2562,6 @@
         }
       }
     },
-    "Pixel format": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pixelformat"
-          }
-        }
-      }
-    },
     "Play": {
       "localizations": {
         "de": {
@@ -3042,16 +2742,6 @@
         }
       }
     },
-    "Rebuffers": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pufferungen"
-          }
-        }
-      }
-    },
     "Receive nightly builds": {
       "localizations": {
         "de": {
@@ -3098,16 +2788,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verbindung wird wiederhergestellt …"
-          }
-        }
-      }
-    },
-    "Reconnects": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reconnects"
           }
         }
       }
@@ -3428,16 +3108,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Geplante Aufnahme entfernen"
-          }
-        }
-      }
-    },
-    "Resolution": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auflösung"
           }
         }
       }
@@ -3922,16 +3592,6 @@
         }
       }
     },
-    "Startup": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Startzeit"
-          }
-        }
-      }
-    },
     "Status": {
       "localizations": {
         "de": {
@@ -4222,16 +3882,6 @@
         }
       }
     },
-    "Timeshift buffer": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zeitpuffer"
-          }
-        }
-      }
-    },
     "Today": {
       "localizations": {
         "de": {
@@ -4378,16 +4028,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version %lld"
-          }
-        }
-      }
-    },
-    "Video": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video"
           }
         }
       }
@@ -4582,16 +4222,6 @@
         }
       }
     },
-    "connecting…": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "verbindet …"
-          }
-        }
-      }
-    },
     "external": {
       "localizations": {
         "de": {
@@ -4632,16 +4262,6 @@
         }
       }
     },
-    "last %@: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "zuletzt %1$@: %2$@"
-          }
-        }
-      }
-    },
     "macOS still has to allow opening at login.": {
       "localizations": {
         "de": {
@@ -4668,16 +4288,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "verpasst · Fernsy war nicht geöffnet"
-          }
-        }
-      }
-    },
-    "network %@%@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Netz %1$@%2$@"
           }
         }
       }

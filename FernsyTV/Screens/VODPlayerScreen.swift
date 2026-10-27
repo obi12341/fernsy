@@ -19,6 +19,7 @@ struct VODPlayerScreen: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
+            StreamInfoPanel(engine: model.engine)
             if let item = model.playingVOD {
                 if showsOverlay || countdown != nil {
                     LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .bottom, endPoint: .top)

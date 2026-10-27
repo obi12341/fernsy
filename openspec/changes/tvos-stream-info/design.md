@@ -33,9 +33,10 @@ Rejected:
 - **Debug builds only**: the point is to look into problems on a real Apple TV with the
   Release build, like the Mac's I key that every user has.
 
-### B. Rows in `FernsyPlayer`
+### B. Rows in `FernsyCore`
 
-A `StreamInfo` type in `FernsyPlayer` turns `PlayerStats` (and the status) into an ordered
+A `StreamInfo` type in `FernsyCore` (changed while building: the plan said `FernsyPlayer`, but
+`PlaybackStats` lives in FernsyCore and only FernsyCore has a test target) turns `PlayerStats` (and the status) into an ordered
 list of label/value pairs, with labels and formats localized in the package's string catalog.
 The Mac's `StatsOverlay` and the TV panel both render that list; each platform keeps its own
 view, sizes and chart styling. The chart's data comes from the engine's `BufferHistory`, which
@@ -48,7 +49,10 @@ fit 10-foot viewing).
 ### C. Placement on TV
 
 Top-right, inside the safe area, under the player overlay in z-order, `allowsHitTesting(false)`
-and not focusable, so focus and the remote behave as without it.
+and not focusable, so focus and the remote behave as without it. It sits 120 pt from the top,
+below the live player's recording badge, and is sized (17 pt monospaced, chart 100 pt high) so
+it ends above the film player's progress bar. The chart is the Mac's `BufferChart` at TV size
+(`TVBufferChart`); tvOS ignores a font set on the whole chart, so the axis labels carry it.
 
 ## Risks / Trade-offs
 

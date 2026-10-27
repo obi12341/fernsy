@@ -200,6 +200,7 @@ struct RecordingPlayerScreen: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
+            StreamInfoPanel(engine: model.engine)
             if showsOverlay, let recording = model.playingRecording {
                 LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .bottom, endPoint: .top)
                     .frame(height: 420).frame(maxHeight: .infinity, alignment: .bottom).ignoresSafeArea()
