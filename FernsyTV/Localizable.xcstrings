@@ -113,6 +113,16 @@
         }
       }
     },
+    "%lld s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld s"
+          }
+        }
+      }
+    },
     "%lld · On now": {
       "localizations": {
         "de": {
@@ -293,6 +303,16 @@
         }
       }
     },
+    "Buffer, last 2 min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puffer, letzte 2 min"
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "de": {
@@ -409,6 +429,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diktieren mit der Siri-Taste · Eingabe über das iPhone möglich"
+          }
+        }
+      }
+    },
+    "Disk": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platte"
           }
         }
       }
@@ -803,6 +833,16 @@
         }
       }
     },
+    "Net": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netz"
+          }
+        }
+      }
+    },
     "New": {
       "localizations": {
         "de": {
@@ -933,6 +973,16 @@
         }
       }
     },
+    "now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jetzt"
+          }
+        }
+      }
+    },
     "NOW · %@": {
       "localizations": {
         "de": {
@@ -1053,6 +1103,26 @@
         }
       }
     },
+    "Player": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Player"
+          }
+        }
+      }
+    },
+    "PLAYER": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PLAYER"
+          }
+        }
+      }
+    },
     "Playing": {
       "localizations": {
         "de": {
@@ -1069,6 +1139,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bewertung"
+          }
+        }
+      }
+    },
+    "Rebuffer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pufferung"
           }
         }
       }
@@ -1099,6 +1179,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zuletzt gesehen"
+          }
+        }
+      }
+    },
+    "Reconnect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnect"
           }
         }
       }
@@ -1189,6 +1279,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kein Favorit mehr"
+          }
+        }
+      }
+    },
+    "Restart": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neustart"
           }
         }
       }
@@ -1349,6 +1449,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "Shows codec, decoder, buffer, reconnects and a buffer chart in the player, to look into stutters.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt im Player Codec, Decoder, Puffer, Reconnects und ein Puffer-Diagramm, um Ruckler zu untersuchen."
           }
         }
       }
@@ -1529,6 +1639,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Systemsprache"
+          }
+        }
+      }
+    },
+    "Technical Info": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technische Infos"
           }
         }
       }

@@ -98,6 +98,10 @@ extension XCTestCase {
         let tab = app.tabBars.firstMatch.buttons[name]
         XCTAssertTrue(tab.waitForExistence(timeout: timeout), "no \(name) tab:\n\(app.debugDescription)")
         let tabs = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.map(\.label)
+        // Focus inside a screen: Back reaches the tab bar.
+        for _ in 0..<2 where !app.tabBars.firstMatch.buttons.allElementsBoundByIndex.contains(where: \.hasFocus) {
+            XCUIRemote.shared.press(.menu); Thread.sleep(forTimeInterval: 0.6)
+        }
         for _ in 0..<12 where !tab.hasFocus {
             let focused = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.firstIndex { $0.hasFocus } ?? 0
             let target = tabs.firstIndex(of: name) ?? 0

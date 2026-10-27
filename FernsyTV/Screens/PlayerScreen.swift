@@ -36,6 +36,7 @@ struct PlayerScreen: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
+            StreamInfoPanel(engine: model.engine)
             if mode != .hidden {
                 LinearGradient(colors: [.black.opacity(mode == .strip ? 0.78 : 0.7), .clear], startPoint: .bottom, endPoint: .top)
                     .frame(height: mode == .strip ? 560 : 520)

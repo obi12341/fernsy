@@ -1,12 +1,252 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%.0f ms to first response": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.0f ms bis Antwort"
+          }
+        }
+      }
+    },
+    "%.1f s to first frame": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f s bis zum Bild"
+          }
+        }
+      }
+    },
+    "%@ stored": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ gespeichert"
+          }
+        }
+      }
+    },
     "%lld audio channels": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld Kanäle"
+          }
+        }
+      }
+    },
+    "%lld duplicates": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Duplikat"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Duplikate"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld duplicate"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld duplicates"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld frames": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Frame"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Frames"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld frame"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld frames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld min ago": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vor %lld min"
+          }
+        }
+      }
+    },
+    "%lld restarts": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Neustart"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Neustarts"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld restart"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld restarts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld s ago": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vor %lld s"
+          }
+        }
+      }
+    },
+    "%lld seamless": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld nahtlos"
+          }
+        }
+      }
+    },
+    "Audio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio"
+          }
+        }
+      }
+    },
+    "Bit rate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datenrate"
+          }
+        }
+      }
+    },
+    "Buffer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puffer"
+          }
+        }
+      }
+    },
+    "connecting…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verbindet …"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung"
+          }
+        }
+      }
+    },
+    "Container": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Container"
           }
         }
       }
@@ -31,12 +271,82 @@
         }
       }
     },
+    "Decode errors": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decodierfehler"
+          }
+        }
+      }
+    },
+    "Decoder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dekoder"
+          }
+        }
+      }
+    },
+    "Deinterlacing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deinterlacing"
+          }
+        }
+      }
+    },
+    "Disk %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platte %@"
+          }
+        }
+      }
+    },
+    "Dropped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verworfen"
+          }
+        }
+      }
+    },
+    "Dynamic range": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dynamik"
+          }
+        }
+      }
+    },
     "Episode": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Episode"
+          }
+        }
+      }
+    },
+    "Frame rate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildrate"
           }
         }
       }
@@ -51,12 +361,82 @@
         }
       }
     },
+    "last %@: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zuletzt %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "network %@%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netz %1$@%2$@"
+          }
+        }
+      }
+    },
     "No Jellyfin server was found at this address.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Unter dieser Adresse wurde kein Jellyfin-Server gefunden."
+          }
+        }
+      }
+    },
+    "Pixel format": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pixelformat"
+          }
+        }
+      }
+    },
+    "Playback": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabe"
+          }
+        }
+      }
+    },
+    "Rebuffers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pufferungen"
+          }
+        }
+      }
+    },
+    "Reconnects": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnects"
+          }
+        }
+      }
+    },
+    "Resolution": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auflösung"
           }
         }
       }
@@ -77,6 +457,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anmeldung fehlgeschlagen – Benutzername oder Passwort falsch"
+          }
+        }
+      }
+    },
+    "Startup": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startzeit"
           }
         }
       }
@@ -111,6 +501,16 @@
         }
       }
     },
+    "Timeshift buffer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitpuffer"
+          }
+        }
+      }
+    },
     "Untitled": {
       "localizations": {
         "de": {
@@ -127,6 +527,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Benutzername oder Passwort ist falsch."
+          }
+        }
+      }
+    },
+    "Video": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video"
           }
         }
       }
