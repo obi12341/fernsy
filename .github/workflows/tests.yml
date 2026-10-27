@@ -113,3 +113,13 @@ jobs:
 
       - name: Apple TV app and UI test
         run: scripts/tv-uitest.sh
+
+      # The result bundle (failure messages with the element tree, screenshots, the screen
+      # recording and the app log) for a failing UI test; the log shows only the first lines.
+      - name: Upload the UI test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: apple-tv-uitest-results
+          path: build/tv/Logs/uitest-*.xcresult
+          retention-days: 7

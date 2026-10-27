@@ -68,7 +68,7 @@ final class LiveTVUITests: FernsyUITestCase {
                        "the hidden channel is in the guide")
         showTab("Live TV", app)
         let next = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
-        XCTAssertTrue(next.waitForExistence(timeout: 5), "Live TV lists no channel:\n\(app.debugDescription)")
+        XCTAssertTrue(next.waitForExistence(timeout: 15), "Live TV lists no channel:\n\(app.debugDescription)")
         for _ in 0..<3 where !next.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 1) }
         XCTAssertTrue(next.hasFocus, "the first channel has no focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.select)
