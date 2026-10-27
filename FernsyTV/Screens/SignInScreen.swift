@@ -1,33 +1,188 @@
 import FernsyCore
 import SwiftUI
 
-/// Placeholder: the provider's server, username and password.
-struct SignInScreen: View {
+/// First launch (design screen `login`): what Fernsy is and which account to add. The
+/// Jellyfin card comes with tvos-library.
+struct WelcomeScreen: View {
+    @State private var showIPTV = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                RadialGradient(colors: [Color(hex: 0xE88C6E, opacity: 0.28), Color(hex: 0x9650A0, opacity: 0.18), .clear],
+                               center: UnitPoint(x: 0.5, y: 1.2), startRadius: 0, endRadius: 1100)
+                    .ignoresSafeArea()
+                VStack(spacing: 22) {
+                    Image("FernsyIcon").resizable().frame(width: 170, height: 170)
+                    Text("Welcome to Fernsy")
+                        .font(.system(size: 60, weight: .bold))
+                    Text("What would you like to connect? You can add more accounts later in Settings.")
+                        .font(.system(size: 26))
+                        .foregroundStyle(TVTheme.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(8)
+                        .frame(maxWidth: 900)
+                    HStack(spacing: 48) {
+                        Button { showIPTV = true } label: {
+                            AccountTypeCard(symbol: "dot.radiowaves.left.and.right", title: "IPTV Account",
+                                            detail: "Live TV, guide, films and series from your provider (Xtream Codes).")
+                        }
+                        .buttonStyle(TVTileStyle(radius: 28, scale: 1.06))
+                        .accessibilityIdentifier("welcome.iptv")
+                    }
+                    .padding(.top, 80)
+                    Spacer()
+                    Text("Fernsy brings no content. You need your own account with a provider or a Jellyfin server.")
+                        .font(.system(size: 20))
+                        .foregroundStyle(TVTheme.tertiary)
+                }
+                .padding(.top, 50)
+                .padding(.bottom, 20)
+            }
+            .foregroundStyle(TVTheme.text)
+            .navigationDestination(isPresented: $showIPTV) { IPTVSignInScreen() }
+        }
+    }
+}
+
+private struct AccountTypeCard: View {
+    let symbol: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Image(systemName: symbol)
+                .font(.system(size: 30))
+                .frame(width: 64, height: 64)
+                .foregroundStyle(focused ? TVTheme.accent : TVTheme.accentSoft)
+                .background(focused ? TVTheme.accent.opacity(0.14) : TVTheme.accentLight.opacity(0.18), in: .rect(cornerRadius: 18))
+            Text(title).font(.system(size: 34, weight: .bold))
+            Text(detail).font(.system(size: 22)).lineSpacing(6).opacity(0.72)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(40)
+        .frame(width: 520, alignment: .leading)
+    }
+}
+
+/// The IPTV form (design screen `login2`): server, username, password; typing works from the
+/// iPhone through tvOS' keyboard notification. "Try the Demo" signs in to the demo server.
+struct IPTVSignInScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var server = ""
     @State private var username = ""
     @State private var password = ""
+    @FocusState private var focus: Field?
+
+    private enum Field { case server, username, password, submit }
+
+    static let demo = XtreamCredentials(server: "https://fernsy-demo.mobilistics.workers.dev", username: "demo", password: "demo")
+
+    private var busy: Bool { model.signIn == .signingIn }
 
     var body: some View {
-        VStack(spacing: 30) {
-            Text("Fernsy").font(.largeTitle.bold())
-            TextField("Server address", text: $server)
-                .textContentType(.URL)
-                .accessibilityIdentifier("signin.server")
-            TextField("Username", text: $username)
-                .textContentType(.username)
-                .accessibilityIdentifier("signin.username")
-            SecureField("Password", text: $password)
-                .accessibilityIdentifier("signin.password")
-            Button("Sign In") {
-                Task { await model.signIn(XtreamCredentials(server: server, username: username, password: password)) }
+        HStack(alignment: .center, spacing: 150) {
+            VStack(alignment: .leading, spacing: 22) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.system(size: 40))
+                    .foregroundStyle(TVTheme.accentSoft)
+                    .frame(width: 84, height: 84)
+                    .background(TVTheme.accentLight.opacity(0.18), in: .rect(cornerRadius: 24))
+                Text("Add IPTV Account")
+                    .font(.system(size: 54, weight: .bold))
+                Text("You find these details in your provider’s email under “Xtream Codes”. They are kept in the keychain.")
+                    .font(.system(size: 24))
+                    .lineSpacing(8)
+                    .foregroundStyle(TVTheme.secondary)
+                HStack(spacing: 18) {
+                    Image(systemName: "iphone")
+                        .font(.system(size: 28))
+                        .frame(width: 56, height: 56)
+                        .background(Color.white.opacity(0.12), in: .rect(cornerRadius: 14))
+                    Text("A notification appears on your iPhone. With it you can type or paste the address and password.")
+                        .font(.system(size: 21))
+                        .lineSpacing(6)
+                        .foregroundStyle(TVTheme.text.opacity(0.8))
+                }
+                .padding(24)
+                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 20))
+                .padding(.top, 16)
             }
-            .disabled(server.isEmpty || username.isEmpty || password.isEmpty)
-            .accessibilityIdentifier("signin.submit")
-            if case .failed(let message) = model.signIn {
-                Text(message).foregroundStyle(.red).accessibilityIdentifier("signin.error")
+            .frame(width: 640)
+
+            VStack(alignment: .leading, spacing: 18) {
+                FormField(label: "Server Address", text: $server, isFocused: focus == .server) {
+                    TextField("", text: $server).textContentType(.URL).keyboardType(.URL)
+                        .focused($focus, equals: .server).accessibilityIdentifier("signin.server")
+                }
+                FormField(label: "Username", text: $username, isFocused: focus == .username) {
+                    TextField("", text: $username).textContentType(.username)
+                        .focused($focus, equals: .username).accessibilityIdentifier("signin.username")
+                }
+                FormField(label: "Password", text: $password, isFocused: focus == .password) {
+                    SecureField("", text: $password).textContentType(.password)
+                        .focused($focus, equals: .password).accessibilityIdentifier("signin.password")
+                        // Down lands on "Sign In", not on the closer demo button.
+                        .onMoveCommand { if $0 == .down { focus = .submit } }
+                }
+                if case .failed(let message) = model.signIn {
+                    Text(message)
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(TVTheme.warning)
+                        .accessibilityIdentifier("signin.error")
+                }
+                HStack(spacing: 20) {
+                    Button {
+                        Task { await model.signIn(XtreamCredentials(server: server, username: username, password: password)) }
+                    } label: {
+                        if busy { ProgressView() } else { Text("Sign In") }
+                    }
+                    .buttonStyle(TVPillStyle())
+                    .disabled(server.isEmpty || username.isEmpty || password.isEmpty || busy)
+                    .focused($focus, equals: .submit)
+                    .accessibilityIdentifier("signin.submit")
+                    Button("Try the Demo") {
+                        Task { await model.signIn(Self.demo) }
+                    }
+                    .buttonStyle(TVPillStyle(prominent: false))
+                    .disabled(busy)
+                    .accessibilityIdentifier("signin.demo")
+                }
+                .padding(.top, 16)
             }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: 900)
+        .padding(.horizontal, 90)
+        .foregroundStyle(TVTheme.text)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(TVTheme.background)
+    }
+}
+
+/// A form field of the design: a small label over the value, light while focused.
+private struct FormField<Field: View>: View {
+    let label: LocalizedStringKey
+    @Binding var text: String
+    let isFocused: Bool
+    @ViewBuilder let field: Field
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.system(size: 18, weight: .semibold)).opacity(0.6)
+            field
+                .textFieldStyle(.plain)
+                .font(.system(size: 27, weight: .medium))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+        }
+        .padding(.horizontal, 30)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+        .foregroundStyle(isFocused ? TVTheme.focusedText : TVTheme.text)
+        .background(isFocused ? TVTheme.focused : TVTheme.tile, in: .rect(cornerRadius: 18))
+        .scaleEffect(isFocused ? 1.05 : 1)
+        .shadow(color: .black.opacity(isFocused ? 0.5 : 0), radius: 20, y: 20)
+        .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 }

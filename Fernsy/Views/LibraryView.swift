@@ -1,4 +1,5 @@
 import FernsyCore
+import FernsyPlayer
 import SwiftUI
 
 /// Pseudo category id for "everything in this section".

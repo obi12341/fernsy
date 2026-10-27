@@ -412,26 +412,49 @@ purchase): Release `de.mobilistics.fernsy` ("Fernsy"), Debug `de.mobilistics.fer
 ("Fernsy Dev", icon with the DEV band). Icons: `swift scripts/make-tv-icons.swift`, a stand-in
 built from the Mac icon. It is not shipped yet.
 
-`TVModel` (`FernsyTV/Model/TVModel.swift`) is everything the screens read: the account
-(sign-in via `XtreamClient`, keychain via `CredentialStore`), the live categories and channels
-(a JSON cache in Caches, which tvOS may delete), the guide (`EPGStore`) and playback
-(`TunerPool`, `PlayerEngine`; timeshift capped at 30 minutes in Caches). tvOS has no lasting
-local storage, so there are no recordings.
+`TVModel` (`FernsyTV/Model/`) is everything the screens read: the account (sign-in via
+`XtreamClient`, keychain via `CredentialStore`), the live categories and channels (a JSON cache
+in Caches, which tvOS may delete), the guide (`EPGStore`), playback (`TunerPool`,
+`PlayerEngine`; timeshift capped at 30 minutes in Caches) and, in its extensions, the live
+lists (`TVModel+Live.swift`: favourites, recently watched, hidden and pinned categories with
+the Mac's rules from `LiveRules`) and recordings (`TVModel+Recordings.swift`, the
+`RecorderHost` of the shared `Recorder`).
 
-**Screen slots.** `FernsyTV/Screens/` has deliberately plain placeholders that the designed
-screens replace one by one, without touching the model:
+tvOS keeps nothing for sure except UserDefaults (about 500 KB): favourites and history use the
+Mac's keys, hidden and pinned categories are stored per account as `live.visibility.<account>`
+and `live.pinned.<account>`. Recordings and their list live in `Caches/Recordings/<account>/`;
+tvOS may purge them, and entries whose file is gone are dropped at launch. Recordings run only
+while the app is open: the idle timer is off during one, leaving the app stops it and keeps what
+was recorded, a schedule that passed while the app was closed shows as missed, and below 2 GB
+free a recording does not start.
 
-| Slot | Shows | Reads from `TVModel` |
+**Screens** (`FernsyTV/Screens/`, from the Claude Design file `AppleTV.dc.html`; colours and focus
+styles in `FernsyTV/Design/TVTheme.swift`; the design is 1920×1080, the Apple TV's size in points):
+
+| Screen | Design screen | Shows |
 |---|---|---|
-| `RootScreen` | switches between the others | `signIn`, `playing` |
-| `SignInScreen` | server, username, password | `signIn(_:)`, `signIn` (state and error) |
-| `ChannelListScreen` | channels by category with the show that runs now | `categories`, `channels(in:)`, `loadGuide(for:)`, `currentShow(on:)`, `guide`, `play(_:)` |
-| `PlayerScreen` | the picture full screen with an overlay | `playing`, `engine` (state), `togglePause()`, `skip(by:)`, `goLive()`, `stop()` |
+| `RootScreen` (`MainTabs`) | – | welcome without an account, else the tab bar: Live TV, Guide, Recordings, gear |
+| `SignInScreen` (`WelcomeScreen`, `IPTVSignInScreen`) | `login`, `login2` | account choice, IPTV form, "Try the Demo" |
+| `ChannelListScreen` | `live` | category column, channel rows, pane with preview and now/next, long-press menu |
+| `AllCategoriesScreen` | `kategorien` | category tiles with country chips, search, pin and hide |
+| `GuideScreen` | `guide` | three hours per source on a time axis, play or record |
+| `PlayerScreen` | `player`, `zap` | overlay with tabs and timeline, channel strip |
+| `RecordingsScreen` (and `RecordingPlayerScreen`) | `aufnahmen` | running, scheduled, recorded; playback with resume |
+| `SettingsScreen` | `einstellungen` | account, add account, playback languages, padding, log, version |
+
+Films, series, Jellyfin, Start and search follow in change `tvos-library`.
 
 The picture comes from `FernsyTV/Player/TVVideoSurface.swift`, which hosts the engine's display
-layer. Keep the accessibility identifiers the UI test uses: `channel.<id>` on each channel row
-and `player.state` on the player, its value `playing`, `paused` or `loading`. Remote in the
-placeholder player: Play/Pause pauses, Left −10 s, Right +10 s, Down back to live, Back closes.
+layer; Live TV's preview and the player share the engine and the connection, so clicking a
+previewed row continues full screen. Remote in the player: a click or swipe shows the overlay,
+Left/Right ±10 s, Down the channel strip, Up the tabs, a click with the overlay goes back to
+live, Play/Pause pauses, Back closes.
+
+UI test identifiers: `channel.<id>` on channel rows, `guide.<channel>.<start epoch>` on guide
+cells (value `scheduled` when planned), `strip.<id>` in the channel strip, `recording.<uuid>` on
+recording cards (value: the status), `player.state` (value `playing`, `paused`, `loading`),
+`player.behind`, `live.preview`, `live.allCategories`, `category.<id>`, `settings.*`,
+`signin.*`, `welcome.iptv`.
 
 **Run it.** `scripts/tv-run.sh` builds at background priority, boots the "Apple TV 4K (3rd
 generation)" simulator (tvOS 27 runtime: `xcodebuild -downloadPlatform tvOS`), shows it
@@ -448,7 +471,13 @@ xcrun simctl io <device> screenshot shot.png    # screenshot of the simulator on
 Debug builds behave like the Mac dev build: `IPTV_SERVER`, `IPTV_USER`, `IPTV_PASS` sign in
 without the keychain (`FERNSY_NO_KEYCHAIN=1` keeps it out entirely); they start muted
 (`IPTV_SOUND=1` for sound); streams only from the demo worker, `127.0.0.1` or `localhost` unless
-`IPTV_ALLOWREAL=1`; `IPTV_AUTOPLAY=live:<id>` plays a channel once the catalog is loaded. The
+`IPTV_ALLOWREAL=1`; `IPTV_AUTOPLAY=live:<id>` plays a channel once the catalog is loaded. An
+empty `IPTV_SERVER=` starts without an account (welcome screen). Apple TV only:
+`IPTV_MAXCONN=<n>` sets the stream limit (single-stream tests), `IPTV_TESTRECORD=<channel>:<starts
+in s>:<seconds>[:<before min>:<after min>],…` plans recordings as on the Mac,
+`IPTV_FRESHRECORDINGS=1` starts without earlier recordings, `IPTV_TESTNOSPACE=1` refuses
+recordings as if space were short, `IPTV_PLAYERMODE=info|strip` opens the player with that
+overlay (screenshots without a remote). The
 player's test switches (`IPTV_TESTNET`, `IPTV_TRICKLEMORE`, `IPTV_TRICKLEKBIT`,
 `IPTV_TESTSTALL`, `IPTV_TESTNODATA`, `IPTV_TESTNOVIDEO`, `IPTV_TESTSLOWSTART`,
 `IPTV_TESTNOCONTINUE`, `IPTV_TESTCLOCK`, `IPTV_TESTJUMP`, `IPTV_LIVELEAD`, `IPTV_AUDIOLEVEL`) are
@@ -456,14 +485,22 @@ read in `FernsyPlayer` and work the same on both platforms.
 
 **Debug MCP.** With `IPTV_MCP=1` and `IPTV_MCPTOKEN=<token>` (tv-run sets the token `test`) a
 debug build listens on `http://127.0.0.1:52325/mcp` (the simulator shares the Mac's network):
-`play`, `stop_playback`, `seek`, `now_playing`, `playback_diagnostics`, `snapshot`, `get_log`
+`play`, `stop_playback`, `seek`, `now_playing` (also the preview), `playback_diagnostics`,
+`snapshot`, `get_log`, `record`, `list_recordings`, `cancel_recording`
 (`FernsyTV/Debug/TVTools.swift`). Release builds have no listener.
 
-**UI test.** `scripts/tv-uitest.sh` builds the app and "Fernsy TV UITests" and runs them on the
-simulator (about 30 s): Down to a channel, Select, the player reaches `playing`, Back returns to
-the list with the same channel focused. It passes `-collect-test-diagnostics never`; without it a
-failing test makes `xcodebuild` run `simctl diagnose` for many minutes, which looks like a hang.
-At the end of each test Xcode quits the app, so the simulator shows the home screen.
+**UI tests.** `scripts/tv-uitest.sh` builds the app and "Fernsy TV UITests" and runs them on the
+simulator (about 6 minutes for all): sign-in, tab bar, Live TV (preview, single stream, hiding,
+pinning), guide, player and strip, recordings, settings. Further arguments go to `xcodebuild`, e.g.
+`scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"`. Tests derive from
+`FernsyUITestCase` (`UITestSupport.swift`): the demo account with the debug MCP, and on a
+failure the app's log as an attachment. The script passes `-collect-test-diagnostics never`;
+without it a failing test makes `xcodebuild` run `simctl diagnose` for many minutes, which looks
+like a hang. At the end of each test Xcode quits the app, so the simulator shows the home screen.
+Pitfalls found while writing them: a press right after a screen appears can go nowhere until it
+has taken focus (wait a moment); `try? await Task.sleep` in a `.task(id:)` returns at once when
+the task is cancelled, so code after it runs (check the result); tvOS lists context-menu entries
+as cells named by their symbol.
 
 **What the simulator cannot show.** VideoToolbox hardware decoding fails there (the log says
 `hwaccel initialisation returned error`) and FFmpeg decodes in software, with occasional

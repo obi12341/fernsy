@@ -1,6 +1,7 @@
 #if DIRECT_DISTRIBUTION
 import Combine
 import FernsyCore
+import FernsyPlayer
 import Foundation
 import Sparkle
 import SwiftUI

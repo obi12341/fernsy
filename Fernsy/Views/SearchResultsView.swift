@@ -1,5 +1,6 @@
 import Combine
 import FernsyCore
+import FernsyPlayer
 import SwiftUI
 
 /// The hits of one query, as the items themselves, best first.

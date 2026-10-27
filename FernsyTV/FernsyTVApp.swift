@@ -9,6 +9,7 @@ struct FernsyTVApp: App {
     /// One model for the app's lifetime: SwiftUI may create the App value more than once, and
     /// a second model would sign in and stream a second time.
     @ObservedObject private var model = TVModel.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     #if DEBUG
     private static let debugServer = TVDebugServer()
@@ -23,6 +24,9 @@ struct FernsyTVApp: App {
     var body: some Scene {
         WindowGroup {
             RootScreen().environmentObject(model)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { model.appWillLeave() }
         }
     }
 }

@@ -1252,16 +1252,6 @@
         }
       }
     },
-    "Connection lost": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbindung verloren"
-          }
-        }
-      }
-    },
     "Container": {
       "localizations": {
         "de": {
@@ -2642,16 +2632,6 @@
         }
       }
     },
-    "No data from the channel": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keine Daten vom Sender"
-          }
-        }
-      }
-    },
     "No entry matches the filter.": {
       "localizations": {
         "de": {
@@ -3212,32 +3192,12 @@
         }
       }
     },
-    "Record after for “%@” shortened to %lld min.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nachlauf von „%1$@“ verkürzt auf %2$lld Min."
-          }
-        }
-      }
-    },
     "Record before": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Vorlauf"
-          }
-        }
-      }
-    },
-    "Record before for “%@” shortened to %lld min.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vorlauf von „%1$@“ verkürzt auf %2$lld Min."
           }
         }
       }
@@ -3282,16 +3242,6 @@
         }
       }
     },
-    "Recording %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aufnahme %@"
-          }
-        }
-      }
-    },
     "Recording %@–%@": {
       "localizations": {
         "de": {
@@ -3328,16 +3278,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aufnahme · bis %@"
-          }
-        }
-      }
-    },
-    "Recording “%@” Is Starting": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aufnahme „%@“ beginnt"
           }
         }
       }
@@ -3992,16 +3932,6 @@
         }
       }
     },
-    "Skip Recording": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aufnahme auslassen"
-          }
-        }
-      }
-    },
     "Sort Order": {
       "localizations": {
         "de": {
@@ -4092,16 +4022,6 @@
         }
       }
     },
-    "Stop “%@” and Record": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "„%@“ beenden und aufnehmen"
-          }
-        }
-      }
-    },
     "Stops playback in Fernsy.": {
       "localizations": {
         "de": {
@@ -4138,16 +4058,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sender einschalten"
-          }
-        }
-      }
-    },
-    "Switch and Record": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Umschalten und aufnehmen"
           }
         }
       }
@@ -4378,16 +4288,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zeitpuffer"
-          }
-        }
-      }
-    },
-    "To record, Fernsy switches to %@, because your account allows only %lld stream(s) at a time.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Für die Aufnahme schaltet Fernsy auf %1$@ um, weil dein Zugang nur %2$lld Stream(s) gleichzeitig erlaubt."
           }
         }
       }
@@ -4672,16 +4572,6 @@
         }
       }
     },
-    "Without an answer, the recording starts in one minute.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ohne Antwort startet die Aufnahme in einer Minute."
-          }
-        }
-      }
-    },
     "Xtream Codes": {
       "localizations": {
         "de": {
@@ -4728,16 +4618,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Du siehst die gespeicherte Bibliothek."
-          }
-        }
-      }
-    },
-    "Your account allows %lld stream(s) at a time, so less extra time is possible:": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dein Zugang erlaubt %lld Stream(s) gleichzeitig, deshalb ist weniger Puffer möglich:"
           }
         }
       }
@@ -4952,42 +4832,12 @@
         }
       }
     },
-    "“%@” (%@)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "„%1$@“ (%2$@)"
-          }
-        }
-      }
-    },
-    "“%@” is being recorded on %@. Your account allows only %lld stream(s) at a time.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gerade wird „%1$@“ auf %2$@ aufgenommen. Dein Zugang erlaubt nur %3$lld Stream(s) gleichzeitig."
-          }
-        }
-      }
-    },
     "“%@” is being recorded on %@. Your account allows only %lld stream(s) at a time. Stop the recording and switch to %@?": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Gerade wird „%1$@“ auf %2$@ aufgenommen. Dein Zugang erlaubt nur %3$lld Stream(s) gleichzeitig. Aufnahme beenden und auf %4$@ umschalten?"
-          }
-        }
-      }
-    },
-    "“%@” is on at the same time as %@. Your account allows %lld stream(s) at a time. Remove one of these recordings to record this show.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "„%1$@“ läuft zur selben Zeit wie %2$@. Dein Zugang erlaubt %3$lld Stream(s) gleichzeitig. Entferne eine dieser Aufnahmen, um diese Sendung aufzunehmen."
           }
         }
       }
