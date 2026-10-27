@@ -149,10 +149,13 @@ final class DetailPagesUITests: FernsyUITestCase {
 }
 
 /// The Jellyfin tab (tvos-library 3.5) with the server stopped: the cached lists show with the
-/// note that the server cannot be reached. Run with the test Jellyfin stopped
+/// note that the server cannot be reached. Opt-in, with the test Jellyfin stopped
 /// (docker stop fernsy-jf-fixtures); JF_CACHEONLY restores the session from the cache.
 final class JellyfinOfflineUITests: FernsyUITestCase {
     func testCachedListsWhenTheServerIsDown() throws {
+        // Opt-in: needs a cached library from an earlier run and the test Jellyfin stopped
+        // (TEST_RUNNER_FERNSY_JF_OFFLINE=1 scripts/tv-uitest.sh …); CI has neither.
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["FERNSY_JF_OFFLINE"] == "1", "opt-in: FERNSY_JF_OFFLINE=1")
         try XCTSkipIf(jellyfinRunning(), "the test Jellyfin runs; stop it for this test (docker stop fernsy-jf-fixtures)")
         let app = launchDemo(["IPTV_SERVER": "", "JF_CACHEONLY": "http://127.0.0.1:8097|3dd68e56e17d49f6ba0546bd13d19852|3eb16930ee7841249860eaa07e3ebb23"])
         let tab = app.tabBars.firstMatch.buttons["Jellyfin"]

@@ -30,6 +30,17 @@ if [ "$BUILD" = 1 ]; then
     taskpolicy -b xcodebuild build-for-testing "${ARGS[@]}" -quiet
 fi
 echo "▸ UI tests on $DEVICE_NAME ($DEVICE)"
-xcodebuild test-without-building "${ARGS[@]}" -quiet -collect-test-diagnostics never \
-    -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 120 "$@"
+RESULT="$DD/Logs/uitest-$(date +%Y%m%d-%H%M%S).xcresult"
+if ! xcodebuild test-without-building "${ARGS[@]}" -quiet -collect-test-diagnostics never -resultBundlePath "$RESULT" \
+    -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 120 "$@"; then
+    # -quiet leaves out why a test failed: print the failure messages (first lines) from the bundle.
+    xcrun xcresulttool get test-results tests --path "$RESULT" 2>/dev/null | python3 -c '
+import json, sys
+def walk(node, name=""):
+    if node.get("nodeType") == "Test Case": name = node.get("name", "")
+    if node.get("nodeType") == "Failure Message": print(f"✘ {name}: " + "\n    ".join(node.get("name", "").splitlines()[:3]))
+    for child in node.get("children", []): walk(child, name)
+for node in json.load(sys.stdin).get("testNodes", []): walk(node)' || true
+    exit 65
+fi
 echo "✔ Apple TV UI tests passed"
