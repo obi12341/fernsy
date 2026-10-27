@@ -61,8 +61,9 @@ struct VODPlayerScreen: View {
             guard (try? await Task.sleep(for: .seconds(6))) != nil else { return }
             showsOverlay = false
         }
-        .onChange(of: model.engine.status) { _, status in
-            // An IPTV episode at its end: count down to the next one.
+        .onReceive(model.engine.$status) { status in
+            // An IPTV episode at its end: count down to the next one. (onChange of
+            // model.engine.status never fired: the screen observes the model, not its engine.)
             if status == .ended, case .episode = model.playingVOD, model.nextAfterPlaying != nil, countdown == nil { countdown = 10 }
         }
         .onReceive(model.jellyfinPlayback?.$autoplayAt.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { date in

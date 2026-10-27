@@ -34,8 +34,7 @@ final class SignInUITests: XCTestCase {
 
         move(.right, to: app.buttons["signin.demo"], app: app)
         remote.press(.select)
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
-            .waitForExistence(timeout: 30), "the demo channels did not appear")
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Live TV"].waitForExistence(timeout: 30), "the demo account did not sign in")
     }
 
     /// Selects the focused field, types into tvOS' keyboard and returns to the form.

@@ -1,6 +1,6 @@
 import XCTest
 
-/// The tab bar (tvos-live 2.1): the app opens on Live TV, Up reaches the tab bar, Back from a
+/// The tab bar (tvos-live 2.1, tvos-library 2.1): the app opens on Start, Up reaches the tab bar, Back from a
 /// tab's content goes to the tab bar. Each tab is captured as a screenshot attachment.
 final class TabsUITests: XCTestCase {
     override func setUp() {
@@ -17,6 +17,10 @@ final class TabsUITests: XCTestCase {
         ]
         app.launch()
         let remote = XCUIRemote.shared
+        let start = app.tabBars.firstMatch.buttons["Start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 30))
+        XCTAssertTrue(waitForFocus(start), "the app did not open on Start")
+        showTab("Live TV", app)
         let channel = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(channel.waitForExistence(timeout: 30), "Live TV did not open")
         attach("live", app)
@@ -24,7 +28,7 @@ final class TabsUITests: XCTestCase {
         let tabBar = app.tabBars.firstMatch
         let liveTab = tabBar.buttons["Live TV"]
         XCTAssertTrue(liveTab.waitForExistence(timeout: 5), "no tab bar:\n\(app.debugDescription)")
-        XCTAssertTrue(waitForFocus(liveTab), "the app did not open on Live TV:\n\(tabBar.debugDescription)")
+        XCTAssertTrue(waitForFocus(liveTab), "Live TV has no focus:\n\(tabBar.debugDescription)")
 
         // Down into Live TV, Back returns to the tab bar.
         remote.press(.down)
@@ -33,17 +37,17 @@ final class TabsUITests: XCTestCase {
         XCTAssertTrue(waitForFocus(liveTab), "Back did not reach the tab bar:\n\(app.debugDescription)")
 
         // Each tab shows its screen (the pending ones show their title).
-        for name in ["Guide", "Recordings", "Settings"] {
+        let names = ["Guide", "Films", "Series", "Recordings", "Search", "Settings"]
+        for name in names {
             remote.press(.right)
             XCTAssertTrue(waitForFocus(tabBar.buttons[name]), "\(name) has no focus:\n\(tabBar.debugDescription)")
-            let screen = name == "Guide" ? app.buttons["guide.source"] : name == "Recordings" ? app.descendants(matching: .any)["recordings.screen"] : app.staticTexts[name]
-            if name != "Settings" {
-                XCTAssertTrue(screen.waitForExistence(timeout: 5), "the \(name) screen did not show")
-            }
+            let screen = name == "Guide" ? app.buttons["guide.source"] : name == "Recordings" ? app.descendants(matching: .any)["recordings.screen"]
+                : name == "Films" || name == "Series" ? app.buttons["grid.sort.added"] : name == "Search" ? app.buttons["key.a"] : app.buttons["settings.recordings"]
+            XCTAssertTrue(screen.waitForExistence(timeout: 5), "the \(name) screen did not show")
             attach(name, app)
         }
         // Back to Live TV, Down into it, and Up again reaches the tab bar.
-        for _ in 0..<3 { remote.press(.left) }
+        for _ in names { remote.press(.left) }
         XCTAssertTrue(waitForFocus(liveTab), "Live TV has no focus again")
         // The tab's screen follows the focus a moment later.
         XCTAssertTrue(channel.waitForExistence(timeout: 5), "Live TV's screen did not come back")

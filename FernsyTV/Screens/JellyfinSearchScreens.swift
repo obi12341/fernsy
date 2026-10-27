@@ -186,7 +186,8 @@ struct SearchScreen: View {
                         Text(verbatim: query).font(.system(size: 44, weight: .semibold))
                         Rectangle().fill(TVTheme.text).frame(width: 3, height: 44)
                     }
-                    .accessibilityElement(children: .combine)
+                    .frame(minWidth: 200, minHeight: 56)
+                    .accessibilityElement()
                     .accessibilityIdentifier("search.query")
                     .accessibilityValue(query)
                     HStack(spacing: 6) {
@@ -206,9 +207,11 @@ struct SearchScreen: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 19))
                         .foregroundStyle(TVTheme.tertiary)
-                        .frame(width: 700)
+                        // As wide as the letter row: Down from any key reaches it.
+                        .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
                         .accessibilityIdentifier("search.field")
+                        .focusSection()
                     results.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 30)
                 }
                 .padding(.horizontal, 90)

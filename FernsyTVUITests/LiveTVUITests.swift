@@ -20,6 +20,7 @@ final class LiveTVUITests: XCTestCase {
     }
 
     private func focusFirstChannel(_ app: XCUIApplication) -> XCUIElement {
+        showTab("Live TV", app)
         let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 30), "no channels")
         for _ in 0..<3 where !first.hasFocus {
@@ -39,8 +40,6 @@ final class LiveTVUITests: XCTestCase {
     func testNoPreviewWhileARecordingHoldsTheOnlyStream() {
         // Channel 102 is recorded from now for two minutes; the account allows one stream.
         let app = launch(["IPTV_MAXCONN": "1", "IPTV_TESTRECORD": "102:0:120:0:0"])
-        let row = app.buttons["channel.101"]
-        XCTAssertTrue(row.waitForExistence(timeout: 30))
         _ = focusFirstChannel(app)
         Thread.sleep(forTimeInterval: 4)
         XCTAssertFalse(app.otherElements["live.preview"].exists, "a preview opened a second stream")
@@ -62,12 +61,12 @@ final class LiveTVUITests: XCTestCase {
         // Not in the guide either, and not in the player's channel strip.
         let channelId = id.dropFirst("channel.".count)
         XCUIRemote.shared.press(.menu)
-        XCUIRemote.shared.press(.right)
+        showTab("Guide", app)
         let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
         XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide")
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "guide.\(channelId).")).firstMatch.exists,
                        "the hidden channel is in the guide")
-        XCUIRemote.shared.press(.left)
+        showTab("Live TV", app)
         let next = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         for _ in 0..<3 where !next.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 1) }
@@ -95,6 +94,7 @@ final class AllCategoriesUITests: XCTestCase {
         ]
         app.launch()
         let remote = XCUIRemote.shared
+        showTab("Live TV", app)
         let all = app.buttons["live.allCategories"]
         XCTAssertTrue(all.waitForExistence(timeout: 30))
         // From the tab bar down into Live TV, then left into the column and down to "All Categories".

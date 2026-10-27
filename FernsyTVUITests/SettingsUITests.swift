@@ -6,10 +6,7 @@ final class SettingsUITests: FernsyUITestCase {
     func testPaddingApplies() throws {
         let app = launchDemo(["IPTV_FRESHRECORDINGS": "1"])
         let remote = XCUIRemote.shared
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch.waitForExistence(timeout: 30))
-        let gear = app.tabBars.firstMatch.buttons["Settings"]
-        for _ in 0..<3 { remote.press(.right); Thread.sleep(forTimeInterval: 0.5) }
-        XCTAssertTrue(wait(5) { gear.hasFocus }, "the gear has no focus")
+        showTab("Settings", app)
         let row = app.buttons["settings.recordings"]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "no settings:\n\(app.debugDescription)")
         XCTAssertTrue(app.staticTexts["settings.version"].exists)

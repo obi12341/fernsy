@@ -2,9 +2,10 @@ import XCTest
 
 /// Jellyfin sign-in (tvos-library 2.2): from the welcome screen (a wrong password keeps the form
 /// with the message, then the right one shows the Jellyfin tab) and from Settings › Add Account.
-/// Needs the local test Jellyfin on 127.0.0.1:8097 (build/devtest/jf/setup.sh).
+/// Needs the local test Jellyfin on 127.0.0.1:8097 (scripts/jellyfin-test-server.sh).
 final class JellyfinSignInUITests: FernsyUITestCase {
-    func testFromTheWelcomeScreen() {
+    func testFromTheWelcomeScreen() throws {
+        try XCTSkipUnless(jellyfinRunning(), "the local test Jellyfin is not running")
         let app = XCUIApplication()
         app.launchEnvironment = ["FERNSY_NO_KEYCHAIN": "1", "IPTV_SERVER": ""]
         app.launch()
@@ -26,7 +27,8 @@ final class JellyfinSignInUITests: FernsyUITestCase {
         XCTAssertTrue(app.tabBars.firstMatch.buttons["Jellyfin"].waitForExistence(timeout: 20), "no Jellyfin tab after signing in")
     }
 
-    func testFromSettings() {
+    func testFromSettings() throws {
+        try XCTSkipUnless(jellyfinRunning(), "the local test Jellyfin is not running")
         let app = launchDemo()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 30))
         let gear = app.tabBars.firstMatch.buttons["Settings"]

@@ -19,6 +19,7 @@ final class PlayerUITests: XCTestCase {
         ]
         app.launch()
         let remote = XCUIRemote.shared
+        showTab("Live TV", app)
         let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 30))
         for _ in 0..<6 where !first.hasFocus { remote.press(.down); Thread.sleep(forTimeInterval: 0.2) }

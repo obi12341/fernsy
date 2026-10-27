@@ -134,6 +134,15 @@ final class TVModel: ObservableObject {
             if remember && !Self.skipKeychain { CredentialStore.save(credentials) }
             loadLiveState()
             #if DEBUG
+            // IPTV_TESTHIDE=category:<id>,channel:<id>,…: hidden for this run (in memory), as on the Mac.
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTHIDE"] {
+                for item in spec.split(separator: ",") {
+                    let p = item.split(separator: ":")
+                    guard p.count == 2 else { continue }
+                    if p[0] == "category" { visibility.hiddenCategories.insert(String(p[1])) }
+                    if p[0] == "channel", let id = Int(p[1]) { visibility.hiddenChannels.insert(id) }
+                }
+            }
             // IPTV_FRESHRECORDINGS=1: start without the recordings of earlier test runs.
             if ProcessInfo.processInfo.environment["IPTV_FRESHRECORDINGS"] == "1" {
                 try? FileManager.default.removeItem(at: Self.recordingsDirectory(accountKey: credentials.accountKey))

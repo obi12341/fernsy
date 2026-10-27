@@ -19,6 +19,7 @@ final class ChannelPlaybackUITests: XCTestCase {
         app.launch()
         let remote = XCUIRemote.shared
 
+        showTab("Live TV", app)
         let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 30), "the channel list did not appear")
         remote.press(.down)

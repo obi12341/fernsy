@@ -17,10 +17,7 @@ final class GuideUITests: XCTestCase {
         ]
         app.launch()
         let remote = XCUIRemote.shared
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch.waitForExistence(timeout: 30))
-        let guideTab = app.tabBars.firstMatch.buttons["Guide"]
-        remote.press(.right)
-        XCTAssertTrue(waitFor { guideTab.hasFocus }, "Guide tab has no focus")
+        showTab("Guide", app)
 
         let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
         XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide cells:\n\(app.debugDescription)")

@@ -47,7 +47,7 @@ final class LibraryUITests: FernsyUITestCase {
 
 /// Film and series pages on the local test Jellyfin (tvos-library 3.3, 3.4): Resume starts at
 /// the server's position, From the Beginning at 0; the series offers the next unwatched episode.
-/// Needs build/devtest/jf/setup.sh and a resume position on the fixture film (play it past 2 min).
+/// Needs scripts/jellyfin-test-server.sh and a resume position on the fixture film (play it past 2 min).
 final class DetailPagesUITests: FernsyUITestCase {
     private func launchJellyfin() -> XCUIApplication {
         launchDemo(["IPTV_SERVER": "", "JF_SERVER": "http://127.0.0.1:8097", "JF_USER": "fixture", "JF_PASS": "fixture-pass"])
@@ -76,7 +76,8 @@ final class DetailPagesUITests: FernsyUITestCase {
         return Int(text[range].split(separator: ":").last!.trimmingCharacters(in: .whitespaces)) ?? -1
     }
 
-    func testFilmResumesAndStartsOver() {
+    func testFilmResumesAndStartsOver() throws {
+        try XCTSkipUnless(jellyfinRunning(), "the local test Jellyfin is not running")
         let app = launchJellyfin()
         openJellyfinItem(named: "Fixture Film", app)
         let play = app.buttons["film.play"]
@@ -99,7 +100,8 @@ final class DetailPagesUITests: FernsyUITestCase {
         XCUIRemote.shared.press(.menu)
     }
 
-    func testSeriesOffersTheNextEpisode() {
+    func testSeriesOffersTheNextEpisode() throws {
+        try XCTSkipUnless(jellyfinRunning(), "the local test Jellyfin is not running")
         let app = launchJellyfin()
         let tab = app.tabBars.firstMatch.buttons["Jellyfin"]
         XCTAssertTrue(tab.waitForExistence(timeout: 30))
@@ -150,7 +152,8 @@ final class DetailPagesUITests: FernsyUITestCase {
 /// note that the server cannot be reached. Run with the test Jellyfin stopped
 /// (docker stop fernsy-jf-fixtures); JF_CACHEONLY restores the session from the cache.
 final class JellyfinOfflineUITests: FernsyUITestCase {
-    func testCachedListsWhenTheServerIsDown() {
+    func testCachedListsWhenTheServerIsDown() throws {
+        try XCTSkipIf(jellyfinRunning(), "the test Jellyfin runs; stop it for this test (docker stop fernsy-jf-fixtures)")
         let app = launchDemo(["IPTV_SERVER": "", "JF_CACHEONLY": "http://127.0.0.1:8097|3dd68e56e17d49f6ba0546bd13d19852|3eb16930ee7841249860eaa07e3ebb23"])
         let tab = app.tabBars.firstMatch.buttons["Jellyfin"]
         XCTAssertTrue(tab.waitForExistence(timeout: 30))

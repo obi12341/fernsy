@@ -20,13 +20,13 @@
 
 ## 4. Search and playback
 
-- [ ] 4.1 Search per design D (screen `suche`). Verify: typing "kart" on the demo server shows live TV and film results; a hidden channel's shows are not found; clicking a running show plays its channel.
-- [ ] 4.2 On-demand playback on Apple TV: resume, tracks, next-episode countdown, Jellyfin reporting, IPTV watched at the end. Verify: MCP `play_item` and `now_playing` on 52325; the Docker Jellyfin's resume position after stopping; an IPTV demo episode played to its end shows "Gesehen".
+- [x] 4.1 Search per design D (screen `suche`). Verify: typing "kart" on the demo server shows live TV and film results; a hidden channel's shows are not found; clicking a running show plays its channel.
+- [x] 4.2 On-demand playback on Apple TV: resume, tracks, next-episode countdown, Jellyfin reporting, IPTV watched at the end. Verify: MCP `play_item` and `now_playing` on 52325; the Docker Jellyfin's resume position after stopping; an IPTV demo episode played to its end shows "Gesehen".
 
 ## 5. Checks
 
-- [ ] 5.1 UI tests: from Start into a film page and play; search for a film and open it. `scripts/tv-uitest.sh` passes; German and English strings complete (LocalizationTests).
-- [ ] 5.2 `openspec validate --all --strict` exits 0; Mac Debug, Direct ("Fernsy Direct") and Release and the Apple TV Debug build have 0 warnings; `scripts/test.sh --tvos-sim` passes; the Docker Jellyfin container is removed.
+- [x] 5.1 UI tests: from Start into a film page and play; search for a film and open it. `scripts/tv-uitest.sh` passes; German and English strings complete (LocalizationTests).
+- [x] 5.2 `openspec validate --all --strict` exits 0; Mac Debug, Direct ("Fernsy Direct") and Release and the Apple TV Debug build have 0 warnings; `scripts/test.sh --tvos-sim` passes; the Docker Jellyfin container is removed.
 
 ## Workflow follow-up
 

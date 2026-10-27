@@ -21,6 +21,19 @@ class FernsyUITestCase: XCTestCase {
         return app
     }
 
+    /// Whether the local test Jellyfin (scripts/jellyfin-test-server.sh) answers on 127.0.0.1:8097.
+    /// Tests that need it skip without it (CI has none).
+    func jellyfinRunning() -> Bool {
+        let done = DispatchSemaphore(value: 0)
+        var ok = false
+        URLSession.shared.dataTask(with: URL(string: "http://127.0.0.1:8097/System/Info/Public")!) { _, response, _ in
+            ok = (response as? HTTPURLResponse)?.statusCode == 200
+            done.signal()
+        }.resume()
+        _ = done.wait(timeout: .now() + 3)
+        return ok
+    }
+
     func wait(_ timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -76,5 +89,22 @@ class FernsyUITestCase: XCTestCase {
         log.name = "app-log"
         log.lifetime = .keepAlways
         add(log)
+    }
+}
+
+extension XCTestCase {
+    /// The app opens on Start: moves to the tab named `name` (Live TV by default) and waits for it.
+    func showTab(_ name: String = "Live TV", _ app: XCUIApplication, timeout: TimeInterval = 30) {
+        let tab = app.tabBars.firstMatch.buttons[name]
+        XCTAssertTrue(tab.waitForExistence(timeout: timeout), "no \(name) tab:\n\(app.debugDescription)")
+        let tabs = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.map(\.label)
+        for _ in 0..<12 where !tab.hasFocus {
+            let focused = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.firstIndex { $0.hasFocus } ?? 0
+            let target = tabs.firstIndex(of: name) ?? 0
+            XCUIRemote.shared.press(target > focused ? .right : .left)
+            Thread.sleep(forTimeInterval: 0.35)
+        }
+        XCTAssertTrue(tab.hasFocus, "the \(name) tab has no focus")
+        Thread.sleep(forTimeInterval: 1)   // the tab's screen follows the focus
     }
 }
