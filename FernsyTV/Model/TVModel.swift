@@ -19,7 +19,12 @@ final class TVModel: ObservableObject {
     @Published private(set) var signIn: SignIn = .signedOut
     @Published private(set) var credentials: XtreamCredentials?
     @Published private(set) var maxConnections = 1
-    @Published private(set) var categories: [XCategory] = []
+    @Published private(set) var categories: [XCategory] = [] {
+        didSet { adultCategoryIDs = Set(categories.filter(LiveRules.isAdultCategory).map(\.id)) }
+    }
+    /// Kept with `categories`: every visible-channel filter asks it once per channel, and with
+    /// 12,000 channels and 300 categories working it out per call froze Live TV.
+    private(set) var adultCategoryIDs: Set<String> = []
     @Published private(set) var channels: [LiveChannel] = []
     /// The live channel in the player, nil when the player is closed.
     @Published private(set) var playing: LiveChannel?

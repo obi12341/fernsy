@@ -89,8 +89,6 @@ extension TVModel {
         channel.isAdult || adultCategoryIDs.contains(channel.categoryId ?? "")
     }
 
-    var adultCategoryIDs: Set<String> { Set(categories.filter(LiveRules.isAdultCategory).map(\.id)) }
-
     // MARK: Lists
 
     /// Categories the user can see (not hidden, not adult), in the provider's order.
