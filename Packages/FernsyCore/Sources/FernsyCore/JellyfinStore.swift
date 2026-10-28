@@ -446,6 +446,22 @@ public final class JellyfinStore: ObservableObject {
             for var item in originals where items.count + copies.count < target {
                 item["id"] = "\(item["id"] ?? "")-\(round)"
                 item["name"] = "\(item["name"] ?? "") \(round)"
+                // Varied, so the overview's rows (tvos-jellyfin-overview) have something to show.
+                let genres = ["Comedy", "Drama", "Action", "Thriller", "Documentary"]
+                item["communityRating"] = 5.5 + Double(round % 5)
+                item["productionYear"] = 1985 + (round * 7) % 40
+                item["genres"] = [genres[round % genres.count], genres[(round + 2) % genres.count]]
+                let isSeries = (item["type"] as? String) == "Series"
+                item["runTimeTicks"] = Int64(isSeries ? 45 : 80 + (round * 7) % 70) * 600_000_000
+                var user = item["userData"] as? [String: Any] ?? [:]
+                user["played"] = !isSeries && round % 4 == 0
+                user["isFavorite"] = round % 6 == 0
+                if !isSeries && round % 4 == 0 { user["lastPlayedDate"] = "2023-0\(1 + round % 9)-01T20:00:00.0000000Z" }
+                if isSeries {
+                    item["recursiveItemCount"] = 10
+                    user["unplayedItemCount"] = [10, 2, 1, 3, 6][round % 5]
+                }
+                item["userData"] = user
                 copies.append(item)
             }
             round += 1
