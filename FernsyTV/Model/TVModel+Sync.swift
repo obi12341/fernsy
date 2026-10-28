@@ -96,7 +96,7 @@ extension TVModel {
         let defaults = UserDefaults.standard
         if names.contains("d." + LiveRules.favoritesKey) { favorites = Set(defaults.stringArray(forKey: LiveRules.favoritesKey) ?? []) }
         if names.contains("d." + LiveRules.recentKey) { recentChannels = defaults.array(forKey: LiveRules.recentKey) as? [Int] ?? [] }
-        if names.contains("resume") { objectWillChange.send() }
+        if names.contains("resume") { resumeRevision += 1 }
         // Films or series switched on another device: as if switched here (drops or downloads).
         if names.contains("d." + LibraryRules.moviesSwitchKey) { showsIPTVMovies = defaults.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true }
         if names.contains("d." + LibraryRules.seriesSwitchKey) { showsIPTVSeries = defaults.object(forKey: LibraryRules.seriesSwitchKey) as? Bool ?? true }

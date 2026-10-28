@@ -11,18 +11,20 @@ struct StartScreen: View {
     @State private var path: [DetailTarget] = []
     @State private var rows = StartRows()
     @State private var asked: (show: EPGEntry, channel: LiveChannel)?
-    /// How far Start is scrolled: the backdrop fades out below the large entry.
-    @State private var scrolled: CGFloat = 0
+    /// How far Start is scrolled, read only by the backdrop (tvos-start-scrolling design 1).
+    @State private var scroll = StartScroll()
 
     var body: some View {
         NavigationStack(path: $path) {
-            let resume = model.continueWatching
-            let added = model.recentlyAdded
+            // Everything shown comes from `rows`, built when its inputs change (design 2):
+            // nothing here walks the catalog, so a redraw stays cheap.
+            let resume = rows.resume
+            let added = rows.added
             let hero = resume.first ?? rows.spotlight
-            let live = model.startChannels
-            let tonight = model.tonight(on: live.channels)
+            let live = rows.live
+            let tonight = rows.tonight
             ScrollView {
-                VStack(alignment: .leading, spacing: 50) {
+                LazyVStack(alignment: .leading, spacing: 50) {
                     if let hero {
                         Hero(entry: hero, spotlight: resume.isEmpty) { open(hero) } info: { info(hero) }
                     }
@@ -59,7 +61,7 @@ struct StartScreen: View {
                             }
                         }
                     }
-                    wideRow("Next Up", note: "Jellyfin", id: "next", model.nextUpEntries)
+                    wideRow("Next Up", note: "Jellyfin", id: "next", rows.nextUp)
                     if !tonight.shows.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
                             RowTitle(title: LocalizedStringKey(tonight.title))
@@ -91,7 +93,7 @@ struct StartScreen: View {
                         }
                     }
                     ForEach(rows.categories) { row in posterRow(row.title, id: row.id, row.entries) }
-                    wideRow("Your Recordings", note: nil, id: "recordings", model.recordingEntries)
+                    wideRow("Your Recordings", note: nil, id: "recordings", rows.recordings)
                     posterRow(String(localized: "Best Rated"), id: "best", rows.bestRated)
                     if resume.isEmpty && added.isEmpty {
                         Text("Your films and series appear here once the library has loaded.")
@@ -101,33 +103,31 @@ struct StartScreen: View {
                 .padding(.horizontal, 90)
                 .padding(.bottom, 60)
             }
-            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, value in scrolled = value }
-            .background {
-                // The newest item's backdrop fills the screen behind the tab bar, as in the design.
-                ZStack {
-                    TVTheme.background
-                    if let hero {
-                        RemoteImage(url: Hero.backdrop(hero, model), maxPixel: 1920) { ArtPlaceholder(seed: hero.title) }
-                            .frame(width: 1920, height: 1080).clipped()
-                            // With the rows below the large entry, the picture gives way to them.
-                            .opacity(max(0.15, 1 - scrolled / 600))
-                        LinearGradient(stops: [.init(color: TVTheme.background.opacity(0.88), location: 0), .init(color: TVTheme.background.opacity(0.4), location: 0.42),
-                                               .init(color: .clear, location: 0.7)], startPoint: .leading, endPoint: .trailing)
-                        LinearGradient(stops: [.init(color: TVTheme.background, location: 0), .init(color: TVTheme.background, location: 0.34),
-                                               .init(color: .clear, location: 0.64)], startPoint: .bottom, endPoint: .top)
-                    }
-                }
-                .ignoresSafeArea()
-            }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, value in scroll.update(value) }
+            .background { StartBackdrop(hero: hero, scroll: scroll) }
             .foregroundStyle(TVTheme.text)
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
             .task(id: model.jellyfin.session?.userId) { if model.jellyfin.session != nil { await model.jellyfin.refreshHome() } }
             // Rows from the catalog once per change of it, not per redraw (design A).
             .task(id: "\(model.movies.count).\(model.series.count).\(model.jellyfin.films.count).\(model.jellyfin.latestFilms.count)") {
-                rows = model.startRows()
+                let catalog = model.startRows()
+                rows.spotlight = catalog.spotlight
+                rows.categories = catalog.categories
+                rows.bestRated = catalog.bestRated
+                rows.added = catalog.added
+                refreshResume()
                 if case .movie(let movie)? = rows.spotlight?.open { _ = await model.movieDetails(movie) }
             }
-            .task(id: live.channels.map(\.id)) { for channel in live.channels { await model.loadGuide(for: channel) } }
+            // Continue Watching, Next Up and recordings: on return to Start, when the player
+            // closes, when positions arrive from iCloud, and when Jellyfin or the recorder change.
+            .onAppear { refreshResume(); refreshLive() }
+            .onChange(of: resumeInputs) { refreshResume() }
+            // On Now and Tonight: favourites, recently watched, hidden channels; again once their guides loaded.
+            .onChange(of: liveInputs) { refreshLive() }
+            .task(id: live.channels.map(\.id)) {
+                for channel in live.channels { await model.loadGuide(for: channel) }
+                rows.tonight = model.tonight(on: rows.live.channels)
+            }
             .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                                 presenting: asked) { item in
                 if model.isScheduled(item.show, on: item.channel) {
@@ -141,10 +141,35 @@ struct StartScreen: View {
         }
     }
 
+    /// What Continue Watching, Next Up and the recordings read: the player closing, positions
+    /// from iCloud, Jellyfin's lists and the recorder's.
+    private var resumeInputs: String {
+        let playing = model.playingVOD != nil || model.playingRecording != nil
+        let jellyfin = (model.jellyfin.resume + model.jellyfin.nextUp).map(\.id).joined(separator: ",")
+        let recordings = model.recorder.recordings.map { "\($0.id)\($0.status)" }.joined(separator: ",")
+        return "\(playing)|\(model.resumeRevision)|\(jellyfin)|\(recordings)"
+    }
+
+    /// What On Now reads: favourites, recently watched, the channel list and hidden channels.
+    private var liveInputs: String {
+        "\(model.favorites.sorted())|\(model.recentChannels).\(model.channels.count).\(model.visibility.modifiedAt.timeIntervalSince1970)"
+    }
+
+    private func refreshResume() {
+        rows.resume = model.continueWatching
+        rows.nextUp = model.nextUpEntries
+        rows.recordings = model.recordingEntries
+    }
+
+    private func refreshLive() {
+        rows.live = model.startChannels
+        rows.tonight = model.tonight(on: rows.live.channels)
+    }
+
     /// A running show plays its channel; a later one offers to record it.
     private func pick(_ show: EPGEntry, on channel: LiveChannel) {
         if show.start <= Date() {
-            model.zapSource = model.startChannels.source
+            model.zapSource = rows.live.source
             model.play(channel)
         } else {
             asked = (show, channel)
@@ -476,5 +501,41 @@ private struct SortStyle: ButtonStyle {
                 .scaleEffect(focused ? 1.05 : 1)
                 .animation(.easeOut(duration: 0.15), value: focused)
         }
+    }
+}
+
+/// The scroll offset for the backdrop's fade, in 12-point steps (2 % of opacity): only
+/// StartBackdrop reads it, so scrolling redraws the backdrop, not the rows (tvos-start-scrolling).
+@Observable
+final class StartScroll {
+    private(set) var offset: CGFloat = 0
+
+    func update(_ value: CGFloat) {
+        let stepped = (min(max(value, 0), 600) / 12).rounded() * 12
+        if stepped != offset { offset = stepped }
+    }
+}
+
+/// The newest item's backdrop behind Start and the tab bar, as in the design; it gives way to
+/// the rows below the large entry.
+private struct StartBackdrop: View {
+    @EnvironmentObject private var model: TVModel
+    let hero: LibraryEntry?
+    let scroll: StartScroll
+
+    var body: some View {
+        ZStack {
+            TVTheme.background
+            if let hero {
+                RemoteImage(url: Hero.backdrop(hero, model), maxPixel: 1920) { ArtPlaceholder(seed: hero.title) }
+                    .frame(width: 1920, height: 1080).clipped()
+                    .opacity(max(0.15, 1 - scroll.offset / 600))
+                LinearGradient(stops: [.init(color: TVTheme.background.opacity(0.88), location: 0), .init(color: TVTheme.background.opacity(0.4), location: 0.42),
+                                       .init(color: .clear, location: 0.7)], startPoint: .leading, endPoint: .trailing)
+                LinearGradient(stops: [.init(color: TVTheme.background, location: 0), .init(color: TVTheme.background, location: 0.34),
+                                       .init(color: .clear, location: 0.64)], startPoint: .bottom, endPoint: .top)
+            }
+        }
+        .ignoresSafeArea()
     }
 }

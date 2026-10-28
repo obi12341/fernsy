@@ -30,7 +30,10 @@ final class StartUITests: FernsyUITestCase {
             shot("start-\(n)", app)
         }
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.films.'")).firstMatch.exists, "no film category row")
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.best.'")).firstMatch.exists, "no Best Rated row")
+        // Rows are built as they come near the screen (tvos-start-scrolling): on to the last one.
+        let best = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.best.'")).firstMatch
+        for _ in 0..<8 where !best.exists { remote.press(.down); Thread.sleep(forTimeInterval: 0.6) }
+        XCTAssertTrue(best.exists, "no Best Rated row")
     }
 
     func testALiveCardPlaysItsChannel() {
