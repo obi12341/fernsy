@@ -108,6 +108,7 @@ struct SeriesDetailView: View {
             do {
                 let loaded = try await app.client?.seriesInfo(series.id)
                 info = loaded
+                if let loaded { app.seriesInfos[series.id] = loaded }
                 season = loaded.flatMap(nextEpisode)?.season ?? loaded?.seasons.keys.sorted().first
             } catch {
                 self.error = error.localizedDescription

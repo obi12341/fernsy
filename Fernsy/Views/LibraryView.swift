@@ -19,7 +19,7 @@ struct LibraryView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
-    @State private var section: LibrarySection = .live
+    @State private var section: LibrarySection = .start
     @State private var categoryBySection: [LibrarySection: String] = [:]
     @State private var categoryFilter = ""
     @State private var query = ""
@@ -39,6 +39,9 @@ struct LibraryView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: Binding(get: { section }, set: { if let s = $0 { section = s; path = NavigationPath() } })) {
+                if app.credentials != nil || app.hasJellyfin {
+                    Label(LibrarySection.start.title, systemImage: LibrarySection.start.icon).tag(LibrarySection.start)
+                }
                 if app.credentials != nil {
                     Section("IPTV") {
                         ForEach(app.iptvSections) { s in
@@ -67,7 +70,7 @@ struct LibraryView: View {
             // Jellyfin Home has no categories, the guide picks its category from a menu: the
             // column collapses.
             // Detail pages (film, series) give the column's width to the backdrop as well.
-            if section == .jellyfinHome || (section == .live && effectiveLiveMode == .guide && !editingLive) || !path.isEmpty {
+            if section == .start || section == .jellyfinHome || (section == .live && effectiveLiveMode == .guide && !editingLive) || !path.isEmpty {
                 Color.clear.navigationSplitViewColumnWidth(0)
             } else {
                 CategoryColumn(section: section, selection: categoryID, filter: $categoryFilter, editing: section == .live && editingLive)
@@ -79,6 +82,7 @@ struct LibraryView: View {
                     .navigationDestination(for: Movie.self) { MovieDetailView(movie: $0) }
                     .navigationDestination(for: Series.self) { SeriesDetailView(series: $0) }
                     .navigationDestination(for: JFItem.self) { JellyfinItemDetailView(item: $0) }
+                    .navigationDestination(for: JellyfinOverview.Tile.Kind.self) { JellyfinBrowseView(kind: $0) }
             }
         }
         .searchable(text: $query, placement: .toolbar, prompt: searchPrompt)
@@ -246,6 +250,8 @@ struct LibraryView: View {
             SearchResultsView(results: search.results)
         } else {
             switch section {
+            case .start:
+                StartView()
             case .live:
                 switch effectiveLiveMode {
                 case .list:
@@ -263,7 +269,7 @@ struct LibraryView: View {
             case .recordings:
                 RecordingsView(filter: category)
             case .jellyfinHome:
-                JellyfinHomeView()
+                JellyfinOverviewView()
             case .jellyfinFilms:
                 JellyfinGridView(kind: .films, categoryID: category)
             case .jellyfinSeries:
@@ -281,7 +287,8 @@ struct LibraryView: View {
     }
 
     private var availableSections: [LibrarySection] {
-        (app.credentials != nil ? app.iptvSections : []) + (app.hasJellyfin ? LibrarySection.jellyfin : [])
+        let sections = (app.credentials != nil ? app.iptvSections : []) + (app.hasJellyfin ? LibrarySection.jellyfin : [])
+        return sections.isEmpty ? [] : [.start] + sections
     }
 
     private var runningRecordings: Int {
@@ -434,7 +441,7 @@ struct CategoryColumn: View {
             if app.showsIPTVMovies { rows.append(Row(category: XCategory(id: "movie", name: String(localized: "Movies")), count: movies)) }
             if app.showsIPTVSeries { rows.append(Row(category: XCategory(id: "series", name: String(localized: "Series")), count: shows)) }
             return rows
-        case .jellyfinHome:
+        case .start, .jellyfinHome:
             return [Row(category: XCategory(id: allCategoryID, name: String(localized: "Overview")), count: nil)]
         case .jellyfinFilms, .jellyfinSeries:
             let kind: JFKind = section == .jellyfinFilms ? .films : .series

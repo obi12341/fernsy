@@ -227,7 +227,7 @@ struct StartScreen: View {
         case .movie(let movie): model.play(.movie(movie))
         case .episode(let episode, let series): model.play(.episode(episode, series))
         case .jellyfin(let item): model.play(.jellyfin(item))
-        case .recording(let recording): model.play(recording)
+        case .recording(let id): if let recording = model.startRecording(id) { model.play(recording) }
         case .series: info(entry)
         }
     }

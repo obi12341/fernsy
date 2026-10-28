@@ -540,6 +540,66 @@
           }
         }
       }
+    },
+    "Movies · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filme · %@"
+          }
+        }
+      }
+    },
+    "Series · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serien · %@"
+          }
+        }
+      }
+    },
+    "Recording · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme · %@"
+          }
+        }
+      }
+    },
+    "Tonight": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute Abend"
+          }
+        }
+      }
+    },
+    "Coming Up": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als Nächstes"
+          }
+        }
+      }
+    },
+    "%lld min left": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "noch %lld Min."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
