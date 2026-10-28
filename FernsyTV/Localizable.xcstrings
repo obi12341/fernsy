@@ -1283,16 +1283,6 @@
         }
       }
     },
-    "No program information": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keine Programminformationen"
-          }
-        }
-      }
-    },
     "No recordings yet": {
       "localizations": {
         "de": {
@@ -2609,6 +2599,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nächster Sender"
+          }
+        }
+      }
+    },
+    "No program data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Programmdaten"
+          }
+        }
+      }
+    },
+    "No program information": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Programminformationen"
           }
         }
       }

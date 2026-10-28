@@ -40,6 +40,9 @@ struct GuideScreen: View {
                         ForEach(channels) { channel in
                             GuideRow(channel: channel, guide: model.guide.guide(channel.id), windowStart: $windowStart) { show in
                                 select(show, on: channel)
+                            } play: {
+                                model.zapSource = model.liveSource
+                                model.play(channel)
                             }
                         }
                     }
@@ -201,6 +204,8 @@ private struct GuideRow: View {
     @ObservedObject var guide: ChannelGuide
     @Binding var windowStart: Date
     let select: (EPGEntry) -> Void
+    /// A bar without listings plays the channel (tvos-guide-empty-channels).
+    let play: () -> Void
 
     var body: some View {
         HStack(spacing: 16) {
@@ -211,25 +216,28 @@ private struct GuideRow: View {
             .frame(width: GuideScreen.channelColumn - 16, alignment: .leading)
             ZStack(alignment: .topLeading) {
                 let windowEnd = windowStart.addingTimeInterval(GuideScreen.span)
-                let shows = (guide.entries ?? []).filter { $0.end > windowStart && $0.start < windowEnd }
-                if shows.isEmpty {
-                    Text(guide.entries == nil ? "Loading program …" : "No program information")
-                        .font(.system(size: 21)).foregroundStyle(TVTheme.tertiary)
-                        .frame(maxHeight: .infinity)
-                }
+                let entries = listings
+                let shows = (entries ?? []).filter { $0.end > windowStart && $0.start < windowEnd }
                 ForEach(shows, id: \.start) { show in
-                    let from = max(show.start, windowStart), to = min(show.end, windowEnd)
-                    let x = CGFloat(from.timeIntervalSince(windowStart) / GuideScreen.span) * GuideScreen.axisWidth
-                    let width = CGFloat(to.timeIntervalSince(from) / GuideScreen.span) * GuideScreen.axisWidth
                     Button { select(show) } label: {
                         GuideCell(show: show, recorded: model.isScheduled(show, on: channel) || isRecordedNow(show))
                     }
                     .buttonStyle(GuideCellStyle())
-                    .frame(width: max(width - 8, 30), height: 104)
-                    .offset(x: x + 4)
-                    .onMoveCommand { direction in page(direction, show: show, windowEnd: windowEnd) }
+                    .modifier(GuidePlacement(from: show.start, to: show.end, windowStart: windowStart, windowEnd: windowEnd))
+                    .onMoveCommand { direction in page(direction, start: show.start, end: show.end, windowEnd: windowEnd) }
                     .accessibilityIdentifier("guide.\(channel.id).\(Int(show.start.timeIntervalSince1970))")
                     .accessibilityValue(model.isScheduled(show, on: channel) ? "scheduled" : "")
+                }
+                // Without listings (or still loading) and in gaps: bars that play the channel, so
+                // focus reaches every row (tvos-guide-empty-channels).
+                let gaps = entries == nil ? [windowStart...windowEnd] : GuideGaps.free(shows: shows, window: windowStart...windowEnd)
+                ForEach(gaps, id: \.lowerBound) { gap in
+                    Button(action: play) { GuideGapCell(loading: entries == nil) }
+                        .buttonStyle(GuideCellStyle())
+                        .modifier(GuidePlacement(from: gap.lowerBound, to: gap.upperBound, windowStart: windowStart, windowEnd: windowEnd))
+                        .onMoveCommand { direction in page(direction, start: gap.lowerBound, end: gap.upperBound, windowEnd: windowEnd) }
+                        .accessibilityIdentifier("guide.\(channel.id).gap.\(Int(gap.lowerBound.timeIntervalSince1970))")
+                        .accessibilityValue(entries == nil ? "loading" : "empty")
                 }
             }
             .frame(width: GuideScreen.axisWidth, height: 104, alignment: .topLeading)
@@ -242,14 +250,75 @@ private struct GuideRow: View {
         return active.start < show.end && active.end > show.start
     }
 
+    /// The channel's listings; none for `IPTV_TESTNOEPG=<channel id>` (debug), as on the Mac.
+    private var listings: [EPGEntry]? {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["IPTV_TESTNOEPG"] == String(channel.id) { return [] }
+        #endif
+        return guide.entries
+    }
+
     /// At the window's edge, Right and Left page it by an hour (the cell stays focusable).
-    private func page(_ direction: MoveCommandDirection, show: EPGEntry, windowEnd: Date) {
+    private func page(_ direction: MoveCommandDirection, start: Date, end: Date, windowEnd: Date) {
         switch direction {
-        case .right where show.end >= windowEnd: windowStart = windowStart.addingTimeInterval(3600)
+        case .right where end >= windowEnd: windowStart = windowStart.addingTimeInterval(3600)
         // Back only to the window it opens with: from there Left goes on to the rail.
-        case .left where show.start <= windowStart && windowStart > GuideScreen.defaultStart():
+        case .left where start <= windowStart && windowStart > GuideScreen.defaultStart():
             windowStart = windowStart.addingTimeInterval(-3600)
         default: break
+        }
+    }
+}
+
+/// A cell's place on the time axis: from `from` to `to`, clipped to the window.
+private struct GuidePlacement: ViewModifier {
+    let from: Date, to: Date, windowStart: Date, windowEnd: Date
+
+    func body(content: Content) -> some View {
+        let start = max(from, windowStart), end = min(to, windowEnd)
+        let x = CGFloat(start.timeIntervalSince(windowStart) / GuideScreen.span) * GuideScreen.axisWidth
+        let width = CGFloat(end.timeIntervalSince(start) / GuideScreen.span) * GuideScreen.axisWidth
+        content.frame(width: max(width - 8, 30), height: 104).offset(x: x + 4)
+    }
+}
+
+/// A stretch without listings: hatched like the Mac's bar, "No program data" (or "Loading
+/// program …"); clicking plays the channel.
+private struct GuideGapCell: View {
+    let loading: Bool
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        Text(loading ? "Loading program …" : "No program data")
+            .font(.system(size: 21, weight: .medium)).lineLimit(1)
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background {
+                if focused { TVTheme.focused } else {
+                    Color.white.opacity(0.04).overlay { Hatching().opacity(0.06) }
+                }
+            }
+            .clipShape(.rect(cornerRadius: 14))
+            .overlay { if !focused { RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)) } }
+            .foregroundStyle(focused ? TVTheme.focusedText : TVTheme.tertiary)
+            .scaleEffect(focused ? 1.04 : 1)
+            .shadow(color: .black.opacity(focused ? 0.5 : 0), radius: 18, y: 18)
+            .animation(.easeOut(duration: 0.15), value: focused)
+    }
+}
+
+/// Diagonal stripes.
+private struct Hatching: View {
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            var x = -size.height
+            while x < size.width {
+                path.move(to: CGPoint(x: x, y: size.height))
+                path.addLine(to: CGPoint(x: x + size.height, y: 0))
+                x += 18
+            }
+            context.stroke(path, with: .color(.white), lineWidth: 6)
         }
     }
 }
