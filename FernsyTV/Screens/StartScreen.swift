@@ -26,7 +26,7 @@ struct StartScreen: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 50) {
                     if let hero {
-                        Hero(entry: hero, spotlight: resume.isEmpty) { open(hero) } info: { info(hero) }
+                        Hero(entry: hero, spotlight: resume.isEmpty, scroll: scroll) { open(hero) } info: { info(hero) }
                     }
                     if !live.channels.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
@@ -300,16 +300,24 @@ private struct Hero: View {
     let entry: LibraryEntry
     /// Nothing to continue: the newest film, offered to play.
     var spotlight = false
+    /// Told whether a button here has focus, so the backdrop moves (tvos-living-hero design 2).
+    let scroll: StartScroll
     let resume: () -> Void
     let info: () -> Void
+    @FocusState private var focus: Bool?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(spotlight ? "NEW · \(kind)" : "CONTINUE WATCHING · \(kind)").font(.system(size: 22, weight: .bold)).tracking(1.6).foregroundStyle(TVTheme.text.opacity(0.75))
-            Text(verbatim: entry.title).font(.system(size: 84, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
-            if !facts.isEmpty {
-                Text(verbatim: facts).font(.system(size: 26)).foregroundStyle(TVTheme.text.opacity(0.8))
+            // A new entry's text eases in (design 5); the buttons keep their identity so focus stays.
+            VStack(alignment: .leading, spacing: 18) {
+                Text(spotlight ? "NEW · \(kind)" : "CONTINUE WATCHING · \(kind)").font(.system(size: 22, weight: .bold)).tracking(1.6).foregroundStyle(TVTheme.text.opacity(0.75))
+                Text(verbatim: entry.title).font(.system(size: 84, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
+                if !facts.isEmpty {
+                    Text(verbatim: facts).font(.system(size: 26)).foregroundStyle(TVTheme.text.opacity(0.8))
+                }
             }
+            .id(entry.id)
+            .transition(.opacity.combined(with: .offset(y: 12)))
             HStack(spacing: 20) {
                 Button(action: resume) {
                     if spotlight {
@@ -319,15 +327,20 @@ private struct Hero: View {
                     }
                 }
                 .buttonStyle(ActionButtonStyle())
+                .focused($focus, equals: true)
                 .accessibilityIdentifier("start.hero.resume")
                 if DetailTarget.of(entry.open) != nil {
                     Button(action: info) { Image(systemName: "info.circle") }
                         .buttonStyle(ActionButtonStyle(round: true))
+                        .focused($focus, equals: false)
                         .accessibilityIdentifier("start.hero.info")
                 }
             }
             .padding(.top, 14)
         }
+        .animation(.easeOut(duration: 0.5), value: entry.id)
+        .onChange(of: focus != nil, initial: true) { _, focused in scroll.heroFocused = focused }
+        .onDisappear { scroll.heroFocused = false }
         .frame(width: 1100, alignment: .leading)
         .padding(.top, 90)
         .padding(.bottom, 40)
@@ -366,12 +379,16 @@ private struct Hero: View {
         }
     }
 
-    static func backdrop(_ entry: LibraryEntry, _ model: TVModel) -> URL? {
-        switch entry.open {
-        case .movie(let movie): model.movieInfo[movie.id]?.backdrop.flatMap(URL.init(string:)) ?? entry.image
-        case .jellyfin(let item): model.jellyfin.backdropURL(item).flatMap(URL.init(string:)) ?? entry.image
-        default: entry.image
+    /// All of the title's backdrops (tvos-living-hero design 3), else its picture.
+    static func backdrops(_ entry: LibraryEntry, _ model: TVModel) -> [URL] {
+        let list: [String] = switch entry.open {
+        case .movie(let movie): model.movieInfo[movie.id]?.backdrops ?? []
+        case .series(let series), .episode(_, let series): model.seriesInfo[series.id]?.backdrops ?? []
+        case .jellyfin(let item): model.jellyfin.backdropURLs(item)
+        case .recording: []
         }
+        let urls = list.prefix(5).compactMap(URL.init(string:))
+        return urls.isEmpty ? entry.image.map { [$0] } ?? [] : urls
     }
 }
 
@@ -504,11 +521,13 @@ private struct SortStyle: ButtonStyle {
     }
 }
 
-/// The scroll offset for the backdrop's fade, in 12-point steps (2 % of opacity): only
-/// StartBackdrop reads it, so scrolling redraws the backdrop, not the rows (tvos-start-scrolling).
+/// The scroll offset for the backdrop's fade, in 12-point steps (2 % of opacity), and whether the
+/// large entry has focus: only StartBackdrop reads them, so scrolling and focus redraw the
+/// backdrop, not the rows (tvos-start-scrolling, tvos-living-hero).
 @Observable
 final class StartScroll {
     private(set) var offset: CGFloat = 0
+    var heroFocused = false
 
     func update(_ value: CGFloat) {
         let stepped = (min(max(value, 0), 600) / 12).rounded() * 12
@@ -527,8 +546,11 @@ private struct StartBackdrop: View {
         ZStack {
             TVTheme.background
             if let hero {
-                RemoteImage(url: Hero.backdrop(hero, model), maxPixel: 1920) { ArtPlaceholder(seed: hero.title) }
+                LivingBackdrop(urls: Hero.backdrops(hero, model), active: scroll.heroFocused, seed: hero.title)
                     .frame(width: 1920, height: 1080).clipped()
+                    .accessibilityElement()
+                    .accessibilityIdentifier("start.backdrop")
+                    .accessibilityValue(scroll.heroFocused ? "moving" : "resting")
                     .opacity(max(0.15, 1 - scroll.offset / 600))
                 LinearGradient(stops: [.init(color: TVTheme.background.opacity(0.88), location: 0), .init(color: TVTheme.background.opacity(0.4), location: 0.42),
                                        .init(color: .clear, location: 0.7)], startPoint: .leading, endPoint: .trailing)

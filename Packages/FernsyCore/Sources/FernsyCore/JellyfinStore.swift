@@ -397,6 +397,11 @@ public final class JellyfinStore: ObservableObject {
         return nil
     }
 
+    /// All backdrops of the item (else of its series), for the living backdrop on Apple TV.
+    public func backdropURLs(_ item: JFItem, height: Int = 1080) -> [String] {
+        client?.backdropURLs(item, maxHeight: height) ?? []
+    }
+
     /// Landscape still for episodes and home rows; falls back to the series' artwork.
     public func thumbURL(_ item: JFItem, height: Int = 360) -> String? {
         if let tag = item.imageTags?["Primary"], item.type == "Episode" {

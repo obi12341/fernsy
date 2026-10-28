@@ -292,12 +292,21 @@ public struct JellyfinClient {
     // MARK: Images
 
     /// Artwork URL; the tag makes the URL change when the artwork changes (URL-keyed cache).
-    public func imageURL(itemId: String, type: String, tag: String?, maxHeight: Int) -> String? {
+    /// `index` picks one of several images of a type (backdrops: `Images/Backdrop/<index>`).
+    public func imageURL(itemId: String, type: String, index: Int? = nil, tag: String?, maxHeight: Int) -> String? {
         guard let tag else { return nil }
-        var components = URLComponents(url: base.appendingPathComponent("Items/\(itemId)/Images/\(type)"), resolvingAgainstBaseURL: false)
+        let path = "Items/\(itemId)/Images/\(type)" + (index.map { "/\($0)" } ?? "")
+        var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         components?.queryItems = [URLQueryItem(name: "tag", value: tag), URLQueryItem(name: "maxHeight", value: String(maxHeight)),
                                   URLQueryItem(name: "quality", value: "90")]
         return components?.url?.absoluteString
+    }
+
+    /// One URL per backdrop of the item, else of its parent (series), at most `limit`.
+    public func backdropURLs(_ item: JFItem, maxHeight: Int, limit: Int = 5) -> [String] {
+        var id = item.id, tags = item.backdropImageTags ?? []
+        if tags.isEmpty, let parent = item.parentBackdropItemId { id = parent; tags = item.parentBackdropImageTags ?? [] }
+        return tags.prefix(limit).enumerated().compactMap { index, tag in imageURL(itemId: id, type: "Backdrop", index: index, tag: tag, maxHeight: maxHeight) }
     }
 }
 

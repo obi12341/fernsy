@@ -27,6 +27,14 @@ extension KeyedDecodingContainer {
         guard let s = flexString(key)?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
         return s
     }
+
+    /// A list of strings that some panels send as a single string; empty entries dropped.
+    public func stringList(_ key: Key) -> [String] {
+        if let list = try? decode([String].self, forKey: key) {
+            return list.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        }
+        return nonEmpty(key).map { [$0] } ?? []
+    }
 }
 
 public func makeSearchKey(_ s: String) -> String {
@@ -249,7 +257,9 @@ public struct Episode: Identifiable, Hashable, Decodable, Sendable {
 
 public struct SeriesInfo: Decodable, Sendable {
     public let seasons: [Int: [Episode]]
-    public let backdrop: String?
+    /// All backdrops the provider lists (`backdrop_path` is a list or a single string).
+    public let backdrops: [String]
+    public var backdrop: String? { backdrops.first }
 
     private enum Keys: String, CodingKey { case episodes, info }
     private enum InfoKeys: String, CodingKey { case backdrop_path }
@@ -265,10 +275,9 @@ public struct SeriesInfo: Decodable, Sendable {
         seasons = result.mapValues { $0.sorted { $0.number < $1.number } }
 
         if let info = try? c.nestedContainer(keyedBy: InfoKeys.self, forKey: .info) {
-            if let list = try? info.decode([String].self, forKey: .backdrop_path) { backdrop = list.first }
-            else { backdrop = info.nonEmpty(.backdrop_path) }
+            backdrops = info.stringList(.backdrop_path)
         } else {
-            backdrop = nil
+            backdrops = []
         }
     }
 }
@@ -281,7 +290,9 @@ public struct MovieDetails: Decodable, Sendable {
     public let releaseDate: String?
     public let duration: String?
     public let rating: Double?
-    public let backdrop: String?
+    /// All backdrops the provider lists (`backdrop_path` is a list or a single string).
+    public let backdrops: [String]
+    public var backdrop: String? { backdrops.first }
     public let poster: String?
 
     private enum Root: String, CodingKey { case info }
@@ -293,7 +304,7 @@ public struct MovieDetails: Decodable, Sendable {
         let root = try decoder.container(keyedBy: Root.self)
         guard let c = try? root.nestedContainer(keyedBy: Keys.self, forKey: .info) else {
             plot = nil; genre = nil; cast = nil; director = nil; releaseDate = nil
-            duration = nil; rating = nil; backdrop = nil; poster = nil
+            duration = nil; rating = nil; backdrops = []; poster = nil
             return
         }
         plot = c.nonEmpty(.plot) ?? c.nonEmpty(.description)
@@ -303,8 +314,7 @@ public struct MovieDetails: Decodable, Sendable {
         releaseDate = c.nonEmpty(.releasedate) ?? c.nonEmpty(.release_date)
         duration = c.nonEmpty(.duration)
         rating = c.flexDouble(.rating).flatMap { $0 > 0 ? $0 : nil }
-        if let list = try? c.decode([String].self, forKey: .backdrop_path) { backdrop = list.first }
-        else { backdrop = c.nonEmpty(.backdrop_path) }
+        backdrops = c.stringList(.backdrop_path)
         poster = c.nonEmpty(.movie_image) ?? c.nonEmpty(.cover_big)
     }
 }

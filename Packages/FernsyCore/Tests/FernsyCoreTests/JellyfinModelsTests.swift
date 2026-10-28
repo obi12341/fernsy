@@ -57,6 +57,23 @@ struct JellyfinModelsTests {
     }
 
     /// No fixture carries anything from a real server.
+    /// One URL per backdrop (`Images/Backdrop/<index>`), at most five; episodes use the series'
+    /// (tvos-living-hero).
+    @Test func backdropURLsPerIndex() throws {
+        func item(_ json: String) throws -> JFItem { try JSONDecoder().decode(JFItem.self, from: Data(json.utf8)) }
+        let client = JellyfinClient(base: URL(string: "http://jf.test")!, token: nil)
+        let film = try item(#"{"id":"f","name":"F","type":"Movie","backdropImageTags":["t0","t1","t2","t3","t4","t5"]}"#)
+        let urls = client.backdropURLs(film, maxHeight: 1080)
+        #expect(urls.count == 5)
+        #expect(urls[0].hasPrefix("http://jf.test/Items/f/Images/Backdrop/0?tag=t0"))
+        #expect(urls[1].hasPrefix("http://jf.test/Items/f/Images/Backdrop/1?tag=t1"))
+        let single = try item(#"{"id":"g","name":"G","type":"Movie","backdropImageTags":["only"]}"#)
+        #expect(client.backdropURLs(single, maxHeight: 1080).count == 1)
+        let episode = try item(#"{"id":"e","name":"E","type":"Episode","backdropImageTags":[],"parentBackdropItemId":"s","parentBackdropImageTags":["p0","p1"]}"#)
+        #expect(client.backdropURLs(episode, maxHeight: 1080).map { $0.contains("/Items/s/Images/Backdrop/") } == [true, true])
+        #expect(client.backdropURLs(try item(#"{"id":"n","name":"N","type":"Movie"}"#), maxHeight: 1080).isEmpty)
+    }
+
     @Test func fixturesAreAnonymous() throws {
         let folder = try #require(Bundle.module.url(forResource: "jellyfin", withExtension: nil, subdirectory: "Fixtures"))
         for file in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
