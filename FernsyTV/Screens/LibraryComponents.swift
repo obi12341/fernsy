@@ -158,6 +158,10 @@ struct RowTitle: View {
 
 /// A horizontal row of cards that keeps the focused card's scale visible.
 struct CardRow<Content: View>: View {
+    /// The page's side margin: the row reaches past it to the screen edges and keeps its first
+    /// card aligned with the page, so cards scroll out (and are dropped) off-screen, not at the
+    /// margin (tvos-edge-scrolling).
+    var margin: CGFloat = 90
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -166,7 +170,9 @@ struct CardRow<Content: View>: View {
                 .padding(.vertical, 24)
                 .padding(.horizontal, 4)
         }
+        .contentMargins(.horizontal, margin, for: .scrollContent)
         .scrollClipDisabled()
+        .padding(.horizontal, -margin)
     }
 }
 

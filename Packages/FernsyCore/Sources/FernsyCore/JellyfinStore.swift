@@ -219,6 +219,10 @@ public final class JellyfinStore: ObservableObject {
             series = newSeries.values.sorted(by: Self.byName)
             membership = newMembership
             saveCache()
+            #if DEBUG
+            films = Self.debugMany(films)
+            series = Self.debugMany(series)
+            #endif
             AppLog.info(.jellyfin, "\(libs.count) libraries, \(films.count) films, \(series.count) series")
             await refreshHome()
         } catch {
@@ -261,6 +265,9 @@ public final class JellyfinStore: ObservableObject {
         }
         latestFilms = Array(films.sorted { $0.addedKey > $1.addedKey }.prefix(24))
         latestSeries = Array(shows.sorted { $0.addedKey > $1.addedKey }.prefix(24))
+        #if DEBUG
+        latestFilms = Array(Self.debugMany(latestFilms).prefix(24))
+        #endif
         fillHomeFromLibrary()
     }
 
@@ -421,12 +428,39 @@ public final class JellyfinStore: ObservableObject {
         return dir.appendingPathComponent("library.json")
     }
 
+    #if DEBUG
+    /// JF_TESTMANY=<n>: the films and series (and Recently Added) repeated with new ids up to n
+    /// each, in memory and not cached, so a small test server fills grids and rows (layout tests, tvos-edge-scrolling).
+    /// Copies have no artwork on the server and show the placeholder.
+    private static func debugMany(_ items: [JFItem]) -> [JFItem] {
+        guard let target = ProcessInfo.processInfo.environment["JF_TESTMANY"].flatMap(Int.init), !items.isEmpty,
+              let originals = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(items)) as? [[String: Any]] else { return items }
+        var copies: [[String: Any]] = []
+        var round = 1
+        while items.count + copies.count < target {
+            for var item in originals where items.count + copies.count < target {
+                item["id"] = "\(item["id"] ?? "")-\(round)"
+                item["name"] = "\(item["name"] ?? "") \(round)"
+                copies.append(item)
+            }
+            round += 1
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: copies),
+              let decoded = try? JSONDecoder().decode([JFItem].self, from: data) else { return items }
+        return items + decoded
+    }
+    #endif
+
     private func loadCache() {
         guard let url = cacheURL, let data = try? Data(contentsOf: url),
               let cache = try? JSONDecoder().decode(Cache.self, from: data) else { return }
         libraries = cache.libraries
         films = cache.films
         series = cache.series
+        #if DEBUG
+        films = Self.debugMany(films)
+        series = Self.debugMany(series)
+        #endif
         membership = cache.membership
         fillHomeFromLibrary()
         AppLog.detail(.jellyfin, "cache: \(films.count) films, \(series.count) series")
