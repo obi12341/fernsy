@@ -160,14 +160,14 @@ final class AppModel: ObservableObject {
     @Published var showsIPTVMovies: Bool {
         didSet {
             guard showsIPTVMovies != oldValue else { return }
-            storeSetting(showsIPTVMovies, "library.iptvMovies")
+            storeSetting(showsIPTVMovies, LibraryRules.moviesSwitchKey)
             catalogSectionSwitched(.movies, on: showsIPTVMovies)
         }
     }
     @Published var showsIPTVSeries: Bool {
         didSet {
             guard showsIPTVSeries != oldValue else { return }
-            storeSetting(showsIPTVSeries, "library.iptvSeries")
+            storeSetting(showsIPTVSeries, LibraryRules.seriesSwitchKey)
             catalogSectionSwitched(.series, on: showsIPTVSeries)
         }
     }
@@ -257,8 +257,8 @@ final class AppModel: ObservableObject {
         recentChannels = Self.skipKeychain ? [] : (UserDefaults.standard.array(forKey: LiveRules.recentKey) as? [Int] ?? [])
         showAdult = UserDefaults.standard.bool(forKey: "library.showAdult")
         showAdultInRecent = UserDefaults.standard.bool(forKey: "library.showAdultInRecent")
-        showsIPTVMovies = UserDefaults.standard.object(forKey: "library.iptvMovies") as? Bool ?? true
-        showsIPTVSeries = UserDefaults.standard.object(forKey: "library.iptvSeries") as? Bool ?? true
+        showsIPTVMovies = UserDefaults.standard.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true
+        showsIPTVSeries = UserDefaults.standard.object(forKey: LibraryRules.seriesSwitchKey) as? Bool ?? true
         UserDefaults.standard.register(defaults: [Self.timeshiftMinutesKey: 60])
         #if DEBUG
         JellyfinClient.deviceName = (Host.current().localizedName ?? "Mac") + " (Debug)"
@@ -1161,7 +1161,8 @@ final class AppModel: ObservableObject {
 extension AppModel {
     static var syncAllowed: Bool { !skipKeychain || ProcessInfo.processInfo.environment["IPTV_SYNC"] == "1" }
     static let syncedKeys = [LiveRules.favoritesKey, LiveRules.recentKey, TrackPreferences.audioKey,
-                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey]
+                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey,
+                             LibraryRules.moviesSwitchKey, LibraryRules.seriesSwitchKey]
 
     fileprivate func startSync() {
         sync.onChange = { [weak self] names in self?.syncArrived(names) }
@@ -1174,8 +1175,9 @@ extension AppModel {
         Task { await refreshSyncedLogins() }
     }
 
-    /// Values from another device: favourites and recently watched again from UserDefaults
-    /// (track languages and padding are read where they are used), hidden channels from the store.
+    /// Values from another device: favourites, recently watched and the films and series switches
+    /// again from UserDefaults (track languages and padding are read where they are used), hidden
+    /// channels from the store.
     private func syncArrived(_ names: Set<String>) {
         if names.contains("d." + LiveRules.favoritesKey) {
             favorites = Set(UserDefaults.standard.stringArray(forKey: LiveRules.favoritesKey) ?? [])
@@ -1184,6 +1186,13 @@ extension AppModel {
             recentChannels = UserDefaults.standard.array(forKey: LiveRules.recentKey) as? [Int] ?? []
         }
         if names.contains("resume") { objectWillChange.send() }
+        // Films or series switched on another device: as if switched here (drops or downloads).
+        if names.contains("d." + LibraryRules.moviesSwitchKey) {
+            showsIPTVMovies = UserDefaults.standard.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true
+        }
+        if names.contains("d." + LibraryRules.seriesSwitchKey) {
+            showsIPTVSeries = UserDefaults.standard.object(forKey: LibraryRules.seriesSwitchKey) as? Bool ?? true
+        }
         pullVisibility()
     }
 

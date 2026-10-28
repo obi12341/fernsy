@@ -9,7 +9,8 @@ import Foundation
 extension TVModel {
     static var syncAllowed: Bool { !skipKeychain || ProcessInfo.processInfo.environment["IPTV_SYNC"] == "1" }
     static let syncedKeys = [LiveRules.favoritesKey, LiveRules.recentKey, TrackPreferences.audioKey,
-                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey]
+                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey,
+                             LibraryRules.moviesSwitchKey, LibraryRules.seriesSwitchKey]
 
     func startSync() {
         sync.onChange = { [weak self] names in self?.syncArrived(names) }
@@ -36,6 +37,9 @@ extension TVModel {
         if names.contains("d." + LiveRules.favoritesKey) { favorites = Set(defaults.stringArray(forKey: LiveRules.favoritesKey) ?? []) }
         if names.contains("d." + LiveRules.recentKey) { recentChannels = defaults.array(forKey: LiveRules.recentKey) as? [Int] ?? [] }
         if names.contains("resume") { objectWillChange.send() }
+        // Films or series switched on another device: as if switched here (drops or downloads).
+        if names.contains("d." + LibraryRules.moviesSwitchKey) { showsIPTVMovies = defaults.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true }
+        if names.contains("d." + LibraryRules.seriesSwitchKey) { showsIPTVSeries = defaults.object(forKey: LibraryRules.seriesSwitchKey) as? Bool ?? true }
         pullLiveValues()
     }
 

@@ -94,6 +94,10 @@ public final class ResumeStore: @unchecked Sendable {
 public enum LibraryRules {
     /// Added within this many days: the Apple TV grid marks it "Neu".
     public static let newDays = 14
+    /// The switches for the provider's films and series (Settings), app-wide with the same keys
+    /// on Mac and Apple TV and synced (tvos-vod-switch); missing means on.
+    public static let moviesSwitchKey = "library.iptvMovies"
+    public static let seriesSwitchKey = "library.iptvSeries"
 
     public static func isNew(added: Int, now: Date = Date()) -> Bool {
         added > 0 && now.timeIntervalSince1970 - Double(added) < Double(newDays) * 86_400

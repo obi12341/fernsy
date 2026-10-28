@@ -42,6 +42,25 @@ final class TVModel: ObservableObject {
     @Published var series: [Series] = []
     @Published var movieInfo: [Int: MovieDetails] = [:]
     @Published var seriesInfo: [Int: SeriesInfo] = [:]
+    /// The provider's films and series (Settings › IPTV Account), app-wide with the Mac's keys
+    /// and synced (tvos-vod-switch). Off: neither downloaded, cached nor shown; favourites and
+    /// resume positions stay.
+    @Published var showsIPTVMovies = TVModel.librarySwitch(LibraryRules.moviesSwitchKey, env: "IPTV_SHOWMOVIES") {
+        didSet {
+            guard showsIPTVMovies != oldValue else { return }
+            storeLibrarySwitch(showsIPTVMovies, LibraryRules.moviesSwitchKey)
+            librarySwitched(movies: true, on: showsIPTVMovies)
+        }
+    }
+    @Published var showsIPTVSeries = TVModel.librarySwitch(LibraryRules.seriesSwitchKey, env: "IPTV_SHOWSERIES") {
+        didSet {
+            guard showsIPTVSeries != oldValue else { return }
+            storeLibrarySwitch(showsIPTVSeries, LibraryRules.seriesSwitchKey)
+            librarySwitched(movies: false, on: showsIPTVSeries)
+        }
+    }
+    /// A film and series download is running; switching a kind on waits for it.
+    var libraryLoading = false
     /// The film, episode or Jellyfin item in the player, nil when none plays.
     @Published var playingVOD: VODItem?
     var jellyfinPlayback: JellyfinPlayback?
