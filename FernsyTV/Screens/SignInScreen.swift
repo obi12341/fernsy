@@ -80,13 +80,13 @@ struct WelcomeScreen: View {
                     HStack(spacing: 48) {
                         Button { showIPTV = true } label: {
                             AccountTypeCard(symbol: "dot.radiowaves.left.and.right", title: "IPTV Account",
-                                            detail: "Live TV, guide, films and series from your provider (Xtream Codes).")
+                                            detail: "Live TV, guide, movies and series from your provider (Xtream Codes).")
                         }
                         .buttonStyle(TVTileStyle(radius: 28, scale: 1.06))
                         .accessibilityIdentifier("welcome.iptv")
                         Button { showJellyfin = true } label: {
                             AccountTypeCard(symbol: "play.rectangle.fill", title: "Jellyfin Server",
-                                            detail: "Your own library with films, series and watched state.")
+                                            detail: "Your own library with movies, series and watched state.")
                         }
                         .buttonStyle(TVTileStyle(rest: .white.opacity(0.07), radius: 28, scale: 1.06))
                         .accessibilityIdentifier("welcome.jellyfin")

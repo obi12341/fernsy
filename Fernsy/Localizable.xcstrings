@@ -1402,7 +1402,7 @@
         }
       }
     },
-    "Films and series from your own server": {
+    "Movies and series from your own server": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1552,7 +1552,7 @@
         }
       }
     },
-    "Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.": {
+    "Hidden categories and channels, favorites, recently watched channels, where you stopped movies and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1872,7 +1872,7 @@
         }
       }
     },
-    "Live TV, guide, films and series from your provider": {
+    "Live TV, guide, movies and series from your provider": {
       "localizations": {
         "de": {
           "stringUnit": {

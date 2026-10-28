@@ -36,4 +36,20 @@ struct LocalizationTests {
             #expect(localizations?["de"] != nil, "no German for \"\(key)\" in \(catalog)")
         }
     }
+
+    /// British forms that must not appear in English source texts (us-english-strings).
+    static let british = [#"\bfilms?\b"#, "favourit", "programme", "colour", "centre", "catalogue", "behaviour", "cancelled", "licence"]
+
+    /// The English source texts use US spelling and wording ("Movies", "Favorites", "program").
+    @Test(arguments: catalogs)
+    func englishIsUSEnglish(_ catalog: String) throws {
+        let data = try Data(contentsOf: Self.root.appendingPathComponent(catalog))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let strings = try #require(json["strings"] as? [String: [String: Any]])
+        for key in strings.keys {
+            for pattern in Self.british where key.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil {
+                Issue.record("British \"\(pattern)\" in \"\(key)\" (\(catalog))")
+            }
+        }
+    }
 }
