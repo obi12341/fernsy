@@ -214,6 +214,10 @@ play the channel.
 - **WHEN** a channel's listings end at 21:00 and the guide shows 20:00 to 23:00
 - **THEN** the stretch from 21:00 is a focusable bar that plays the channel
 
+#### Scenario: Scrolling fast through loading rows
+- **WHEN** the user presses Down quickly through rows whose programme is still loading, and it arrives while a row's loading bar has focus
+- **THEN** focus moves to that row's show at the same time and stays in the row, the guide does not jump to other rows
+
 ### Requirement: Player overlay on Apple TV
 While a live channel plays, a click or swipe SHALL show an overlay with the channel's logo,
 name and show time, the show's title, what follows, a timeline across the timeshift buffer
