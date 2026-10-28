@@ -20,6 +20,8 @@ final class TVModel: ObservableObject {
     @Published private(set) var signIn: SignIn = .signedOut
     @Published private(set) var credentials: XtreamCredentials?
     @Published private(set) var maxConnections = 1
+    /// The provider server's time zone, for archive requests (catch-up design 2).
+    private(set) var serverTimeZone: TimeZone?
     @Published private(set) var categories: [XCategory] = [] {
         didSet { adultCategoryIDs = Set(categories.filter(LiveRules.isAdultCategory).map(\.id)) }
     }
@@ -83,6 +85,7 @@ final class TVModel: ObservableObject {
     /// The film, episode or Jellyfin item in the player, nil when none plays.
     @Published var playingVOD: VODItem?
     var jellyfinPlayback: JellyfinPlayback?
+    var archivePlayback: ArchivePlayback?
     /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory.
     let resume = ResumeStore(defaults: TVModel.skipKeychain ? nil : .standard)
     /// Where the playing channel was started from: the player's channel strip zaps through it.
@@ -219,6 +222,8 @@ final class TVModel: ObservableObject {
             self.client = client
             self.credentials = credentials
             maxConnections = max(1, account.maxConnections ?? 1)
+            serverTimeZone = account.serverTimeZone
+            if let zone = account.serverTimeZone { AppLog.detail(.app, "server time zone \(zone.identifier)") }
             #if DEBUG
             // IPTV_MAXCONN=<n>: the account's stream limit for this run (single-stream tests).
             if let value = ProcessInfo.processInfo.environment["IPTV_MAXCONN"].flatMap(Int.init) { maxConnections = max(1, value) }
@@ -290,6 +295,8 @@ final class TVModel: ObservableObject {
     private func apply(_ catalog: CatalogCache) {
         categories = (try? JSONDecoder().decode([XCategory].self, from: catalog.categories)) ?? []
         channels = (try? JSONDecoder().decode([LiveChannel].self, from: catalog.channels)) ?? []
+        // Archive channels keep their past programme (catch-up design 5).
+        guide.archiveDays = Dictionary(channels.filter { $0.archiveDays > 0 }.map { ($0.id, $0.archiveDays) }, uniquingKeysWith: { a, _ in a })
     }
 
     func channels(in category: XCategory) -> [LiveChannel] {

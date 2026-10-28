@@ -520,6 +520,16 @@
           }
         }
       }
+    },
+    "Archive": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archiv"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -26,6 +26,8 @@ struct PlayerScreen: View {
     @EnvironmentObject private var jellyfin: JellyfinStore
     /// The Jellyfin item playing (direct/transcode, progress reports, next episode).
     @State private var jellyfinPlayback: JellyfinPlayback?
+    /// The archive playback of a past show (catch-up), kept while it plays.
+    @State private var archivePlayback: ArchivePlayback?
     @State private var isFullScreen = false
 
     // Zapping: the OSD follows key presses immediately, tuning waits until they stop,
@@ -398,6 +400,14 @@ struct PlayerScreen: View {
         } else if case .recording(let id) = item.kind {
             let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
             engine.load(file: item.url, isGrowing: { Recorder.isGrowing(id) }, startAt: start)
+        } else if case .archive(let channelId, let start, let end) = item.kind {
+            // Every seek requests the archive again from there (catch-up design 3).
+            let client = app.client, zone = app.account?.serverTimeZone
+            let playback = ArchivePlayback(channelId: channelId, start: start, end: end, engine: engine) { from, minutes in
+                client?.archiveURL(channel: channelId, start: from, minutes: minutes, timeZone: zone)
+            }
+            archivePlayback = playback
+            playback.play()
         } else {
             let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
             engine.load(url: item.url, isLive: item.isLive, startAt: start)

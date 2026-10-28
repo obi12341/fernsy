@@ -30,6 +30,9 @@ struct GuideScreen: View {
     var body: some View {
         let source = model.liveSource
         let channels = model.channels(for: source)
+        // Left reaches back as far as the shown channels' longest archive (catch-up).
+        let reach = Archive.reach(of: channels)
+        let earliest = reach > 0 ? Calendar.current.startOfDay(for: Date().addingTimeInterval(-Double(reach) * 86_400)) : Self.defaultStart()
         HStack(alignment: .top, spacing: 16) {
             rail
             VStack(alignment: .leading, spacing: 0) {
@@ -38,7 +41,7 @@ struct GuideScreen: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(channels) { channel in
-                            GuideRow(channel: channel, guide: model.guide.guide(channel.id), windowStart: $windowStart) { show in
+                            GuideRow(channel: channel, guide: model.guide.guide(channel.id), windowStart: $windowStart, earliest: earliest) { show in
                                 select(show, on: channel)
                             } play: {
                                 model.zapSource = model.liveSource
@@ -133,7 +136,7 @@ struct GuideScreen: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 22) {
-            Text(dayTitle).font(.system(size: 44, weight: .bold))
+            Text(verbatim: dayTitle).font(.system(size: 44, weight: .bold)).accessibilityIdentifier("guide.day")
             Text("\(sourceName) · \(TimeSpan.of(windowStart, windowStart.addingTimeInterval(Self.span)))")
                 .font(.system(size: 26))
                 .foregroundStyle(TVTheme.secondary)
@@ -141,8 +144,12 @@ struct GuideScreen: View {
         }
     }
 
-    private var dayTitle: LocalizedStringKey {
-        Calendar.current.isDateInToday(windowStart) ? "Today" : Calendar.current.isDateInTomorrow(windowStart) ? "Tomorrow" : "Yesterday"
+    private var dayTitle: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(windowStart) { return String(localized: "Today") }
+        if calendar.isDateInTomorrow(windowStart) { return String(localized: "Tomorrow") }
+        if calendar.isDateInYesterday(windowStart) { return String(localized: "Yesterday") }
+        return windowStart.formatted(.dateTime.weekday(.wide).day().month(.wide))
     }
 
     private var sourceName: String {
@@ -184,6 +191,9 @@ struct GuideScreen: View {
             model.play(channel)
         } else if show.start > now {
             asked = (show, channel)
+        } else if Archive.isPlayable(show, on: channel) {
+            // A past show of an archive channel plays from its start (catch-up).
+            Task { await model.playArchive(show, on: channel) }
         }
     }
 }
@@ -203,15 +213,21 @@ private struct GuideRow: View {
     let channel: LiveChannel
     @ObservedObject var guide: ChannelGuide
     @Binding var windowStart: Date
+    /// How far Left pages back: today's start, or the shown channels' archive.
+    let earliest: Date
     let select: (EPGEntry) -> Void
     /// A bar without listings plays the channel (tvos-guide-empty-channels).
     let play: () -> Void
+    /// The cell with focus, by its start: paging back keeps focus on it instead of letting it
+    /// escape to the rail on the left (catch-up).
+    @FocusState private var focused: Date?
 
     var body: some View {
         HStack(spacing: 16) {
             HStack(spacing: 16) {
                 ChannelLogo(channel: channel).frame(width: 116, height: 72)
                 Text(verbatim: channel.displayName).font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                if channel.archiveDays > 0 { ArchiveMark(channel: channel) }
             }
             .frame(width: GuideScreen.channelColumn - 16, alignment: .leading)
             ZStack(alignment: .topLeading) {
@@ -220,9 +236,11 @@ private struct GuideRow: View {
                 let shows = (entries ?? []).filter { $0.end > windowStart && $0.start < windowEnd }
                 ForEach(shows, id: \.start) { show in
                     Button { select(show) } label: {
-                        GuideCell(show: show, recorded: model.isScheduled(show, on: channel) || isRecordedNow(show))
+                        GuideCell(show: show, recorded: model.isScheduled(show, on: channel) || isRecordedNow(show),
+                                  archived: show.end <= Date() && Archive.isPlayable(show, on: channel))
                     }
                     .buttonStyle(GuideCellStyle())
+                    .focused($focused, equals: show.start)
                     .modifier(GuidePlacement(from: show.start, to: show.end, windowStart: windowStart, windowEnd: windowEnd))
                     .onMoveCommand { direction in page(direction, start: show.start, end: show.end, windowEnd: windowEnd) }
                     .accessibilityIdentifier("guide.\(channel.id).\(Int(show.start.timeIntervalSince1970))")
@@ -234,6 +252,7 @@ private struct GuideRow: View {
                 ForEach(gaps, id: \.lowerBound) { gap in
                     Button(action: play) { GuideGapCell(loading: entries == nil) }
                         .buttonStyle(GuideCellStyle())
+                        .focused($focused, equals: gap.lowerBound)
                         .modifier(GuidePlacement(from: gap.lowerBound, to: gap.upperBound, windowStart: windowStart, windowEnd: windowEnd))
                         .onMoveCommand { direction in page(direction, start: gap.lowerBound, end: gap.upperBound, windowEnd: windowEnd) }
                         .accessibilityIdentifier("guide.\(channel.id).gap.\(Int(gap.lowerBound.timeIntervalSince1970))")
@@ -243,6 +262,11 @@ private struct GuideRow: View {
             .frame(width: GuideScreen.axisWidth, height: 104, alignment: .topLeading)
         }
         .task(id: channel.id) { await model.loadGuide(for: channel) }
+        // A past day of an archive channel: its programme from back then (catch-up).
+        .task(id: "\(channel.id).\(Int(windowStart.timeIntervalSince1970 / 3600))") {
+            guard channel.archiveDays > 0, windowStart < Date().addingTimeInterval(-3 * 3600) else { return }
+            await model.guide.loadPast(channel.id, client: model.client, from: windowStart)
+        }
     }
 
     private func isRecordedNow(_ show: EPGEntry) -> Bool {
@@ -263,8 +287,10 @@ private struct GuideRow: View {
         switch direction {
         case .right where end >= windowEnd: windowStart = windowStart.addingTimeInterval(3600)
         // Back only to the window it opens with: from there Left goes on to the rail.
-        case .left where start <= windowStart && windowStart > GuideScreen.defaultStart():
+        case .left where start <= windowStart && windowStart > earliest:
             windowStart = windowStart.addingTimeInterval(-3600)
+            // The rail on the left would take the focus: give it back to this cell, now further right.
+            DispatchQueue.main.async { focused = start }
         default: break
         }
     }
@@ -330,6 +356,8 @@ private struct GuideCellStyle: ButtonStyle {
 private struct GuideCell: View {
     let show: EPGEntry
     let recorded: Bool
+    /// A past show in the channel's archive: it can be played (catch-up).
+    var archived = false
     @Environment(\.isFocused) private var focused
 
     var body: some View {
@@ -340,6 +368,7 @@ private struct GuideCell: View {
             Text(verbatim: show.title).font(.system(size: 23, weight: .semibold)).lineLimit(1)
             HStack(spacing: 8) {
                 if recorded { Circle().fill(Color(hex: 0xFF4D45)).frame(width: 10, height: 10) }
+                if archived { Image(systemName: "play.circle.fill").accessibilityHidden(true) }
                 Text(focused ? TimeSpan.of(show) : show.start.formatted(.dateTime.hour().minute()))
             }
             .font(.system(size: 19)).opacity(0.62).lineLimit(1)

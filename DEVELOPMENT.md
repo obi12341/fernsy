@@ -199,7 +199,7 @@ Subtitles for every source; a pick in the player during a series episode is reme
 series (`tracks.series`). Debug: `IPTV_AUDIOLANG=<code|system>` and
 `IPTV_SUBTITLES=<off|forced|code>` override the settings for one run, `IPTV_TRACKSTORE=test`
 keeps the series memory apart (the chooser rules are tests: `TrackChooserTests`),
-`IPTV_AUTOPLAY=episode:<series>:<n>` plays an IPTV episode.
+`IPTV_AUTOPLAY=episode:<series>:<n>` plays an IPTV episode. `IPTV_AUTOPLAY=archive:<channel>` plays the show that began about a day ago from that channel's archive (catch-up; the demo server's channels 101–103 have one).
 
 Audio reaches `AVSampleBufferAudioRenderer` in blocks of at least 20 ms: TrueHD frames are
 0.83 ms long, and one sample buffer per frame leaves the renderer silent. `IPTV_AUDIOLEVEL=1`

@@ -23,6 +23,11 @@ const CHUNK_SECONDS = 3;     // one ranged subrequest per chunk
 const MAX_CHUNKS = 45;       // free plan: 50 subrequests per request; the player reconnects after ~2 min
 const TS_PACKET = 188;
 
+// Channels with an archive (catch-up): id -> days. The timeshift route serves any stretch of
+// these days, as the looped recording ran then; other channels answer 404.
+const ARCHIVE = { 101: 5, 102: 3, 103: 1 };
+const ARCHIVE_CHUNKS = 40;   // ranged subrequests per archive request (free plan: 50)
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -38,6 +43,16 @@ export default {
       if (decodeURIComponent(user) !== USER || decodeURIComponent(pass) !== PASS) return new Response("Forbidden", { status: 403 });
       if (kind === "live") return live(Number(id));
       return Response.redirect(MEDIA + "movie.mp4", 302);
+    }
+
+    // /timeshift/<user>/<pass>/<minutes>/<YYYY-MM-DD:HH-MM>/<id>.ts, the start in UTC (the
+    // server sends no time zone).
+    const shift = path.match(/^\/timeshift\/([^/]+)\/([^/]+)\/(\d+)\/(\d{4})-(\d{2})-(\d{2}):(\d{2})-(\d{2})\/(\d+)\.ts$/);
+    if (shift) {
+      const [, user, pass, minutes, y, mo, d, h, mi, id] = shift;
+      if (decodeURIComponent(user) !== USER || decodeURIComponent(pass) !== PASS) return new Response("Forbidden", { status: 403 });
+      const start = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi)) / 1000;
+      return archive(Number(id), start, Number(minutes));
     }
 
     const image = path.match(/^\/img\/(de|en)\/([a-z]+_\d+(?:_bg|_e\d)?)\.png$/);
@@ -92,6 +107,38 @@ function live(id) {
   return new Response(readable, { status: 200, headers: { "Content-Type": "video/mp2t", "Cache-Control": "no-store" } });
 }
 
+/// A past stretch of an archive channel: the looped recording from where it was at `start`,
+/// for `minutes`, as fast as the player reads it (an archive is a download, not paced).
+function archive(id, start, minutes) {
+  const days = ARCHIVE[id];
+  const now = Date.now() / 1000;
+  if (!days || start > now || start < now - days * 86400 || minutes < 1) return new Response("Not found", { status: 404 });
+  const rate = LIVE.bytes / LIVE.seconds;
+  const align = (bytes) => Math.floor(bytes / TS_PACKET) * TS_PACKET;
+  let position = align(((start + id * 41) % LIVE.seconds) * rate);
+  let left = align(Math.min(minutes * 60, now - start + 60) * rate);
+  const chunk = align(Math.max(left / ARCHIVE_CHUNKS, 4 * 1024 * 1024));
+  const { readable, writable } = new TransformStream();
+  const pump = async () => {
+    try {
+      for (let i = 0; i < ARCHIVE_CHUNKS + 5 && left > 0; i++) {
+        if (position >= LIVE.bytes) position = 0;
+        const end = Math.min(position + Math.min(chunk, left), LIVE.bytes);
+        const upstream = await fetch(MEDIA + LIVE.file, { headers: { Range: `bytes=${position}-${end - 1}` } });
+        if (!upstream.ok || !upstream.body) break;
+        await upstream.body.pipeTo(writable, { preventClose: true });
+        left -= end - position;
+        position = end;
+      }
+      await writable.close();
+    } catch {
+      try { await writable.abort(); } catch {}
+    }
+  };
+  pump();
+  return new Response(readable, { status: 200, headers: { "Content-Type": "video/mp2t", "Cache-Control": "no-store" } });
+}
+
 function json(value) {
   return new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json; charset=utf-8" } });
 }
@@ -117,7 +164,8 @@ function api(url, lang) {
     case "get_live_streams":
       return json(d.channels.map(([id, name, cat], i) => ({
         num: i + 1, name, stream_type: "live", stream_id: id, stream_icon: `${base}/img/${lang}/logo_${id}.png`,
-        epg_channel_id: `demo${id}`, category_id: cat, tv_archive: 0, is_adult: 0,
+        epg_channel_id: `demo${id}`, category_id: cat, tv_archive: ARCHIVE[id] ? 1 : 0,
+        tv_archive_duration: ARCHIVE[id] || 0, is_adult: 0,
       })));
     case "get_vod_streams":
       return json(d.movies.map(([name, cat, , , rating], i) => ({
@@ -175,7 +223,8 @@ function api(url, lang) {
   }
 }
 
-/// Deterministic programme per channel from six hours ago to three days ahead.
+/// Deterministic programme per channel from six hours ago (an archive channel: its archive's
+/// days) to three days ahead.
 function schedule(id, shows, now) {
   let seed = id >>> 0;
   const random = () => {   // mulberry32
@@ -187,14 +236,16 @@ function schedule(id, shows, now) {
   };
   // Anchored to the day, so the programme stays the same within a day.
   const day = Math.floor(now / 86400) * 86400;
-  let t = day - 86400 + [0, 300, 600, 900][Math.floor(random() * 4)];
+  const days = ARCHIVE[id] || 0;
+  let t = day - (1 + days) * 86400 + [0, 300, 600, 900][Math.floor(random() * 4)];
   const end = now + 3 * 86400;
+  const from = days ? now - days * 86400 : now - 6 * 3600;
   const out = [];
   let n = 0;
   while (t < end) {
     const [title, minutes, description] = shows[Math.floor(random() * shows.length)];
     const stop = t + minutes * 60;
-    if (stop > now - 6 * 3600) {
+    if (stop > from) {
       out.push({ id: String(n), epg_id: String(id), channel_id: `demo${id}`, lang: "de", title: b64(title),
                  description: b64(description), start_timestamp: String(t), stop_timestamp: String(stop) });
     }

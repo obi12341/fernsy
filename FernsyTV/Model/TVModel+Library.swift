@@ -2,22 +2,37 @@ import FernsyCore
 import FernsyPlayer
 import Foundation
 
-/// A film, an episode or a Jellyfin item to play (tvos-library).
+/// A film, an episode, a Jellyfin item or a past show from a channel's archive to play
+/// (tvos-library, catch-up).
 enum VODItem: Equatable {
     case movie(Movie)
     case episode(Episode, Series)
     case jellyfin(JFItem)
+    case archive(EPGEntry, LiveChannel)
+
+    static func == (a: VODItem, b: VODItem) -> Bool {
+        switch (a, b) {
+        case let (.movie(x), .movie(y)): x == y
+        case let (.episode(x, _), .episode(y, _)): x == y
+        case let (.jellyfin(x), .jellyfin(y)): x == y
+        case let (.archive(x, c), .archive(y, d)): x.start == y.start && c.id == d.id
+        default: false
+        }
+    }
 
     var title: String {
         switch self {
         case .movie(let movie): movie.name
         case .episode(_, let series): series.name
         case .jellyfin(let item): item.seriesName ?? item.name
+        case .archive(let show, _): show.title
         }
     }
 
     var subtitle: String? {
         switch self {
+        case .archive(let show, let channel):
+            "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))"
         case .movie: nil
         case .episode(let episode, _): "S\(episode.season) F\(episode.number) · \(episode.title)"
         case .jellyfin(let item):
@@ -30,7 +45,7 @@ enum VODItem: Equatable {
         switch self {
         case .movie(let movie): ResumeStore.movieKey(movie.id)
         case .episode(let episode, _): "episode.\(episode.id)"
-        case .jellyfin: nil
+        case .jellyfin, .archive: nil   // archives expire within days
         }
     }
 }
@@ -245,6 +260,15 @@ extension TVModel {
                 let start = fromStart ? 0 : Double(jfItem.userData?.playbackPositionTicks ?? 0) / 10_000_000
                 playback.start(at: start)
             }
+        case .archive(let show, let channel):
+            // Its own connection, counted against the account's limit (catch-up design 4).
+            tuners.reserveArchive(channel.id)
+            let client = client, zone = serverTimeZone
+            let playback = ArchivePlayback(channelId: channel.id, start: show.start, end: show.end, engine: engine) { from, minutes in
+                client?.archiveURL(channel: channel.id, start: from, minutes: minutes, timeZone: zone)
+            }
+            archivePlayback = playback
+            playback.play()
         }
         AppLog.info(.player, "play \(item.title)")
     }
@@ -259,6 +283,10 @@ extension TVModel {
         }
         jellyfinPlayback?.stop()
         jellyfinPlayback = nil
+        if case .archive(_, let channel) = item {
+            archivePlayback = nil
+            tuners.releaseArchive(channel.id)
+        }
         engine.stop()
         playingVOD = nil
         if case .jellyfin(let jfItem) = item {

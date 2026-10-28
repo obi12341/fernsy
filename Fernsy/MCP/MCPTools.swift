@@ -413,6 +413,9 @@ final class MCPTools {
         case .episode(let id, let seriesId): value["item_id"] = "episode:\(seriesId):\(id)"
         case .recording(let id): value["item_id"] = "recording:\(id.uuidString)"
         case .jellyfin(let id, _, _): value["item_id"] = "jellyfin:\(id)"
+        case .archive(let id, let start, _):
+            value["item_id"] = "archive:\(id):\(Int(start.timeIntervalSince1970))"
+            value["channel"] = app.channel(id)?.displayName
         }
         if let engine = app.playerEngine {
             let progress = engine.progress

@@ -22,6 +22,10 @@ public final class ChannelGuide: ObservableObject {
 public final class EPGStore {
     public init() {}
 
+    /// Days of the provider's archive per channel (catch-up): their past programme is kept that
+    /// long instead of three hours. Set by the app when the catalog loads.
+    public var archiveDays: [Int: Int] = [:]
+
     private var guides: [Int: ChannelGuide] = [:]
     private var pending: [Int: (id: UUID, task: Task<Void, Never>)] = [:]
     private var waiters: [Int: Set<UUID>] = [:]
@@ -48,8 +52,8 @@ public final class EPGStore {
             Task.detached(priority: .background) { Self.prune(file.deletingLastPathComponent()) }
         }
         if guide.fetchedAt == nil, diskChecked.insert(channelId).inserted {
-            let generation = generation
-            if let cached = await Self.read(file), generation == self.generation, guide.fetchedAt == nil {
+            let generation = generation, keepDays = keepDays(channelId)
+            if let cached = await Self.read(file, keepDays: keepDays), generation == self.generation, guide.fetchedAt == nil {
                 guide.entries = cached.entries
                 guide.fetchedAt = cached.fetchedAt
             }
@@ -96,20 +100,33 @@ public final class EPGStore {
 
         if guide.entries == nil, let quick = try? await client.shortEPG(channelId, limit: 10),
            !Task.isCancelled, generation == self.generation {
-            guide.entries = Self.clean(quick)
+            guide.entries = Self.clean(quick, keepDays: keepDays(channelId))
         }
 
         guard await tableSlots.acquire() else { return }
         defer { tableSlots.release() }
         guard !Task.isCancelled, let table = try? await client.epgTable(channelId),
               !Task.isCancelled, generation == self.generation else { return }
-        let entries = Self.clean(table)
+        let entries = Self.clean(table, keepDays: keepDays(channelId))
         AppLog.detail(.guide, "channel \(channelId): \(table.count) entries, \(entries.count) kept")
         if !entries.isEmpty || guide.entries == nil { guide.entries = entries }
         guide.fetchedAt = Date()
         let file = Self.cacheFile(channelId, client: client), cached = CachedGuide(guide.entries ?? [], fetchedAt: Date())
         Task.detached(priority: .utility) { Self.write(cached, to: file) }
     }
+
+    /// A past day of an archive channel is shown: when the programme does not reach back to
+    /// `date` (a cache from before, or a quick answer only), the table is fetched again.
+    public func loadPast(_ channelId: Int, client: XtreamClient?, from date: Date) async {
+        let guide = guide(channelId)
+        await load(channelId, client: client)
+        guard keepDays(channelId) > 0, let first = guide.entries?.first?.start, first > date.addingTimeInterval(3600),
+              let fetchedAt = guide.fetchedAt, Date().timeIntervalSince(fetchedAt) > 600 else { return }
+        guide.fetchedAt = nil
+        await load(channelId, client: client)
+    }
+
+    private func keepDays(_ channelId: Int) -> Int { min(archiveDays[channelId] ?? 0, Archive.maxDays) }
 
     /// For a visible row: loads the programme, then keeps it fresh until the caller is
     /// cancelled (the row disappears).
@@ -166,10 +183,10 @@ public final class EPGStore {
             .appendingPathComponent("Fernsy/\(client.credentials.accountKey)/epg/\(channelId).json")
     }
 
-    nonisolated private static func read(_ file: URL) async -> (entries: [EPGEntry], fetchedAt: Date)? {
+    nonisolated private static func read(_ file: URL, keepDays: Int) async -> (entries: [EPGEntry], fetchedAt: Date)? {
         guard let data = try? Data(contentsOf: file),
               let cached = try? JSONDecoder().decode(CachedGuide.self, from: data) else { return nil }
-        let entries = clean(cached.entries.map { EPGEntry(id: $0.i, title: $0.t, description: $0.d, start: $0.s, end: $0.e) })
+        let entries = clean(cached.entries.map { EPGEntry(id: $0.i, title: $0.t, description: $0.d, start: $0.s, end: $0.e) }, keepDays: keepDays)
         return (entries, cached.fetchedAt)
     }
 
@@ -189,10 +206,11 @@ public final class EPGStore {
     }
 
     /// Sorted, without duplicates, from shortly before now (the guide starts two hours back,
-    /// see GuideLayout). The table reaches several days ahead; keeping that is what lets a
-    /// cached channel stay valid for half a day.
-    nonisolated private static func clean(_ list: [EPGEntry]) -> [EPGEntry] {
-        let from = Date().addingTimeInterval(-3 * 3600), to = Date().addingTimeInterval(4 * 86400)
+    /// see GuideLayout), or `keepDays` back for a channel with an archive. The table reaches
+    /// several days ahead; keeping that is what lets a cached channel stay valid for half a day.
+    nonisolated static func clean(_ list: [EPGEntry], keepDays: Int = 0, now: Date = Date()) -> [EPGEntry] {
+        let back: TimeInterval = keepDays > 0 ? Double(keepDays) * 86_400 : 3 * 3600
+        let from = now.addingTimeInterval(-back), to = now.addingTimeInterval(4 * 86400)
         var seen = Set<Date>()
         return list.sorted { $0.start < $1.start }
             .filter { $0.end > $0.start && $0.end > from && $0.start < to && seen.insert($0.start).inserted }
