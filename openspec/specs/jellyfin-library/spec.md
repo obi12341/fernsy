@@ -7,14 +7,14 @@ genres, home rows, details, watched status and favorites.
 ## Requirements
 
 ### Requirement: Jellyfin group in the sidebar
-With a Jellyfin account the sidebar SHALL show a "Jellyfin" group with Home, Films and Series.
-Music, live TV and other library types are not shown. The group's header SHALL show the
+With a Jellyfin account the sidebar SHALL show a "Jellyfin" group with Übersicht, Films and
+Series. Music, live TV and other library types are not shown. The group's header SHALL show the
 server's state with a dot and text: the server name while it is reachable, "Offline" while
 it is not.
 
 #### Scenario: Server with film, series and music libraries
 - **WHEN** the server has libraries of type films, series and music
-- **THEN** the group offers Home, Films and Series only
+- **THEN** the group offers Übersicht, Films and Series only
 
 #### Scenario: Server unreachable
 - **WHEN** the Jellyfin server cannot be reached
@@ -78,28 +78,32 @@ season, the episodes with number, title, runtime, overview, thumbnail and watche
 - **WHEN** the user selects season 3
 - **THEN** the episodes of season 3 are listed in order
 
-### Requirement: Home rows
-Home SHALL show the server's name and state at the top, then "Continue Watching" (partly
-watched films and episodes, as wide cards with a progress bar) and "Next Up" (next
-unwatched episode of series in progress) from the server, followed by "Recently Added" for
-films and series. Home has no category column; each row pages with previous/next buttons,
-so no horizontal scroll wheel is needed. Without the server, the rows come from the cached library.
-
-#### Scenario: Paging with a mouse
-- **WHEN** the user clicks the next button of "New Movies" with a mouse that only scrolls vertically
-- **THEN** the row moves on by one page of posters
-
-#### Scenario: Series in progress
-- **WHEN** the user watched episode 4 of a series on another client
-- **THEN** episode 5 appears under Next Up
-
 ### Requirement: Cached library, refreshed in the background
 The film and series lists SHALL be shown from a local cache at launch and refreshed in the
 background; watched status and favorites SHALL be refreshed when a Jellyfin section opens.
 A server that is not reachable keeps the cached library usable with an amber notice
 ("Jellyfin nicht erreichbar", the saved library is shown, "Retry"), and the sidebar and the
-Home header say "Offline" at the same time.
+Übersicht header say "Offline" at the same time.
 
 #### Scenario: Server offline
 - **WHEN** the Jellyfin server is not reachable at launch
 - **THEN** the cached films and series are shown with a notice that the server is offline
+
+### Requirement: Jellyfin overview on the Mac
+Übersicht SHALL show the server's name and state, then the content of Jellyfin's Übersicht on
+Apple TV, built by the same rules: the suggestion with "Abspielen", "Anderer Vorschlag" and
+"Details", Weiterschauen, Zuletzt hinzugefügt, the discovery rows, genre and decade tiles that
+open a sortable grid, and the library in numbers. Rows without entries SHALL be left out and
+rows SHALL page with previous/next buttons. Without the server, it SHALL use the cached library.
+
+#### Scenario: Another suggestion
+- **WHEN** the user clicks "Anderer Vorschlag"
+- **THEN** another unwatched, well-rated film takes the suggestion's place
+
+#### Scenario: Browsing a decade
+- **WHEN** the user clicks the tile "1990er"
+- **THEN** a grid shows the library's titles from the 1990s, sortable by rating, name and year
+
+#### Scenario: Paging with a mouse
+- **WHEN** the user clicks the next button of a row with a mouse that only scrolls vertically
+- **THEN** the row moves on by one page
