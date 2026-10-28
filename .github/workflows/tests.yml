@@ -112,6 +112,9 @@ jobs:
           xcrun simctl list devices available | grep 'Apple TV'
 
       - name: Apple TV app and UI test
+        # FERNSY_CI in the test runner: tests skip judgments a GPU-less runner cannot meet.
+        env:
+          TEST_RUNNER_FERNSY_CI: '1'
         run: scripts/tv-uitest.sh
 
       # The result bundle (failure messages with the element tree, screenshots, the screen

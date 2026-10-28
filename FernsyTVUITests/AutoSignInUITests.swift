@@ -35,15 +35,20 @@ final class AutoSignInUITests: FernsyUITestCase {
         XCTAssertEqual(app.descendants(matching: .any)["icloud.step.found"].value as? String, "running", "no running iCloud step")
         shot("auto-signin-looking", app)
         let channels = app.descendants(matching: .any)["icloud.step.channels"]
-        XCTAssertTrue(wait(20) { channels.value as? String == "done" }, "the channels step is not checked off:\n\(app.debugDescription)")
-        for step in ["found", "provider"] {
-            XCTAssertEqual(app.descendants(matching: .any)["icloud.step.\(step)"].value as? String, "done", "\(step) is not checked off")
+        // On a slow CI runner one look at the screen takes seconds and can miss the moment all
+        // steps are checked off before the screen fades; then the signed-in app below is the proof.
+        XCTAssertTrue(wait(20) { !screen.exists || channels.exists && channels.value as? String == "done" },
+                      "the channels step is not checked off:\n\(app.debugDescription)")
+        if screen.exists {
+            for step in ["found", "provider"] {
+                XCTAssertEqual(app.descendants(matching: .any)["icloud.step.\(step)"].value as? String, "done", "\(step) is not checked off")
+            }
+            // At once: shot() waits a second, and the screen fades soon after the last checkmark.
+            let steps = XCTAttachment(screenshot: app.screenshot())
+            steps.name = "auto-signin-steps"
+            steps.lifetime = .keepAlways
+            add(steps)
         }
-        // At once: shot() waits a second, and the screen fades soon after the last checkmark.
-        let steps = XCTAttachment(screenshot: app.screenshot())
-        steps.name = "auto-signin-steps"
-        steps.lifetime = .keepAlways
-        add(steps)
         signsInWithoutWelcome("Live TV", app)
         shot("auto-signin-start", app)
     }

@@ -32,6 +32,9 @@ final class StartScrollingUITests: FernsyUITestCase {
         report.lifetime = .keepAlways
         add(report)
         print("START_SCROLL_LATE_FRAMES \(result.late) in \(seconds) s")
+        // CI's simulator renders without a GPU (35–47 frames a second there even at rest): the
+        // count is reported but only judged on a Mac (TEST_RUNNER_FERNSY_CI from tests.yml).
+        if ProcessInfo.processInfo.environment["FERNSY_CI"] == "1" { return }
         // 136–139 before tvos-start-scrolling, 14 after it.
         XCTAssertLessThanOrEqual(result.late, 40, "Start stutters while scrolling:\n" + result.lines.joined(separator: "\n"))
     }
