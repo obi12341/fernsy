@@ -186,11 +186,11 @@ leaves out keychain items, and turns scheduled or running recordings into skippe
 
 ### Requirement: Automated tests gate builds
 The logic Fernsy shares across platforms (provider and Jellyfin data, channel names, the
-recording plan, recording gaps, the slow-delivery rule, track choice, the app log) SHALL be
-built as a separate module for macOS and tvOS, with automated tests. CI SHALL run these tests
-and build the module for tvOS on every push to `main` and to change branches, and SHALL NOT
-publish a nightly or a release from a commit whose tests fail. The tests SHALL need no network
-and no provider account.
+recording plan and gaps, the slow-delivery rule, track choice, the app log) SHALL be a
+separate module for macOS and tvOS with tests, which CI SHALL run with a tvOS build on pushes
+to `main` changing more than specs and docs, and on pull requests. A nightly or release
+SHALL reuse a passing run of its commit or run them, never publishing a failing one. The
+tests SHALL need no network and no provider account.
 
 #### Scenario: A change breaks channel-name parsing
 - **WHEN** a commit changes how "|DE| RTL FHD" is split into name, country and quality
@@ -208,10 +208,23 @@ and no provider account.
 - **WHEN** the tests run on a machine without network access
 - **THEN** they pass, because network answers come from recorded examples
 
+#### Scenario: Nightly after a tested merge
+- **WHEN** the tests passed for the merge commit on `main` and the nightly is started for it
+- **THEN** the nightly builds without running the tests again
+
+#### Scenario: Push to a change branch
+- **WHEN** a commit is pushed to a change branch
+- **THEN** no test run starts for it
+
+#### Scenario: Spec-only commit on main
+- **WHEN** a push to `main` changes only files under `openspec/` and Markdown files
+- **THEN** no test run starts, and a nightly from that commit runs the tests itself
+
 ### Requirement: Apple TV app in CI
 CI SHALL build the Apple TV app for the tvOS simulator and run its UI test with the demo
-account on every push to `main` and to change branches, and a nightly or release SHALL NOT be
-built when that fails.
+account on pushes to `main` that change more than specs and docs, and on pull requests; a
+nightly or release SHALL reuse that run for its commit or run it itself, and SHALL NOT be built
+when it fails.
 
 #### Scenario: The Apple TV app stops building
 - **WHEN** a commit breaks the Apple TV target
