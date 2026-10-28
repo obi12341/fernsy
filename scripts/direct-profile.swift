@@ -77,8 +77,21 @@ func hasContainer(_ content: Data) -> Bool {
     return String(data: output, encoding: .utf8)?.contains(container) == true
 }
 
-var profile = items(api("GET", "/v1/profiles?filter[name]=\(query(profileName))&filter[profileType]=MAC_APP_DIRECT&limit=20"))
-    .first { attributes($0)["profileState"] as? String == "ACTIVE" }
+/// All items of a list endpoint, page by page: the API's name and identifier filters do not
+/// match reliably (a profile it did not find by name made the create step fail with 409).
+func all(_ path: String) -> [[String: Any]] {
+    var result: [[String: Any]] = []
+    var next: String? = path
+    while let page = next {
+        let response = api("GET", page)
+        result += items(response)
+        next = ((response["links"] as? [String: Any])?["next"] as? String).map { $0.replacingOccurrences(of: "https://api.appstoreconnect.apple.com", with: "") }
+    }
+    return result
+}
+
+var profile = all("/v1/profiles?limit=200")
+    .first { attributes($0)["name"] as? String == profileName && attributes($0)["profileState"] as? String == "ACTIVE" }
 if let current = profile, let content = (attributes(current)["profileContent"] as? String).flatMap({ Data(base64Encoded: $0) }),
    !hasContainer(content), let id = current["id"] as? String {
     FileHandle.standardError.write(Data("direct-profile: \(profileName) lacks \(container), replacing it\n".utf8))
@@ -86,14 +99,7 @@ if let current = profile, let content = (attributes(current)["profileContent"] a
     profile = nil
 }
 if profile == nil {
-    // All app ids, searched here: the identifier filter of the API does not match reliably.
-    var bundles: [[String: Any]] = []
-    var next: String? = "/v1/bundleIds?limit=200&fields[bundleIds]=identifier,platform,name"
-    while let path = next {
-        let page = api("GET", path)
-        bundles += items(page)
-        next = ((page["links"] as? [String: Any])?["next"] as? String).map { $0.replacingOccurrences(of: "https://api.appstoreconnect.apple.com", with: "") }
-    }
+    let bundles = all("/v1/bundleIds?limit=200&fields[bundleIds]=identifier,platform,name")
     guard let bundle = bundles.first(where: { attributes($0)["identifier"] as? String == bundleIdentifier }), let bundleID = bundle["id"] as? String else {
         let similar = bundles.compactMap { attributes($0)["identifier"] as? String }.filter { $0.contains("fernsy") }
         fail("no app id \(bundleIdentifier) among \(bundles.count) app ids (similar: \(similar))")
