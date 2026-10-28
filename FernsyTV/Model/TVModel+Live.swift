@@ -169,6 +169,27 @@ extension TVModel {
         play(channel)
     }
 
+    /// A past show from the channel's archive (catch-up): it takes a connection like a channel, so
+    /// when recordings hold all of them it asks first, as zapping does.
+    func playArchive(_ show: EPGEntry, on channel: LiveChannel) async {
+        guard Archive.isPlayable(show, on: channel) else { return }
+        let held = tuners.archiveBlockers().flatMap(\.owners).compactMap { owner -> Recording? in
+            guard case .recording(let id) = owner else { return nil }
+            return recorder.recordings.first { $0.id == id && $0.status == .recording }
+        }
+        if let recording = held.first {
+            let stop = await ask(
+                title: String(localized: "“\(recording.title)” Is Being Recorded"),
+                message: String(localized: "Your account allows \(maxConnections) stream(s) at a time. Playing “\(show.title)” from the archive stops the recording."),
+                confirm: String(localized: "Stop Recording and Play"), cancel: String(localized: "Keep Recording"),
+                timeout: 60, timeoutAnswer: false)
+            guard stop else { return }
+            for recording in held { recorder.stop(recording.id) }
+        }
+        AppLog.info(.player, "archive \(show.title) on \(channel.displayName)")
+        play(.archive(show, channel))
+    }
+
     /// "Next Channel" on the player's failure card: the channel after the playing one in the
     /// zap list, with the same question when a recording holds the connection.
     func zapToNext() async {

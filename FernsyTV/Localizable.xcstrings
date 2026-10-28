@@ -2622,6 +2622,66 @@
           }
         }
       }
+    },
+    "Archive: %lld days": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Archive: %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Archive: %lld days"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Archiv: %lld Tag"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Archiv: %lld Tage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Stop Recording and Play": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme beenden und abspielen"
+          }
+        }
+      }
+    },
+    "Your account allows %lld stream(s) at a time. Playing “%@” from the archive stops the recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Zugang erlaubt %1$lld Stream(s) gleichzeitig. Wenn du „%2$@“ aus dem Archiv abspielst, endet die Aufnahme."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

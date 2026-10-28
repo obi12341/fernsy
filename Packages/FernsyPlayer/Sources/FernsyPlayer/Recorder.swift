@@ -600,7 +600,8 @@ public final class Recorder: ObservableObject {
         let blockingRecordings = recordings.filter { r in
             r.status == .recording && blockers.contains { $0.owners.contains(.recording(r.id)) }
         }
-        let playerBlocks = blockers.contains { $0.owners.contains(.player) }
+        // The archive is the player too: switching to the recording's channel ends it.
+        let playerBlocks = blockers.contains { $0.owners.contains(.player) || $0.owners.contains(.archive) }
 
         let message: String
         let confirm: String

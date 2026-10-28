@@ -106,4 +106,15 @@ public struct XtreamClient: Sendable {
     public func liveURL(_ id: Int) -> URL? { streamURL("live", String(id), "ts") }
     public func movieURL(_ movie: Movie) -> URL? { streamURL("movie", String(movie.id), movie.containerExtension) }
     public func episodeURL(_ episode: Episode) -> URL? { streamURL("series", episode.id, episode.containerExtension) }
+
+    /// A past stretch of a channel from the provider's archive (catch-up):
+    /// `/timeshift/<user>/<pass>/<minutes>/<YYYY-MM-DD:HH-MM>/<id>.ts`, the start in the server's
+    /// time zone (UTC when it is unknown).
+    public func archiveURL(channel id: Int, start: Date, minutes: Int, timeZone: TimeZone?) -> URL? {
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.timeZone = timeZone ?? TimeZone(secondsFromGMT: 0)
+        format.dateFormat = "yyyy-MM-dd:HH-mm"
+        return streamURL("timeshift", "\(max(1, minutes))/\(format.string(from: start))/\(id)", "ts")
+    }
 }

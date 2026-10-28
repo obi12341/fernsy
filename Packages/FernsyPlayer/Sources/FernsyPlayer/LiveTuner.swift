@@ -190,6 +190,8 @@ public final class TunerPool: ObservableObject {
     public enum Owner: Hashable {
         case player
         case recording(UUID)
+        /// The player playing a channel's archive (catch-up): its own connection, no live tuner.
+        case archive
     }
 
     @Published public private(set) var owners: [Int: Set<Owner>] = [:]
@@ -239,6 +241,29 @@ public final class TunerPool: ObservableObject {
     public func blockers(for channelId: Int, as owner: Owner) -> [(channelId: Int, owners: Set<Owner>)] {
         if tuners[channelId] != nil { return [] }
         let others = owners.filter { $0.key != channelId && !$0.value.subtracting([owner]).isEmpty }
+        guard others.count >= limit else { return [] }
+        return others.map { ($0.key, $0.value) }.sorted { $0.channelId < $1.channelId }
+    }
+
+    // MARK: Archive
+
+    /// The archive connection is kept under its own key, so it counts against the limit next to
+    /// the channel's live tuner without sharing it.
+    static func archiveKey(_ channelId: Int) -> Int { -abs(channelId) - 1 }
+
+    /// Holds a connection for playing `channelId`'s archive.
+    public func reserveArchive(_ channelId: Int) {
+        owners[Self.archiveKey(channelId)] = [.archive]
+    }
+
+    public func releaseArchive(_ channelId: Int) {
+        owners[Self.archiveKey(channelId)] = nil
+    }
+
+    /// What would have to give way before the player can play an archive: other connections
+    /// beyond the limit, not counting the player's own (it stops its channel first).
+    public func archiveBlockers() -> [(channelId: Int, owners: Set<Owner>)] {
+        let others = owners.filter { $0.key >= 0 && !$0.value.subtracting([.player]).isEmpty }
         guard others.count >= limit else { return [] }
         return others.map { ($0.key, $0.value) }.sorted { $0.channelId < $1.channelId }
     }

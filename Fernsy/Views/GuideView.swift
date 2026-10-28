@@ -21,8 +21,11 @@ struct GuideView: View {
     }
 
     @State private var origin = GuideLayout.origin(for: Date())
-    /// 0 = today (from two hours back), 1…3 = the following days from midnight.
+    /// 0 = today (from two hours back), 1…3 = the following days from midnight; negative: past
+    /// days of the shown channels' archive, from midnight (catch-up).
     @State private var dayOffset = 0
+    /// How many days back the shown channels' archives reach (0 without archive channels).
+    @State private var archiveReach = 0
     static let maxDays = 3
     @State private var selection: Selection?
     @State private var scroll = GuideScroll()
@@ -31,6 +34,7 @@ struct GuideView: View {
     var body: some View {
         let channels = app.filteredChannels(categoryID: categoryID, query: "")
         let playing = playingChannelID
+        let reach = Archive.reach(of: channels)
         TimelineView(.periodic(from: .now, by: 30)) { context in
             ScrollView([.horizontal, .vertical]) {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
@@ -53,6 +57,7 @@ struct GuideView: View {
         .onAppear { scrollToNow() }
         #if DEBUG
         // IPTV_GUIDESCROLL=x,y: scroll there after loading (layout checks of the sticky parts).
+        .onChange(of: reach, initial: true) { _, value in archiveReach = value }
         // IPTV_GUIDEDAY=<n> and IPTV_GUIDETIME=<hh:mm>: that day and time.
         .task {
             let env = ProcessInfo.processInfo.environment
@@ -94,7 +99,7 @@ struct GuideView: View {
             ToolbarItem {
                 ControlGroup {
                     Button("Previous Day", systemImage: "chevron.left") { setDay(dayOffset - 1) }
-                        .disabled(dayOffset == 0)
+                        .disabled(dayOffset <= -archiveReach)
                     Menu {
                         ForEach(Self.jumps, id: \.self) { time in
                             Button(time) { jump(to: time) }
@@ -147,7 +152,7 @@ struct GuideView: View {
     private var dayTitle: String {
         let day = Calendar.current.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
         let name = dayOffset == 0 ? String(localized: "Today") : dayOffset == 1 ? String(localized: "Tomorrow")
-            : day.formatted(.dateTime.weekday(.wide))
+            : dayOffset == -1 ? String(localized: "Yesterday") : day.formatted(.dateTime.weekday(.wide))
         return "\(name), \(day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))"
     }
 
@@ -159,7 +164,7 @@ struct GuideView: View {
 
     /// Another day, keeping the time of day at the left edge.
     private func setDay(_ offset: Int) {
-        let offset = min(max(0, offset), Self.maxDays)
+        let offset = min(max(-archiveReach, offset), Self.maxDays)
         let left = origin.addingTimeInterval(Double(max(0, scroll.offset.x) / GuideLayout.pointsPerMinute) * 60)
         let parts = Calendar.current.dateComponents([.hour, .minute], from: left)
         dayOffset = offset
@@ -370,12 +375,14 @@ private struct GuideRow: View {
                     ForEach(entries.filter { $0.end > max(origin, from) && $0.start < min(end, to) }) { entry in
                         let x0 = GuideLayout.x(of: max(entry.start, origin), origin: origin)
                         let x1 = GuideLayout.x(of: min(entry.end, end), origin: origin)
+                        let archived = entry.end <= now && Archive.isPlayable(entry, on: channel, now: now)
                         GuideCell(entry: entry, now: now, width: x1 - x0,
                                   selected: selection == GuideView.Selection(channelId: channel.id, entry: entry),
-                                  recording: recorder.recording(channelId: channel.id, entry: entry)?.status)
-                            .onTapGesture(count: 2) { app.play(channel) }
+                                  recording: recorder.recording(channelId: channel.id, entry: entry)?.status, archived: archived)
+                            .onTapGesture(count: 2) { if archived { app.playArchive(entry, on: channel) } else { app.play(channel) } }
                             .onTapGesture { selection = GuideView.Selection(channelId: channel.id, entry: entry) }
                             .contextMenu {
+                                if archived { Button("Play from Start") { app.playArchive(entry, on: channel) } }
                                 Button("Play") { app.play(channel) }
                                 RecordButton(channel: channel, entry: entry)
                             }
@@ -392,6 +399,11 @@ private struct GuideRow: View {
         }
         .frame(width: GuideLayout.channelWidth + GuideLayout.timelineWidth, height: GuideLayout.rowHeight, alignment: .topLeading)
         .overlay(alignment: .bottom) { Divider() }
+        // A past day of an archive channel: its programme from back then (catch-up).
+        .task(id: "\(channel.id).\(Int(origin.timeIntervalSince1970))") {
+            guard channel.archiveDays > 0, origin < Date().addingTimeInterval(-3 * 3600) else { return }
+            await app.epg.loadPast(channel.id, client: app.client, from: origin)
+        }
         .task(id: channel.id) {
             // Rows that only fly past while scrolling fast are not worth a download.
             if guide.entries == nil {
@@ -406,10 +418,13 @@ private struct GuideRow: View {
         HStack(spacing: 8) {
             LogoTile(url: channel.icon, name: channel.displayName, width: 44)
             VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: channel.displayName)
-                    .font(.callout)
-                    .fontWeight(isPlaying ? .semibold : .regular)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(verbatim: channel.displayName)
+                        .font(.callout)
+                        .fontWeight(isPlaying ? .semibold : .regular)
+                        .lineLimit(1)
+                    if channel.archiveDays > 0 { ArchiveMark(channel: channel) }
+                }
                 if channel.parsed.country != nil || channel.parsed.quality != nil {
                     HStack(spacing: 4) {
                         if let country = channel.parsed.country { NameTag(text: country) }
@@ -489,6 +504,8 @@ private struct GuideCell: View {
     let width: CGFloat
     let selected: Bool
     let recording: Recording.Status?
+    /// A past show in the channel's archive: it can be played from its start (catch-up).
+    var archived = false
 
     var body: some View {
         let running = entry.start <= now && entry.end > now
@@ -496,10 +513,13 @@ private struct GuideCell: View {
         let mark = recording.flatMap { $0 == .skipped || $0 == .missed ? nil : $0 }
         VStack(alignment: .leading, spacing: 1) {
             if width > 28 {
-                Text(verbatim: entry.title)
-                    .font(.callout)
-                    .fontWeight(running ? .semibold : .medium)
-                    .foregroundStyle(past ? .tertiary : .primary)
+                HStack(spacing: 3) {
+                    if archived { Image(systemName: "play.circle.fill").foregroundStyle(.secondary) }
+                    Text(verbatim: entry.title)
+                        .fontWeight(running ? .semibold : .medium)
+                        .foregroundStyle(past ? .tertiary : .primary)
+                }
+                .font(.callout)
                 if width > 58 {
                     Text(secondLine(mark))
                         .font(.caption)
@@ -641,6 +661,13 @@ private struct GuideDetail: View {
             .tint(Theme.record)
             .controlSize(.large)
             .keyboardShortcut("r", modifiers: [])
+        } else if Archive.isPlayable(entry, on: channel) {
+            // A past show in the channel's archive (catch-up).
+            Button { app.playArchive(entry, on: channel) } label: {
+                Label("Play from Start", systemImage: "play.fill").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
     }
 

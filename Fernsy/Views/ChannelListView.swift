@@ -172,6 +172,19 @@ struct ChannelListView: View {
     }
 }
 
+/// A clock after the name of a channel whose provider keeps an archive (catch-up).
+struct ArchiveMark: View {
+    let channel: LiveChannel
+
+    var body: some View {
+        Image(systemName: "clock.arrow.circlepath")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .help(String(localized: "Archive: \(channel.archiveDays) days"))
+            .accessibilityLabel(Text("Archive: \(channel.archiveDays) days"))
+    }
+}
+
 struct ChannelRow: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var recorder: Recorder
@@ -199,6 +212,7 @@ struct ChannelRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     TaggedName(name: channel.parsed, weight: .semibold)
+                    if channel.archiveDays > 0 { ArchiveMark(channel: channel) }
                     Spacer(minLength: 4)
                     if isPlaying { StatusBadge(kind: .playing) }
                     if recording { StatusBadge(kind: .recording) }
@@ -432,7 +446,7 @@ struct ChannelInfoView: View {
                 row("Number", "\(channel.id)")
                 row("Category at the provider", app.liveCategories.first { $0.id == channel.categoryId }?.name ?? "–")
                 row("EPG ID", channel.epgId ?? "–")
-                row("Archive", channel.hasArchive ? String(localized: "available") : String(localized: "not available"))
+                row("Archive", channel.archiveDays > 0 ? String(localized: "\(channel.archiveDays) days") : String(localized: "not available"))
             }
             HStack {
                 Button("Copy Name") {

@@ -86,9 +86,13 @@ public struct AccountInfo: Decodable, Sendable {
     public let expiresAt: Date?
     public let maxConnections: Int?
     public let activeConnections: Int?
+    /// The server's time zone, in which archive (timeshift) requests name their start: its
+    /// `timezone`, else derived from its `time_now`; nil without either (catch-up design 2).
+    public let serverTimeZone: TimeZone?
 
-    private enum Root: String, CodingKey { case user_info }
+    private enum Root: String, CodingKey { case user_info, server_info }
     private enum Keys: String, CodingKey { case auth, status, exp_date, max_connections, active_cons }
+    private enum ServerKeys: String, CodingKey { case timezone, time_now }
 
     public init(from decoder: Decoder) throws {
         let root = try decoder.container(keyedBy: Root.self)
@@ -98,6 +102,22 @@ public struct AccountInfo: Decodable, Sendable {
         expiresAt = c.flexInt(.exp_date).map { Date(timeIntervalSince1970: TimeInterval($0)) }
         maxConnections = c.flexInt(.max_connections)
         activeConnections = c.flexInt(.active_cons)
+        let server = try? root.nestedContainer(keyedBy: ServerKeys.self, forKey: .server_info)
+        serverTimeZone = Self.timeZone(name: server?.nonEmpty(.timezone), timeNow: server?.nonEmpty(.time_now), now: Date())
+    }
+
+    /// The zone by name, else the offset between the server's wall clock and now, rounded to 15
+    /// minutes (panels without a zone name).
+    static func timeZone(name: String?, timeNow: String?, now: Date) -> TimeZone? {
+        if let name, let zone = TimeZone(identifier: name) { return zone }
+        guard let timeNow else { return nil }
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.timeZone = TimeZone(secondsFromGMT: 0)
+        format.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        guard let wall = format.date(from: timeNow) else { return nil }
+        let offset = (wall.timeIntervalSince(now) / 900).rounded() * 900
+        return TimeZone(secondsFromGMT: Int(offset))
     }
 }
 
@@ -132,6 +152,9 @@ public struct LiveChannel: Identifiable, Hashable, Decodable, Sendable {
     public let categoryId: String?
     public let isAdult: Bool
     public let hasArchive: Bool
+    /// Days the provider keeps of this channel (`tv_archive_duration`); 0 without an archive
+    /// (catch-up). A channel flagged without a length counts as one day.
+    public let archiveDays: Int
     public let searchKey: String
     /// `name` without provider decoration, with its country and quality tags. The search key
     /// stays built from the delivered name.
@@ -140,7 +163,7 @@ public struct LiveChannel: Identifiable, Hashable, Decodable, Sendable {
     /// Name with the country, for recordings and their file names: "Das Erste (DE)".
     public var recordingLabel: String { parsed.country.map { "\(parsed.name) (\($0))" } ?? parsed.name }
 
-    private enum Keys: String, CodingKey { case stream_id, name, stream_icon, epg_channel_id, category_id, is_adult, tv_archive }
+    private enum Keys: String, CodingKey { case stream_id, name, stream_icon, epg_channel_id, category_id, is_adult, tv_archive, tv_archive_duration }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -151,6 +174,7 @@ public struct LiveChannel: Identifiable, Hashable, Decodable, Sendable {
         categoryId = c.flexString(.category_id)
         isAdult = c.flexInt(.is_adult) == 1
         hasArchive = c.flexInt(.tv_archive) == 1
+        archiveDays = hasArchive ? max(1, c.flexInt(.tv_archive_duration) ?? 1) : 0
         searchKey = makeSearchKey(name)
         parsed = ChannelName.parse(name)
     }

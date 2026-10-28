@@ -56,6 +56,8 @@ struct PlayItem: Equatable {
         case recording(id: UUID)
         /// A Jellyfin film or episode, started at `startAt` seconds.
         case jellyfin(itemId: String, startAt: Double, seriesId: String? = nil)
+        /// A past show from the channel's archive (catch-up).
+        case archive(channelId: Int, start: Date, end: Date)
     }
 
     let kind: Kind
@@ -75,6 +77,7 @@ struct PlayItem: Equatable {
         case .episode(let id, _): return "episode.\(id)"
         case .recording(let id): return "recording.\(id.uuidString)"
         case .jellyfin: return nil // resume positions live on the server
+        case .archive: return nil  // archives expire within days
         }
     }
 
@@ -86,6 +89,7 @@ struct PlayItem: Equatable {
         case .episode(let id, _): return "episode \(id)"
         case .recording: return "recording"
         case .jellyfin(let id, let startAt, _): return "Jellyfin item \(id)\(startAt > 0 ? " at \(Int(startAt)) s" : "")"
+        case .archive(let id, let start, _): return "archive of channel \(id) from \(start.formatted(date: .abbreviated, time: .shortened))"
         }
     }
 }
@@ -190,6 +194,9 @@ final class AppModel: ObservableObject {
 
     @Published var nowPlaying: PlayItem? {
         didSet {
+            // An archive holds its own connection while it plays (catch-up design 4).
+            if case .archive(let id, _, _)? = oldValue?.kind, nowPlaying != oldValue { tuners.releaseArchive(id) }
+            if case .archive(let id, _, _)? = nowPlaying?.kind { tuners.reserveArchive(id) }
             if case .live(let id, _)? = nowPlaying?.kind, nowPlaying != oldValue {
                 noteRecent(id)
                 donateChannel(id)
@@ -606,6 +613,12 @@ final class AppModel: ObservableObject {
             if parts[0] == "live", let channel = channel(id) { play(channel) }
             if parts[0] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
             if parts[0] == "recording", recorder.recordings.indices.contains(id) { play(recorder.recordings[id]) }
+            // archive:<channel id>: the show that began about a day ago on that channel (catch-up).
+            if parts[0] == "archive", let channel = channel(id) {
+                await epg.loadPast(id, client: client, from: Date().addingTimeInterval(-26 * 3600))
+                let target = Date().addingTimeInterval(-24 * 3600)
+                if let show = epg.guide(id).entries?.last(where: { $0.start <= target }) { playArchive(show, on: channel) }
+            }
             // episode:<series id>:<n> – the n-th episode over all seasons (1-based).
             if parts[0] == "episode", parts.count == 3, let n = Int(parts[2]), let show = series.first(where: { $0.id == id }),
                let info = try? await client?.seriesInfo(id) {
@@ -877,6 +890,8 @@ final class AppModel: ObservableObject {
             channelsByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
             liveCategories = categories
             channels = list
+            // Archive channels keep their past programme (catch-up design 5).
+            epg.archiveDays = Dictionary(list.filter { $0.archiveDays > 0 }.map { ($0.id, $0.archiveDays) }, uniquingKeysWith: { a, _ in a })
             updateVisibleCounts()
         case .movies(let categories, let list):
             moviesByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
@@ -1030,6 +1045,33 @@ final class AppModel: ObservableObject {
                 title: String(localized: "Recording in Progress"),
                 message: String(localized: "“\(first.title)” is being recorded on \(first.channelName). Your account allows only \(tuners.limit) stream(s) at a time. Stop the recording and switch to \(channel.displayName)?"),
                 confirm: String(localized: "Stop Recording and Switch"), cancel: String(localized: "Cancel"))
+            guard accepted else { return }
+            for recording in blocking { recorder.stop(recording.id) }
+            nowPlaying = item
+        }
+    }
+
+    /// A past show from the channel's archive (catch-up): asks first when recordings hold every
+    /// connection, as switching channels does.
+    func playArchive(_ show: EPGEntry, on channel: LiveChannel) {
+        guard Archive.isPlayable(show, on: channel),
+              let url = client?.archiveURL(channel: channel.id, start: show.start, minutes: Archive.minutes(for: show), timeZone: account?.serverTimeZone)
+        else { return }
+        let item = PlayItem(kind: .archive(channelId: channel.id, start: show.start, end: show.end), title: show.title,
+                            subtitle: "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))",
+                            url: url)
+        let blocking = recorder.recordings.filter { r in
+            r.status == .recording && tuners.archiveBlockers().contains { $0.owners.contains(.recording(r.id)) }
+        }
+        guard let first = blocking.first else {
+            nowPlaying = item
+            return
+        }
+        Task {
+            let accepted = await Prompt.ask(
+                title: String(localized: "Recording in Progress"),
+                message: String(localized: "“\(first.title)” is being recorded on \(first.channelName). Your account allows only \(tuners.limit) stream(s) at a time. Stop the recording and play “\(show.title)” from the archive?"),
+                confirm: String(localized: "Stop Recording and Play"), cancel: String(localized: "Cancel"))
             guard accepted else { return }
             for recording in blocking { recorder.stop(recording.id) }
             nowPlaying = item

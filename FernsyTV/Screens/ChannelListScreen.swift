@@ -312,6 +312,7 @@ private struct ChannelRowLabel: View {
                 HStack(spacing: 10) {
                     Text(verbatim: channel.displayName).font(.system(size: 27, weight: .semibold)).lineLimit(1)
                     if let tag = channel.parsed.country { CountryTag(text: tag) }
+                    if channel.archiveDays > 0 { ArchiveMark(channel: channel, size: 20) }
                     if recording { RecordingMark() }
                     if favorite { Image(systemName: "star.fill").font(.system(size: 18)).foregroundStyle(Color(hex: 0xFFC940)) }
                 }
@@ -406,6 +407,20 @@ struct ChannelLogo: View {
 }
 
 // MARK: Pane
+
+/// A clock after the name of a channel whose provider keeps an archive (catch-up).
+struct ArchiveMark: View {
+    let channel: LiveChannel
+    var size: CGFloat = 18
+
+    var body: some View {
+        Image(systemName: "clock.arrow.circlepath")
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(TVTheme.tertiary)
+            .accessibilityLabel(Text("Archive: \(channel.archiveDays) days"))
+            .accessibilityIdentifier("archive.\(channel.id)")
+    }
+}
 
 /// A spinner over the preview while its channel loads or buffers (tvos-player-status design 7).
 private struct PreviewSpinner: View {
