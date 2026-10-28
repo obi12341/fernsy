@@ -66,11 +66,17 @@ final class TVModel: ObservableObject {
 
     // iCloud sync (icloud-sync, FernsyCore SyncStore and LoginSync; TVModel+Sync.swift).
     let sync = SyncStore(backing: TVModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil, keys: TVModel.syncedKeys)
-    let logins = TVModel.syncAllowed ? LoginSync.cloudKit() : LoginSync(backing: nil)
+    let logins = TVModel.makeLogins()
     /// Logins found in iCloud while this Apple TV has none: the welcome screen offers them.
     @Published var syncedXtream: XtreamCredentials?
     @Published var syncedJellyfin: LoginSync.JellyfinLogin?
     @Published var iCloudAvailable = false
+    /// Launched without an account while logins may be in iCloud: "Anmelden …" shows until they
+    /// are tried (icloud-auto-signin); then why none worked, if so.
+    @Published var signingInFromICloud = false
+    /// The launch screen's lines while `signingInFromICloud`.
+    @Published var iCloudSteps: [ICloudSignInStep] = []
+    @Published var iCloudSignInError: String?
 
     let engine = PlayerEngine()
     let guide = EPGStore()
@@ -121,6 +127,8 @@ final class TVModel: ObservableObject {
         if let credentials = Self.debugCredentials ?? (Self.skipKeychain ? nil : CredentialStore.load()) {
             startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
+        } else if jellyfin.session == nil && logins.isActive {
+            signingInFromICloud = true
         }
         startSync()
     }
@@ -173,6 +181,7 @@ final class TVModel: ObservableObject {
             #endif
             recorder.activate(accountKey: credentials.accountKey)
             signIn = .signedIn
+            if signingInFromICloud { iCloudSteps.finish(.provider, then: ICloudSignInStep(.channels)) }
             AppLog.info(.app, "signed in, \(maxConnections) stream(s)")
             try await loadCatalog()
             Task { await loadLibraryCatalog() }
@@ -195,6 +204,8 @@ final class TVModel: ObservableObject {
         categories = []
         channels = []
         signIn = .signedOut
+        // The welcome screen offers the iCloud login again, for this session only (icloud-auto-signin).
+        Task { syncedXtream = await logins.xtream() }
     }
 
     // MARK: Catalog and guide

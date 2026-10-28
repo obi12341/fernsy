@@ -28,7 +28,67 @@ extension TVModel {
             syncedJellyfin = nil
             Task { await self.logins.save(login) }
         }
-        Task { await refreshSyncedLogins() }
+        Task {
+            if signingInFromICloud { await signInFromICloud() }
+            await refreshSyncedLogins()
+        }
+    }
+
+    /// The logins: CloudKit when sync is allowed. Debug builds' IPTV_TESTICLOUDLOGIN=demo|demo-wrong|
+    /// jellyfin puts one in memory, so UI tests run the launch path without iCloud.
+    static func makeLogins() -> LoginSync {
+        #if DEBUG
+        // IPTV_TESTICLOUDDELAY=<s>: the lookup takes that long, as CloudKit does on a device.
+        let delay = Duration.seconds(Double(ProcessInfo.processInfo.environment["IPTV_TESTICLOUDDELAY"] ?? "") ?? 0)
+        switch ProcessInfo.processInfo.environment["IPTV_TESTICLOUDLOGIN"] {
+        case "demo": return LoginSync(backing: MemoryLogins(xtream: IPTVSignInScreen.demo, delay: delay))
+        case "demo-wrong":
+            return LoginSync(backing: MemoryLogins(xtream: XtreamCredentials(server: IPTVSignInScreen.demo.server, username: "demo", password: "wrong"), delay: delay))
+        case "jellyfin":
+            return LoginSync(backing: MemoryLogins(jellyfin: .init(server: "http://127.0.0.1:8097", username: "fixture", password: "fixture-pass"), delay: delay))
+        default: break
+        }
+        #endif
+        return syncAllowed ? .cloudKit() : LoginSync(backing: nil)
+    }
+
+    /// Launched without an account (icloud-auto-signin): signs in with what iCloud has, provider
+    /// and Jellyfin each on their own, showing the steps (at least `minimumShown` once something
+    /// signed in, until the channels are loaded). What fails stays offered on the welcome screen,
+    /// with the reason if nothing could be signed in.
+    func signInFromICloud() async {
+        let started = ContinuousClock.now
+        iCloudSteps = [ICloudSignInStep(.found)]
+        let found = await logins.launchLogins()
+        var failure: String?
+        if found.xtream != nil || found.jellyfin != nil { iCloudSteps.finish(.found) }
+        if let login = found.xtream {
+            let host = login.baseURL?.host() ?? login.server
+            AppLog.info(.app, "iCloud: signing in with the IPTV login at \(host)")
+            iCloudSteps.append(ICloudSignInStep(.provider, server: host))
+            await signIn(login)
+            if case .failed(let message) = signIn { failure = message; syncedXtream = login } else { iCloudSteps.finish(.channels) }
+        }
+        if let login = found.jellyfin {
+            let host = URL(string: login.server)?.host() ?? login.server
+            AppLog.info(.app, "iCloud: signing in with the Jellyfin login at \(host)")
+            iCloudSteps.append(ICloudSignInStep(.jellyfin, server: host))
+            do {
+                try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
+                iCloudSteps.finish(.jellyfin)
+            } catch {
+                failure = failure ?? error.localizedDescription
+                syncedJellyfin = login
+            }
+        }
+        let signedIn = credentials != nil || jellyfin.session != nil
+        iCloudSignInError = signedIn ? nil : failure
+        if signedIn {
+            // The last checkmark stays a moment, and the screen at least `minimumShown`.
+            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(until: started + ICloudSignInStep.minimumShown)
+        }
+        signingInFromICloud = false
     }
 
     private func syncArrived(_ names: Set<String>) {
@@ -81,12 +141,5 @@ extension TVModel {
             syncedJellyfin = await logins.jellyfin()
             if let login = syncedJellyfin { AppLog.info(.app, "iCloud: offers the Jellyfin login at \(URL(string: login.server)?.host() ?? login.server)") }
         }
-        #if DEBUG
-        // IPTV_TESTUSESYNCED=1: takes the offered logins as a click on "Use" would (real Apple TV).
-        if ProcessInfo.processInfo.environment["IPTV_TESTUSESYNCED"] == "1" {
-            if let login = syncedXtream { await signIn(login) }
-            if let login = syncedJellyfin { try? await jellyfin.signIn(server: login.server, username: login.username, password: login.password) }
-        }
-        #endif
     }
 }

@@ -235,11 +235,17 @@ final class AppModel: ObservableObject {
     // iCloud sync (icloud-sync, FernsyCore SyncStore and LoginSync): settings and choices in
     // the key-value store, logins in CloudKit. Keychain-less runs sync only with IPTV_SYNC=1.
     let sync = SyncStore(backing: AppModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil, keys: AppModel.syncedKeys)
-    let logins = AppModel.syncAllowed ? LoginSync.cloudKit() : LoginSync(backing: nil)
+    let logins = AppModel.makeLogins()
     /// Logins found in iCloud while this Mac has none: the login screen offers them.
     @Published var syncedXtream: XtreamCredentials?
     @Published var syncedJellyfin: LoginSync.JellyfinLogin?
     @Published private(set) var iCloudAvailable = false
+    /// Launched without an account while logins may be in iCloud: "Signing in …" shows until
+    /// they are tried (icloud-auto-signin); then why none worked, if so.
+    @Published private(set) var signingInFromICloud = false
+    /// The launch screen's lines while `signingInFromICloud`.
+    @Published private(set) var iCloudSteps: [ICloudSignInStep] = []
+    @Published private(set) var iCloudSignInError: String?
 
     static let timeshiftMinutesKey = "timeshift.minutes"
 
@@ -296,6 +302,7 @@ final class AppModel: ObservableObject {
         loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
+        if credentials == nil && jellyfin.session == nil && logins.isActive { signingInFromICloud = true }
         startSync()
     }
 
@@ -371,7 +378,8 @@ final class AppModel: ObservableObject {
         #if DEBUG
         if let copied = XtreamCredentials.copied { return copied }
         let env = ProcessInfo.processInfo.environment
-        guard let server = env["IPTV_SERVER"], let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
+        // An empty IPTV_SERVER= starts without an account, as on Apple TV.
+        guard let server = env["IPTV_SERVER"], !server.isEmpty, let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
         return XtreamCredentials(server: server, username: user, password: pass)
         #else
         return nil
@@ -629,6 +637,7 @@ final class AppModel: ObservableObject {
         epg.removeAll()
         credentials = creds
         account = info
+        if signingInFromICloud { iCloudSteps.finish(.provider, then: ICloudSignInStep(.channels)) }
         await loadCatalog(forceRefresh: true)
     }
 
@@ -1171,7 +1180,72 @@ extension AppModel {
             syncedJellyfin = nil
             Task { await self.logins.save(login) }
         }
-        Task { await refreshSyncedLogins() }
+        Task {
+            if signingInFromICloud { await signInFromICloud() }
+            await refreshSyncedLogins()
+        }
+    }
+
+    /// The logins: CloudKit when sync is allowed. Debug builds' IPTV_TESTICLOUDLOGIN=demo|demo-wrong|
+    /// jellyfin puts one in memory, so the launch path runs without iCloud.
+    static func makeLogins() -> LoginSync {
+        #if DEBUG
+        let demo = "https://fernsy-demo.mobilistics.workers.dev"
+        // IPTV_TESTICLOUDDELAY=<s>: the lookup takes that long, as CloudKit does on a device.
+        let delay = Duration.seconds(Double(ProcessInfo.processInfo.environment["IPTV_TESTICLOUDDELAY"] ?? "") ?? 0)
+        switch ProcessInfo.processInfo.environment["IPTV_TESTICLOUDLOGIN"] {
+        case "demo": return LoginSync(backing: MemoryLogins(xtream: XtreamCredentials(server: demo, username: "demo", password: "demo"), delay: delay))
+        case "demo-wrong": return LoginSync(backing: MemoryLogins(xtream: XtreamCredentials(server: demo, username: "demo", password: "wrong"), delay: delay))
+        case "jellyfin":
+            return LoginSync(backing: MemoryLogins(jellyfin: .init(server: "http://127.0.0.1:8097", username: "fixture", password: "fixture-pass"), delay: delay))
+        default: break
+        }
+        #endif
+        return syncAllowed ? .cloudKit() : LoginSync(backing: nil)
+    }
+
+    /// Launched without an account (icloud-auto-signin): signs in with what iCloud has, provider
+    /// and Jellyfin each on their own, showing the steps (at least `minimumShown` once something
+    /// signed in, until the channels are loaded). What fails stays offered on the login screen,
+    /// with the reason if nothing could be signed in.
+    private func signInFromICloud() async {
+        let started = ContinuousClock.now
+        iCloudSteps = [ICloudSignInStep(.found)]
+        let found = await logins.launchLogins()
+        var failure: Error?
+        if found.xtream != nil || found.jellyfin != nil { iCloudSteps.finish(.found) }
+        if let xtream = found.xtream {
+            let host = xtream.baseURL?.host() ?? xtream.server
+            AppLog.info(.app, "iCloud: signing in with the IPTV login at \(host)")
+            iCloudSteps.append(ICloudSignInStep(.provider, server: host))
+            do {
+                try await login(xtream)
+                iCloudSteps.finish(.channels)
+            } catch {
+                failure = error
+                syncedXtream = xtream
+            }
+        }
+        if let login = found.jellyfin {
+            let host = URL(string: login.server)?.host() ?? login.server
+            AppLog.info(.app, "iCloud: signing in with the Jellyfin login at \(host)")
+            iCloudSteps.append(ICloudSignInStep(.jellyfin, server: host))
+            do {
+                try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
+                iCloudSteps.finish(.jellyfin)
+            } catch {
+                failure = failure ?? error
+                syncedJellyfin = login
+            }
+        }
+        let signedIn = credentials != nil || jellyfin.session != nil
+        iCloudSignInError = signedIn ? nil : failure?.localizedDescription
+        if signedIn {
+            // The last checkmark stays a moment, and the screen at least `minimumShown`.
+            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(until: started + ICloudSignInStep.minimumShown)
+        }
+        signingInFromICloud = false
     }
 
     /// Values from another device: favourites and recently watched again from UserDefaults

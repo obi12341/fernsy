@@ -353,6 +353,16 @@
         }
       }
     },
+    "Channels loaded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender geladen"
+          }
+        }
+      }
+    },
     "Channels you watch appear here.": {
       "localizations": {
         "de": {
@@ -853,6 +863,16 @@
         }
       }
     },
+    "Loading channels …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender laden …"
+          }
+        }
+      }
+    },
     "Loading programme …": {
       "localizations": {
         "de": {
@@ -879,6 +899,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Protokoll"
+          }
+        }
+      }
+    },
+    "Login found in iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugang in iCloud gefunden"
+          }
+        }
+      }
+    },
+    "Looking for your login in iCloud …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugang in iCloud suchen …"
           }
         }
       }
@@ -1649,6 +1689,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Angemeldet"
+          }
+        }
+      }
+    },
+    "Signed in to %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei %@ angemeldet"
+          }
+        }
+      }
+    },
+    "Signed in to Jellyfin %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei Jellyfin %@ angemeldet"
+          }
+        }
+      }
+    },
+    "Signing in to %@ …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei %@ anmelden …"
+          }
+        }
+      }
+    },
+    "Signing in to Jellyfin %@ …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei Jellyfin %@ anmelden …"
+          }
+        }
+      }
+    },
+    "Signing in with your iCloud login": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmelden mit deinem iCloud-Zugang"
           }
         }
       }

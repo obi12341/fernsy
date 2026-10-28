@@ -32,4 +32,27 @@ struct LoginSyncTests {
         #expect(await sync.xtream() == nil)
         #expect(await LoginSync(backing: nil).isAvailable() == false)
     }
+
+    /// icloud-auto-signin: the launch lookup returns both kinds, and nothing past its limit.
+    @Test func launchLoginsWithinTheLimit() async {
+        let defaults = UserDefaults(suiteName: "LoginSyncTests.\(UUID())")!
+        let xtream = XtreamCredentials(server: "http://example.com:8080", username: "u", password: "p")
+        let found = await LoginSync(backing: MemoryLogins(xtream: xtream), defaults: defaults).launchLogins()
+        #expect(found.xtream == xtream)
+        #expect(found.jellyfin == nil)
+        let late = await LoginSync(backing: SlowLogins(), defaults: defaults).launchLogins(timeout: .milliseconds(100))
+        #expect(late.xtream == nil)
+        let off = LoginSync(backing: MemoryLogins(xtream: xtream), defaults: defaults)
+        off.isEnabled = false
+        #expect(await off.launchLogins().xtream == nil)
+    }
+
+    final class SlowLogins: LoginBacking, @unchecked Sendable {
+        func save(_ payload: Data, as name: String) async throws {}
+        func load(_ name: String) async throws -> Data? {
+            try await Task.sleep(for: .seconds(5))
+            return try JSONEncoder().encode(XtreamCredentials(server: "http://late", username: "u", password: "p"))
+        }
+        func isAvailable() async -> Bool { true }
+    }
 }
