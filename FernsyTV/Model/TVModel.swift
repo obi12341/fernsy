@@ -2,6 +2,7 @@ import Combine
 import FernsyCore
 import FernsyPlayer
 import Foundation
+import Network
 import UIKit
 
 /// Everything the Apple TV screens read: the account, the live catalog with its guide, and
@@ -116,6 +117,10 @@ final class TVModel: ObservableObject {
     @Published var iCloudSignInError: String?
 
     let engine = PlayerEngine()
+    /// Whether the Apple TV has a network path; the player names it as the cause of a stall
+    /// (tvos-player-status design 4, as `AppModel.isNetworkAvailable` on the Mac).
+    @Published private(set) var isNetworkAvailable = true
+    private let pathMonitor = NWPathMonitor()
     let guide = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
@@ -168,9 +173,31 @@ final class TVModel: ObservableObject {
             signingInFromICloud = true
         }
         startSync()
+        startPathMonitor()
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_FRAMESTATS"] == "1" { FrameStats.shared.start() }
         #endif
+    }
+
+    private func startPathMonitor() {
+        #if DEBUG
+        // IPTV_TESTNOPATH=1: as if the Apple TV had no network (the no-internet card).
+        if ProcessInfo.processInfo.environment["IPTV_TESTNOPATH"] == "1" {
+            isNetworkAvailable = false
+            return
+        }
+        #endif
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let available = path.status == .satisfied
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, self.isNetworkAvailable != available else { return }
+                    AppLog.info(.network, available ? "network available" : "no network path")
+                    self.isNetworkAvailable = available
+                }
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "tv.path"))
     }
 
     // MARK: Account
@@ -300,6 +327,33 @@ final class TVModel: ObservableObject {
         noteRecent(channel.id)
         engine.load(tuner: tuner)
         AppLog.info(.player, "play channel \(channel.id): \(channel.displayName)")
+    }
+
+    /// "Try Again" on the player's failure card (tvos-player-status design 6): the same item once
+    /// more. A live channel gets a fresh connection; a film or recording keeps its saved position
+    /// unless playback got further (saving a position near 0 would clear it).
+    func retryPlayback() {
+        if let recording = playingRecording {
+            let key = ResumeStore.recordingKey(recording.id)
+            if engine.progress.position > resume.position(key) { resume.save(key, position: engine.progress.position, duration: engine.progress.duration) }
+            engine.stop()
+            playingRecording = nil
+            play(recording)
+        } else if let item = playingVOD {
+            if let key = item.resumeKey, engine.progress.position > resume.position(key) {
+                resume.save(key, position: engine.progress.position, duration: engine.progress.duration)
+            }
+            jellyfinPlayback?.stop()
+            jellyfinPlayback = nil
+            engine.stop()
+            playingVOD = nil
+            play(item)
+        } else if let channel = playing {
+            AppLog.info(.player, "retry channel \(channel.id)")
+            engine.stop()
+            tuners.release(channel.id, owner: .player)
+            play(channel)
+        }
     }
 
     func stop() {
