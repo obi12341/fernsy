@@ -593,9 +593,13 @@ recorded from a throwaway local Docker Jellyfin (two generated clips; ids, token
 online metadata replaced). Never record fixtures from a real provider or the user's Jellyfin.
 `XtreamStub` answers every request of the tests, so nothing leaves the machine.
 
-CI (`.github/workflows/tests.yml`) runs the same on pushes to `main` and `change/**` and on pull
-requests; `release.yml` calls it first, so a nightly or release is not built from a commit whose
-tests fail.
+CI (`.github/workflows/tests.yml`) runs the same on pushes to `main` and on pull requests, but
+not for pushes that change only `openspec/**` and Markdown files, and not on change branches
+(they are tested locally in full before they are pushed and merged). `release.yml` first looks
+for a passing run of its commit (job `reuse`: waits for one still running) and builds right
+away if there is one; otherwise it calls `tests.yml` itself, so a nightly or release is never
+built from a commit whose tests fail. A nightly started right after a merge therefore waits for
+the merge's run instead of testing the same commit a second time.
 
 ### UI texts and translations
 

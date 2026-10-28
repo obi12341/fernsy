@@ -84,17 +84,55 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Fernsy $VERSION ($BUILD) · $CHANNEL · $SHA"
 
-  # Nothing is built or published from a commit whose tests fail.
-  tests:
+  # A passing test run of this commit (the push to main) is reused instead of testing it again;
+  # one still running is waited for. Without one, or after a failed one, the tests job runs them
+  # (ci-test-runs). Lookup errors count as "none".
+  reuse:
     needs: prepare
     if: needs.prepare.outputs.channel != 'skip'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.find.outputs.passed }}
+    steps:
+      - name: Find a passing test run of this commit
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          passed=false
+          # A push's run is listed a few seconds after the push.
+          sleep 20
+          for _ in $(seq 1 70); do
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs?head_sha=$SHA&event=push" \
+              --jq '[.workflow_runs[] | {status, conclusion}]' 2>/dev/null || echo '[]')
+            if jq -e 'any(.[]; .conclusion == "success")' <<< "$runs" > /dev/null; then passed=true; break; fi
+            if jq -e 'any(.[]; .status != "completed")' <<< "$runs" > /dev/null; then
+              echo "A test run of $SHA is still running; waiting for it."
+              sleep 60
+              continue
+            fi
+            break
+          done
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Reusing a passing test run of $SHA: $passed"
+
+  # Nothing is built or published from a commit whose tests fail.
+  tests:
+    needs: [prepare, reuse]
+    if: needs.prepare.outputs.channel != 'skip' && needs.reuse.outputs.passed != 'true'
     uses: ./.github/workflows/tests.yml
     with:
       ref: ${{ needs.prepare.outputs.sha }}
 
   dmg:
     needs: [prepare, tests]
-    if: contains(fromJSON('["release", "nightly", "dmg-test"]'), needs.prepare.outputs.channel)
+    # `tests` is skipped when a passing run was reused; a failed or cancelled one stops the build.
+    if: >-
+      !failure() && !cancelled() &&
+      contains(fromJSON('["release", "nightly", "dmg-test"]'), needs.prepare.outputs.channel)
     # macOS 27 image with Xcode 27 (public preview); macos-26 only has Xcode 26.
     runs-on: xcode-27
     timeout-minutes: 60
@@ -290,7 +328,9 @@ jobs:
 
   appstore:
     needs: [prepare, tests]
-    if: needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'appstore-test'
+    if: >-
+      !failure() && !cancelled() &&
+      (needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'appstore-test')
     runs-on: xcode-27
     timeout-minutes: 60
     steps:
