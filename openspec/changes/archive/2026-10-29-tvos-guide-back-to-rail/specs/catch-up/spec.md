@@ -13,7 +13,7 @@ move focus to the rail.
 
 #### Scenario: Back to now
 - **WHEN** the user has paged back into yesterday and presses Back
-- **THEN** the grid shows the current window, titled "Heute", with focus in the same row
+- **THEN** the grid shows the current window again (the time now inside it), with focus in the same row
 
 #### Scenario: Back to the rail
 - **WHEN** the grid shows the current window, a show has focus and the user presses Back

@@ -35,8 +35,10 @@
    focus stays in its row. This change builds on that branch.
 
 3. **Tests.** `LiveAndGuideUITests` reach the rail with Down then Back instead of Left twice; a
-   new test pages back past this morning, presses Back (day title "Today", focus in row 101),
-   presses Back again (rail focused).
+   new test pages back until a show begun four hours ago has focus, presses Back (focus on a
+   show of row 101 begun within the last three hours, day title as before), presses Back again
+   (rail focused). The day title alone does not tell the current window: shortly after midnight
+   the current window starts at 23:30 and is titled "Yesterday" too.
 
 ## Risks / Trade-offs
 
