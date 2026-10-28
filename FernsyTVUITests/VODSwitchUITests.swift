@@ -42,8 +42,8 @@ final class VODSwitchUITests: FernsyUITestCase {
 
     func testSwitchingFilmsOffAndOn() {
         let app = launchDemo()
-        let films = app.tabBars.firstMatch.buttons["Films"]
-        XCTAssertTrue(films.waitForExistence(timeout: 30), "no Films tab")
+        let films = app.tabBars.firstMatch.buttons["Movies"]
+        XCTAssertTrue(films.waitForExistence(timeout: 30), "no Movies tab")
         setFilms(on: false, app)
         showTab("Start", app)
         XCTAssertTrue(wait(5) { !films.exists }, "the Films tab stays")
@@ -60,7 +60,7 @@ final class VODSwitchUITests: FernsyUITestCase {
 
     func testSeriesOffAtLaunch() {
         let app = launchDemo(["IPTV_SHOWSERIES": "0"])
-        XCTAssertTrue(app.tabBars.firstMatch.buttons["Films"].waitForExistence(timeout: 30), "no Films tab")
+        XCTAssertTrue(app.tabBars.firstMatch.buttons["Movies"].waitForExistence(timeout: 30), "no Movies tab")
         XCTAssertFalse(app.tabBars.firstMatch.buttons["Series"].exists, "a Series tab while series are off")
         let film = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.' AND identifier CONTAINS 'movie:'")).firstMatch
         let series = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.' AND identifier CONTAINS 'series:'"))

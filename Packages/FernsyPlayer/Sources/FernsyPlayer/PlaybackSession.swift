@@ -728,7 +728,7 @@ public final class PlaybackSession {
         let ret = avformat_open_input(&ctx, url.absoluteString, hint, &opts)
         av_dict_free(&opts)
         guard ret >= 0, let ctx else {
-            throw PlayerError.message(isStopped ? String(localized: "Cancelled", bundle: .module) : String(localized: "Could not open the stream (\(Int(ret)))", bundle: .module))
+            throw PlayerError.message(isStopped ? String(localized: "Canceled", bundle: .module) : String(localized: "Could not open the stream (\(Int(ret)))", bundle: .module))
         }
         fmt = ctx
 
@@ -742,7 +742,7 @@ public final class PlaybackSession {
         if avformat_find_stream_info(ctx, nil) < 0 && !isStopped {
             throw PlayerError.message(String(localized: "No playable tracks found", bundle: .module))
         }
-        if isStopped { throw PlayerError.message(String(localized: "Cancelled", bundle: .module)) }
+        if isStopped { throw PlayerError.message(String(localized: "Canceled", bundle: .module)) }
         return ctx
     }
 

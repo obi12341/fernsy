@@ -233,7 +233,7 @@ private struct EmptySource: View {
     let source: TVModel.LiveSource
 
     var body: some View {
-        Text(source == .favorites ? "No favourites yet. Hold a channel’s button and choose “Favourite”."
+        Text(source == .favorites ? "No favorites yet. Hold a channel’s button and choose “Favorite”."
              : source == .recent ? "Channels you watch appear here." : "No channels.")
             .font(.system(size: 24))
             .foregroundStyle(TVTheme.secondary)
@@ -279,7 +279,7 @@ struct ChannelActions: View {
         } else {
             Button("Record", systemImage: "record.circle") { model.notice = model.recordNow(channel) }
         }
-        Button(model.isFavorite(channel) ? "Remove Favourite" : "Favourite", systemImage: model.isFavorite(channel) ? "star.slash" : "star") {
+        Button(model.isFavorite(channel) ? "Remove Favorite" : "Favorite", systemImage: model.isFavorite(channel) ? "star.slash" : "star") {
             model.toggleFavorite(channel)
         }
         Button("Hide", systemImage: "eye.slash") { model.setHidden(channel, true) }
@@ -322,7 +322,7 @@ private struct ChannelRowLabel: View {
                     }
                     .font(.system(size: 21))
                 } else {
-                    Text("No programme information").font(.system(size: 21)).opacity(0.45)
+                    Text("No program information").font(.system(size: 21)).opacity(0.45)
                 }
             }
             Spacer(minLength: 0)

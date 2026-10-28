@@ -60,7 +60,7 @@ struct MainTabs: View {
             if iptv {
                 SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
                 if vodTabs.movies {
-                    SwiftUI.Tab(value: Tab.films) { LibraryGridScreen(kind: .movies) } label: { Text("Films") }
+                    SwiftUI.Tab(value: Tab.films) { LibraryGridScreen(kind: .movies) } label: { Text("Movies") }
                 }
                 if vodTabs.series {
                     SwiftUI.Tab(value: Tab.series) { LibraryGridScreen(kind: .series) } label: { Text("Series") }

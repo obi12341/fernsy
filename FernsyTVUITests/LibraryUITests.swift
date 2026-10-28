@@ -5,7 +5,7 @@ import XCTest
 final class LibraryUITests: FernsyUITestCase {
     func testFilmGridSortsAndKeepsPosters() {
         let app = launchDemo(["IPTV_FRESHIMAGES": "1"])
-        let films = app.tabBars.firstMatch.buttons["Films"]
+        let films = app.tabBars.firstMatch.buttons["Movies"]
         XCTAssertTrue(films.waitForExistence(timeout: 30))
         for _ in 0..<6 where !films.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
         XCTAssertTrue(films.hasFocus)
@@ -37,7 +37,7 @@ final class LibraryUITests: FernsyUITestCase {
             XCUIRemote.shared.press(.up)
             Thread.sleep(forTimeInterval: 0.5)
         }
-        XCTAssertFalse(app.tabBars.firstMatch.buttons["Films"].hasFocus, "Up from the grid skipped the sorting: \(focused.identifier)")
+        XCTAssertFalse(app.tabBars.firstMatch.buttons["Movies"].hasFocus, "Up from the grid skipped the sorting: \(focused.identifier)")
         // No poster was loaded twice while scrolling.
         let loads = appLog("image loaded")
         XCTAssertFalse(loads.isEmpty, "no image loads logged")

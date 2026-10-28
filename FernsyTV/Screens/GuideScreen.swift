@@ -213,7 +213,7 @@ private struct GuideRow: View {
                 let windowEnd = windowStart.addingTimeInterval(GuideScreen.span)
                 let shows = (guide.entries ?? []).filter { $0.end > windowStart && $0.start < windowEnd }
                 if shows.isEmpty {
-                    Text(guide.entries == nil ? "Loading programme …" : "No programme information")
+                    Text(guide.entries == nil ? "Loading program …" : "No program information")
                         .font(.system(size: 21)).foregroundStyle(TVTheme.tertiary)
                         .frame(maxHeight: .infinity)
                 }

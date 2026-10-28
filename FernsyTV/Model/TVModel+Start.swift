@@ -43,7 +43,7 @@ extension TVModel {
         for category in movieCategories.sorted(by: { (filmGroups[$0.id]?.count ?? 0) > (filmGroups[$1.id]?.count ?? 0) }).prefix(3) {
             let films = (filmGroups[category.id] ?? []).sorted { $0.added > $1.added }.prefix(15)
             guard films.count >= 3 else { continue }
-            rows.categories.append(StartRows.Row(id: "films." + category.id, title: String(localized: "Films · \(category.displayName)"),
+            rows.categories.append(StartRows.Row(id: "films." + category.id, title: String(localized: "Movies · \(category.displayName)"),
                                                  entries: films.map(Self.entry)))
         }
         let seriesGroups = Dictionary(grouping: series, by: { $0.categoryId ?? "" })

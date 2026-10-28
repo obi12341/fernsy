@@ -523,7 +523,7 @@
         }
       }
     },
-    "Favourite": {
+    "Favorite": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -533,7 +533,7 @@
         }
       }
     },
-    "Favourites, hidden channels and recordings stay on this Apple TV for when you sign in again.": {
+    "Favorites, hidden channels and recordings stay on this Apple TV for when you sign in again.": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -583,7 +583,7 @@
         }
       }
     },
-    "FILM": {
+    "MOVIE": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -593,7 +593,7 @@
         }
       }
     },
-    "Films": {
+    "Movies": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -603,7 +603,7 @@
         }
       }
     },
-    "Films and Series": {
+    "Movies and Series": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -613,7 +613,7 @@
         }
       }
     },
-    "Films · %@": {
+    "Movies · %@": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -673,7 +673,7 @@
         }
       }
     },
-    "Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.": {
+    "Hidden categories and channels, favorites, recently watched channels, where you stopped movies and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -853,7 +853,7 @@
         }
       }
     },
-    "Live TV, guide, films and series from your provider (Xtream Codes).": {
+    "Live TV, guide, movies and series from your provider (Xtream Codes).": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -873,7 +873,7 @@
         }
       }
     },
-    "Loading programme …": {
+    "Loading program …": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1043,7 +1043,7 @@
         }
       }
     },
-    "No favourites yet. Hold a channel’s button and choose “Favourite”.": {
+    "No favorites yet. Hold a channel’s button and choose “Favorite”.": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1053,7 +1053,7 @@
         }
       }
     },
-    "No programme information": {
+    "No program information": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1443,7 +1443,7 @@
         }
       }
     },
-    "Remove Favourite": {
+    "Remove Favorite": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2103,7 +2103,7 @@
         }
       }
     },
-    "Your films and series appear here once the library has loaded.": {
+    "Your movies and series appear here once the library has loaded.": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2113,7 +2113,7 @@
         }
       }
     },
-    "Your own library with films, series and watched state.": {
+    "Your own library with movies, series and watched state.": {
       "localizations": {
         "de": {
           "stringUnit": {
