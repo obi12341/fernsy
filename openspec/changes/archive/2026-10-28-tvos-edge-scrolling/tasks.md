@@ -13,4 +13,4 @@
 
 - [x] 3.1 The screenshot test again: no poster over the header, posters leave at the screen edge; screenshots for the user.
 - [x] 3.2 Jellyfin, Start and detail UI tests and the full Apple TV UI suite green.
-- [ ] 3.3 Real Apple TV, Release build: the user scrolls the Jellyfin tab and judges it.
+- [x] 3.3 Real Apple TV, Release build: the user scrolls the Jellyfin tab and judges it. (Checked by the user on 2026-10-28 with a Release build.)

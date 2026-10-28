@@ -16,4 +16,4 @@
 
 - [x] 3.1 The scroll test again: late frames after the changes, both numbers in design.md.
 - [x] 3.2 StartUITests, LibraryUITests and the full Apple TV UI suite green; `scripts/test.sh` green.
-- [ ] 3.3 Real Apple TV, Release build, the user's provider: the user scrolls Start and judges the feel.
+- [x] 3.3 Real Apple TV, Release build, the user's provider: the user scrolls Start and judges the feel. (Checked by the user on 2026-10-28 with a Release build.)
