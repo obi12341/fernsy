@@ -9,6 +9,6 @@
 ## 2. Verification
 
 - [x] 2.1 `actionlint` (or `gh workflow view` parsing) on both files without errors.
-- [ ] 2.2 After merging: the merge push starts one test run on `main`; the change branch's push starts none (`gh run list`).
-- [ ] 2.3 Nightly dispatched for that commit after its tests passed: the run shows `reuse` → `passed=true`, `tests` skipped, `dmg` built (`gh run view`).
+- [x] 2.2 After merging: the merge push starts one test run on `main`; the change branch's push starts none (`gh run list`).
+- [x] 2.3 Nightly dispatched for that commit after its tests passed: the run shows `reuse` → `passed=true`, `tests` skipped, `dmg` built (`gh run view`).
 - [ ] 2.4 A spec-only commit on `main` starts no test run; a nightly dispatched for it runs `tests` itself (only if such a commit comes up anyway; not forced).
