@@ -43,6 +43,8 @@ struct PosterCard: View {
     var progress: Double?
     var watched = false
     var width: CGFloat = 200
+    /// Focused, the lifted poster would cover the title: it moves down with it, as in Apple's apps.
+    @Environment(\.isFocused) private var focused
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -77,7 +79,13 @@ struct PosterCard: View {
             }
             .frame(width: width, height: width * 1.5)
             .clipShape(.rect(cornerRadius: 14))
+            // The focus effect on the whole poster, badges included: left to the borderless style,
+            // it zoomed each image on its own (artwork inside its frame, the checkmark out of
+            // proportion; tvos-poster-focus).
+            .hoverEffect(.highlight)
             Text(verbatim: title).font(.system(size: 21, weight: .semibold)).lineLimit(1).frame(width: width, alignment: .leading)
+                .offset(y: focused ? 14 : 0)
+                .animation(.easeOut(duration: 0.2), value: focused)
         }
     }
 }
@@ -92,6 +100,7 @@ struct WideCard: View {
     var topRight: AnyView?
     var topLeft: AnyView?
     var width: CGFloat = 400
+    @Environment(\.isFocused) private var focused
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -106,11 +115,15 @@ struct WideCard: View {
             }
             .frame(width: width, height: width * 9 / 16)
             .clipShape(.rect(cornerRadius: 16))
+            // As PosterCard: one focus effect for the card with its tags, the text below moves down.
+            .hoverEffect(.highlight)
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: title).font(.system(size: 24, weight: .semibold)).lineLimit(1)
                 Text(verbatim: detail).font(.system(size: 20)).foregroundStyle(TVTheme.text.opacity(0.6)).lineLimit(1)
             }
             .frame(width: width, alignment: .leading)
+            .offset(y: focused ? 14 : 0)
+            .animation(.easeOut(duration: 0.2), value: focused)
         }
     }
 }
