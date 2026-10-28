@@ -48,14 +48,19 @@ final class ArchiveUITests: FernsyUITestCase {
             remote.press(direction); Thread.sleep(forTimeInterval: 0.6)
         }
         XCTAssertTrue(cell.waitForExistence(timeout: 5), "no show of channel 101 has focus:\n\(app.debugDescription)")
+        // Back until a show that surely ended has focus (begun three hours ago or earlier), past
+        // the guide's usual start half an hour back: independent of the time of day.
         let day = app.staticTexts["guide.day"]
-        // Up to a day and a half back: shows and hour pages.
-        for _ in 0..<160 where day.label != "Yesterday" {
-            remote.press(.left); Thread.sleep(forTimeInterval: 0.3)
+        for _ in 0..<40 {
+            let start = Double(cell.identifier.split(separator: ".").last ?? "") ?? .infinity
+            if start < Date().timeIntervalSince1970 - 3 * 3600 { break }
+            remote.press(.left); Thread.sleep(forTimeInterval: 0.4)
         }
-        XCTAssertEqual(day.label, "Yesterday", "Left did not page into yesterday")
+        let start = Double(cell.identifier.split(separator: ".").last ?? "") ?? .infinity
+        XCTAssertLessThan(start, Date().timeIntervalSince1970 - 3 * 3600, "Left did not page back into the archive:\n\(app.debugDescription)")
+        XCTAssertTrue(day.exists, "no day title")
         Thread.sleep(forTimeInterval: 2)
-        shot("archive-guide-yesterday", app)
+        shot("archive-guide-back", app)
 
         remote.press(.select)
         let state = app.descendants(matching: .any)["player.state"]

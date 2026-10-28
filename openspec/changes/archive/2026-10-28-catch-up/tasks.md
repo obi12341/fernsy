@@ -8,7 +8,7 @@
 ## 2. Demo server
 
 - [x] 2.1 `demo-server/worker.js`: channels 101–103 with archives of 5, 3 and 1 days, programme back that far, `/timeshift/` route, 404 for other channels (design 9); checked locally with a request per case.
-- [ ] 2.2 The user deploys it (`CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… demo-server/deploy.sh`); afterwards the app's tests run against it.
+- [x] 2.2 The user deploys it (`CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… demo-server/deploy.sh`); afterwards the app's tests run against it.
 
 ## 3. Playback (FernsyPlayer)
 
