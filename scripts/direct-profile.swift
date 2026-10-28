@@ -86,9 +86,17 @@ if let current = profile, let content = (attributes(current)["profileContent"] a
     profile = nil
 }
 if profile == nil {
-    guard let bundle = items(api("GET", "/v1/bundleIds?filter[identifier]=\(query(bundleIdentifier))&limit=50"))
-        .first(where: { attributes($0)["identifier"] as? String == bundleIdentifier }), let bundleID = bundle["id"] as? String else {
-        fail("no app id \(bundleIdentifier)")
+    // All app ids, searched here: the identifier filter of the API does not match reliably.
+    var bundles: [[String: Any]] = []
+    var next: String? = "/v1/bundleIds?limit=200&fields[bundleIds]=identifier,platform,name"
+    while let path = next {
+        let page = api("GET", path)
+        bundles += items(page)
+        next = ((page["links"] as? [String: Any])?["next"] as? String).map { $0.replacingOccurrences(of: "https://api.appstoreconnect.apple.com", with: "") }
+    }
+    guard let bundle = bundles.first(where: { attributes($0)["identifier"] as? String == bundleIdentifier }), let bundleID = bundle["id"] as? String else {
+        let similar = bundles.compactMap { attributes($0)["identifier"] as? String }.filter { $0.contains("fernsy") }
+        fail("no app id \(bundleIdentifier) among \(bundles.count) app ids (similar: \(similar))")
     }
     let certificates = items(api("GET", "/v1/certificates?filter[certificateType]=DEVELOPER_ID_APPLICATION,DEVELOPER_ID_APPLICATION_G2&limit=50"))
         .compactMap { $0["id"] as? String }
