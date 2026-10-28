@@ -48,6 +48,35 @@ public final class LoginSync: Sendable {
 
     public func isAvailable() async -> Bool { await backing?.isAvailable() ?? false }
 
+    /// Logins can be looked up at all: a backing (sync allowed) and "Zugangsdaten abgleichen" on.
+    public var isActive: Bool { backing != nil && isEnabled }
+
+    /// At launch without an account (icloud-auto-signin): what iCloud has, both kinds within
+    /// `timeout`. Nothing past it, without iCloud or with the switch off; a login that arrives
+    /// later is only offered.
+    public func launchLogins(timeout: Duration = .seconds(10)) async -> (xtream: XtreamCredentials?, jellyfin: JellyfinLogin?) {
+        guard isActive else { return (nil, nil) }
+        return await withTaskGroup(of: (XtreamCredentials?, JellyfinLogin?)?.self) { group in
+            group.addTask {
+                guard await self.isAvailable() else { return (nil, nil) }
+                async let xtream = self.xtream()
+                async let jellyfin = self.jellyfin()
+                return await (xtream, jellyfin)
+            }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            guard let first else {
+                AppLog.warning(.app, "iCloud: no answer within \(timeout), the sign-in screen shows")
+                return (nil, nil)
+            }
+            return first
+        }
+    }
+
     public func save(_ credentials: XtreamCredentials) async { await store(credentials, as: "xtream") }
     public func save(_ login: JellyfinLogin) async { await store(login, as: "jellyfin") }
 
@@ -68,6 +97,56 @@ public final class LoginSync: Sendable {
             return nil
         }
     }
+}
+
+/// One line of the launch screen while the apps sign in with the logins in iCloud
+/// (icloud-auto-signin): what is being done, for which server, running or done.
+public struct ICloudSignInStep: Identifiable, Equatable, Sendable {
+    public enum Kind: String, Sendable { case found, provider, channels, jellyfin }
+    public let kind: Kind
+    /// The server's host for `provider` and `jellyfin`.
+    public var server: String
+    public var done: Bool
+    public var id: Kind { kind }
+
+    public init(_ kind: Kind, server: String = "", done: Bool = false) {
+        self.kind = kind
+        self.server = server
+        self.done = done
+    }
+
+    /// The launch screen stays at least this long once something signed in, so it does not flash.
+    public static let minimumShown: Duration = .milliseconds(1500)
+}
+
+extension [ICloudSignInStep] {
+    /// Marks `kind` done (adding it if missing), then adds `next` as running.
+    public mutating func finish(_ kind: ICloudSignInStep.Kind, server: String = "", then next: ICloudSignInStep? = nil) {
+        if let index = firstIndex(where: { $0.kind == kind }) { self[index].done = true } else { append(ICloudSignInStep(kind, server: server, done: true)) }
+        if let next { append(next) }
+    }
+}
+
+/// Logins in memory: debug builds' `IPTV_TESTICLOUDLOGIN`, so UI tests run the launch path
+/// without iCloud.
+public final class MemoryLogins: LoginBacking, @unchecked Sendable {
+    private let lock = NSLock()
+    private var payloads: [String: Data] = [:]
+    /// How long a lookup takes, like CloudKit's 1–3 s on a real device.
+    private let delay: Duration
+
+    public init(xtream: XtreamCredentials? = nil, jellyfin: LoginSync.JellyfinLogin? = nil, delay: Duration = .zero) {
+        self.delay = delay
+        payloads["xtream"] = xtream.flatMap { try? JSONEncoder().encode($0) }
+        payloads["jellyfin"] = jellyfin.flatMap { try? JSONEncoder().encode($0) }
+    }
+
+    public func save(_ payload: Data, as name: String) async throws { lock.withLock { payloads[name] = payload } }
+    public func load(_ name: String) async throws -> Data? {
+        try await Task.sleep(for: delay)
+        return lock.withLock { payloads[name] }
+    }
+    public func isAvailable() async -> Bool { true }
 }
 
 /// Record type `Login`, one record per login (`xtream`, `jellyfin`), the JSON in

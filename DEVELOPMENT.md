@@ -209,7 +209,7 @@ audio tracks in a debug run.
 ## Development
 
 Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environment and then
-skip the keychain. Further debug-only switches (`IPTV_AUTOPLAY`, `IPTV_SCENE`, `IPTV_WINDOW`,
+skip the keychain; an empty `IPTV_SERVER=` starts without an account. Further debug-only switches (`IPTV_AUTOPLAY`, `IPTV_SCENE`, `IPTV_WINDOW`,
 `IPTV_TESTNET`, …) are documented where they are read.
 
 ### Dev build next to the installed app
@@ -429,9 +429,13 @@ of `iCloud.<bundle id>`; Jellyfin sessions never sync.
   CloudKit console (container `iCloud.de.mobilistics.fernsy`, "Deploy Schema Changes").
 - **Test runs.** Keychain-less runs (`FERNSY_NO_KEYCHAIN`, UI tests) sync nothing unless
   `IPTV_SYNC=1`, so tests never touch the developer's iCloud. Apple TV debug builds:
-  `IPTV_TESTDEFAULTS=<key>=<value>,…` changes settings at launch as if made there,
-  `IPTV_TESTUSESYNCED=1` takes the logins offered from iCloud (tests on a real Apple TV
-  without the remote). The log notes what is sent and taken ("iCloud: …").
+  `IPTV_TESTDEFAULTS=<key>=<value>,…` changes settings at launch as if made there. Both apps'
+  debug builds: `IPTV_TESTICLOUDLOGIN=demo|demo-wrong|jellyfin` puts that login (demo server,
+  demo server with a wrong password, local test Jellyfin) in memory as if found in iCloud, so a
+  launch without an account signs in with it. The log notes what is sent and taken ("iCloud: …").
+- **Sign-in at launch.** Without an account, both apps look in iCloud for up to 10 s, showing
+  "Signing in …", and sign in with what they find; the welcome or login screen shows only when
+  nothing worked. Signing out offers the iCloud login on that screen for the rest of the session.
 - **Pitfalls.** iCloud Keychain does not sync app items to tvOS (hence CloudKit for logins).
   `ubiquityIdentityToken` is nil on tvOS (no iCloud Drive); availability comes from
   `CKContainer.accountStatus()`. The key-value store's keys are limited to 64 bytes (account

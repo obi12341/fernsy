@@ -8,14 +8,19 @@ struct RootScreen: View {
 
     var body: some View {
         Group {
-            if model.signIn == .signedIn || !model.channels.isEmpty || model.jellyfin.session != nil {
-                MainTabs()
+            // The iCloud launch screen first: it stays until the channels are loaded, over the
+            // tabs that would show empty meanwhile (icloud-auto-signin).
+            if model.signingInFromICloud {
+                ICloudSignInScreen().transition(.opacity)
+            } else if model.signIn == .signedIn || !model.channels.isEmpty || model.jellyfin.session != nil {
+                MainTabs().transition(.opacity)
             } else if model.signIn == .signingIn && model.startedWithAccount {
                 ProgressView("Signing in …")
             } else {
-                WelcomeScreen()
+                WelcomeScreen().transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.4), value: model.signingInFromICloud)
         .background(TVTheme.background.ignoresSafeArea())
         .fullScreenCover(isPresented: Binding(get: { model.playing != nil || model.playingRecording != nil || model.playingVOD != nil },
                                               set: { if !$0 { model.stop() } })) {

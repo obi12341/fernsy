@@ -35,7 +35,9 @@ private struct SyncedLoginsRow: View {
                     }
                 }
                 .disabled(working)
-                if let error { Text(verbatim: error).font(.system(size: 22)).foregroundStyle(TVTheme.warning) }
+                if let error = error ?? model.iCloudSignInError {
+                    Text(verbatim: error).font(.system(size: 22)).foregroundStyle(TVTheme.warning).accessibilityIdentifier("welcome.synced.error")
+                }
             }
             .padding(.top, 50)
         }

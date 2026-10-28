@@ -80,8 +80,8 @@ private struct SyncedLogins: View {
                         try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
                     }
                 }
-                if let error {
-                    Label(error.localizedDescription, systemImage: "exclamationmark.circle.fill")
+                if let message = error?.localizedDescription ?? app.iCloudSignInError {
+                    Label(message, systemImage: "exclamationmark.circle.fill")
                         .font(.callout).foregroundStyle(Theme.record)
                 }
             }

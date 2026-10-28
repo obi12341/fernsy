@@ -11,12 +11,17 @@ struct FernsyApp: App {
     var body: some Scene {
         WindowGroup("Fernsy", id: "library") {
             Group {
-                if app.credentials == nil && !app.hasJellyfin {
-                    LoginView()
+                // icloud-auto-signin: the logins in iCloud are tried first; the screen stays
+                // until the channels are loaded, then fades into the library.
+                if app.signingInFromICloud {
+                    ICloudSignInView().transition(.opacity)
+                } else if app.credentials == nil && !app.hasJellyfin {
+                    LoginView().transition(.opacity)
                 } else {
-                    LibraryView()
+                    LibraryView().transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.4), value: app.signingInFromICloud)
             .environmentObject(app)
             .environmentObject(app.recorder)
             .environmentObject(app.jellyfin)
