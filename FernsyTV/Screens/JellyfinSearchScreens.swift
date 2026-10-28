@@ -88,7 +88,7 @@ struct JellyfinScreen: View {
     static func title(_ view: Page) -> LocalizedStringKey {
         switch view {
         case .overview: "Overview"
-        case .films: "Films"
+        case .films: "Movies"
         case .series: "Series"
         case .libraries: "Libraries"
         }
@@ -128,7 +128,7 @@ struct JellyfinScreen: View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(model.jellyfin.libraries, id: \.id) { item in
                 Button { library = item } label: {
-                    SettingsRow(title: Text(verbatim: item.name), value: Text(item.collectionType == "movies" ? "Films" : "Series"))
+                    SettingsRow(title: Text(verbatim: item.name), value: Text(item.collectionType == "movies" ? "Movies" : "Series"))
                 }
                 .buttonStyle(TVTileStyle(rest: .white.opacity(0.06), radius: 16, scale: 1.03))
             }
@@ -316,7 +316,7 @@ struct SearchScreen: View {
             }
             if !vod.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    RowTitle(title: "Films and Series")
+                    RowTitle(title: "Movies and Series")
                     CardRow {
                         ForEach(vod) { hit in
                             NavigationLink(value: hit.target) {

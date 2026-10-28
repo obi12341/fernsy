@@ -96,7 +96,7 @@ struct StartScreen: View {
                     wideRow("Your Recordings", note: nil, id: "recordings", rows.recordings)
                     posterRow(String(localized: "Best Rated"), id: "best", rows.bestRated)
                     if resume.isEmpty && added.isEmpty {
-                        Text("Your films and series appear here once the library has loaded.")
+                        Text("Your movies and series appear here once the library has loaded.")
                             .font(.system(size: 26)).foregroundStyle(TVTheme.secondary)
                     }
                 }
@@ -255,7 +255,7 @@ private struct StartLiveCard: View {
             ChannelLogo(channel: channel, radius: 12).frame(width: 112, height: 70)
             VStack(alignment: .leading, spacing: 7) {
                 Text(verbatim: channel.displayName).font(.system(size: 20, weight: .semibold)).opacity(0.7).lineLimit(1)
-                Text(verbatim: show?.title ?? String(localized: "No programme information")).font(.system(size: 24, weight: .semibold)).lineLimit(1)
+                Text(verbatim: show?.title ?? String(localized: "No program information")).font(.system(size: 24, weight: .semibold)).lineLimit(1)
                 if let show {
                     HStack(spacing: 12) {
                         ShowProgress(show: show, focused: focused).frame(width: 120, height: 5)
@@ -359,9 +359,9 @@ private struct Hero: View {
 
     private var kind: String {
         switch entry.open {
-        case .movie: String(localized: "FILM")
+        case .movie: String(localized: "MOVIE")
         case .series, .episode: String(localized: "SERIES")
-        case .jellyfin(let item): item.type == "Episode" ? String(localized: "SERIES") : String(localized: "FILM")
+        case .jellyfin(let item): item.type == "Episode" ? String(localized: "SERIES") : String(localized: "MOVIE")
         case .recording: String(localized: "RECORDING")
         }
     }
@@ -393,7 +393,7 @@ struct LibraryGridScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     HStack(spacing: 20) {
-                        Text(kind == .movies ? "Films" : "Series").font(.system(size: 44, weight: .bold)).padding(.trailing, 12)
+                        Text(kind == .movies ? "Movies" : "Series").font(.system(size: 44, weight: .bold)).padding(.trailing, 12)
                         Menu {
                             Button("All") { category = nil }
                             ForEach(categories) { item in Button(item.displayName) { category = item } }

@@ -167,7 +167,7 @@ private struct AccountScreen: View {
                 SettingsRow(title: Text("Server"), value: Text(verbatim: credentials.server)).padding(.trailing, -40)
                 SettingsRow(title: Text("Username"), value: Text(verbatim: credentials.username)).padding(.trailing, -40)
                 SettingsRow(title: Text("Streams at a time"), value: Text(verbatim: "\(model.maxConnections)")).padding(.trailing, -40)
-                ChoiceRow(title: Text("Films"), chosen: model.showsIPTVMovies) { model.showsIPTVMovies.toggle() }
+                ChoiceRow(title: Text("Movies"), chosen: model.showsIPTVMovies) { model.showsIPTVMovies.toggle() }
                     .accessibilityIdentifier("settings.iptvMovies")
                     .accessibilityValue(model.showsIPTVMovies ? "on" : "off")
                     .padding(.top, 24)
@@ -187,7 +187,7 @@ private struct AccountScreen: View {
         .confirmationDialog("Sign out of this account?", isPresented: $confirm) {
             Button("Sign Out", role: .destructive) { model.signOut() }
         } message: {
-            Text("Favourites, hidden channels and recordings stay on this Apple TV for when you sign in again.")
+            Text("Favorites, hidden channels and recordings stay on this Apple TV for when you sign in again.")
         }
     }
 }
@@ -284,7 +284,7 @@ private struct ICloudSettingsScreen: View {
             }
             ChoiceRow(title: Text("Sync with iCloud"), chosen: syncChoices) { model.sync.isEnabled = !syncChoices; syncChoices.toggle() }
                 .accessibilityIdentifier("settings.icloud.choices")
-            Text("Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.")
+            Text("Hidden categories and channels, favorites, recently watched channels, where you stopped movies and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.")
                 .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.bottom, 20)
             ChoiceRow(title: Text("Sync Logins"), chosen: syncLogins) { syncLogins.toggle() }
                 .accessibilityIdentifier("settings.icloud.logins")

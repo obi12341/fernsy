@@ -19,7 +19,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             switch self {
             case .http(let code): return String(localized: "Server responded with HTTP \(code)", bundle: .module)
             case .timeout: return String(localized: "Connection timed out", bundle: .module)
-            case .cancelled: return String(localized: "Cancelled", bundle: .module)
+            case .cancelled: return String(localized: "Canceled", bundle: .module)
             case .connectionLost: return String(localized: "Connection to the server lost", bundle: .module)
             }
         }

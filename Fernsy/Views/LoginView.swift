@@ -133,7 +133,7 @@ private struct AccountKindCard: View {
                     Text(kind == .iptv ? "Xtream Codes" : "Your own media server")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                    Text(kind == .iptv ? "Live TV, guide, films and series from your provider" : "Films and series from your own server")
+                    Text(kind == .iptv ? "Live TV, guide, movies and series from your provider" : "Movies and series from your own server")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -607,7 +607,7 @@ private struct ICloudSettings: View {
         Form {
             Section {
                 Toggle("Sync with iCloud", isOn: Binding(get: { syncChoices }, set: { app.sync.isEnabled = $0; syncChoices = $0 }))
-                Text("Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.")
+                Text("Hidden categories and channels, favorites, recently watched channels, where you stopped movies and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {

@@ -38,7 +38,7 @@ struct JellyfinOverviewPage: View {
                 }
             }
             VStack(alignment: .leading, spacing: 0) {
-                RowTitle(title: "Recently Added", note: "Films and Series")
+                RowTitle(title: "Recently Added", note: "Movies and Series")
                 CardRow {
                     ForEach(store.latestFilms + store.latestSeries, id: \.id) { item in
                         poster(item, id: "jellyfin.item.\(item.id)")

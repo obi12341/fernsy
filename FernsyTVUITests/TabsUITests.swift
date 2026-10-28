@@ -37,12 +37,12 @@ final class TabsUITests: XCTestCase {
         XCTAssertTrue(waitForFocus(liveTab), "Back did not reach the tab bar:\n\(app.debugDescription)")
 
         // Each tab shows its screen (the pending ones show their title).
-        let names = ["Films", "Series", "Recordings", "Search", "Settings"]
+        let names = ["Movies", "Series", "Recordings", "Search", "Settings"]
         for name in names {
             remote.press(.right)
             XCTAssertTrue(waitForFocus(tabBar.buttons[name]), "\(name) has no focus:\n\(tabBar.debugDescription)")
             let screen = name == "Recordings" ? app.descendants(matching: .any)["recordings.screen"]
-                : name == "Films" || name == "Series" ? app.buttons["grid.sort.added"] : name == "Search" ? app.buttons["key.a"] : app.buttons["settings.recordings"]
+                : name == "Movies" || name == "Series" ? app.buttons["grid.sort.added"] : name == "Search" ? app.buttons["key.a"] : app.buttons["settings.recordings"]
             XCTAssertTrue(screen.waitForExistence(timeout: 5), "the \(name) screen did not show")
             attach(name, app)
         }
