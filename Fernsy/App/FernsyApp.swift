@@ -8,18 +8,31 @@ struct FernsyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @AppStorage(MenuBarSupport.enabledKey) private var showsMenuBarItem = true
 
+    /// icloud-auto-signin: the logins in iCloud are tried first; the screen stays until the
+    /// channels are loaded, then fades into the library.
+    @ViewBuilder private var libraryContent: some View {
+        if app.signingInFromICloud {
+            ICloudSignInView().transition(.opacity)
+        } else if app.credentials == nil && !app.hasJellyfin {
+            LoginView().transition(.opacity)
+        } else {
+            LibraryView().transition(.opacity)
+        }
+    }
+
     var body: some Scene {
         WindowGroup("Fernsy", id: "library") {
             Group {
-                // icloud-auto-signin: the logins in iCloud are tried first; the screen stays
-                // until the channels are loaded, then fades into the library.
-                if app.signingInFromICloud {
-                    ICloudSignInView().transition(.opacity)
-                } else if app.credentials == nil && !app.hasJellyfin {
-                    LoginView().transition(.opacity)
+                #if DEBUG
+                // IPTV_TESTTIMELINE=<inset>: the slider alignment test instead of the library.
+                if let inset = ProcessInfo.processInfo.environment["IPTV_TESTTIMELINE"].flatMap(Double.init) {
+                    TimelineAlignmentTestView(inset: inset)
                 } else {
-                    LibraryView().transition(.opacity)
+                    libraryContent
                 }
+                #else
+                libraryContent
+                #endif
             }
             .animation(.easeInOut(duration: 0.4), value: app.signingInFromICloud)
             .environmentObject(app)
