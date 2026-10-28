@@ -19,6 +19,7 @@ struct LoginView: View {
                 Text("Welcome to Fernsy").font(.largeTitle.weight(.semibold))
                 Text("What would you like to connect to?").foregroundStyle(.secondary)
             }
+            SyncedLogins()
             HStack(spacing: 12) {
                 AccountKindCard(kind: .iptv, selection: $kind)
                 AccountKindCard(kind: .jellyfin, selection: $kind)
@@ -59,6 +60,60 @@ extension Notification.Name {
     static let debugSignIn = Notification.Name("Fernsy.debugSignIn")
 }
 #endif
+
+/// Logins of the user's other devices found in iCloud (icloud-sync): one click signs in.
+private struct SyncedLogins: View {
+    @EnvironmentObject private var app: AppModel
+    @EnvironmentObject private var jellyfin: JellyfinStore
+    @State private var working: AccountKind?
+    @State private var error: Error?
+
+    var body: some View {
+        if app.syncedXtream != nil || app.syncedJellyfin != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("From Your iCloud", systemImage: "icloud").font(.headline)
+                if let login = app.syncedXtream {
+                    row(.iptv, "IPTV Provider", login.server, login.username) { try await app.login(login) }
+                }
+                if let login = app.syncedJellyfin {
+                    row(.jellyfin, "Jellyfin Server", login.server, login.username) {
+                        try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
+                    }
+                }
+                if let error {
+                    Label(error.localizedDescription, systemImage: "exclamationmark.circle.fill")
+                        .font(.callout).foregroundStyle(Theme.record)
+                }
+            }
+            .padding(14)
+            .frame(width: 520, alignment: .leading)
+            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+        }
+    }
+
+    private func row(_ kind: AccountKind, _ title: LocalizedStringKey, _ server: String, _ user: String,
+                     signIn: @escaping () async throws -> Void) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(verbatim: "\(URL(string: server)?.host() ?? server) · \(user)").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                working = kind
+                error = nil
+                Task {
+                    do { try await signIn() } catch { self.error = error }
+                    working = nil
+                }
+            } label: {
+                if working == kind { ProgressView().controlSize(.small) } else { Text("Use") }
+            }
+            .disabled(working != nil)
+        }
+    }
+}
 
 /// One of the two account types on the login screen.
 private struct AccountKindCard: View {
@@ -291,7 +346,7 @@ struct JellyfinSignInForm: View {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case accounts, playback, recordings, youthProtection, assistants
+    case accounts, playback, recordings, icloud, youthProtection, assistants
     var id: String { rawValue }
 }
 
@@ -309,6 +364,9 @@ struct SettingsView: View {
             RecordingSettings()
                 .tabItem { Label("Recordings", systemImage: "record.circle") }
                 .tag(SettingsTab.recordings)
+            ICloudSettings()
+                .tabItem { Label("iCloud", systemImage: "icloud") }
+                .tag(SettingsTab.icloud)
             YouthProtectionSettings()
                 .tabItem { Label("Youth Protection", systemImage: "hand.raised") }
                 .tag(SettingsTab.youthProtection)
@@ -536,6 +594,36 @@ extension RecordingSettings {
         case 1: "1 hour before a recording"
         default: "\(hours) hours before a recording"
         }
+    }
+}
+
+/// iCloud sync (icloud-sync): the two switches and whether iCloud is there.
+private struct ICloudSettings: View {
+    @EnvironmentObject private var app: AppModel
+    @AppStorage(SyncStore.enabledKey) private var syncChoices = true
+    @AppStorage(LoginSync.enabledKey) private var syncLogins = true
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Sync with iCloud", isOn: Binding(get: { syncChoices }, set: { app.sync.isEnabled = $0; syncChoices = $0 }))
+                Text("Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Sync Logins", isOn: $syncLogins)
+                Text("Your provider’s and your Jellyfin server’s address, user and password, end-to-end encrypted in your iCloud. Another Mac or Apple TV offers them when it has no account yet; each signs in to Jellyfin as its own device.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if !app.iCloudAvailable {
+                Section {
+                    Label("iCloud is not available. Sign in to iCloud in System Settings; until then Fernsy keeps this Mac’s settings.", systemImage: "icloud.slash")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .task { await app.refreshSyncedLogins() }
     }
 }
 

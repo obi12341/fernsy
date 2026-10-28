@@ -232,6 +232,15 @@ final class AppModel: ObservableObject {
     /// Mirrors `jellyfin.session != nil`, so views observing AppModel follow it.
     @Published private(set) var hasJellyfin = false
 
+    // iCloud sync (icloud-sync, FernsyCore SyncStore and LoginSync): settings and choices in
+    // the key-value store, logins in CloudKit. Keychain-less runs sync only with IPTV_SYNC=1.
+    let sync = SyncStore(backing: AppModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil, keys: AppModel.syncedKeys)
+    let logins = AppModel.syncAllowed ? LoginSync.cloudKit() : LoginSync(backing: nil)
+    /// Logins found in iCloud while this Mac has none: the login screen offers them.
+    @Published var syncedXtream: XtreamCredentials?
+    @Published var syncedJellyfin: LoginSync.JellyfinLogin?
+    @Published private(set) var iCloudAvailable = false
+
     static let timeshiftMinutesKey = "timeshift.minutes"
 
     private(set) var channelsByCategory: [String: [LiveChannel]] = [:]
@@ -287,6 +296,7 @@ final class AppModel: ObservableObject {
         loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
+        startSync()
     }
 
     private func startPathMonitor() {
@@ -614,6 +624,8 @@ final class AppModel: ObservableObject {
         }
         AppLog.info(.app, "signed in to IPTV account at \(creds.baseURL?.host() ?? creds.server)")
         if !Self.skipKeychain { CredentialStore.save(creds) }
+        syncedXtream = nil
+        Task { await logins.save(creds) }
         epg.removeAll()
         credentials = creds
         account = info
@@ -919,12 +931,14 @@ final class AppModel: ObservableObject {
         value.modifiedAt = Date()
         visibility = value
         if let dir = cacheDirectory { value.save(to: dir) }
+        if let key = credentials?.accountKey { sync.push(value, as: SyncStore.accountName(key, "visibility"), modifiedAt: value.modifiedAt) }
     }
 
     /// The signed-in account's choice; signed out, nothing is hidden (the file stays).
     private func loadVisibility() {
         visibility = cacheDirectory.map(ChannelVisibility.load) ?? ChannelVisibility()
         AppLog.detail(.app, "\(credentials?.accountKey ?? "-"): \(visibility.hiddenCategories.count) categories, \(visibility.hiddenChannels.count) channels hidden")
+        pullVisibility()
     }
 
     private func updateVisibleCounts() {
@@ -1137,4 +1151,71 @@ final class AppModel: ObservableObject {
     /// IPTV_TESTWATCHED=<key>,…: these items count as watched (in memory).
     func markWatchedForTest(_ keys: [String]) { resume.markWatched(keys) }
     #endif
+}
+
+// MARK: iCloud sync
+
+/// The Mac's side of icloud-sync: SyncStore mirrors the synced UserDefaults keys and resume
+/// positions; this applies what arrives, keeps the account's hidden channels in step and offers
+/// logins found in iCloud.
+extension AppModel {
+    static var syncAllowed: Bool { !skipKeychain || ProcessInfo.processInfo.environment["IPTV_SYNC"] == "1" }
+    static let syncedKeys = [LiveRules.favoritesKey, LiveRules.recentKey, TrackPreferences.audioKey,
+                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey]
+
+    fileprivate func startSync() {
+        sync.onChange = { [weak self] names in self?.syncArrived(names) }
+        sync.start()
+        jellyfin.onSignedIn = { [weak self] login in
+            guard let self else { return }
+            syncedJellyfin = nil
+            Task { await self.logins.save(login) }
+        }
+        Task { await refreshSyncedLogins() }
+    }
+
+    /// Values from another device: favourites and recently watched again from UserDefaults
+    /// (track languages and padding are read where they are used), hidden channels from the store.
+    private func syncArrived(_ names: Set<String>) {
+        if names.contains("d." + LiveRules.favoritesKey) {
+            favorites = Set(UserDefaults.standard.stringArray(forKey: LiveRules.favoritesKey) ?? [])
+        }
+        if names.contains("d." + LiveRules.recentKey) {
+            recentChannels = UserDefaults.standard.array(forKey: LiveRules.recentKey) as? [Int] ?? []
+        }
+        if names.contains("resume") { objectWillChange.send() }
+        pullVisibility()
+    }
+
+    /// The account's hidden categories and channels: the newer of this Mac's and iCloud's; sent
+    /// once if iCloud has none yet.
+    fileprivate func pullVisibility() {
+        guard let key = credentials?.accountKey else { return }
+        let name = SyncStore.accountName(key, "visibility")
+        if let remote = sync.pull(ChannelVisibility.self, name: name, newerThan: visibility.modifiedAt) {
+            visibility = remote
+            if let dir = cacheDirectory { remote.save(to: dir) }
+        } else if !sync.hasValue(name) && visibility.modifiedAt.timeIntervalSince1970 > 0 {
+            sync.push(visibility, as: name, modifiedAt: visibility.modifiedAt)
+        }
+    }
+
+    /// Signed in: the login goes to iCloud if it is not there yet (logins from before sync).
+    /// Signed out: what iCloud has is offered on the login screen.
+    func refreshSyncedLogins() async {
+        iCloudAvailable = await logins.isAvailable()
+        guard iCloudAvailable else { AppLog.info(.app, "iCloud: not available"); return }
+        if let credentials {
+            if await logins.xtream() == nil { await logins.save(credentials) }
+        } else {
+            syncedXtream = await logins.xtream()
+            if let login = syncedXtream { AppLog.info(.app, "iCloud: offers the IPTV login at \(login.baseURL?.host() ?? login.server)") }
+        }
+        if let login = jellyfin.login {
+            if await logins.jellyfin() == nil { await logins.save(login) }
+        } else if jellyfin.session == nil {
+            syncedJellyfin = await logins.jellyfin()
+            if let login = syncedJellyfin { AppLog.info(.app, "iCloud: offers the Jellyfin login at \(URL(string: login.server)?.host() ?? login.server)") }
+        }
+    }
 }

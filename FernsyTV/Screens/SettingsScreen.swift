@@ -7,6 +7,7 @@ import SwiftUI
 /// (user decision 2026-10-26).
 struct SettingsScreen: View {
     @EnvironmentObject private var model: TVModel
+    @AppStorage(SyncStore.enabledKey) private var syncChoices = true
     @AppStorage(Recorder.padBeforeKey) private var padBefore = 10
     @AppStorage(Recorder.padAfterKey) private var padAfter = 10
     @AppStorage(TrackPreferences.audioKey) private var audioLanguage = ""
@@ -52,6 +53,10 @@ struct SettingsScreen: View {
                             SettingsRow(title: Text("Recordings"), value: Text("Before \(padBefore) · After \(padAfter) min"))
                         }
                         .accessibilityIdentifier("settings.recordings")
+                        NavigationLink { ICloudSettingsScreen() } label: {
+                            SettingsRow(title: Text("iCloud"), value: Text(model.iCloudAvailable ? (syncChoices ? "On" : "Off") : "Not Available"))
+                        }
+                        .accessibilityIdentifier("settings.icloud")
                         NavigationLink { LogScreen() } label: { SettingsRow(title: Text("Log")) }
                             .accessibilityIdentifier("settings.log")
                     }
@@ -253,6 +258,31 @@ private struct PlaybackSettingsScreen: View {
             Text("Shows codec, decoder, buffer, reconnects and a buffer chart in the player, to look into stutters.")
                 .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
         }
+    }
+}
+
+/// iCloud sync (icloud-sync): the two switches and whether iCloud is there.
+private struct ICloudSettingsScreen: View {
+    @EnvironmentObject private var model: TVModel
+    @AppStorage(SyncStore.enabledKey) private var syncChoices = true
+    @AppStorage(LoginSync.enabledKey) private var syncLogins = true
+
+    var body: some View {
+        SettingsPage(title: "iCloud") {
+            if !model.iCloudAvailable {
+                Text("iCloud is not available. Sign in to iCloud in the Apple TV’s settings; until then Fernsy keeps this Apple TV’s settings.")
+                    .font(.system(size: 24)).foregroundStyle(TVTheme.warning).padding(.horizontal, 28).padding(.bottom, 20)
+            }
+            ChoiceRow(title: Text("Sync with iCloud"), chosen: syncChoices) { model.sync.isEnabled = !syncChoices; syncChoices.toggle() }
+                .accessibilityIdentifier("settings.icloud.choices")
+            Text("Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.")
+                .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.bottom, 20)
+            ChoiceRow(title: Text("Sync Logins"), chosen: syncLogins) { syncLogins.toggle() }
+                .accessibilityIdentifier("settings.icloud.logins")
+            Text("Your provider’s and your Jellyfin server’s address, user and password, end-to-end encrypted in your iCloud. Another Mac or Apple TV offers them when it has no account yet; each signs in to Jellyfin as its own device.")
+                .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28)
+        }
+        .task { await model.refreshSyncedLogins() }
     }
 }
 

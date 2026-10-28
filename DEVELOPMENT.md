@@ -404,6 +404,39 @@ come back behind the player when it leaves full screen or closes; `showLibrary` 
 takes a hidden one instead of opening a second. `IPTV_TESTFS=1` enters, leaves and re-enters
 full screen.
 
+### iCloud sync
+
+Settings and choices sync through the iCloud key-value store, logins through CloudKit
+(icloud-sync; `FernsyCore/SyncStore.swift`, `LoginSync.swift`). What syncs: favourites,
+recently watched, track languages, recording padding (UserDefaults keys, each stamped in
+`sync.t.<key>`), resume positions (one `resume` entry, merged per item), and per account the
+hidden channels and pinned categories (`a.<hash>.visibility`, `.pinned`). Logins are records
+`xtream` and `jellyfin` (server, user, password in `encryptedValues`) in the private database
+of `iCloud.<bundle id>`; Jellyfin sessions never sync.
+
+- **Signing.** iCloud needs a provisioning profile, so debug builds are signed automatically
+  with the team's Apple Development certificate (not ad hoc). `dev-run.sh` passes
+  `-allowProvisioningUpdates`; device builds of the Apple TV app need it too. Simulator builds
+  need no profile. Containers: `iCloud.de.mobilistics.fernsy` (release) and
+  `iCloud.de.mobilistics.fernsy.dev` (debug); debug builds sync only with debug builds.
+- **DMG.** A signed DMG embeds the Developer ID profile "Fernsy Direct Developer ID", which
+  `scripts/direct-profile.swift` finds or creates with the App Store Connect API key
+  (`ASC_KEY`, `ASC_KEY_ID`, `ASC_ISSUER`; `build-dmg.sh` passes the notary key). An ad-hoc DMG
+  leaves the iCloud entitlements out and keeps its settings on the Mac. `release.yml`'s channel
+  `dmg-test` builds, notarizes and checks the DMG without publishing it.
+- **CloudKit schema.** Debug builds create the record type `Login` in the Development
+  environment on first save. Before a release uses it, deploy the schema to Production in the
+  CloudKit console (container `iCloud.de.mobilistics.fernsy`, "Deploy Schema Changes").
+- **Test runs.** Keychain-less runs (`FERNSY_NO_KEYCHAIN`, UI tests) sync nothing unless
+  `IPTV_SYNC=1`, so tests never touch the developer's iCloud. Apple TV debug builds:
+  `IPTV_TESTDEFAULTS=<key>=<value>,…` changes settings at launch as if made there,
+  `IPTV_TESTUSESYNCED=1` takes the logins offered from iCloud (tests on a real Apple TV
+  without the remote). The log notes what is sent and taken ("iCloud: …").
+- **Pitfalls.** iCloud Keychain does not sync app items to tvOS (hence CloudKit for logins).
+  `ubiquityIdentityToken` is nil on tvOS (no iCloud Drive); availability comes from
+  `CKContainer.accountStatus()`. The key-value store's keys are limited to 64 bytes (account
+  values use a hash of the account key).
+
 ### Apple TV
 
 The target "Fernsy TV" (tvOS 27, arm64, sources in `FernsyTV/`) is the Apple TV app. It links

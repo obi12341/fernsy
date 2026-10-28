@@ -1482,6 +1482,16 @@
         }
       }
     },
+    "From Your iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus deiner iCloud"
+          }
+        }
+      }
+    },
     "Full screen (F)": {
       "localizations": {
         "de": {
@@ -1528,6 +1538,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ausgeblendet"
+          }
+        }
+      }
+    },
+    "Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeblendete Kategorien und Sender, Favoriten, zuletzt gesehene Sender, wo du Filme und Folgen angehalten hast, Ton- und Untertitelsprache sowie Vor- und Nachlauf von Aufnahmen – auf deinen Macs und Apple TVs."
           }
         }
       }
@@ -1598,6 +1618,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "„%@“ habe ich im Programm deiner Favoriten und zuletzt gesehenen Sender nicht gefunden."
+          }
+        }
+      }
+    },
+    "iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud"
+          }
+        }
+      }
+    },
+    "iCloud is not available. Sign in to iCloud in System Settings; until then Fernsy keeps this Mac’s settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud ist nicht verfügbar. Melde dich in den Systemeinstellungen bei iCloud an; bis dahin behält Fernsy die Einstellungen dieses Macs."
           }
         }
       }
@@ -3682,6 +3722,26 @@
         }
       }
     },
+    "Sync Logins": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugangsdaten abgleichen"
+          }
+        }
+      }
+    },
+    "Sync with iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit iCloud abgleichen"
+          }
+        }
+      }
+    },
     "System Language (%@)": {
       "localizations": {
         "de": {
@@ -3982,6 +4042,16 @@
         }
       }
     },
+    "Use": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Übernehmen"
+          }
+        }
+      }
+    },
     "User": {
       "localizations": {
         "de": {
@@ -4148,6 +4218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Xtream Codes"
+          }
+        }
+      }
+    },
+    "Your provider’s and your Jellyfin server’s address, user and password, end-to-end encrypted in your iCloud. Another Mac or Apple TV offers them when it has no account yet; each signs in to Jellyfin as its own device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse, Benutzer und Passwort deines Anbieters und deines Jellyfin-Servers, Ende-zu-Ende-verschlüsselt in deiner iCloud. Ein anderer Mac oder ein Apple TV bietet sie an, solange dort noch kein Konto eingerichtet ist; jedes Gerät meldet sich bei Jellyfin als eigenes Gerät an."
           }
         }
       }

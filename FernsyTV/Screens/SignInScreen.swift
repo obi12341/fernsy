@@ -2,6 +2,59 @@ import FernsyCore
 import SwiftUI
 
 /// First launch (design screen `login`): what Fernsy is and which account to add.
+/// Logins of the user's other devices found in iCloud (icloud-sync): one click signs in.
+private struct SyncedLoginsRow: View {
+    @EnvironmentObject private var model: TVModel
+    @State private var working = false
+    @State private var error: String?
+
+    var body: some View {
+        if model.syncedXtream != nil || model.syncedJellyfin != nil {
+            VStack(spacing: 18) {
+                Label("From Your iCloud", systemImage: "icloud").font(.system(size: 24, weight: .semibold)).foregroundStyle(TVTheme.secondary)
+                HStack(spacing: 24) {
+                    if let login = model.syncedXtream {
+                        Button { use { await model.signIn(login); if case .failed(let message) = model.signIn { error = message } } } label: {
+                            label("IPTV", login.server, login.username)
+                        }
+                        .buttonStyle(TVPillStyle())
+                        .accessibilityIdentifier("welcome.synced.iptv")
+                    }
+                    if let login = model.syncedJellyfin {
+                        Button {
+                            use {
+                                do { try await model.jellyfin.signIn(server: login.server, username: login.username, password: login.password) } catch {
+                                    self.error = error.localizedDescription
+                                }
+                            }
+                        } label: {
+                            label("Jellyfin", login.server, login.username)
+                        }
+                        .buttonStyle(TVPillStyle(prominent: false))
+                        .accessibilityIdentifier("welcome.synced.jellyfin")
+                    }
+                }
+                .disabled(working)
+                if let error { Text(verbatim: error).font(.system(size: 22)).foregroundStyle(TVTheme.warning) }
+            }
+            .padding(.top, 50)
+        }
+    }
+
+    private func label(_ kind: String, _ server: String, _ user: String) -> some View {
+        Text("Use \(kind): \(URL(string: server)?.host() ?? server) · \(user)")
+    }
+
+    private func use(_ signIn: @escaping () async -> Void) {
+        working = true
+        error = nil
+        Task {
+            await signIn()
+            working = false
+        }
+    }
+}
+
 struct WelcomeScreen: View {
     @State private var showIPTV = false
     @State private var showJellyfin = false
@@ -37,6 +90,7 @@ struct WelcomeScreen: View {
                         .accessibilityIdentifier("welcome.jellyfin")
                     }
                     .padding(.top, 80)
+                    SyncedLoginsRow()
                     Spacer()
                     Text("Fernsy brings no content. You need your own account with a provider or a Jellyfin server.")
                         .font(.system(size: 20))

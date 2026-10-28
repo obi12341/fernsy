@@ -39,6 +39,14 @@ public final class JellyfinStore: ObservableObject {
     /// Kept for renewing the session; nil for sessions signed in before it was stored.
     private var password: String?
     private var renewal: Task<Bool, Never>?
+    /// After a successful sign-in, with the login the apps save to iCloud (icloud-sync).
+    public var onSignedIn: ((LoginSync.JellyfinLogin) -> Void)?
+
+    /// The signed-in login as synced to the user's other devices: never the session.
+    public var login: LoginSync.JellyfinLogin? {
+        guard let session, let password else { return nil }
+        return LoginSync.JellyfinLogin(server: session.server, username: session.userName, password: password)
+    }
 
     /// Keychain accounts; debug runs can use their own (JF_KEYCHAIN_SUFFIX=test).
     private static var keychainAccount: String {
@@ -91,6 +99,7 @@ public final class JellyfinStore: ObservableObject {
         reset()
         session = newSession
         isExpired = false
+        onSignedIn?(LoginSync.JellyfinLogin(server: newSession.server, username: username, password: password))
         await loadLibrary(forceRefresh: true)
     }
 

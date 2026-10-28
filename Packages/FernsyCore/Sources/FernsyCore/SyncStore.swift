@@ -75,6 +75,7 @@ public final class SyncStore {
     public func push<T: Encodable>(_ value: T, as name: String, modifiedAt: Date) {
         guard let backing, isEnabled, let data = try? JSONEncoder().encode(value) else { return }
         backing.set(["v": data, "t": modifiedAt, "version": 1] as [String: Any], forKey: name)
+        AppLog.detail(.app, "iCloud: sent \(name)")
     }
 
     /// The value under `name` if another device changed it after `localModifiedAt`.
@@ -82,8 +83,12 @@ public final class SyncStore {
         guard let backing, isEnabled, let entry = backing.object(forKey: name) as? [String: Any],
               (entry["version"] as? Int ?? 1) <= 1, let date = entry["t"] as? Date, date > localModifiedAt,
               let data = entry["v"] as? Data else { return nil }
+        AppLog.info(.app, "iCloud: took \(name) from another device")
         return try? JSONDecoder().decode(type, from: data)
     }
+
+    /// The store has a value under `name` (another device or this one sent it).
+    public func hasValue(_ name: String) -> Bool { backing?.object(forKey: name) != nil }
 
     /// A short name for a per-account value: keys of the store are limited to 64 bytes and
     /// account keys contain the server address.
@@ -123,13 +128,16 @@ public final class SyncStore {
             let now = Date()
             applyingDefaults { defaults.set(now, forKey: stamp) }
             backing.set(value.map { ["v": $0, "t": now] as [String: Any] } ?? ["t": now], forKey: "d." + key)
+            AppLog.detail(.app, "iCloud: sent \(key)")
         }
         let resume = ResumeEntry.read(defaults)
         if resume != resumeSnapshot || backing.object(forKey: "resume") == nil && !resume.isEmpty {
             resumeSnapshot = resume
             let remote = ResumeEntry.decode(backing.object(forKey: "resume"))
             let merged = ResumeEntry.merge(remote, resume.filter { $0.value.at > Date().addingTimeInterval(-90 * 86400) })
+            guard merged != remote else { return }
             backing.set(ResumeEntry.encode(merged), forKey: "resume")
+            AppLog.detail(.app, "iCloud: sent \(merged.count) resume positions")
         }
     }
 
@@ -157,6 +165,7 @@ public final class SyncStore {
             resumeSnapshot = merged
             changed.insert("resume")
         }
+        if !changed.isEmpty { AppLog.info(.app, "iCloud: took \(changed.sorted().joined(separator: ", ")) from another device") }
         onChange?(changed)
     }
 
