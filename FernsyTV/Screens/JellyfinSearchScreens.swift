@@ -10,6 +10,10 @@ struct JellyfinScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var view: Page = .overview
     @State private var library: JFItem?
+    /// Übersicht's rows and suggestion, built once per library change (tvos-jellyfin-overview).
+    @State private var overview = JellyfinOverview()
+    @State private var spotlight: JFItem?
+    @State private var recentSpotlights: [String] = []
 
     var body: some View {
         NavigationStack {
@@ -51,7 +55,7 @@ struct JellyfinScreen: View {
                     }
                     VStack(alignment: .leading, spacing: 30) {
                         switch view {
-                        case .overview: overview
+                        case .overview: JellyfinOverviewPage(overview: overview, spotlight: spotlight) { drawSpotlight() }
                         case .films: grid(store.films)
                         case .series: grid(store.series)
                         case .libraries:
@@ -69,7 +73,15 @@ struct JellyfinScreen: View {
             .background(TVTheme.background.ignoresSafeArea())
             .foregroundStyle(TVTheme.text)
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
+            .navigationDestination(for: JellyfinOverview.Tile.Kind.self) { kind in
+                JellyfinBrowseScreen(kind: kind, items: (overview.genres + overview.decades).first { $0.kind == kind }?.items ?? [])
+            }
             .task { await store.loadLibrary(forceRefresh: false); await store.refreshHome() }
+            .task(id: overviewInputs) {
+                overview = JellyfinOverview.build(films: store.films, series: store.series)
+                // The suggestion stays while it is still a candidate (not watched meanwhile).
+                if !overview.spotlightCandidates.contains(where: { $0.id == spotlight?.id }) { drawSpotlight() }
+            }
         }
     }
 
@@ -82,43 +94,18 @@ struct JellyfinScreen: View {
         }
     }
 
-    @ViewBuilder private var overview: some View {
+    /// What Übersicht's rows read: the lists and the watched and favourite marks.
+    private var overviewInputs: String {
         let store = model.jellyfin
-        if !store.resume.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                RowTitle(title: "Continue Watching")
-                CardRow {
-                    ForEach(store.resume, id: \.id) { item in
-                        Button { model.play(.jellyfin(item)) } label: {
-                            WideCard(title: item.seriesName ?? item.name, detail: VODItem.jellyfin(item).subtitle ?? remaining(item),
-                                     image: store.thumbURL(item).flatMap(URL.init(string:)),
-                                     progress: item.userData?.playedPercentage.map { $0 / 100 }, width: 360)
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityIdentifier("jellyfin.resume.\(item.id)")
-                    }
-                }
-            }
-        }
-        VStack(alignment: .leading, spacing: 0) {
-            RowTitle(title: "Recently Added", note: "Films and Series")
-            CardRow {
-                ForEach(store.latestFilms + store.latestSeries, id: \.id) { item in
-                    NavigationLink(value: DetailTarget.jellyfin(item)) {
-                        PosterCard(title: item.name, image: store.posterURL(item).flatMap(URL.init(string:)), count: item.userData?.unplayedItemCount,
-                                   watched: item.type == "Movie" && item.userData?.played == true)
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityIdentifier("jellyfin.item.\(item.id)")
-                }
-            }
-        }
+        let all = store.films + store.series
+        let played = all.filter(\.isPlayed).count, favorites = all.filter(\.isFavorite).count
+        let left = store.series.reduce(0) { $0 + ($1.userData?.unplayedItemCount ?? 0) }
+        return "\(store.films.count).\(store.series.count).\(played).\(favorites).\(left)"
     }
 
-    private func remaining(_ item: JFItem) -> String {
-        guard let ticks = item.runTimeTicks else { return "" }
-        let left = Double(ticks - (item.userData?.playbackPositionTicks ?? 0)) / 10_000_000
-        return String(localized: "\(max(1, Int((left / 60).rounded()))) min left")
+    private func drawSpotlight() {
+        spotlight = JellyfinOverview.pick(from: overview.spotlightCandidates, avoiding: recentSpotlights)
+        if let id = spotlight?.id { recentSpotlights = Array((recentSpotlights + [id]).suffix(5)) }
     }
 
     private func grid(_ items: [JFItem]) -> some View {

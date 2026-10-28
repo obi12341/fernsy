@@ -58,6 +58,9 @@ final class DetailPagesUITests: FernsyUITestCase {
         XCTAssertTrue(tab.waitForExistence(timeout: 30))
         for _ in 0..<3 where !tab.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
         let item = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'jellyfin.item.' AND label CONTAINS %@", name)).firstMatch
+        // Recently Added sits below the suggestion and is built as it comes near (tvos-jellyfin-overview).
+        XCTAssertTrue(app.descendants(matching: .any)["jellyfin.state"].waitForExistence(timeout: 30), "no Jellyfin tab")
+        for _ in 0..<6 where !item.waitForExistence(timeout: 2) { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.5) }
         XCTAssertTrue(item.waitForExistence(timeout: 15), "no \(name):\n\(app.debugDescription)")
         for _ in 0..<10 where !item.hasFocus {
             XCUIRemote.shared.press(item.frame.minY > 500 ? .down : .right)

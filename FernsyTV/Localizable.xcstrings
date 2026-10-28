@@ -53,6 +53,16 @@
         }
       }
     },
+    "%@s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@er"
+          }
+        }
+      }
+    },
     "%lld": {
       "localizations": {
         "de": {
@@ -73,12 +83,42 @@
         }
       }
     },
+    "%lld episodes left": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Folgen übrig"
+          }
+        }
+      }
+    },
+    "%lld movies": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Filme"
+          }
+        }
+      }
+    },
     "%lld hr %lld min": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$lld Std. %2$lld Min."
+          }
+        }
+      }
+    },
+    "%lld hrs unwatched": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Std. ungesehen"
           }
         }
       }
@@ -119,6 +159,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld s"
+          }
+        }
+      }
+    },
+    "%lld series": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Serien"
+          }
+        }
+      }
+    },
+    "%lld titles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Titel"
           }
         }
       }
@@ -223,6 +283,26 @@
         }
       }
     },
+    "Almost Finished": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serien fast durch"
+          }
+        }
+      }
+    },
+    "Another Suggestion": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderer Vorschlag"
+          }
+        }
+      }
+    },
     "APP": {
       "localizations": {
         "de": {
@@ -299,6 +379,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bestbewertet"
+          }
+        }
+      }
+    },
+    "Browse by Decade": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stöbern nach Jahrzehnt"
+          }
+        }
+      }
+    },
+    "Browse by Genre": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stöbern nach Genre"
           }
         }
       }
@@ -659,6 +759,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus deiner iCloud"
+          }
+        }
+      }
+    },
+    "FROM YOUR LIBRARY": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUS DEINER BIBLIOTHEK"
           }
         }
       }
@@ -1433,6 +1543,16 @@
         }
       }
     },
+    "Rediscover": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wieder entdecken"
+          }
+        }
+      }
+    },
     "Release Year": {
       "localizations": {
         "de": {
@@ -1639,6 +1759,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "Short & Good": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurz & gut"
           }
         }
       }
@@ -1993,12 +2123,32 @@
         }
       }
     },
+    "Under 100 minutes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter 100 Minuten"
+          }
+        }
+      }
+    },
     "Unpin": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Nicht mehr anheften"
+          }
+        }
+      }
+    },
+    "Unwatched & Top Rated": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesehen & top bewertet"
           }
         }
       }
@@ -2053,6 +2203,16 @@
         }
       }
     },
+    "Watched over a year ago": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor über einem Jahr gesehen"
+          }
+        }
+      }
+    },
     "Welcome to Fernsy": {
       "localizations": {
         "de": {
@@ -2069,6 +2229,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Womit möchtest du dich verbinden? Weitere Konten kannst du später in den Einstellungen hinzufügen."
+          }
+        }
+      }
+    },
+    "Year": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jahr"
           }
         }
       }
@@ -2099,6 +2269,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dein Zugang erlaubt %1$lld Stream(s) gleichzeitig. Wenn du zu %2$@ umschaltest, endet die Aufnahme."
+          }
+        }
+      }
+    },
+    "Your Favorites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Favoriten"
           }
         }
       }
