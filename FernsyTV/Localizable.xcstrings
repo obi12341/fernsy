@@ -2482,6 +2482,136 @@
           }
         }
       }
+    },
+    "Loading %@…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird geladen …"
+          }
+        }
+      }
+    },
+    "Reconnecting…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung wird wiederhergestellt …"
+          }
+        }
+      }
+    },
+    "Attempt %lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Versuch %1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "No internet connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Internetverbindung"
+          }
+        }
+      }
+    },
+    "Fernsy continues as soon as the network is back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy spielt weiter, sobald das Netz zurück ist."
+          }
+        }
+      }
+    },
+    "The channel arrives too slowly from the provider": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Sender kommt zu langsam vom Anbieter"
+          }
+        }
+      }
+    },
+    "Fernsy is switching to another server of the provider …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy wechselt zu einem anderen Server des Anbieters …"
+          }
+        }
+      }
+    },
+    "Fernsy is waiting for data …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy wartet auf Daten …"
+          }
+        }
+      }
+    },
+    "Channel is offline at the provider": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender ist beim Anbieter offline"
+          }
+        }
+      }
+    },
+    "%@ is not sending a picture right now. This is the provider, not your connection.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ liefert gerade kein Bild. Das liegt am Anbieter, nicht an deiner Verbindung."
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Another server of the provider delivers smoothly again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein anderer Server des Anbieters liefert wieder flüssig."
+          }
+        }
+      }
+    },
+    "Next Channel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächster Sender"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

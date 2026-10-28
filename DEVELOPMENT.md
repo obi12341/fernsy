@@ -300,6 +300,10 @@ order, refused or with shortened padding as the stream limit requires (the plan 
 `RecordingPlanTests`), `IPTV_AWAKEHOURS=<hours|0|off>` sets "Mac wach halten" in memory
 (0 = always while a recording is scheduled, off = never), `IPTV_TESTPAUSE`, `IPTV_TESTGOLIVE`, `IPTV_TESTSEEK` drive timeshift,
 `IPTV_TESTSTALL=<at s>:<s>` holds the playback clock to produce lag,
+`IPTV_TESTDRAG=<at s>:<to fraction>[:<hold s>],…` drags the player's timeline knob (live or film)
+with mouse events posted into the app only (the pointer does not move; hover marks need the real
+pointer), `IPTV_TESTTIMELINE=<inset>` shows system sliders with marks at that knob inset instead
+of the library (to re-measure `TimelineSlider.knobInset` after a macOS update),
 `IPTV_SECTION=<live|recordings|…>` opens the library on that section,
 `IPTV_TESTNODATA=<offline|silent>:<s>` makes tuner connections fail as an offline or silent
 channel for that many seconds after the first one; a recording keeps waiting for its channel

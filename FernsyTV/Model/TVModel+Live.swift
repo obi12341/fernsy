@@ -169,6 +169,13 @@ extension TVModel {
         play(channel)
     }
 
+    /// "Next Channel" on the player's failure card: the channel after the playing one in the
+    /// zap list, with the same question when a recording holds the connection.
+    func zapToNext() async {
+        guard let next = zapChannels.dropFirst().first else { return }
+        await zap(to: next)
+    }
+
     /// The upcoming shows after the current one, once the guide is loaded.
     func nextShows(on channel: LiveChannel, count: Int = 2, at date: Date = Date()) -> [EPGEntry] {
         Array((guide.guide(channel.id).entries ?? []).filter { $0.start > date }.prefix(count))

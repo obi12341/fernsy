@@ -13,10 +13,30 @@ struct VODPlayerScreen: View {
     @State private var tracks: TrackKind?
     @State private var countdown: Int?
     @FocusState private var focused: Bool
+    /// The item failed: the status layer's card takes focus (tvos-player-status design 5).
+    @State private var failed = false
 
     enum TrackKind { case audio, subtitles }
 
+    // The status layer sits beside the player, not inside it: under the player's remote
+    // handlers (move, tap, exit) focus could not move between the failure card's buttons.
     var body: some View {
+        ZStack {
+            player
+            status
+        }
+    }
+
+    @ViewBuilder private var status: some View {
+        if let item = model.playingVOD {
+            // Pending: a Jellyfin item resolves its stream before the engine loads (design 2).
+            PlayerStatusLayer(engine: model.engine, title: item.title, pending: true,
+                              canTakeFocus: tracks == nil && countdown == nil,
+                              retry: { model.retryPlayback() }, close: { model.stop() })
+        }
+    }
+
+    private var player: some View {
         ZStack(alignment: .bottomLeading) {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
             StreamInfoPanel(engine: model.engine)
@@ -40,11 +60,16 @@ struct VODPlayerScreen: View {
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .contain)
-        .focusable(tracks == nil && countdown == nil)
+        .focusable(tracks == nil && countdown == nil && !failed)
         .focused($focused)
         .onAppear { focused = true }
+        .onReceive(model.engine.$status) { status in
+            let now = if case .failed = status { true } else { false }
+            if failed != now { failed = now }
+        }
+        .onChange(of: failed) { _, value in if !value { focused = true } }
         .onPlayPauseCommand { model.togglePause(); touch() }
-        .onMoveCommand { direction in
+        .onMoveCommand(perform: failed ? nil : { direction in
             switch direction {
             case .left: model.skip(by: -10)
             case .right: model.skip(by: 10)
@@ -53,8 +78,8 @@ struct VODPlayerScreen: View {
             default: break
             }
             touch()
-        }
-        .onTapGesture { showsOverlay.toggle(); touch() }
+        })
+        .onTapGesture { if !failed { showsOverlay.toggle(); touch() } }
         .onExitCommand {
             if tracks != nil { tracks = nil; focused = true } else { model.stop() }
         }
