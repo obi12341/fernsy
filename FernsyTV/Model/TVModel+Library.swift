@@ -59,33 +59,104 @@ struct LibraryEntry: Identifiable {
 extension TVModel {
     // MARK: IPTV catalog
 
-    /// Loads the provider's film and series lists (cached in Caches like the live catalog).
+    /// Loads the provider's film and series lists (cached in Caches like the live catalog); a
+    /// kind that is switched off is neither downloaded nor kept (stored as `[]`).
     func loadLibraryCatalog() async {
-        guard let client, let credentials else { return }
+        guard let client, let credentials, !libraryLoading else { return }
+        libraryLoading = true
+        defer { libraryLoading = false }
         let url = Self.libraryCacheURL(credentials.accountKey)
-        if movies.isEmpty, let data = try? Data(contentsOf: url), let cache = try? JSONDecoder().decode(LibraryCache.self, from: data) {
+        if movies.isEmpty, series.isEmpty, let data = try? Data(contentsOf: url), let cache = try? JSONDecoder().decode(LibraryCache.self, from: data) {
             apply(cache)
         }
         do {
-            let cache = LibraryCache(movieCategories: try await client.catalog(.vodCategories), movies: try await client.catalog(.vodStreams),
-                                     seriesCategories: try await client.catalog(.seriesCategories), series: try await client.catalog(.series))
+            let films = showsIPTVMovies, shows = showsIPTVSeries
+            let cache = LibraryCache(movieCategories: films ? try await client.catalog(.vodCategories) : LibraryCache.none,
+                                     movies: films ? try await client.catalog(.vodStreams) : LibraryCache.none,
+                                     seriesCategories: shows ? try await client.catalog(.seriesCategories) : LibraryCache.none,
+                                     series: shows ? try await client.catalog(.series) : LibraryCache.none)
             apply(cache)
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? JSONEncoder().encode(cache).write(to: url, options: .atomic)
+            write(cache, to: url)
             AppLog.info(.catalog, "\(movies.count) films, \(series.count) series")
         } catch {
             AppLog.error(.catalog, "films and series failed: \(error.localizedDescription)")
         }
     }
 
+    /// Settings › IPTV Account, here or synced from another device. Off: the kind is emptied and
+    /// dropped from the cache. On: it is downloaded at once, after a download that is running.
+    func librarySwitched(movies kind: Bool, on: Bool) {
+        AppLog.info(.catalog, "\(kind ? "films" : "series") switched \(on ? "on" : "off")")
+        guard on else {
+            if kind { movieCategories = []; movies = []; movieInfo = [:] } else { seriesCategories = []; series = []; seriesInfo = [:] }
+            updateLibraryCache { cache in
+                if kind { cache.movieCategories = LibraryCache.none; cache.movies = LibraryCache.none } else { cache.seriesCategories = LibraryCache.none; cache.series = LibraryCache.none }
+            }
+            return
+        }
+        Task {
+            while libraryLoading { try? await Task.sleep(for: .milliseconds(200)) }
+            guard let client, kind ? showsIPTVMovies : showsIPTVSeries else { return }
+            libraryLoading = true
+            defer { libraryLoading = false }
+            do {
+                let categories = try await client.catalog(kind ? .vodCategories : .seriesCategories)
+                let items = try await client.catalog(kind ? .vodStreams : .series)
+                guard kind ? showsIPTVMovies : showsIPTVSeries else { return }
+                if let cache = updateLibraryCache({ cache in
+                    if kind { cache.movieCategories = categories; cache.movies = items } else { cache.seriesCategories = categories; cache.series = items }
+                }) { apply(cache) }
+                AppLog.info(.catalog, "\(kind ? "films" : "series") downloaded: \(kind ? movies.count : series.count)")
+            } catch {
+                AppLog.error(.catalog, "download after switching on failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// The switch as stored; test runs (no keychain) and IPTV_SHOWMOVIES / IPTV_SHOWSERIES=0|1
+    /// keep it in memory.
+    static func librarySwitch(_ key: String, env: String) -> Bool {
+        #if DEBUG
+        if let value = ProcessInfo.processInfo.environment[env] { return value == "1" }
+        #endif
+        return skipKeychain ? true : UserDefaults.standard.object(forKey: key) as? Bool ?? true
+    }
+
+    func storeLibrarySwitch(_ value: Bool, _ key: String) {
+        #if DEBUG
+        let env = ProcessInfo.processInfo.environment
+        if env["IPTV_SHOWMOVIES"] != nil || env["IPTV_SHOWSERIES"] != nil { return }
+        #endif
+        if !Self.skipKeychain { UserDefaults.standard.set(value, forKey: key) }
+    }
+
     private func apply(_ cache: LibraryCache) {
         let decoder = JSONDecoder()
-        movieCategories = ((try? decoder.decode([XCategory].self, from: cache.movieCategories)) ?? []).filter { !LiveRules.isAdultCategory($0) }
-        let adultMovies = Set(((try? decoder.decode([XCategory].self, from: cache.movieCategories)) ?? []).filter(LiveRules.isAdultCategory).map(\.id))
-        movies = ((try? decoder.decode([Movie].self, from: cache.movies)) ?? []).filter { !$0.isAdult && !adultMovies.contains($0.categoryId ?? "") }
-        seriesCategories = ((try? decoder.decode([XCategory].self, from: cache.seriesCategories)) ?? []).filter { !LiveRules.isAdultCategory($0) }
-        let adultSeries = Set(((try? decoder.decode([XCategory].self, from: cache.seriesCategories)) ?? []).filter(LiveRules.isAdultCategory).map(\.id))
-        series = ((try? decoder.decode([Series].self, from: cache.series)) ?? []).filter { !adultSeries.contains($0.categoryId ?? "") }
+        let allMovieCategories = showsIPTVMovies ? (try? decoder.decode([XCategory].self, from: cache.movieCategories)) ?? [] : []
+        movieCategories = allMovieCategories.filter { !LiveRules.isAdultCategory($0) }
+        let adultMovies = Set(allMovieCategories.filter(LiveRules.isAdultCategory).map(\.id))
+        movies = (showsIPTVMovies ? (try? decoder.decode([Movie].self, from: cache.movies)) ?? [] : []).filter { !$0.isAdult && !adultMovies.contains($0.categoryId ?? "") }
+        let allSeriesCategories = showsIPTVSeries ? (try? decoder.decode([XCategory].self, from: cache.seriesCategories)) ?? [] : []
+        seriesCategories = allSeriesCategories.filter { !LiveRules.isAdultCategory($0) }
+        let adultSeries = Set(allSeriesCategories.filter(LiveRules.isAdultCategory).map(\.id))
+        series = (showsIPTVSeries ? (try? decoder.decode([Series].self, from: cache.series)) ?? [] : []).filter { !adultSeries.contains($0.categoryId ?? "") }
+    }
+
+    /// Changes the stored lists of the signed-in account and returns them.
+    @discardableResult
+    private func updateLibraryCache(_ change: (inout LibraryCache) -> Void) -> LibraryCache? {
+        guard let credentials else { return nil }
+        let url = Self.libraryCacheURL(credentials.accountKey)
+        var cache = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(LibraryCache.self, from: $0) }
+            ?? LibraryCache(movieCategories: LibraryCache.none, movies: LibraryCache.none, seriesCategories: LibraryCache.none, series: LibraryCache.none)
+        change(&cache)
+        write(cache, to: url)
+        return cache
+    }
+
+    private func write(_ cache: LibraryCache, to url: URL) {
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? JSONEncoder().encode(cache).write(to: url, options: .atomic)
     }
 
     private static func libraryCacheURL(_ accountKey: String) -> URL {
@@ -260,8 +331,11 @@ extension TVModel {
 
 /// The provider's film and series lists as delivered, in Caches.
 struct LibraryCache: Codable {
-    let movieCategories: Data
-    let movies: Data
-    let seriesCategories: Data
-    let series: Data
+    /// A list of a kind that is switched off.
+    static let none = Data("[]".utf8)
+
+    var movieCategories: Data
+    var movies: Data
+    var seriesCategories: Data
+    var series: Data
 }
