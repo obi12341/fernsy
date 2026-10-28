@@ -122,46 +122,57 @@ struct JellyfinOverviewPage: View {
     }
 }
 
-/// The suggestion at the top: an unwatched, well-rated film with its backdrop; "Another
-/// Suggestion" draws the next one.
+/// The suggestion at the top: an unwatched, well-rated film with its backdrop, which moves while
+/// a button here has focus (tvos-living-hero); "Another Suggestion" draws the next one.
 private struct JellyfinSpotlight: View {
     @EnvironmentObject private var model: TVModel
     let item: JFItem
     let canDrawAgain: Bool
     let another: () -> Void
+    @FocusState private var focus: Int?
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             Color.clear.frame(height: 560)
                 .overlay {
-                    // Without a backdrop the poster, else the placeholder.
-                    RemoteImage(url: (model.jellyfin.backdropURL(item) ?? model.jellyfin.posterURL(item, height: 1080)).flatMap(URL.init(string:)),
-                                maxPixel: 1920) { ArtPlaceholder(seed: item.name) }
+                    LivingBackdrop(urls: backdrops, active: focus != nil, seed: item.name)
+                        .accessibilityElement()
+                        .accessibilityIdentifier("jellyfin.spotlight.backdrop")
+                        .accessibilityValue(focus != nil ? "moving" : "resting")
                 }
                 .clipped()
             LinearGradient(stops: [.init(color: TVTheme.background.opacity(0.92), location: 0), .init(color: TVTheme.background.opacity(0.45), location: 0.5),
                                    .init(color: .clear, location: 0.85)], startPoint: .leading, endPoint: .trailing)
             VStack(alignment: .leading, spacing: 16) {
-                Text("FROM YOUR LIBRARY").font(.system(size: 20, weight: .bold)).tracking(1.6).foregroundStyle(TVTheme.text.opacity(0.75))
-                Text(verbatim: item.name).font(.system(size: 64, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
-                if !facts.isEmpty {
-                    Text(verbatim: facts).font(.system(size: 24)).foregroundStyle(TVTheme.text.opacity(0.8))
+                // Another suggestion's text eases in; the buttons keep their identity so focus stays.
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("FROM YOUR LIBRARY").font(.system(size: 20, weight: .bold)).tracking(1.6).foregroundStyle(TVTheme.text.opacity(0.75))
+                    Text(verbatim: item.name).font(.system(size: 64, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
+                    if !facts.isEmpty {
+                        Text(verbatim: facts).font(.system(size: 24)).foregroundStyle(TVTheme.text.opacity(0.8))
+                    }
                 }
+                .id(item.id)
+                .transition(.opacity.combined(with: .offset(y: 12)))
                 HStack(spacing: 20) {
                     Button { model.play(.jellyfin(item)) } label: { Label("Play", systemImage: "play.fill") }
                         .buttonStyle(ActionButtonStyle())
+                        .focused($focus, equals: 0)
                         .accessibilityIdentifier("jellyfin.spotlight.play")
                     if canDrawAgain {
                         Button(action: another) { Label("Another Suggestion", systemImage: "shuffle") }
                             .buttonStyle(ActionButtonStyle())
+                            .focused($focus, equals: 1)
                             .accessibilityIdentifier("jellyfin.spotlight.another")
                     }
                     NavigationLink(value: DetailTarget.jellyfin(item)) { Image(systemName: "info.circle") }
                         .buttonStyle(ActionButtonStyle(round: true))
+                        .focused($focus, equals: 2)
                         .accessibilityIdentifier("jellyfin.spotlight.info")
                 }
                 .padding(.top, 10)
             }
+            .animation(.easeOut(duration: 0.5), value: item.id)
             .frame(maxWidth: 1000, alignment: .leading)
             .padding(50)
         }
@@ -170,6 +181,12 @@ private struct JellyfinSpotlight: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("jellyfin.spotlight")
         .accessibilityValue(item.id)
+    }
+
+    /// All of the film's backdrops; without one the poster, else the placeholder.
+    private var backdrops: [URL] {
+        let list = model.jellyfin.backdropURLs(item)
+        return (list.isEmpty ? model.jellyfin.posterURL(item, height: 1080).map { [$0] } ?? [] : list).compactMap(URL.init(string:))
     }
 
     /// "2019 · Comedy · 1 hr 38 min · ★ 7.9", as far as known.

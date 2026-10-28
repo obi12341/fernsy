@@ -53,6 +53,21 @@ struct XtreamDecodingTests {
         #expect(details.plot != nil || details.genre != nil)
     }
 
+    /// `backdrop_path` comes as a list or, from some panels, as one string (tvos-living-hero).
+    @Test func backdropsAsListOrSingleValue() throws {
+        func movie(_ value: String) throws -> MovieDetails {
+            try JSONDecoder().decode(MovieDetails.self, from: Data(#"{"info":{"backdrop_path":\#(value)}}"#.utf8))
+        }
+        #expect(try movie(#"["a.jpg"," ","b.jpg"]"#).backdrops == ["a.jpg", "b.jpg"])
+        #expect(try movie(#""a.jpg""#).backdrops == ["a.jpg"])
+        #expect(try movie(#""""#).backdrops.isEmpty)
+        #expect(try movie(#"["a.jpg","b.jpg"]"#).backdrop == "a.jpg")
+        let series = try JSONDecoder().decode(SeriesInfo.self, from: Data(#"{"info":{"backdrop_path":["s1.jpg","s2.jpg"]},"episodes":{}}"#.utf8))
+        #expect(series.backdrops == ["s1.jpg", "s2.jpg"] && series.backdrop == "s1.jpg")
+        let fixture = try JSONDecoder().decode(SeriesInfo.self, from: try XtreamFixtures.data("get_series_info"))
+        #expect(fixture.backdrops.count == 1)
+    }
+
     @Test(arguments: ["get_short_epg", "get_simple_data_table"])
     func guide(_ fixture: String) throws {
         let entries = try JSONDecoder().decode(EPGResponse.self, from: try XtreamFixtures.data(fixture)).epg_listings
