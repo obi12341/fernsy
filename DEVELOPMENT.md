@@ -267,7 +267,7 @@ schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog r
 (the provider-unreachable notice over the cached list). `IPTV_CLOCKOFFSET=<s>` shifts "now" in
 the rows and the detail pane only (to see a show change without waiting for one);
 `IPTV_EPGRECHECK=<s>` sets how often a visible row checks its programme (default 5 min) and
-`IPTV_EPGSTALE=1` treats every programme as stale, so each check downloads it again.
+`IPTV_EPGSTALE=1` treats every programme as stale, so each check downloads it again. `IPTV_TESTEPGDELAY=<s>` makes listings arrive that much later (loading rows in the guide's UI tests).
 Player channel list: `IPTV_TESTCHANNELLIST=<s>[:<key>,…]` opens it after s seconds and feeds the
 keys (`down`, `up`, `pagedown`, `return`, `esc`, `l`, `category:<id>`) one per second through
 the player's own key handling.

@@ -51,7 +51,7 @@ public final class EPGStore {
             pruned = true
             Task.detached(priority: .background) { Self.prune(file.deletingLastPathComponent()) }
         }
-        if guide.fetchedAt == nil, diskChecked.insert(channelId).inserted {
+        if guide.fetchedAt == nil, !Self.debugDelayed, diskChecked.insert(channelId).inserted {
             let generation = generation, keepDays = keepDays(channelId)
             if let cached = await Self.read(file, keepDays: keepDays), generation == self.generation, guide.fetchedAt == nil {
                 guide.entries = cached.entries
@@ -98,6 +98,12 @@ public final class EPGStore {
     private func fetch(_ channelId: Int, id: UUID, into guide: ChannelGuide, client: XtreamClient, generation: Int) async {
         defer { if pending[channelId]?.id == id { pending[channelId] = nil } }
 
+        #if DEBUG
+        // IPTV_TESTEPGDELAY=<s>: listings arrive that much later (loading rows in UI tests).
+        if let delay = ProcessInfo.processInfo.environment["IPTV_TESTEPGDELAY"].flatMap(Double.init) {
+            try? await Task.sleep(for: .seconds(delay))
+        }
+        #endif
         if guide.entries == nil, let quick = try? await client.shortEPG(channelId, limit: 10),
            !Task.isCancelled, generation == self.generation {
             guide.entries = Self.clean(quick, keepDays: keepDays(channelId))
@@ -124,6 +130,15 @@ public final class EPGStore {
               let fetchedAt = guide.fetchedAt, Date().timeIntervalSince(fetchedAt) > 600 else { return }
         guide.fetchedAt = nil
         await load(channelId, client: client)
+    }
+
+    /// IPTV_TESTEPGDELAY (debug): the disk cache is skipped too, so rows really load.
+    private static var debugDelayed: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["IPTV_TESTEPGDELAY"] != nil
+        #else
+        false
+        #endif
     }
 
     private func keepDays(_ channelId: Int) -> Int { min(archiveDays[channelId] ?? 0, Archive.maxDays) }

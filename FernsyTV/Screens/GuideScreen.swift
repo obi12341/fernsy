@@ -221,6 +221,10 @@ private struct GuideRow: View {
     /// The cell with focus, by its start: paging back keeps focus on it instead of letting it
     /// escape to the rail on the left (catch-up).
     @FocusState private var focused: Date?
+    /// The cell with focus, kept while focus is in the row or left it together with that cell: when
+    /// the cell vanishes because the row's programme arrived, focus goes to the cell now there
+    /// (tvos-guide-focus-while-loading). Cleared when the user moves focus away.
+    @State private var lastFocused: Date?
 
     var body: some View {
         HStack(spacing: 16) {
@@ -261,6 +265,11 @@ private struct GuideRow: View {
             }
             .frame(width: GuideScreen.axisWidth, height: 104, alignment: .topLeading)
         }
+        .onChange(of: focused) { _, now in
+            // The cell still drawn: the user moved on (Down, Left to the rail), so nothing to keep.
+            if let now { lastFocused = now } else if let last = lastFocused, cellStarts.contains(last) { lastFocused = nil }
+        }
+        .onChange(of: cellStarts) { old, new in keepFocus(old: old, new: new) }
         .task(id: channel.id) { await model.loadGuide(for: channel) }
         // A past day of an archive channel: its programme from back then (catch-up).
         .task(id: "\(channel.id).\(Int(windowStart.timeIntervalSince1970 / 3600))") {
@@ -272,6 +281,31 @@ private struct GuideRow: View {
     private func isRecordedNow(_ show: EPGEntry) -> Bool {
         guard let active = model.activeRecording(on: channel) else { return false }
         return active.start < show.end && active.end > show.start
+    }
+
+    /// The ids of the cells drawn: shows and bars, by their start.
+    private var cellStarts: [Date] {
+        let windowEnd = windowStart.addingTimeInterval(GuideScreen.span)
+        guard let entries = listings else { return [windowStart] }
+        let shows = entries.filter { $0.end > windowStart && $0.start < windowEnd }
+        return shows.map(\.start) + GuideGaps.free(shows: shows, window: windowStart...windowEnd).map(\.lowerBound)
+    }
+
+    /// The focused cell vanished because the row's cells changed (its programme arrived): focus
+    /// the cell covering now in the window, else the window's start, so focus stays in this row.
+    private func keepFocus(old: [Date], new: [Date]) {
+        guard let last = lastFocused, old.contains(last), !new.contains(last) else { return }
+        // Focus is still on it, or left the row together with the cell (lastFocused survived).
+        guard focused == last || focused == nil else { return }
+        let windowEnd = windowStart.addingTimeInterval(GuideScreen.span)
+        let now = Date()
+        let reference = now > windowStart && now < windowEnd ? now : windowStart
+        let entries = listings ?? []
+        let target = entries.first { $0.start <= reference && $0.end > reference && new.contains($0.start) }?.start
+            ?? new.filter { $0 <= reference }.max() ?? new.min()
+        guard let target else { return }
+        AppLog.detail(.app, "guide row \(channel.id): focus kept on the cell at \(target.formatted(date: .omitted, time: .shortened))")
+        focused = target
     }
 
     /// The channel's listings; none for `IPTV_TESTNOEPG=<channel id>` (debug), as on the Mac.
