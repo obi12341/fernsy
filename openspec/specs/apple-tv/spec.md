@@ -261,11 +261,11 @@ app log) and the app's version. Choosing an account SHALL offer signing out.
 - **THEN** newly scheduled recordings use it, and the settings row shows "Vorlauf 2 · Nachlauf 5 Min."
 
 ### Requirement: Start on Apple TV
-Start SHALL show the most recent item to continue as a large entry with its backdrop, kind,
-title, facts and "Fortsetzen · noch <time>", a "Weiterschauen" row with partly watched IPTV
-films and episodes, Jellyfin items and recordings, each with its source and progress, newest
-first, and a "Zuletzt hinzugefügt" row from the IPTV account and Jellyfin. Clicking an item
-SHALL resume it; the info button and a long press SHALL open its page.
+Start SHALL show a large entry: the newest item to continue with its backdrop and "Fortsetzen",
+or else the newest film with "Abspielen". Below it SHALL follow, each only with entries: Jetzt
+live (favourite or recent channels with the show on now), Weiterschauen, Nächste Folge
+(Jellyfin), Heute Abend (prime time on those channels), Zuletzt hinzugefügt, rows of the largest
+film and series categories and Jellyfin genres, Deine Aufnahmen and Bestbewertet.
 
 #### Scenario: Resuming from Start
 - **WHEN** the user clicks a partly watched film in "Weiterschauen"
@@ -273,7 +273,19 @@ SHALL resume it; the info button and a long press SHALL open its page.
 
 #### Scenario: Nothing to continue
 - **WHEN** nothing is partly watched
-- **THEN** Start shows "Zuletzt hinzugefügt" at the top and no large entry
+- **THEN** the large entry shows the newest film with "Abspielen", and "Weiterschauen" is not shown
+
+#### Scenario: Live from Start
+- **WHEN** the user clicks a channel in "Jetzt live"
+- **THEN** the channel plays full screen
+
+#### Scenario: Tonight
+- **WHEN** the user clicks a show in "Heute Abend" that starts later
+- **THEN** the app offers to record it
+
+#### Scenario: Categories
+- **WHEN** the provider's largest film category is "Action"
+- **THEN** Start shows a row "Filme · Action" with its newest films
 
 ### Requirement: Films and series on Apple TV
 Filme and Serien SHALL show the IPTV account's films or series as poster grids with title,
