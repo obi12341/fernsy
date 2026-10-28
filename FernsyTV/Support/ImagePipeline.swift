@@ -11,6 +11,10 @@ final class ImagePipeline: @unchecked Sendable {
 
     private let memory = NSCache<NSString, UIImage>()
     private let folder: URL
+    /// Loads in flight by key: Start shows the same poster in several rows at once, and each
+    /// would otherwise download it.
+    private var running: [String: Task<UIImage?, Never>] = [:]
+    private let lock = NSLock()
 
     private init() {
         memory.countLimit = 600
@@ -34,18 +38,33 @@ final class ImagePipeline: @unchecked Sendable {
     func image(_ url: URL, maxPixel: Int) async -> UIImage? {
         let name = key(url, maxPixel)
         if let image = memory.object(forKey: name as NSString) { return image }
+        let task: Task<UIImage?, Never> = lock.withLock {
+            if let task = running[name] { return task }
+            let task = load(url, maxPixel: maxPixel, name: name)
+            running[name] = task
+            return task
+        }
+        let image = await task.value
+        lock.withLock { running[name] = nil }
+        return image
+    }
+
+    private func load(_ url: URL, maxPixel: Int, name: String) -> Task<UIImage?, Never> {
         let file = folder.appendingPathComponent(name)
-        let image = await Task.detached(priority: .utility) { () -> UIImage? in
-            if let data = try? Data(contentsOf: file), let image = UIImage(data: data) { return image }
+        let memory = memory
+        return Task.detached(priority: .utility) { () -> UIImage? in
+            if let data = try? Data(contentsOf: file), let image = UIImage(data: data) {
+                memory.setObject(image, forKey: name as NSString)
+                return image
+            }
             guard let (data, response) = try? await URLSession.shared.data(from: url),
                   (response as? HTTPURLResponse)?.statusCode ?? 200 < 400,
                   let image = Self.downsample(data, maxPixel: maxPixel) else { return nil }
             if let jpeg = image.jpegData(compressionQuality: 0.85) { try? jpeg.write(to: file, options: .atomic) }
-            AppLog.detail(.app, "image loaded: \(url.lastPathComponent)")
+            AppLog.detail(.app, "image loaded: \(url.lastPathComponent) at \(maxPixel) px")
+            memory.setObject(image, forKey: name as NSString)
             return image
-        }.value
-        if let image { memory.setObject(image, forKey: name as NSString) }
-        return image
+        }
     }
 
     private static func downsample(_ data: Data, maxPixel: Int) -> UIImage? {

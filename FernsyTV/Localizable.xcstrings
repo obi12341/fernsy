@@ -293,6 +293,16 @@
         }
       }
     },
+    "Best Rated": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestbewertet"
+          }
+        }
+      }
+    },
     "Buffer since %@": {
       "localizations": {
         "de": {
@@ -369,6 +379,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicken: Kategorie öffnen"
+          }
+        }
+      }
+    },
+    "Coming Up": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als Nächstes"
           }
         }
       }
@@ -579,6 +599,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Filme und Serien"
+          }
+        }
+      }
+    },
+    "Films · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filme · %@"
           }
         }
       }
@@ -853,6 +883,16 @@
         }
       }
     },
+    "NEW · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NEU · %@"
+          }
+        }
+      }
+    },
     "NEXT": {
       "localizations": {
         "de": {
@@ -889,6 +929,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nächste Episode · %@"
+          }
+        }
+      }
+    },
+    "Next Up": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Folge"
           }
         }
       }
@@ -1013,6 +1063,16 @@
         }
       }
     },
+    "On Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt live"
+          }
+        }
+      }
+    },
     "on now and later": {
       "localizations": {
         "de": {
@@ -1079,6 +1139,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Angeheftet"
+          }
+        }
+      }
+    },
+    "Play": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abspielen"
           }
         }
       }
@@ -1389,6 +1459,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Serien"
+          }
+        }
+      }
+    },
+    "Series · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serien · %@"
           }
         }
       }
@@ -1713,6 +1793,16 @@
         }
       }
     },
+    "Tonight": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute Abend"
+          }
+        }
+      }
+    },
     "Try the Demo": {
       "localizations": {
         "de": {
@@ -1839,6 +1929,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deine eigene Mediathek mit Filmen, Serien und Gesehen-Status."
+          }
+        }
+      }
+    },
+    "Your Recordings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Aufnahmen"
           }
         }
       }

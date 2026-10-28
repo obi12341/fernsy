@@ -2,20 +2,46 @@ import FernsyCore
 import FernsyPlayer
 import SwiftUI
 
-/// Start (design screen `home`): the newest item to continue as a large entry, then "Continue
-/// Watching" across IPTV, Jellyfin and recordings, and "Recently Added" from IPTV and Jellyfin.
+/// Start (design screen `home`, tvos-start-rows): the newest item to continue (or else the newest
+/// film) as a large entry, then live channels, Continue Watching, Next Up, tonight's shows,
+/// Recently Added, the largest categories and genres, recordings and best rated films. Each row
+/// shows only with entries.
 struct StartScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var path: [DetailTarget] = []
+    @State private var rows = StartRows()
+    @State private var asked: (show: EPGEntry, channel: LiveChannel)?
+    /// How far Start is scrolled: the backdrop fades out below the large entry.
+    @State private var scrolled: CGFloat = 0
 
     var body: some View {
         NavigationStack(path: $path) {
             let resume = model.continueWatching
             let added = model.recentlyAdded
+            let hero = resume.first ?? rows.spotlight
+            let live = model.startChannels
+            let tonight = model.tonight(on: live.channels)
             ScrollView {
                 VStack(alignment: .leading, spacing: 50) {
-                    if let hero = resume.first {
-                        Hero(entry: hero) { open(hero) } info: { info(hero) }
+                    if let hero {
+                        Hero(entry: hero, spotlight: resume.isEmpty) { open(hero) } info: { info(hero) }
+                    }
+                    if !live.channels.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            RowTitle(title: "On Now", note: live.source == .favorites ? "Favorites" : live.source == .recent ? "Recently Watched" : nil)
+                            CardRow {
+                                ForEach(live.channels) { channel in
+                                    Button {
+                                        model.zapSource = live.source
+                                        model.play(channel)
+                                    } label: {
+                                        StartLiveCard(channel: channel, guide: model.guide.guide(channel.id))
+                                    }
+                                    .buttonStyle(TVTileStyle(radius: 20, scale: 1.05))
+                                    .accessibilityIdentifier("start.live.\(channel.id)")
+                                }
+                            }
+                        }
                     }
                     if !resume.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
@@ -29,6 +55,22 @@ struct StartScreen: View {
                                     .buttonStyle(.borderless)
                                     .contextMenu { if DetailTarget.of(entry.open) != nil { Button("Details", systemImage: "info.circle") { info(entry) } } }
                                     .accessibilityIdentifier("start.resume.\(entry.id)")
+                                }
+                            }
+                        }
+                    }
+                    wideRow("Next Up", note: "Jellyfin", id: "next", model.nextUpEntries)
+                    if !tonight.shows.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            RowTitle(title: LocalizedStringKey(tonight.title))
+                            CardRow {
+                                ForEach(tonight.shows, id: \.channel.id) { item in
+                                    Button { pick(item.show, on: item.channel) } label: {
+                                        StartShowCard(show: item.show, channel: item.channel,
+                                                      scheduled: model.isScheduled(item.show, on: item.channel))
+                                    }
+                                    .buttonStyle(TVTileStyle(radius: 20, scale: 1.05))
+                                    .accessibilityIdentifier("start.tonight.\(item.channel.id)")
                                 }
                             }
                         }
@@ -48,6 +90,9 @@ struct StartScreen: View {
                             }
                         }
                     }
+                    ForEach(rows.categories) { row in posterRow(row.title, id: row.id, row.entries) }
+                    wideRow("Your Recordings", note: nil, id: "recordings", model.recordingEntries)
+                    posterRow(String(localized: "Best Rated"), id: "best", rows.bestRated)
                     if resume.isEmpty && added.isEmpty {
                         Text("Your films and series appear here once the library has loaded.")
                             .font(.system(size: 26)).foregroundStyle(TVTheme.secondary)
@@ -56,13 +101,16 @@ struct StartScreen: View {
                 .padding(.horizontal, 90)
                 .padding(.bottom, 60)
             }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, value in scrolled = value }
             .background {
                 // The newest item's backdrop fills the screen behind the tab bar, as in the design.
                 ZStack {
                     TVTheme.background
-                    if let hero = resume.first {
+                    if let hero {
                         RemoteImage(url: Hero.backdrop(hero, model), maxPixel: 1920) { ArtPlaceholder(seed: hero.title) }
                             .frame(width: 1920, height: 1080).clipped()
+                            // With the rows below the large entry, the picture gives way to them.
+                            .opacity(max(0.15, 1 - scrolled / 600))
                         LinearGradient(stops: [.init(color: TVTheme.background.opacity(0.88), location: 0), .init(color: TVTheme.background.opacity(0.4), location: 0.42),
                                                .init(color: .clear, location: 0.7)], startPoint: .leading, endPoint: .trailing)
                         LinearGradient(stops: [.init(color: TVTheme.background, location: 0), .init(color: TVTheme.background, location: 0.34),
@@ -74,6 +122,69 @@ struct StartScreen: View {
             .foregroundStyle(TVTheme.text)
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
             .task(id: model.jellyfin.session?.userId) { if model.jellyfin.session != nil { await model.jellyfin.refreshHome() } }
+            // Rows from the catalog once per change of it, not per redraw (design A).
+            .task(id: "\(model.movies.count).\(model.series.count).\(model.jellyfin.films.count).\(model.jellyfin.latestFilms.count)") {
+                rows = model.startRows()
+                if case .movie(let movie)? = rows.spotlight?.open { _ = await model.movieDetails(movie) }
+            }
+            .task(id: live.channels.map(\.id)) { for channel in live.channels { await model.loadGuide(for: channel) } }
+            .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
+                                presenting: asked) { item in
+                if model.isScheduled(item.show, on: item.channel) {
+                    Button("Don’t Record", role: .destructive) { model.recorder.unschedule(channelId: item.channel.id, entry: item.show) }
+                } else {
+                    Button("Record") { model.notice = model.schedule(item.show, on: item.channel) }
+                }
+            } message: { item in
+                Text("\(item.channel.displayName) · \(TimeSpan.of(item.show)). Records only while Fernsy is open.")
+            }
+        }
+    }
+
+    /// A running show plays its channel; a later one offers to record it.
+    private func pick(_ show: EPGEntry, on channel: LiveChannel) {
+        if show.start <= Date() {
+            model.zapSource = model.startChannels.source
+            model.play(channel)
+        } else {
+            asked = (show, channel)
+        }
+    }
+
+    @ViewBuilder private func posterRow(_ title: String, id: String, _ entries: [LibraryEntry]) -> some View {
+        if !entries.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                RowTitle(title: LocalizedStringKey(title))
+                CardRow {
+                    ForEach(entries) { entry in
+                        Button { info(entry) } label: {
+                            PosterCard(title: entry.title, image: entry.image,
+                                       rating: { if case .movie(let movie) = entry.open { movie.rating } else { nil } }(),
+                                       badge: entry.source == .jellyfin ? "Jellyfin" : nil, badgeColor: Color(hex: 0x6C65F0))
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("start.\(id).\(entry.id)")
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func wideRow(_ title: LocalizedStringKey, note: LocalizedStringKey?, id: String, _ entries: [LibraryEntry]) -> some View {
+        if !entries.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                RowTitle(title: title, note: note)
+                CardRow {
+                    ForEach(entries) { entry in
+                        Button { open(entry) } label: {
+                            WideCard(title: entry.title, detail: entry.detail, image: entry.image,
+                                     source: Self.sourceName(entry.source), progress: entry.progress)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("start.\(id).\(entry.id)")
+                    }
+                }
+            }
         }
     }
 
@@ -105,23 +216,82 @@ struct StartScreen: View {
     }
 }
 
+/// A live channel on Start: logo, the show on now with its progress and time left.
+private struct StartLiveCard: View {
+    @EnvironmentObject private var model: TVModel
+    let channel: LiveChannel
+    /// Observed, so the card shows the show once the guide arrives.
+    @ObservedObject var guide: ChannelGuide
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        let show = model.currentShow(on: channel)
+        HStack(spacing: 18) {
+            ChannelLogo(channel: channel, radius: 12).frame(width: 112, height: 70)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(verbatim: channel.displayName).font(.system(size: 20, weight: .semibold)).opacity(0.7).lineLimit(1)
+                Text(verbatim: show?.title ?? String(localized: "No programme information")).font(.system(size: 24, weight: .semibold)).lineLimit(1)
+                if let show {
+                    HStack(spacing: 12) {
+                        ShowProgress(show: show, focused: focused).frame(width: 120, height: 5)
+                        Text("\(max(1, Int((show.end.timeIntervalSinceNow / 60).rounded(.up)))) min left").font(.system(size: 18).monospacedDigit()).opacity(0.6)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(width: 470, height: 124, alignment: .leading)
+    }
+}
+
+/// A show of tonight on Start: time, channel and title, marked when it is to be recorded.
+private struct StartShowCard: View {
+    let show: EPGEntry
+    let channel: LiveChannel
+    let scheduled: Bool
+
+    var body: some View {
+        HStack(spacing: 18) {
+            ChannelLogo(channel: channel, radius: 12).frame(width: 96, height: 60)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    if scheduled { RecordingMark() }
+                    Text(show.start, format: .dateTime.hour().minute()).font(.system(size: 20, weight: .bold).monospacedDigit())
+                    Text(verbatim: channel.displayName).font(.system(size: 19)).opacity(0.6).lineLimit(1)
+                }
+                Text(verbatim: show.title).font(.system(size: 24, weight: .semibold)).lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(width: 440, height: 124, alignment: .leading)
+    }
+}
+
 /// The large "Continue Watching" entry over the backdrop (the screen's background).
 private struct Hero: View {
     @EnvironmentObject private var model: TVModel
     let entry: LibraryEntry
+    /// Nothing to continue: the newest film, offered to play.
+    var spotlight = false
     let resume: () -> Void
     let info: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("CONTINUE WATCHING · \(kind)").font(.system(size: 22, weight: .bold)).tracking(1.6).foregroundStyle(TVTheme.text.opacity(0.75))
+            Text(spotlight ? "NEW · \(kind)" : "CONTINUE WATCHING · \(kind)").font(.system(size: 22, weight: .bold)).tracking(1.6).foregroundStyle(TVTheme.text.opacity(0.75))
             Text(verbatim: entry.title).font(.system(size: 84, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
             if !facts.isEmpty {
                 Text(verbatim: facts).font(.system(size: 26)).foregroundStyle(TVTheme.text.opacity(0.8))
             }
             HStack(spacing: 20) {
                 Button(action: resume) {
-                    Label(entry.detail.isEmpty ? String(localized: "Resume") : String(localized: "Resume · \(entry.detail)"), systemImage: "play.fill")
+                    if spotlight {
+                        Label("Play", systemImage: "play.fill")
+                    } else {
+                        Label(entry.detail.isEmpty ? String(localized: "Resume") : String(localized: "Resume · \(entry.detail)"), systemImage: "play.fill")
+                    }
                 }
                 .buttonStyle(ActionButtonStyle())
                 .accessibilityIdentifier("start.hero.resume")
