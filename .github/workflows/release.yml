@@ -208,7 +208,7 @@ jobs:
           # iCloud sync: the Developer ID profile and the app id's container (icloud-sync).
           [ -f "$MOUNT/Fernsy.app/Contents/embedded.provisionprofile" ]
           codesign -d --entitlements - "$MOUNT/Fernsy.app" 2>/dev/null | grep -q 'iCloud.de.mobilistics.fernsy'
-          codesign -d --entitlements - "$MOUNT/Fernsy.app" 2>/dev/null | grep -A1 'icloud-container-environment' | grep -q Production
+          codesign -d --entitlements - "$MOUNT/Fernsy.app" 2>/dev/null | grep -A2 'icloud-container-environment' | grep -q Production
           PLIST="$MOUNT/Fernsy.app/Contents/Info.plist"
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$PLIST")" = "$VERSION" ]
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$PLIST")" = "$BUILD" ]
