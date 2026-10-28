@@ -20,6 +20,9 @@ final class JellyfinEdgesUITests: FernsyUITestCase {
                               "JF_PASS": "fixture-pass", "JF_TESTMANY": "60"])
         showTab("Jellyfin", app)
         let item = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'jellyfin.item.'")).firstMatch
+        // Recently Added sits below the suggestion and is built as it comes near (tvos-jellyfin-overview).
+        XCTAssertTrue(app.descendants(matching: .any)["jellyfin.state"].waitForExistence(timeout: 30), "no Jellyfin tab")
+        for _ in 0..<6 where !item.waitForExistence(timeout: 2) { remote.press(.down); Thread.sleep(forTimeInterval: 0.5) }
         XCTAssertTrue(item.waitForExistence(timeout: 30), "no Jellyfin items:\n\(app.debugDescription)")
         // Overview: into the Recently Added row and along it.
         for _ in 0..<4 where !app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'jellyfin.item.' AND hasFocus == true")).firstMatch.exists {
