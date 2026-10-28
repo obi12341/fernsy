@@ -55,6 +55,12 @@ struct GuideScreen: View {
                 // Rows and the now line run to the screen's edge, under the bottom safe area.
                 .ignoresSafeArea(edges: .bottom)
                 .focusSection()
+                // Back returns a paged window to now, then goes to the rail: Left pages into the
+                // archive and may not reach it (tvos-guide-back-to-rail). Back on the rail goes on
+                // to the tab bar.
+                .onExitCommand {
+                    if windowStart != Self.defaultStart() { windowStart = Self.defaultStart() } else { railFocused = true }
+                }
             }
         }
         .disabled(columnOpen)
