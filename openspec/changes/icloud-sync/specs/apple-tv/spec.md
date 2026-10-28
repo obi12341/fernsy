@@ -3,7 +3,7 @@
 ### Requirement: First launch and sign-in on Apple TV
 Without an account, the Apple TV app SHALL show a welcome screen that explains that Fernsy
 brings no content and offers an IPTV account and a Jellyfin server as two cards; logins found in
-iCloud Keychain SHALL be offered first. Each form SHALL ask for server address, username and
+the user's iCloud SHALL be offered first. Each form SHALL ask for server address, username and
 password (typing on a nearby iPhone works) and keep them in the keychain; the IPTV form SHALL
 also offer "Demo-Zugang testen". A failed sign-in SHALL say why and keep the entered values.
 
@@ -28,7 +28,7 @@ also offer "Demo-Zugang testen". A failed sign-in SHALL say why and keep the ent
 - **THEN** the Jellyfin tab appears and the session is kept in the keychain
 
 #### Scenario: Logins from iCloud
-- **WHEN** the Mac's provider login is in iCloud Keychain and the Apple TV app starts without an account
+- **WHEN** the Mac's provider login is in the user's iCloud and the Apple TV app starts without an account
 - **THEN** the welcome screen shows the provider's server and user with "Übernehmen", which signs in without the form
 
 ### Requirement: Settings on Apple TV

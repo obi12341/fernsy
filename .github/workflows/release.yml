@@ -2,8 +2,9 @@
 #   tag vX.Y / vX.Y.Z on main → release "Fernsy X.Y" with the notarized DMG, and the App Store
 #                               build uploaded to App Store Connect (submitting stays manual)
 #   every night (main changed) → the notarized DMG on the rolling pre-release "Nightly"
-#   run manually               → channel "nightly" (default) or "appstore-test" (archive and
-#                               export the App Store build without uploading)
+#   run manually               → channel "nightly" (default), "appstore-test" (archive and
+#                               export the App Store build without uploading) or "dmg-test"
+#                               (build, notarize and check the DMG without publishing it)
 # Every channel first runs the tests (tests.yml); nothing is built when they fail.
 # The version comes from the tag (nightly: the newest release tag), the build number from
 # the commit count; the project file is never changed. Signing data comes only from secrets.
@@ -19,7 +20,7 @@ on:
       channel:
         description: What to build
         type: choice
-        options: [nightly, appstore-test]
+        options: [nightly, appstore-test, dmg-test]
         default: nightly
 
 permissions:
@@ -93,7 +94,7 @@ jobs:
 
   dmg:
     needs: [prepare, tests]
-    if: needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'nightly'
+    if: contains(fromJSON('["release", "nightly", "dmg-test"]'), needs.prepare.outputs.channel)
     # macOS 27 image with Xcode 27 (public preview); macos-26 only has Xcode 26.
     runs-on: xcode-27
     timeout-minutes: 60
@@ -204,6 +205,10 @@ jobs:
           codesign --verify --deep --strict "$MOUNT/Fernsy.app"
           codesign -dv "$MOUNT/Fernsy.app" 2>&1 | grep -q 'flags=.*runtime'
           spctl -a -t exec -v "$MOUNT/Fernsy.app"
+          # iCloud sync: the Developer ID profile and the app id's container (icloud-sync).
+          [ -f "$MOUNT/Fernsy.app/Contents/embedded.provisionprofile" ]
+          codesign -d --entitlements - "$MOUNT/Fernsy.app" 2>/dev/null | grep -q 'iCloud.de.mobilistics.fernsy'
+          codesign -d --entitlements - "$MOUNT/Fernsy.app" 2>/dev/null | grep -A1 'icloud-container-environment' | grep -q Production
           PLIST="$MOUNT/Fernsy.app/Contents/Info.plist"
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$PLIST")" = "$VERSION" ]
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$PLIST")" = "$BUILD" ]
@@ -219,6 +224,7 @@ jobs:
       # Release notes from the Release-Note-de/-en commit trailers (scripts/release-notes.sh);
       # they travel to the publish job in the artifact.
       - name: Release notes
+        if: needs.prepare.outputs.channel != 'dmg-test'
         env:
           CHANNEL: ${{ needs.prepare.outputs.channel }}
           SHA: ${{ needs.prepare.outputs.sha }}
@@ -227,6 +233,7 @@ jobs:
       # Sparkle feed for the in-app updater of the DMG build. generate_appcast only signs the
       # DMG when the app's SUPublicEDKey matches the private key, which is checked here.
       - name: Appcast
+        if: needs.prepare.outputs.channel != 'dmg-test'
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           SPARKLE_VERSION: '2.10.0'   # same as the Swift package

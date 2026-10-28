@@ -34,11 +34,12 @@ category ids unknown to a device's current catalog SHALL be kept, not removed.
 
 ### Requirement: Synced accounts
 With "Zugangsdaten abgleichen" on, the IPTV login and the Jellyfin server, user and password
-SHALL sync through iCloud Keychain. Jellyfin sessions and device ids SHALL NOT sync; each
-device signs in as its own device. Signing out on one device SHALL NOT sign out the others.
+SHALL sync end-to-end encrypted through the user's iCloud. Jellyfin sessions and device ids
+SHALL NOT sync; each device signs in as its own device. Signing out on one device SHALL NOT
+sign out the others.
 
 #### Scenario: New Apple TV
-- **WHEN** the user opens the Apple TV app for the first time and the Mac's logins are in iCloud Keychain
+- **WHEN** the user opens the Apple TV app for the first time and the Mac's logins are in their iCloud
 - **THEN** the welcome screen offers to use the provider and Jellyfin from the Mac, and choosing it signs in without typing
 
 #### Scenario: Signing out on the Apple TV

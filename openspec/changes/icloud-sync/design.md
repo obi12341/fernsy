@@ -56,7 +56,26 @@ Rejected:
 - **Syncing the files/UserDefaults directly (iCloud Drive)**: needs iCloud Drive on and file
   coordination; tvOS has no iCloud Drive documents for apps.
 
-### B. Credentials in iCloud Keychain
+### B. Credentials in CloudKit, encrypted fields
+
+Result of the spike (task 1.1, 2026-10-28, Mac dev build and "Apple TV WZ", same Apple ID):
+iCloud Keychain does not reach tvOS. Synchronizable items written on either side never
+arrived on the other in ten minutes; Apple documents that tvOS accepts
+`kSecAttrSynchronizable` but does not sync app items. A record in the private CloudKit database
+of container `iCloud.de.mobilistics.fernsy.dev` with the secret in `encryptedValues` (end-to-end
+encrypted) was saved by both and read and decrypted by the other within seconds. The key-value
+store (A) also synced both ways within 2–3 s (task 1.2); `ubiquityIdentityToken` is nil on
+tvOS (no iCloud Drive) and is no sign of a missing account there, so availability uses
+`CKContainer.accountStatus()` instead.
+
+So the logins go to CloudKit: one record per login (`xtream`, `jellyfin.login`) in the private
+database, the password and the full credentials in `encryptedValues`, server and user also in
+plain fields only where a list needs them (none so far). The keychain stays the device's own
+store; the welcome screen offers a CloudKit login that the device has no local copy of. What
+follows below for the keychain items' names and the local "signed out here" flag still
+applies; "synchronizable" is replaced by "also saved to CloudKit".
+
+Superseded plan (kept for the record):
 
 The `xtream` and `jellyfin.password` items, plus a new `jellyfin.server` item (server URL and
 user, without the session), are written with `kSecAttrSynchronizable = true` and
@@ -74,9 +93,25 @@ existing synced item is left alone.
 Rejected:
 - **Passwords in the key-value store**: not meant for secrets; iCloud Keychain is end-to-end
   encrypted.
-- **CloudKit `encryptedValues`**: also end-to-end, but more moving parts for two items.
+- **CloudKit `encryptedValues`**: first rejected as more moving parts; chosen after the spike.
 - **Syncing the Jellyfin session**: tokens are per device on the server; sharing one would
   sign the other device out (jellyfin-test-device memory, device id decision in tvos-library).
+
+### A2. As built (tasks 2.1–2.3)
+
+- `SyncStore` (FernsyCore) keeps the stamp of each UserDefaults value itself
+  (`sync.t.<key>`), so favourites, recently watched, track languages and padding keep their
+  stored form; a value from before sync existed is sent once, stamped then. Favourites and
+  recently watched are app-wide values on both apps today, so they sync as app values, not per
+  account (their ids are the provider's, so one provider per person is what this serves).
+- Resume positions and watched marks sync as one entry `resume`, merged per item by date;
+  a finished item beats a position from a device that has not seen it finish; entries older
+  than 90 days stay local.
+- `LoginSync` (FernsyCore) saves logins to CloudKit behind a small protocol (tests use a fake).
+  The planned local "signed out here" flag is not needed: synced logins are only offered on a
+  device without an account, never used without a click.
+- Keychain-less runs (UI tests, `FERNSY_NO_KEYCHAIN`) sync nothing, so tests never touch the
+  developer's iCloud.
 
 ### C. Switches
 
@@ -87,13 +122,19 @@ when `FileManager.default.ubiquityIdentityToken` is nil.
 
 ## Risks / Trade-offs
 
-- [iCloud Keychain on tvOS] → tvOS supports synchronizable keychain items on paper, but whether
-  an Apple TV takes part in iCloud Keychain for third-party items must be checked on the real
-  device first (task 1.1). If it does not, the takeover uses CloudKit `encryptedValues` for the
-  two credential items instead; the spec stays the same.
-- [Developer ID (Direct) build and iCloud] → Developer ID apps get CloudKit; whether the
-  key-value store works there must be checked (task 1.2). If not, the Direct build syncs
-  nothing and says so in its settings; the App Store builds sync.
+- [iCloud Keychain on tvOS] → checked (task 1.1): it does not sync to tvOS; CloudKit
+  `encryptedValues` does, so logins use CloudKit (decision B).
+- [Developer ID (Direct) build and iCloud] → checked (task 1.2, 2026-10-28): an archive of
+  "Fernsy Direct" (dev bundle id for the test) exported with method `developer-id` and
+  automatic signing made Xcode create "Mac Team Direct Provisioning Profile" with iCloud; the
+  Developer ID-signed app read the Apple TV's key-value value at once and saved to CloudKit.
+  Its CloudKit environment is Production (`icloud-container-environment`), debug builds use
+  Development: they do not see each other's records, release builds on all platforms do.
+  `scripts/build-dmg.sh` signs without a profile today; it has to archive and export this way
+  (or embed the profile) once the entitlements are in, and CI needs the profile or API access
+  for automatic signing.
+- [CloudKit schema] → Record types are created in the Development environment on first save
+  and must be deployed to Production in the CloudKit console before a release uses them.
 - [Provisioning] → The app id needs the iCloud capability (key-value storage) and keychain
   sharing in the developer portal; the CI signing for the App Store upload already has
   problems (certificate limit) to clear first.

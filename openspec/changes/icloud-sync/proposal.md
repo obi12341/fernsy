@@ -16,7 +16,8 @@ value was built for this (hide-live-categories-and-channels: one value per accou
   Apple TV app (and between several Macs or Apple TVs): hidden categories and channels,
   favourites, recently watched channels, pinned categories, resume positions of provider films
   and episodes, preferred audio and subtitle languages, recording padding.
-- Account credentials sync through iCloud Keychain: the IPTV login and the Jellyfin server,
+- Account credentials sync end-to-end encrypted through the user's iCloud (CloudKit encrypted
+  fields; iCloud Keychain does not reach tvOS, see design B): the IPTV login and the Jellyfin server,
   user and password. Each device still signs in to Jellyfin as its own device with its own
   session; sessions and device ids never sync.
 - An Apple TV (or Mac) that finds synced credentials offers to use them on first launch

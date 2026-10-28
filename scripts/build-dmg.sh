@@ -5,7 +5,7 @@
 # FFmpeg comes from Packages/FernsyPlayer/Frameworks (scripts/build-ffmpeg.sh) and is embedded by the build.
 #
 #   scripts/build-dmg.sh                 # ad-hoc signed (local use, no developer account)
-#   SIGN_IDENTITY="Developer ID Application: …" scripts/build-dmg.sh
+#   SIGN_IDENTITY="Developer ID Application: …" DIRECT_PROFILE="Fernsy Direct Developer ID" scripts/build-dmg.sh
 #   SIGN_IDENTITY=… NOTARY_PROFILE=fernsy scripts/build-dmg.sh   # + notarize and staple
 #   SIGN_IDENTITY=… NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh
 #                                        # + notarize with an App Store Connect API key (CI)
@@ -29,15 +29,37 @@ cd "$ROOT"
 "$ROOT/scripts/set-version.sh"
 [ -d "$ROOT/Packages/FernsyPlayer/Frameworks/avcodec.xcframework" ] || "$ROOT/scripts/build-ffmpeg.sh"
 rm -rf "$BUILD"
-mkdir -p "$DIST"
+mkdir -p "$DIST" "$BUILD"
 
 if [ "$SIGN_IDENTITY" = "-" ]; then
-    SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
+    # iCloud needs a provisioning profile, which an ad-hoc build cannot have: without the
+    # iCloud entitlements the app starts and keeps its settings on this Mac.
+    mkdir -p "$BUILD"
+    /usr/libexec/PlistBuddy -x -c "Print" "$ROOT/Config/Fernsy-Direct.entitlements" > "$BUILD/adhoc.entitlements"
+    for key in com.apple.developer.ubiquity-kvstore-identifier com.apple.developer.icloud-container-identifiers com.apple.developer.icloud-services; do
+        /usr/libexec/PlistBuddy -c "Delete :$key" "$BUILD/adhoc.entitlements"
+    done
+    SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO
+             "CODE_SIGN_ENTITLEMENTS=$BUILD/adhoc.entitlements")
 else
+    # The iCloud entitlements need the Developer ID profile (scripts/direct-profile.swift
+    # fetches or creates it with the App Store Connect API key used for notarizing).
+    if [ -z "${DIRECT_PROFILE:-}" ]; then
+        [ -n "${NOTARY_KEY:-}" ] || { echo "Signed builds need DIRECT_PROFILE (the Developer ID profile's name) or NOTARY_KEY"; exit 1; }
+        DIRECT_PROFILE=$(ASC_KEY="$NOTARY_KEY" ASC_KEY_ID="${NOTARY_KEY_ID:?}" ASC_ISSUER="${NOTARY_ISSUER:?}" swift "$ROOT/scripts/direct-profile.swift")
+    fi
+    echo "▸ Provisioning profile: $DIRECT_PROFILE"
+    # Manual signing does not add CloudKit's environment (an export would): Developer ID
+    # builds use Production, as App Store builds do.
+    /usr/libexec/PlistBuddy -x -c "Print" "$ROOT/Config/Fernsy-Direct.entitlements" > "$BUILD/direct.entitlements"
+    /usr/libexec/PlistBuddy -c "Add :com.apple.developer.icloud-container-environment string Production" "$BUILD/direct.entitlements"
     # Notarization requires the hardened runtime and rejects the get-task-allow (debugging)
     # entitlement Xcode injects by default; set both here instead of relying on the project.
+    # The profile reaches the app target only (PROVISIONING_PROFILE_SPECIFIER of its Release
+    # configuration), not the packages it builds.
     SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" ENABLE_HARDENED_RUNTIME=YES
-             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO OTHER_CODE_SIGN_FLAGS=--timestamp)
+             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO OTHER_CODE_SIGN_FLAGS=--timestamp
+             "FERNSY_DIRECT_PROFILE=$DIRECT_PROFILE" "CODE_SIGN_ENTITLEMENTS=$BUILD/direct.entitlements")
 fi
 
 # CI passes the version from the tag and the build number from git, without editing the project.

@@ -2,15 +2,15 @@
 
 ## 1. Spikes (real devices; stop and report if one fails)
 
-- [ ] 1.1 iCloud Keychain on tvOS: a synchronizable generic password written by the Mac dev build appears on the Apple TV dev build (same Apple ID, real Apple TV "Apple TV WZ"); record the result in design.md, switch to CloudKit `encryptedValues` for credentials if not.
-- [ ] 1.2 Key-value store: a value written by the Mac dev build arrives on the Apple TV dev build and back while both run; check the Developer ID (Direct) build gets the store; record in design.md.
-- [ ] 1.3 Enable the iCloud (key-value storage) and keychain sharing capabilities for both app ids in the developer portal and entitlements (App Store, Direct, Apple TV; Release and dev ids).
+- [x] 1.1 iCloud Keychain on tvOS: a synchronizable generic password written by the Mac dev build appears on the Apple TV dev build (same Apple ID, real Apple TV "Apple TV WZ"); record the result in design.md, switch to CloudKit `encryptedValues` for credentials if not.
+- [x] 1.2 Key-value store: a value written by the Mac dev build arrives on the Apple TV dev build and back while both run; check the Developer ID (Direct) build gets the store; record in design.md.
+- [ ] 1.3 Enable iCloud (key-value storage and CloudKit, containers `iCloud.de.mobilistics.fernsy` and `.dev`) for both app ids in the developer portal and the entitlements (App Store, Direct, Apple TV; Release and dev ids); debug builds signed with a development profile instead of ad hoc; `scripts/build-dmg.sh` and CI export the Direct build with its Developer ID profile (design risks). Dev id and its Developer ID profile done by Xcode during the spikes.
 
 ## 2. FernsyCore
 
-- [ ] 2.1 `SyncStore`: keys per account and app, `modifiedAt` wrapper with version, newer-wins merge, external-change notification, switch on/off, availability; unit tests with a fake store (newer wins, older ignored, unknown version ignored, offline queue catches up).
-- [ ] 2.2 Wrap favourites, recently watched, resume positions (90-day trim for the synced copy), track preferences and padding with `modifiedAt`; migrate existing local values (keep them, timestamp "now" only on first sync).
-- [ ] 2.3 `Keychain`: synchronizable option and data-protection keychain on macOS; `xtream`, `jellyfin.password` and new `jellyfin.server` synced, `jellyfin` session and `mcp.token` not; local "signed out here" flag; tests where possible.
+- [x] 2.1 `SyncStore`: keys per account and app, `modifiedAt` wrapper with version, newer-wins merge, external-change notification, switch on/off, availability; unit tests with a fake store (newer wins, older ignored, unknown version ignored, offline queue catches up).
+- [x] 2.2 Wrap favourites, recently watched, resume positions (90-day trim for the synced copy), track preferences and padding with `modifiedAt`; migrate existing local values (keep them, timestamp "now" only on first sync).
+- [x] 2.3 Logins in CloudKit (design B): `xtream` and `jellyfin.login` records in the private database of `iCloud.de.mobilistics.fernsy[.dev]` with the secret in `encryptedValues`; `jellyfin` session and `mcp.token` stay device-only; local "signed out here" flag; availability from `accountStatus()`; tests with a fake store.
 
 ## 3. Mac app
 
