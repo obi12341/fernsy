@@ -131,6 +131,9 @@ extension TVModel {
     }
 
     private func apply(_ cache: LibraryCache) {
+        #if DEBUG
+        let cache = Self.debugEnlarged(cache)
+        #endif
         let decoder = JSONDecoder()
         let allMovieCategories = showsIPTVMovies ? (try? decoder.decode([XCategory].self, from: cache.movieCategories)) ?? [] : []
         movieCategories = allMovieCategories.filter { !LiveRules.isAdultCategory($0) }
@@ -141,6 +144,36 @@ extension TVModel {
         let adultSeries = Set(allSeriesCategories.filter(LiveRules.isAdultCategory).map(\.id))
         series = (showsIPTVSeries ? (try? decoder.decode([Series].self, from: cache.series)) ?? [] : []).filter { !adultSeries.contains($0.categoryId ?? "") }
     }
+
+    #if DEBUG
+    /// IPTV_TESTBIGCATALOG=<n>: the films and series repeated with new ids up to n each, in memory,
+    /// so the simulator has a provider-sized catalog without a real provider (tvos-start-scrolling).
+    private static func debugEnlarged(_ cache: LibraryCache) -> LibraryCache {
+        guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGCATALOG"].flatMap(Int.init) else { return cache }
+        func enlarged(_ data: Data, id: String, date: String) -> Data {
+            guard let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !items.isEmpty else { return data }
+            var out = items
+            var copy = 1
+            while out.count < target {
+                for item in items where out.count < target {
+                    var item = item
+                    let base = (item[id] as? Int) ?? Int("\(item[id] ?? 0)") ?? 0
+                    item[id] = base + copy * 1_000_000
+                    item["name"] = "\(item["name"] ?? "") \(copy)"
+                    let stamp = (item[date] as? Int) ?? Int("\(item[date] ?? 0)") ?? 0
+                    item[date] = "\(max(0, stamp - copy * 60))"
+                    out.append(item)
+                }
+                copy += 1
+            }
+            return (try? JSONSerialization.data(withJSONObject: out)) ?? data
+        }
+        var cache = cache
+        cache.movies = enlarged(cache.movies, id: "stream_id", date: "added")
+        cache.series = enlarged(cache.series, id: "series_id", date: "last_modified")
+        return cache
+    }
+    #endif
 
     /// Changes the stored lists of the signed-in account and returns them.
     @discardableResult
@@ -203,7 +236,7 @@ extension TVModel {
     var continueWatching: [LibraryEntry] {
         var entries: [LibraryEntry] = []
         for key in resume.started(prefix: "movie.") {
-            guard let id = Int(key.dropFirst("movie.".count)), let movie = movies.first(where: { $0.id == id }) else { continue }
+            guard let id = Int(key.dropFirst("movie.".count)), let movie = moviesByID[id] else { continue }
             entries.append(LibraryEntry(id: key, title: movie.name, detail: remaining(key), source: .iptv,
                                         image: movie.poster.flatMap(URL.init(string:)), progress: resume.fraction(key),
                                         date: resume.lastPlayed(key) ?? .distantPast, open: .movie(movie)))
@@ -236,12 +269,12 @@ extension TVModel {
     /// The newest IPTV films and series and Jellyfin items, interleaved by date.
     var recentlyAdded: [LibraryEntry] {
         var entries: [LibraryEntry] = []
-        for movie in movies.sorted(by: { $0.added > $1.added }).prefix(12) {
+        for movie in newestMovies {
             entries.append(LibraryEntry(id: "movie:\(movie.id)", title: movie.name, detail: "IPTV", source: .iptv,
                                         image: movie.poster.flatMap(URL.init(string:)), progress: nil,
                                         date: Date(timeIntervalSince1970: Double(movie.added)), open: .movie(movie)))
         }
-        for show in series.sorted(by: { $0.lastModified > $1.lastModified }).prefix(8) {
+        for show in newestSeries {
             entries.append(LibraryEntry(id: "series:\(show.id)", title: show.name, detail: "IPTV", source: .iptv,
                                         image: show.cover.flatMap(URL.init(string:)), progress: nil,
                                         date: Date(timeIntervalSince1970: Double(show.lastModified)), open: .series(show)))
@@ -265,7 +298,7 @@ extension TVModel {
     var episodeIndex: [String: (Episode, Series)] {
         var index: [String: (Episode, Series)] = [:]
         for (id, info) in seriesInfo {
-            guard let show = series.first(where: { $0.id == id }) else { continue }
+            guard let show = seriesByID[id] else { continue }
             for episode in info.seasons.values.flatMap({ $0 }) { index[episode.id] = (episode, show) }
         }
         return index

@@ -63,8 +63,16 @@ final class VODSwitchUITests: FernsyUITestCase {
         XCTAssertTrue(app.tabBars.firstMatch.buttons["Films"].waitForExistence(timeout: 30), "no Films tab")
         XCTAssertFalse(app.tabBars.firstMatch.buttons["Series"].exists, "a Series tab while series are off")
         let film = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.' AND identifier CONTAINS 'movie:'")).firstMatch
-        XCTAssertTrue(film.waitForExistence(timeout: 30), "Start has no films:\n\(app.debugDescription)")
         let series = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.' AND identifier CONTAINS 'series:'"))
-        XCTAssertEqual(series.count, 0, "Start shows series while they are off")
+        XCTAssertTrue(app.buttons["start.hero.resume"].waitForExistence(timeout: 30), "Start did not load")
+        // Start builds its rows as they come near the screen (tvos-start-scrolling): down through all of them.
+        var sawFilm = false
+        for _ in 0..<12 {
+            sawFilm = sawFilm || film.exists
+            XCTAssertEqual(series.count, 0, "Start shows series while they are off")
+            remote.press(.down)
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTAssertTrue(sawFilm || film.exists, "Start has no films:\n\(app.debugDescription)")
     }
 }

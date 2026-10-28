@@ -37,9 +37,27 @@ final class TVModel: ObservableObject {
 
     // Films and series (TVModel+Library.swift).
     @Published var movieCategories: [XCategory] = []
-    @Published var movies: [Movie] = []
+    @Published var movies: [Movie] = [] {
+        didSet {
+            moviesByID = Dictionary(movies.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            newestMovies = Array(movies.sorted { $0.added > $1.added }.prefix(12))
+        }
+    }
     @Published var seriesCategories: [XCategory] = []
-    @Published var series: [Series] = []
+    @Published var series: [Series] = [] {
+        didSet {
+            seriesByID = Dictionary(series.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            newestSeries = Array(series.sorted { $0.lastModified > $1.lastModified }.prefix(8))
+        }
+    }
+    /// Kept with the lists (tvos-start-scrolling): Start looks items up by id and takes the
+    /// newest without sorting 30,000 films per call.
+    private(set) var moviesByID: [Int: Movie] = [:]
+    private(set) var seriesByID: [Int: Series] = [:]
+    private(set) var newestMovies: [Movie] = []
+    private(set) var newestSeries: [Series] = []
+    /// Bumped when resume positions arrive from another device: Start rebuilds Continue Watching.
+    @Published var resumeRevision = 0
     @Published var movieInfo: [Int: MovieDetails] = [:]
     @Published var seriesInfo: [Int: SeriesInfo] = [:]
     /// The provider's films and series (Settings › IPTV Account), app-wide with the Mac's keys
@@ -150,6 +168,9 @@ final class TVModel: ObservableObject {
             signingInFromICloud = true
         }
         startSync()
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["IPTV_FRAMESTATS"] == "1" { FrameStats.shared.start() }
+        #endif
     }
 
     // MARK: Account

@@ -15,14 +15,23 @@ struct StartRows {
     var spotlight: LibraryEntry?
     var categories: [Row] = []
     var bestRated: [LibraryEntry] = []
+    // Kept with the catalog rows (tvos-start-scrolling): StartScreen rebuilds each part when
+    // what it shows changes, never while scrolling.
+    var added: [LibraryEntry] = []
+    var resume: [LibraryEntry] = []
+    var nextUp: [LibraryEntry] = []
+    var recordings: [LibraryEntry] = []
+    var live: (source: LiveSource, channels: [LiveChannel]) = (.all, [])
+    var tonight: (title: String, shows: [(show: EPGEntry, channel: LiveChannel)]) = ("", [])
 }
 
 extension TVModel {
-    /// Rows from the catalog, built once per catalog change (StartScreen keeps them): grouping
-    /// 30,000 films on every redraw would stall the screen.
+    /// Rows from the catalog, built once per catalog change (StartScreen keeps them and adds the
+    /// other parts): grouping 30,000 films on every redraw would stall the screen.
     func startRows() -> StartRows {
         var rows = StartRows()
-        rows.spotlight = recentlyAdded.first { entry in
+        rows.added = recentlyAdded
+        rows.spotlight = rows.added.first { entry in
             switch entry.open {
             case .movie: true
             case .jellyfin(let item): item.type == "Movie"
