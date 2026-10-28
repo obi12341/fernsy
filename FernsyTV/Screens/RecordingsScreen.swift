@@ -196,8 +196,26 @@ struct RecordingPlayerScreen: View {
     @State private var lastInput = Date()
     /// The player takes focus, so Back and the remote reach it, not the card below the cover.
     @FocusState private var focused: Bool
+    /// The file failed to play: the status layer's card takes focus (tvos-player-status).
+    @State private var failed = false
 
+    // The status layer sits beside the player, not inside it: under the player's remote
+    // handlers (move, tap, exit) focus could not move between the failure card's buttons.
     var body: some View {
+        ZStack {
+            player
+            status
+        }
+    }
+
+    @ViewBuilder private var status: some View {
+        if let recording = model.playingRecording {
+            PlayerStatusLayer(engine: model.engine, title: recording.title,
+                              retry: { model.retryPlayback() }, close: { model.stop() })
+        }
+    }
+
+    private var player: some View {
         ZStack(alignment: .bottomLeading) {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
             StreamInfoPanel(engine: model.engine)
@@ -210,12 +228,17 @@ struct RecordingPlayerScreen: View {
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .contain)
-        .focusable()
+        .focusable(!failed)
         .focused($focused)
         .onAppear { focused = true }
+        .onReceive(model.engine.$status) { status in
+            let now = if case .failed = status { true } else { false }
+            if failed != now { failed = now }
+        }
+        .onChange(of: failed) { _, value in if !value { focused = true } }
         .onChange(of: focused) { _, value in AppLog.detail(.player, "recording player focused: \(value)") }
         .onPlayPauseCommand { model.togglePause(); touch() }
-        .onMoveCommand { direction in
+        .onMoveCommand(perform: failed ? nil : { direction in
             AppLog.detail(.player, "remote \(direction) in the recording player")
             switch direction {
             case .left: model.skip(by: -10)
@@ -223,8 +246,8 @@ struct RecordingPlayerScreen: View {
             default: break
             }
             touch()
-        }
-        .onTapGesture { showsOverlay.toggle(); touch() }
+        })
+        .onTapGesture { if !failed { showsOverlay.toggle(); touch() } }
         .onExitCommand {
             AppLog.detail(.player, "remote back in the recording player")
             model.stop()

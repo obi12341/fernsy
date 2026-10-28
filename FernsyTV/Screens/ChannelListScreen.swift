@@ -1,4 +1,5 @@
 import FernsyCore
+import FernsyPlayer
 import SwiftUI
 
 /// Live TV (design screens `live` and `guide`, tvos-live-and-guide): a switch between the
@@ -406,6 +407,23 @@ struct ChannelLogo: View {
 
 // MARK: Pane
 
+/// A spinner over the preview while its channel loads or buffers (tvos-player-status design 7).
+private struct PreviewSpinner: View {
+    @ObservedObject var engine: PlayerEngine
+
+    var body: some View {
+        let waiting = engine.status == .loading || engine.status == .buffering
+        ZStack {
+            if waiting { ProgressView().tint(.white) }
+            Color.clear.frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("live.preview.status")
+                .accessibilityValue(waiting ? "loading" : "none")
+        }
+        .allowsHitTesting(false)
+    }
+}
+
 private struct ChannelPane: View {
     @EnvironmentObject private var model: TVModel
     let channel: LiveChannel?
@@ -427,9 +445,11 @@ private struct PaneContent: View {
     var body: some View {
         Group {
             if model.previewing?.id == channel.id {
+                // The identifier on the video only: on the whole it would replace the spinner's.
                 TVVideoSurface(engine: model.engine)
-                    .overlay(alignment: .topLeading) { LiveBadge().padding(16) }
                     .accessibilityIdentifier("live.preview")
+                    .overlay { PreviewSpinner(engine: model.engine) }
+                    .overlay(alignment: .topLeading) { LiveBadge().padding(16) }
             } else {
                 ChannelLogo(channel: channel, radius: 20, logoPadding: 70)
             }

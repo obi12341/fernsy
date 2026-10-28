@@ -12,6 +12,8 @@ struct PlayerScreen: View {
     @State private var lastInput = Date()
     /// The player takes focus, so Back and the remote reach it, not the row below the cover.
     @FocusState private var focused: Bool
+    /// The stream failed: the status layer's card takes focus (tvos-player-status design 5).
+    @State private var failed = false
 
     enum Mode: Equatable {
         case hidden, info
@@ -33,7 +35,26 @@ struct PlayerScreen: View {
         }
     }
 
+    // The status layer sits beside the player, not inside it: under the player's remote
+    // handlers (move, tap, exit) focus could not move between the failure card's buttons.
     var body: some View {
+        ZStack {
+            player
+            status
+        }
+    }
+
+    @ViewBuilder private var status: some View {
+        if let channel = model.playing {
+            PlayerStatusLayer(engine: model.engine, title: channel.displayName, channel: channel,
+                              canTakeFocus: mode == .hidden || mode == .info,
+                              retry: { model.retryPlayback() },
+                              next: { mode = .hidden; Task { await model.zapToNext() } },
+                              close: { model.stop() })
+        }
+    }
+
+    private var player: some View {
         ZStack(alignment: .bottomLeading) {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
             StreamInfoPanel(engine: model.engine)
@@ -66,13 +87,18 @@ struct PlayerScreen: View {
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .contain)
-        .focusable(mode != .strip && !isTracks)
+        .focusable(mode != .strip && !isTracks && !(failed && (mode == .hidden || mode == .info)))
         .focused($focused)
         .onAppear { focused = true }
+        .onReceive(model.engine.$status) { status in
+            let now = if case .failed = status { true } else { false }
+            if failed != now { failed = now }
+        }
+        .onChange(of: failed) { _, value in if !value { focused = true } }
         .onChange(of: mode) { _, value in if value == .hidden || value == .info { focused = true } }
         .onPlayPauseCommand { model.togglePause(); touch() }
-        .onMoveCommand { move($0) }
-        .onTapGesture { click() }
+        .onMoveCommand(perform: failed ? nil : { move($0) })
+        .onTapGesture { if !failed { click() } }
         .onExitCommand { back() }
         #if DEBUG
         // IPTV_PLAYERMODE=info|strip: the player opens with that overlay (screenshots without a remote).
