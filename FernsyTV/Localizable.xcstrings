@@ -1543,6 +1543,16 @@
         }
       }
     },
+    "Sections that are switched off are not loaded or searched. Favorites and resume positions are kept.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeschaltete Bereiche werden nicht geladen und nicht durchsucht. Favoriten und Fortsetzen-Positionen bleiben erhalten."
+          }
+        }
+      }
+    },
     "SERIES": {
       "localizations": {
         "de": {

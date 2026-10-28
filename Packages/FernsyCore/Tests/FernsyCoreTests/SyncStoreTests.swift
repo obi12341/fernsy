@@ -35,6 +35,30 @@ struct SyncStoreTests {
         #expect(changed == ["d.library.favorites"])
     }
 
+    /// The films and series switches (tvos-vod-switch): a Bool arrives, and writing the same value
+    /// back (as the app's didSet does) sends nothing new.
+    @Test func aSwitchReachesTheOtherDeviceOnce() {
+        let store = FakeStore()
+        let keys = [LibraryRules.seriesSwitchKey]
+        let macDefaults = UserDefaults(suiteName: "SyncStoreTests.mac.\(UUID().uuidString)")!
+        let tvDefaults = UserDefaults(suiteName: "SyncStoreTests.tv.\(UUID().uuidString)")!
+        let mac = SyncStore(backing: store, defaults: macDefaults, keys: keys)
+        let tv = SyncStore(backing: store, defaults: tvDefaults, keys: keys)
+        mac.start(notifications: NotificationCenter())
+        tv.start(notifications: NotificationCenter())
+        macDefaults.set(false, forKey: LibraryRules.seriesSwitchKey)
+        mac.pushLocalChanges()
+        var changed: Set<String> = []
+        tv.onChange = { changed = $0 }
+        tv.pullAll()
+        #expect(tvDefaults.object(forKey: LibraryRules.seriesSwitchKey) as? Bool == false)
+        #expect(changed == ["d." + LibraryRules.seriesSwitchKey])
+        let sent = (store.values["d." + LibraryRules.seriesSwitchKey] as? [String: Any])?["t"] as? Date
+        tvDefaults.set(false, forKey: LibraryRules.seriesSwitchKey)
+        tv.pushLocalChanges()
+        #expect((store.values["d." + LibraryRules.seriesSwitchKey] as? [String: Any])?["t"] as? Date == sent)
+    }
+
     @Test func theNewerChangeWins() {
         let store = FakeStore()
         let (mac, macDefaults) = device("mac", store)

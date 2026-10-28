@@ -47,6 +47,10 @@ struct MainTabs: View {
 
     @EnvironmentObject private var model: TVModel
     @State private var selection: Tab = .start
+    /// The films and series switches as the tab bar shows them. Taken over only outside
+    /// Settings: removing a tab rebuilds the tabs after it, which closed the settings page where
+    /// the switch was just turned off and sent the next Back out of the app (tvos-vod-switch).
+    @State private var vodTabs = (movies: TVModel.shared.showsIPTVMovies, series: TVModel.shared.showsIPTVSeries)
 
     var body: some View {
         let iptv = model.credentials != nil || !model.channels.isEmpty
@@ -55,8 +59,12 @@ struct MainTabs: View {
             SwiftUI.Tab(value: Tab.start) { StartScreen() } label: { Text("Start") }
             if iptv {
                 SwiftUI.Tab(value: Tab.live) { ChannelListScreen() } label: { Text("Live TV") }
-                SwiftUI.Tab(value: Tab.films) { LibraryGridScreen(kind: .movies) } label: { Text("Films") }
-                SwiftUI.Tab(value: Tab.series) { LibraryGridScreen(kind: .series) } label: { Text("Series") }
+                if vodTabs.movies {
+                    SwiftUI.Tab(value: Tab.films) { LibraryGridScreen(kind: .movies) } label: { Text("Films") }
+                }
+                if vodTabs.series {
+                    SwiftUI.Tab(value: Tab.series) { LibraryGridScreen(kind: .series) } label: { Text("Series") }
+                }
             }
             if jellyfin {
                 SwiftUI.Tab(value: Tab.jellyfin) { JellyfinScreen() } label: { Text("Jellyfin") }
@@ -72,5 +80,13 @@ struct MainTabs: View {
             }
         }
         .accessibilityIdentifier("tabs")
+        .onChange(of: model.showsIPTVMovies) { updateVODTabs() }
+        .onChange(of: model.showsIPTVSeries) { updateVODTabs() }
+        .onChange(of: selection) { updateVODTabs() }
+    }
+
+    private func updateVODTabs() {
+        guard selection != .settings, vodTabs != (model.showsIPTVMovies, model.showsIPTVSeries) else { return }
+        vodTabs = (model.showsIPTVMovies, model.showsIPTVSeries)
     }
 }

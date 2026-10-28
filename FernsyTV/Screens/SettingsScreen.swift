@@ -167,6 +167,15 @@ private struct AccountScreen: View {
                 SettingsRow(title: Text("Server"), value: Text(verbatim: credentials.server)).padding(.trailing, -40)
                 SettingsRow(title: Text("Username"), value: Text(verbatim: credentials.username)).padding(.trailing, -40)
                 SettingsRow(title: Text("Streams at a time"), value: Text(verbatim: "\(model.maxConnections)")).padding(.trailing, -40)
+                ChoiceRow(title: Text("Films"), chosen: model.showsIPTVMovies) { model.showsIPTVMovies.toggle() }
+                    .accessibilityIdentifier("settings.iptvMovies")
+                    .accessibilityValue(model.showsIPTVMovies ? "on" : "off")
+                    .padding(.top, 24)
+                ChoiceRow(title: Text("Series"), chosen: model.showsIPTVSeries) { model.showsIPTVSeries.toggle() }
+                    .accessibilityIdentifier("settings.iptvSeries")
+                    .accessibilityValue(model.showsIPTVSeries ? "on" : "off")
+                Text("Sections that are switched off are not loaded or searched. Favorites and resume positions are kept.")
+                    .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
             }
             Button { confirm = true } label: {
                 Text("Sign Out").font(.system(size: 26, weight: .semibold)).foregroundStyle(TVTheme.live)
