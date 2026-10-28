@@ -99,11 +99,15 @@ controls.
   Desktop with one click.
 - **Siri, Shortcuts and Spotlight.** "Open ZDF in Fernsy" or "Search Tatort in Fernsy" with
   Siri; switching channels, what's on and recording as actions in the Shortcuts app and Spotlight.
+- **iCloud sync.** Hidden channels, favorites, where you stopped a film and your settings follow
+  you to your other Macs and your Apple TV. Your logins too, end-to-end encrypted, so a new
+  Apple TV signs in with one click.
 
 ## Privacy
 
-Fernsy collects no data. Your credentials stay in your Mac's keychain, and the app only
-connects to your provider.
+Fernsy collects no data. Your credentials stay in your Mac's keychain and, if you sync with
+iCloud, end-to-end encrypted in your own iCloud. The app only connects to your provider, your
+Jellyfin server and iCloud.
 
 ## Get Fernsy
 

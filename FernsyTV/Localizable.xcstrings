@@ -643,12 +643,32 @@
         }
       }
     },
+    "From Your iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus deiner iCloud"
+          }
+        }
+      }
+    },
     "Guide": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Programm"
+          }
+        }
+      }
+    },
+    "Hidden categories and channels, favourites, recently watched channels, where you stopped films and episodes, audio and subtitle languages and recording padding, on your Macs and Apple TVs.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeblendete Kategorien und Sender, Favoriten, zuletzt gesehene Sender, wo du Filme und Folgen angehalten hast, Ton- und Untertitelsprache sowie Vor- und Nachlauf von Aufnahmen – auf deinen Macs und Apple TVs."
           }
         }
       }
@@ -679,6 +699,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gedrückt halten: Anheften, Ausblenden"
+          }
+        }
+      }
+    },
+    "iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud"
+          }
+        }
+      }
+    },
+    "iCloud is not available. Sign in to iCloud in the Apple TV’s settings; until then Fernsy keeps this Apple TV’s settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud ist nicht verfügbar. Melde dich in den Einstellungen des Apple TV bei iCloud an; bis dahin behält Fernsy die Einstellungen dieses Apple TV."
           }
         }
       }
@@ -993,6 +1033,16 @@
         }
       }
     },
+    "Not Available": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verfügbar"
+          }
+        }
+      }
+    },
     "Not enough free space on the Apple TV (at least 2 GB needed).": {
       "localizations": {
         "de": {
@@ -1059,6 +1109,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
+          }
+        }
+      }
+    },
+    "On": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An"
           }
         }
       }
@@ -1703,6 +1763,26 @@
         }
       }
     },
+    "Sync Logins": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugangsdaten abgleichen"
+          }
+        }
+      }
+    },
+    "Sync with iCloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit iCloud abgleichen"
+          }
+        }
+      }
+    },
     "System language": {
       "localizations": {
         "de": {
@@ -1843,6 +1923,16 @@
         }
       }
     },
+    "Use %@: %@ · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ übernehmen: %2$@ · %3$@"
+          }
+        }
+      }
+    },
     "User": {
       "localizations": {
         "de": {
@@ -1929,6 +2019,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deine eigene Mediathek mit Filmen, Serien und Gesehen-Status."
+          }
+        }
+      }
+    },
+    "Your provider’s and your Jellyfin server’s address, user and password, end-to-end encrypted in your iCloud. Another Mac or Apple TV offers them when it has no account yet; each signs in to Jellyfin as its own device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse, Benutzer und Passwort deines Anbieters und deines Jellyfin-Servers, Ende-zu-Ende-verschlüsselt in deiner iCloud. Ein anderer Mac oder ein Apple TV bietet sie an, solange dort noch kein Konto eingerichtet ist; jedes Gerät meldet sich bei Jellyfin als eigenes Gerät an."
           }
         }
       }

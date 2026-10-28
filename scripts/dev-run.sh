@@ -31,7 +31,8 @@ fi
 
 if [ "$BUILD" = 1 ]; then
     taskpolicy -b xcodebuild -project "$ROOT/Fernsy.xcodeproj" -scheme Fernsy -configuration Debug \
-        -destination "platform=macOS,arch=arm64" -derivedDataPath "$ROOT/build/dd" build -quiet
+        -destination "platform=macOS,arch=arm64" -derivedDataPath "$ROOT/build/dd" \
+        -allowProvisioningUpdates -allowProvisioningDeviceRegistration build -quiet
 fi
 
 # Demo defaults first; a later KEY=value of the same key wins (bash 3.2: no associative arrays).

@@ -64,6 +64,14 @@ final class TVModel: ObservableObject {
     @Published var chosenLiveSource: LiveSource?
     @Published var liveView: LiveView = .list { didSet { storeLive(liveView.rawValue, as: "live.view") } }
 
+    // iCloud sync (icloud-sync, FernsyCore SyncStore and LoginSync; TVModel+Sync.swift).
+    let sync = SyncStore(backing: TVModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil, keys: TVModel.syncedKeys)
+    let logins = TVModel.syncAllowed ? LoginSync.cloudKit() : LoginSync(backing: nil)
+    /// Logins found in iCloud while this Apple TV has none: the welcome screen offers them.
+    @Published var syncedXtream: XtreamCredentials?
+    @Published var syncedJellyfin: LoginSync.JellyfinLogin?
+    @Published var iCloudAvailable = false
+
     let engine = PlayerEngine()
     let guide = EPGStore()
     let tuners = TunerPool()
@@ -114,6 +122,7 @@ final class TVModel: ObservableObject {
             startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
         }
+        startSync()
     }
 
     // MARK: Account
@@ -141,6 +150,11 @@ final class TVModel: ObservableObject {
             #endif
             tuners.limit = maxConnections
             if remember && !Self.skipKeychain { CredentialStore.save(credentials) }
+            // To iCloud: a new login, or a stored one from before sync that iCloud lacks.
+            syncedXtream = nil
+            Task {
+                if remember { await logins.save(credentials) } else if await logins.xtream() == nil { await logins.save(credentials) }
+            }
             loadLiveState()
             #if DEBUG
             // IPTV_TESTHIDE=category:<id>,channel:<id>,…: hidden for this run (in memory), as on the Mac.

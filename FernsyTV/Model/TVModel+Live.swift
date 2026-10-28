@@ -30,9 +30,10 @@ extension TVModel {
         recentChannels = defaults.array(forKey: LiveRules.recentKey) as? [Int] ?? []
         visibility = ChannelVisibility.decoded(key("live.visibility").flatMap { defaults.data(forKey: $0) })
         pinned = PinnedCategories.decoded(key("live.pinned").flatMap { defaults.data(forKey: $0) })
+        pullLiveValues()
     }
 
-    private func store(_ data: Data?, as name: String) {
+    func store(_ data: Data?, as name: String) {
         guard !Self.skipKeychain, let key = key(name) else { return }
         UserDefaults.standard.set(data, forKey: key)
     }
@@ -89,6 +90,7 @@ extension TVModel {
         value.modifiedAt = Date()
         visibility = value
         store(value.encoded, as: "live.visibility")
+        pushLiveValue(value, "visibility", value.modifiedAt)
     }
 
     func isCategoryHidden(_ category: XCategory) -> Bool { visibility.hiddenCategories.contains(category.id) }
@@ -99,6 +101,7 @@ extension TVModel {
         value.modifiedAt = Date()
         visibility = value
         store(value.encoded, as: "live.visibility")
+        pushLiveValue(value, "visibility", value.modifiedAt)
         if hidden && pinned.contains(category.id) { setPinned(category, false) }
     }
 
@@ -109,6 +112,7 @@ extension TVModel {
         list.set(category.id, pinned: value)
         pinned = list
         store(list.encoded, as: "live.pinned")
+        pushLiveValue(list, "pinned", list.modifiedAt)
     }
 
     /// Adult content stays hidden on Apple TV, as with the Mac's default setting.
