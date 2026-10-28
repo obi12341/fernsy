@@ -23,6 +23,9 @@ final class JellyfinOverviewUITests: FernsyUITestCase {
         // Another suggestion replaces the film.
         let first = spotlight.value as? String
         for _ in 0..<4 where !focused("jellyfin.spotlight.", app).exists { remote.press(.down); Thread.sleep(forTimeInterval: 0.5) }
+        // With focus here its backdrop moves (tvos-living-hero 2.3).
+        let backdrop = app.descendants(matching: .any)["jellyfin.spotlight.backdrop"]
+        XCTAssertTrue(wait(5) { backdrop.value as? String == "moving" }, "the suggestion's backdrop does not move")
         let another = app.buttons["jellyfin.spotlight.another"]
         // By what has focus: the focus follows the remote a moment late.
         for _ in 0..<4 where !another.hasFocus {

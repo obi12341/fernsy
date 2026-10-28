@@ -8,7 +8,7 @@
 
 - [x] 2.1 `LivingBackdrop` (design 1, 4): Ken Burns while active, cross-fade every 8 s, paused when inactive, Reduce Motion respected.
 - [x] 2.2 Start: `StartBackdrop` uses it with the hero's backdrops; `Hero` reports its focus through `StartScroll`; entry text eases in (design 5).
-- [ ] 2.3 Jellyfin spotlight uses it (after `tvos-jellyfin-overview` is merged into this branch).
+- [x] 2.3 Jellyfin spotlight uses it (after `tvos-jellyfin-overview` is merged into this branch).
 
 ## 3. Verification
 
