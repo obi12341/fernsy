@@ -8,5 +8,5 @@
 ## 2. Verification
 
 - [x] 2.1 UI test, demo server with `IPTV_TESTEPGDELAY=15`: in the guide, Down twelve times quickly from the first row; after the programmes arrive the focused cell is in the row reached (its channel id from the identifier), never in a row above; screenshot.
-- [ ] 2.2 `GuideUITests`, `GuideEmptyChannelsUITests`, `ArchiveUITests` and the full Apple TV UI suite green.
+- [x] 2.2 `GuideUITests`, `GuideEmptyChannelsUITests`, `ArchiveUITests` and the full Apple TV UI suite green.
 - [ ] 2.3 Real Apple TV, Release build: the user scrolls fast through the guide of their provider.
