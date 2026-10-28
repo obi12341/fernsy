@@ -524,7 +524,8 @@ empty `IPTV_SERVER=` starts without an account (welcome screen). Apple TV only:
 in s>:<seconds>[:<before min>:<after min>],…` plans recordings as on the Mac,
 `IPTV_FRESHRECORDINGS=1` starts without earlier recordings, `IPTV_FRESHIMAGES=1` without cached
 images, `IPTV_TESTRESUME=<key>:<position s>:<duration s>,…` and `IPTV_TESTHIDE=category:<id>,channel:<id>`
-work as on the Mac (in memory), `JF_SERVER`/`JF_USER`/`JF_PASS` and `JF_CACHEONLY` as on the Mac,
+work as on the Mac (in memory), `JF_SERVER`/`JF_USER`/`JF_PASS` and `JF_CACHEONLY` as on the Mac, `JF_TESTMANY=<n>` repeats the
+Jellyfin films, series and Recently Added up to n each (in memory, placeholder art) to fill grids,
 `IPTV_TESTNOSPACE=1` refuses
 recordings as if space were short, `IPTV_TESTBIGCATALOG=<n>` repeats the films and series with new
 ids up to n each (a provider-sized catalog from the demo server), `IPTV_FRAMESTATS=1` logs late

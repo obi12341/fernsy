@@ -14,38 +14,41 @@ struct JellyfinScreen: View {
     var body: some View {
         NavigationStack {
             let store = model.jellyfin
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(spacing: 20) {
-                    Text("Jellyfin").font(.system(size: 44, weight: .bold))
-                    HStack(spacing: 8) {
-                        Circle().fill(store.isOffline ? TVTheme.warning : Color(hex: 0x4CD07D)).frame(width: 10, height: 10)
-                        Text(verbatim: "\(store.session?.serverName ?? "") · \(store.isOffline ? String(localized: "not reachable") : String(localized: "connected"))")
-                    }
-                    .font(.system(size: 21)).foregroundStyle(TVTheme.text.opacity(0.65))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("jellyfin.state")
-                    Spacer()
-                    HStack(spacing: 6) {
-                        ForEach(Page.allCases, id: \.self) { value in
-                            Button { view = value; library = nil } label: {
-                                Text(Self.title(value)).font(.system(size: 22, weight: .semibold)).padding(.horizontal, 22).frame(height: 46)
-                            }
-                            .buttonStyle(TabPillStyle(selected: view == value))
-                            .accessibilityIdentifier("jellyfin.view.\(value)")
+            // The header scrolls with the content, as on the IPTV grids: nothing slides over the
+            // view switcher, and the scroll view spans the screen so posters are dropped off-screen
+            // (tvos-edge-scrolling).
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 20) {
+                        Text("Jellyfin").font(.system(size: 44, weight: .bold))
+                        HStack(spacing: 8) {
+                            Circle().fill(store.isOffline ? TVTheme.warning : Color(hex: 0x4CD07D)).frame(width: 10, height: 10)
+                            Text(verbatim: "\(store.session?.serverName ?? "") · \(store.isOffline ? String(localized: "not reachable") : String(localized: "connected"))")
                         }
+                        .font(.system(size: 21)).foregroundStyle(TVTheme.text.opacity(0.65))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("jellyfin.state")
+                        Spacer()
+                        HStack(spacing: 6) {
+                            ForEach(Page.allCases, id: \.self) { value in
+                                Button { view = value; library = nil } label: {
+                                    Text(Self.title(value)).font(.system(size: 22, weight: .semibold)).padding(.horizontal, 22).frame(height: 46)
+                                }
+                                .buttonStyle(TabPillStyle(selected: view == value))
+                                .accessibilityIdentifier("jellyfin.view.\(value)")
+                            }
+                        }
+                        .padding(6)
+                        .background(Color.white.opacity(0.08), in: .capsule)
                     }
-                    .padding(6)
-                    .background(Color.white.opacity(0.08), in: .capsule)
-                }
-                // Header and content as focus sections: otherwise Up from the content skips the
-                // views and goes to the tab bar (as in the film grid).
-                .focusSection()
-                if store.isOffline {
-                    Text("The server cannot be reached. Showing what was loaded last.")
-                        .font(.system(size: 22)).foregroundStyle(TVTheme.warning)
-                        .accessibilityIdentifier("jellyfin.offline")
-                }
-                ScrollView {
+                    // Header and content as focus sections: otherwise Up from the content skips the
+                    // views and goes to the tab bar (as in the film grid).
+                    .focusSection()
+                    if store.isOffline {
+                        Text("The server cannot be reached. Showing what was loaded last.")
+                            .font(.system(size: 22)).foregroundStyle(TVTheme.warning)
+                            .accessibilityIdentifier("jellyfin.offline")
+                    }
                     VStack(alignment: .leading, spacing: 30) {
                         switch view {
                         case .overview: overview
@@ -56,11 +59,12 @@ struct JellyfinScreen: View {
                         }
                     }
                     .padding(.vertical, 10)
+                    .focusSection()
                 }
-                .scrollClipDisabled()
-                .focusSection()
+                .padding(.top, 10)
             }
-            .padding(.horizontal, 90)
+            .contentMargins(.horizontal, 90, for: .scrollContent)
+            .scrollClipDisabled()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(TVTheme.background.ignoresSafeArea())
             .foregroundStyle(TVTheme.text)
