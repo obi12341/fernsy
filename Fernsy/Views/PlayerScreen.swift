@@ -214,6 +214,19 @@ struct PlayerScreen: View {
             if let spec = ProcessInfo.processInfo.environment["IPTV_TESTGOLIVE"].flatMap(Double.init) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + spec) { debugLog("[test] go live"); engine.goLive() }
             }
+            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTDRAG"] {
+                TimelineTestDrag.run(spec: spec, window: { playerWindow }, knob: {
+                    let progress = engine.progress
+                    if engine.isTimeshift {
+                        let end = progress.liveEnd - PlayerEngine.liveLead
+                        return progress.followsLive ? 1 : (progress.position - progress.liveStart) / max(1, end - progress.liveStart)
+                    }
+                    return progress.position / max(1, progress.duration)
+                }, onStart: { showControls() }, onReleased: {
+                    let progress = engine.progress
+                    debugLog("[test] released: position \(String(format: "%.1f", progress.position)) of \(String(format: "%.1f", progress.liveStart))…\(String(format: "%.1f", progress.liveEnd)), live \(progress.followsLive)")
+                })
+            }
             if let target = ProcessInfo.processInfo.environment["IPTV_TESTSEEK"].flatMap(Double.init) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 12) { engine.seek(to: target) }
             }
@@ -960,6 +973,7 @@ struct PlayerControls: View {
             }
             if let range = liveRange {
                 LiveTimeline(progress: progress, range: range, entries: entries,
+                             wallTime: { engine.wallTime(of: $0) },
                              onSeek: { engine.seek(to: $0) }, onGoLive: { engine.goLive() },
                              onDragging: onDragging, onActivity: onActivity)
             }
