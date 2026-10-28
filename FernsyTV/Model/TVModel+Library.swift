@@ -35,25 +35,6 @@ enum VODItem: Equatable {
     }
 }
 
-/// One entry of Start's "Continue Watching" and "Recently Added" rows, from any source.
-struct LibraryEntry: Identifiable {
-    enum Source { case iptv, jellyfin, recording }
-
-    let id: String
-    let title: String
-    let detail: String
-    let source: Source
-    let image: URL?
-    /// 0…1 watched, nil when not started.
-    let progress: Double?
-    let date: Date
-    let open: Target
-
-    enum Target {
-        case movie(Movie), series(Series), episode(Episode, Series), jellyfin(JFItem), recording(Recording)
-    }
-}
-
 /// Films and series of the IPTV account and Jellyfin, resume positions, Start's rows and
 /// on-demand playback on Apple TV, with the Mac's rules (FernsyCore, FernsyPlayer).
 extension TVModel {
@@ -230,69 +211,6 @@ extension TVModel {
     }
 
     // MARK: Start
-
-    /// Partly watched films and episodes of the IPTV account, Jellyfin items and recordings,
-    /// newest first (design C).
-    var continueWatching: [LibraryEntry] {
-        var entries: [LibraryEntry] = []
-        for key in resume.started(prefix: "movie.") {
-            guard let id = Int(key.dropFirst("movie.".count)), let movie = moviesByID[id] else { continue }
-            entries.append(LibraryEntry(id: key, title: movie.name, detail: remaining(key), source: .iptv,
-                                        image: movie.poster.flatMap(URL.init(string:)), progress: resume.fraction(key),
-                                        date: resume.lastPlayed(key) ?? .distantPast, open: .movie(movie)))
-        }
-        for key in resume.started(prefix: "episode.") {
-            let id = String(key.dropFirst("episode.".count))
-            guard let (episode, show) = episodeIndex[id] else { continue }
-            entries.append(LibraryEntry(id: key, title: show.name, detail: "S\(episode.season) F\(episode.number) · \(remaining(key))", source: .iptv,
-                                        image: (episode.image ?? show.cover).flatMap(URL.init(string:)), progress: resume.fraction(key),
-                                        date: resume.lastPlayed(key) ?? .distantPast, open: .episode(episode, show)))
-        }
-        for item in jellyfin.resume {
-            let date = item.userData?.lastPlayedDate.flatMap { try? Date($0, strategy: .iso8601) } ?? .distantPast
-            let left = item.runTimeTicks.map { Double($0 - (item.userData?.playbackPositionTicks ?? 0)) / 10_000_000 }
-            entries.append(LibraryEntry(id: "jf." + item.id, title: item.seriesName ?? item.name,
-                                        detail: left.map { String(localized: "\(max(1, Int(($0 / 60).rounded()))) min left") } ?? "", source: .jellyfin,
-                                        image: jellyfin.thumbURL(item).flatMap(URL.init(string:)),
-                                        progress: item.userData?.playedPercentage.map { $0 / 100 }, date: date, open: .jellyfin(item)))
-        }
-        for recording in recorder.recordings where recording.status == .done || recording.status == .failed {
-            let key = ResumeStore.recordingKey(recording.id)
-            guard resume.position(key) > 0 else { continue }
-            entries.append(LibraryEntry(id: key, title: recording.title, detail: String(localized: "Recording · \(remaining(key))"),
-                                        source: .recording, image: nil, progress: watchedShare(recording),
-                                        date: resume.lastPlayed(key) ?? .distantPast, open: .recording(recording)))
-        }
-        return entries.sorted { $0.date > $1.date }
-    }
-
-    /// The newest IPTV films and series and Jellyfin items, interleaved by date.
-    var recentlyAdded: [LibraryEntry] {
-        var entries: [LibraryEntry] = []
-        for movie in newestMovies {
-            entries.append(LibraryEntry(id: "movie:\(movie.id)", title: movie.name, detail: "IPTV", source: .iptv,
-                                        image: movie.poster.flatMap(URL.init(string:)), progress: nil,
-                                        date: Date(timeIntervalSince1970: Double(movie.added)), open: .movie(movie)))
-        }
-        for show in newestSeries {
-            entries.append(LibraryEntry(id: "series:\(show.id)", title: show.name, detail: "IPTV", source: .iptv,
-                                        image: show.cover.flatMap(URL.init(string:)), progress: nil,
-                                        date: Date(timeIntervalSince1970: Double(show.lastModified)), open: .series(show)))
-        }
-        for item in jellyfin.latestFilms + jellyfin.latestSeries {
-            let date = item.dateCreated.flatMap { try? Date($0, strategy: .iso8601) } ?? .distantPast
-            entries.append(LibraryEntry(id: "jf." + item.id, title: item.name, detail: "Jellyfin", source: .jellyfin,
-                                        image: jellyfin.posterURL(item).flatMap(URL.init(string:)), progress: nil, date: date, open: .jellyfin(item)))
-        }
-        return Array(entries.sorted { $0.date > $1.date }.prefix(24))
-    }
-
-    private func remaining(_ key: String) -> String {
-        guard let fraction = resume.fraction(key), fraction > 0 else { return "" }
-        let duration = resume.position(key) / fraction
-        let minutes = max(1, Int(((duration - resume.position(key)) / 60).rounded()))
-        return String(localized: "\(minutes) min left")
-    }
 
     /// Episodes seen in loaded series, by id, so "Continue Watching" can name them.
     var episodeIndex: [String: (Episode, Series)] {

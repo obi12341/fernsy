@@ -95,10 +95,40 @@
     },
     "%lld movies": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld movie"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld movies"
+                }
+              }
+            }
+          }
+        },
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Filme"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Film"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Filme"
+                }
+              }
+            }
           }
         }
       }
@@ -115,10 +145,40 @@
     },
     "%lld hrs unwatched": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld hr unwatched"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld hrs unwatched"
+                }
+              }
+            }
+          }
+        },
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Std. ungesehen"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Std. ungesehen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Std. ungesehen"
+                }
+              }
+            }
           }
         }
       }
@@ -165,20 +225,80 @@
     },
     "%lld series": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld series"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld series"
+                }
+              }
+            }
+          }
+        },
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Serien"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Serie"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Serien"
+                }
+              }
+            }
           }
         }
       }
     },
     "%lld titles": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld title"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld titles"
+                }
+              }
+            }
+          }
+        },
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Titel"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Titel"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Titel"
+                }
+              }
+            }
           }
         }
       }

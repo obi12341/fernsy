@@ -234,10 +234,40 @@
     },
     "%lld movies": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld movie"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld movies"
+                }
+              }
+            }
+          }
+        },
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Filme"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Film"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Filme"
+                }
+              }
+            }
           }
         }
       }
@@ -264,6 +294,24 @@
     },
     "%lld series": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld series"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld series"
+                }
+              }
+            }
+          }
+        },
         "de": {
           "variations": {
             "plural": {
@@ -281,47 +329,11 @@
               }
             }
           }
-        },
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld series"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld series"
-                }
-              }
-            }
-          }
         }
       }
     },
     "%lld titles": {
       "localizations": {
-        "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Titel"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Titel"
-                }
-              }
-            }
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -335,6 +347,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld titles"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Titel"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Titel"
                 }
               }
             }
@@ -4588,6 +4618,356 @@
           "stringUnit": {
             "state": "translated",
             "value": "● Geplant · %@"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "On Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt live"
+          }
+        }
+      }
+    },
+    "Your Recordings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Aufnahmen"
+          }
+        }
+      }
+    },
+    "IPTV and Jellyfin": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV und Jellyfin"
+          }
+        }
+      }
+    },
+    "Best Rated": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestbewertet"
+          }
+        }
+      }
+    },
+    "Your movies and series appear here once the library has loaded.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Filme und Serien erscheinen hier, sobald die Mediathek geladen ist."
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        }
+      }
+    },
+    "NEW · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NEU · %@"
+          }
+        }
+      }
+    },
+    "CONTINUE WATCHING · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WEITERSCHAUEN · %@"
+          }
+        }
+      }
+    },
+    "MOVIE": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FILM"
+          }
+        }
+      }
+    },
+    "SERIES": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SERIE"
+          }
+        }
+      }
+    },
+    "RECORDING": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUFNAHME"
+          }
+        }
+      }
+    },
+    "Resume · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsetzen · %@"
+          }
+        }
+      }
+    },
+    "FROM YOUR LIBRARY": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUS DEINER BIBLIOTHEK"
+          }
+        }
+      }
+    },
+    "Another Suggestion": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderer Vorschlag"
+          }
+        }
+      }
+    },
+    "Movies and Series": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filme und Serien"
+          }
+        }
+      }
+    },
+    "Your Favorites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Favoriten"
+          }
+        }
+      }
+    },
+    "Unwatched & Top Rated": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungesehen & top bewertet"
+          }
+        }
+      }
+    },
+    "Almost Finished": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serien fast durch"
+          }
+        }
+      }
+    },
+    "Short & Good": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurz & gut"
+          }
+        }
+      }
+    },
+    "Under 100 minutes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter 100 Minuten"
+          }
+        }
+      }
+    },
+    "Browse by Genre": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stöbern nach Genre"
+          }
+        }
+      }
+    },
+    "Browse by Decade": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stöbern nach Jahrzehnt"
+          }
+        }
+      }
+    },
+    "Rediscover": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wieder entdecken"
+          }
+        }
+      }
+    },
+    "Watched over a year ago": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor über einem Jahr gesehen"
+          }
+        }
+      }
+    },
+    "%lld hrs unwatched": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld hr unwatched"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld hrs unwatched"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Std. ungesehen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Std. ungesehen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@er"
+          }
+        }
+      }
+    },
+    "A–Z": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A–Z"
+          }
+        }
+      }
+    },
+    "Year": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jahr"
+          }
+        }
+      }
+    },
+    "Watch %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ einschalten"
+          }
+        }
+      }
+    },
+    "Watch Live": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live einschalten"
+          }
+        }
+      }
+    },
+    "Sort": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortierung"
           }
         }
       }

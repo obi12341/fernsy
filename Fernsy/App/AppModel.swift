@@ -6,6 +6,8 @@ import Network
 import SwiftUI
 
 enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
+    /// Start across both accounts (mac-start-pages), above the groups.
+    case start
     case live, movies, series, favorites, recordings
     case jellyfinHome, jellyfinFilms, jellyfinSeries
     var id: String { rawValue }
@@ -18,12 +20,13 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .start: return String(localized: "Start")
         case .live: return String(localized: "Live TV")
         case .movies: return String(localized: "Movies")
         case .series: return String(localized: "Series")
         case .favorites: return String(localized: "Favorites")
         case .recordings: return String(localized: "Recordings")
-        case .jellyfinHome: return String(localized: "Home")
+        case .jellyfinHome: return String(localized: "Overview")
         case .jellyfinFilms: return String(localized: "Movies")
         case .jellyfinSeries: return String(localized: "Series")
         }
@@ -31,12 +34,13 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .start: return "house"
         case .live: return "dot.radiowaves.left.and.right"
         case .movies: return "film"
         case .series: return "tv"
         case .favorites: return "star"
         case .recordings: return "record.circle"
-        case .jellyfinHome: return "house"
+        case .jellyfinHome: return "square.grid.2x2"
         case .jellyfinFilms: return "film"
         case .jellyfinSeries: return "tv"
         }
@@ -1137,6 +1141,22 @@ final class AppModel: ObservableObject {
         channels.first { $0.id == id }
     }
 
+    // MARK: Start
+
+    /// Series details loaded on their pages, so Start can name started episodes (mac-start-pages;
+    /// the Apple TV keeps them the same way).
+    var seriesInfos: [Int: SeriesInfo] = [:]
+
+    /// Episodes of loaded series by id, for Start's Continue Watching.
+    var episodeIndex: [String: (Episode, Series)] {
+        var index: [String: (Episode, Series)] = [:]
+        for (id, info) in seriesInfos {
+            guard let show = series.first(where: { $0.id == id }) else { continue }
+            for episode in info.seasons.values.flatMap({ $0 }) { index[episode.id] = (episode, show) }
+        }
+        return index
+    }
+
     // MARK: Resume positions
 
     /// Resume positions and watched marks (FernsyCore). Test runs (no keychain) share the
@@ -1145,9 +1165,13 @@ final class AppModel: ObservableObject {
 
     func resumePosition(_ key: String) -> Double { resume.position(key) }
 
+    /// Counts changes of resume positions (played here or arrived from iCloud), so Start rebuilds
+    /// Continue Watching without reading every position on each redraw.
+    @Published private(set) var resumeRevision = 0
+
     func saveResume(_ key: String, position: Double, duration: Double) {
         if resume.save(key, position: position, duration: duration) { AppLog.detail(.player, "watched \(key)") }
-        objectWillChange.send()
+        resumeRevision += 1
     }
 
     /// 0…1 of a started item, nil without a stored duration.
@@ -1259,7 +1283,7 @@ extension AppModel {
         if names.contains("d." + LiveRules.recentKey) {
             recentChannels = UserDefaults.standard.array(forKey: LiveRules.recentKey) as? [Int] ?? []
         }
-        if names.contains("resume") { objectWillChange.send() }
+        if names.contains("resume") { resumeRevision += 1 }
         // Films or series switched on another device: as if switched here (drops or downloads).
         if names.contains("d." + LibraryRules.moviesSwitchKey) {
             showsIPTVMovies = UserDefaults.standard.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true
