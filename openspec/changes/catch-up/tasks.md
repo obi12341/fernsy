@@ -33,6 +33,6 @@
 
 - [x] 7.1 Apple TV UI test, demo server (deployed, 2.2; until then a local run of the worker on 127.0.0.1:8787, which the test prefers): the guide shows the clock symbol on channel 101, Left pages into yesterday, clicking yesterday's 20:15 show plays it (`player.state` playing, MCP `now_playing` names the show); a seek of +10 minutes continues; screenshots.
 - [x] 7.2 Apple TV UI test, demo server with `IPTV_MAXCONN=1` and `IPTV_TESTRECORD=104:0:600`: starting an archived show asks before stopping the recording.
-- [ ] 7.3 Mac, Fernsy Dev on the demo server (`scripts/dev-run.sh`, `IPTV_SECTION=live`, `IPTV_LIVEMODE=guide`): window screenshots of the clock symbol and of the guide one day back; an archived show started with `IPTV_TESTSWITCH`-style debug start plays (log shows the timeshift request).
+- [x] 7.3 Mac, Fernsy Dev on the demo server (`scripts/dev-run.sh`, `IPTV_SECTION=live`, `IPTV_LIVEMODE=guide`): window screenshots of the clock symbol and of the guide one day back; an archived show started with `IPTV_TESTSWITCH`-style debug start plays (log shows the timeshift request).
 - [x] 7.4 Full Apple TV UI suite, `scripts/test.sh` and the Mac build green.
 - [ ] 7.5 The user checks one archived show of their provider (one real stream, only while their own Fernsy plays nothing), on Mac and Apple TV.
