@@ -183,11 +183,12 @@ hide it.
 - **THEN** the category appears under "Angeheftet" in the Live TV category column
 
 ### Requirement: Program guide on Apple TV
-Live TV's Programm view SHALL show a guide grid for the chosen source: a channel column with
-logo and name, the shows on a time axis with the current time marked, past shows dimmed,
-running shows highlighted and recorded or scheduled shows marked. The category column SHALL
-narrow to a rail with the source's name that opens the column when clicked. Clicking a running
-show SHALL play the channel, a later one SHALL offer to record it.
+Live TV's Programm view SHALL show a guide grid for the chosen source: channels with logo and
+name, shows on a time axis with the time now marked, past shows dimmed, running ones
+highlighted, recorded or scheduled ones marked. The category column SHALL narrow to a rail that
+opens it when clicked. A running show SHALL play the channel when clicked, a later one offer to
+record it. Rows without listings, loading, or with gaps SHALL show focusable bars there that
+play the channel.
 
 #### Scenario: Playing from the guide
 - **WHEN** the user clicks a show that is running now
@@ -204,6 +205,14 @@ show SHALL play the channel, a later one SHALL offer to record it.
 #### Scenario: Any category in the guide
 - **WHEN** the user opens "Alle Kategorien" from the guide and clicks a category that is not pinned
 - **THEN** the guide shows that category's channels
+
+#### Scenario: Channel without listings
+- **WHEN** the provider sends no listings for a channel and the user moves down onto its row
+- **THEN** the row's bar "Keine Programmdaten" gets focus, and clicking it plays the channel full screen
+
+#### Scenario: Listings ending early
+- **WHEN** a channel's listings end at 21:00 and the guide shows 20:00 to 23:00
+- **THEN** the stretch from 21:00 is a focusable bar that plays the channel
 
 ### Requirement: Player overlay on Apple TV
 While a live channel plays, a click or swipe SHALL show an overlay with the channel's logo,

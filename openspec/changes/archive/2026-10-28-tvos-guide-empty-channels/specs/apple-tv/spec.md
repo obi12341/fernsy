@@ -1,12 +1,12 @@
 ## MODIFIED Requirements
 
 ### Requirement: Program guide on Apple TV
-Live TV's Programm view SHALL show a guide grid for the chosen source: a channel column with
-logo and name, the shows on a time axis with the current time marked, past shows dimmed,
-running shows highlighted and recorded or scheduled shows marked. The category column SHALL
-narrow to a rail with the source's name that opens the column when clicked. Clicking a running
-show SHALL play the channel, a later one SHALL offer to record it. Rows without listings, still
-loading, or with gaps SHALL show focusable bars there that play the channel when clicked.
+Live TV's Programm view SHALL show a guide grid for the chosen source: channels with logo and
+name, shows on a time axis with the time now marked, past shows dimmed, running ones
+highlighted, recorded or scheduled ones marked. The category column SHALL narrow to a rail that
+opens it when clicked. A running show SHALL play the channel when clicked, a later one offer to
+record it. Rows without listings, loading, or with gaps SHALL show focusable bars there that
+play the channel.
 
 #### Scenario: Playing from the guide
 - **WHEN** the user clicks a show that is running now
