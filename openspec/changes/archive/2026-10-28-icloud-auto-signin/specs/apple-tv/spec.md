@@ -1,11 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: First launch and sign-in on Apple TV
-Without an account, the Apple TV app SHALL show a welcome screen that explains that Fernsy
-brings no content and offers an IPTV account and a Jellyfin server as two cards; logins in the user's iCloud SHALL be
-used at launch without it (icloud-sync) and offered first when it shows. Each form SHALL ask for server address, username and
-password (typing on a nearby iPhone works) and keep them in the keychain; the IPTV form SHALL
-also offer "Demo-Zugang testen". A failed sign-in SHALL say why and keep the entered values.
+Without an account, the Apple TV app SHALL show a welcome screen (Fernsy brings no content)
+with an IPTV account and a Jellyfin server as two cards; iCloud logins SHALL be used at launch
+without it (icloud-sync) and offered first when it shows. Each form SHALL ask for server,
+username and password (typing on a nearby iPhone works) and keep them in the keychain; the IPTV
+form SHALL offer "Demo-Zugang testen". A failed sign-in SHALL say why and keep the values.
 
 #### Scenario: Adding the other account
 - **WHEN** an IPTV account is signed in and the user opens Settings › Konto hinzufügen

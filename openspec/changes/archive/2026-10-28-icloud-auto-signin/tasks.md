@@ -23,4 +23,4 @@
 - [x] 4.2 Apple TV UI test with the local test Jellyfin (`IPTV_TESTICLOUDLOGIN=jellyfin`): Jellyfin tab without the welcome screen.
 - [x] 4.3 Mac: "Fernsy Dev" with `IPTV_TESTICLOUDLOGIN=demo` and an empty keychain opens the library without the login window (window screenshot only).
 - [x] 4.4 Full Apple TV UI suite and `scripts/test.sh` green.
-- [ ] 4.5 Real Apple TV, dev build without account, Mac's demo login in iCloud: app opens on Start without the welcome screen.
+- [x] 4.5 Real Apple TV, dev build without account, Mac's demo login in iCloud: app opens on Start without the welcome screen. (Done 2026-10-28 with a Release build, CloudKit Production: signed out, relaunched, signed in with the provider login from iCloud. Jellyfin did not come along because the Mac had no Jellyfin password in its keychain from an old sign-in; not a defect of this change.)
