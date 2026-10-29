@@ -11,6 +11,10 @@ struct GuideScreen: View {
     @Binding var columnOpen: Bool
     @Binding var showAll: Bool
     @State private var windowStart = GuideScreen.defaultStart()
+    /// The start the guide gave the window itself; a different `windowStart` was paged by the user.
+    @State private var placedStart = GuideScreen.defaultStart()
+    @State private var hiddenSince: Date?
+    @Environment(\.scenePhase) private var scenePhase
     @State private var asked: (show: EPGEntry, channel: LiveChannel)?
     @FocusState private var railFocused: Bool
     @FocusState private var focusedEntry: TVModel.LiveSource?
@@ -22,10 +26,7 @@ struct GuideScreen: View {
     static let railWidth: CGFloat = 80
 
     /// Half an hour before the current half hour.
-    static func defaultStart(_ now: Date = Date()) -> Date {
-        let half = (now.timeIntervalSince1970 / 1800).rounded(.down) * 1800
-        return Date(timeIntervalSince1970: half - 1800)
-    }
+    static func defaultStart(_ now: Date = Date()) -> Date { GuideWindow.start(at: now) }
 
     var body: some View {
         let source = model.liveSource
@@ -59,10 +60,23 @@ struct GuideScreen: View {
                 // archive and may not reach it (tvos-guide-back-to-rail). Back on the rail goes on
                 // to the tab bar.
                 .onExitCommand {
-                    if windowStart != Self.defaultStart() { windowStart = Self.defaultStart() } else { railFocused = true }
+                    if windowStart != Self.defaultStart() { place(Self.defaultStart()) } else { railFocused = true }
                 }
             }
         }
+        // The window follows now (GuideWindow): checked each minute, and when the guide comes back
+        // into sight (tvOS keeps the app, and Live TV keeps the guide, for hours).
+        .task {
+            while !Task.isCancelled {
+                followNow()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { followNow() } else if hiddenSince == nil { hiddenSince = Date() }
+        }
+        .onAppear { followNow() }
+        .onDisappear { hiddenSince = hiddenSince ?? Date() }
         .disabled(columnOpen)
         .overlay { if columnOpen { Color.black.opacity(0.5).padding(-40).allowsHitTesting(false) } }
         .overlay(alignment: .topLeading) { if columnOpen { column } }
@@ -138,6 +152,19 @@ struct GuideScreen: View {
             try? await Task.sleep(for: .milliseconds(100))
             railFocused = true
         }
+    }
+
+    private func followNow() {
+        let hiddenFor = hiddenSince.map { Date().timeIntervalSince($0) } ?? 0
+        hiddenSince = nil
+        guard let start = GuideWindow.update(current: windowStart, placed: placedStart, span: Self.span, hiddenFor: hiddenFor) else { return }
+        AppLog.detail(.app, "guide window to now: \(start.formatted(date: .omitted, time: .shortened))")
+        place(start)
+    }
+
+    private func place(_ start: Date) {
+        windowStart = start
+        placedStart = start
     }
 
     private var header: some View {
