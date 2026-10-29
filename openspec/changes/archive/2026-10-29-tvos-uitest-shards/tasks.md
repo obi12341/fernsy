@@ -21,5 +21,5 @@
 ## 4. Docs and verification
 
 - [x] 4.1 DEVELOPMENT.md › Apple TV: `--shard` and `--list`, and that CI runs 3 shards.
-- [ ] 4.2 With the user's consent, push the branch and open a pull request. Its Tests run shows 3 Apple TV shards in parallel, all green against the demo server (`IPTV_SERVER` demo, as in `UITestSupport`). Note the wall time of the run and of each shard.
+- [x] 4.2 With the user's consent, push the branch and open a pull request. Its Tests run shows 3 Apple TV shards in parallel, all green against the demo server (`IPTV_SERVER` demo, as in `UITestSupport`). Note the wall time of the run and of each shard. Done: PR #2, run 40868725254 all green; run 13.3 min (was about 26), shards 12.8, 13.2 and 13.1 min, core 2.5 min, iOS 1.9 min.
 - [x] 4.3 `openspec validate --all --strict`.
