@@ -5,9 +5,8 @@ Programm SHALL show a guide grid for the chosen source that scrolls in both dire
 channels with logo and name stay at the left edge, shows on a time axis with the time now marked,
 past shows dimmed and running ones highlighted. Tapping a running show SHALL play its channel;
 tapping a later show SHALL show its details. Rows without listings, still loading, or with gaps
-SHALL show bars there that play the channel when tapped. Scrolling SHALL follow the finger
-without stalls with a provider's full channel list and its archive days, and listings SHALL be
-loaded only for the channels on screen.
+SHALL show bars there that play the channel when tapped. It SHALL scroll without stalls at any
+size.
 
 #### Scenario: Playing from the guide
 - **WHEN** the user taps a show that is running now
