@@ -124,3 +124,14 @@ everything else (rows, pane, grid).
 - [Switching views with a large source rebuilds the guide] → The guide loads EPG only for
   visible rows already (program-guide spec); the view keeps the focused channel's row in view
   when switching.
+
+## Pitfall found later: the window stood still (2026-10-29)
+
+The guide's window was `@State`, set once when the guide was built. tvOS keeps the app for hours
+and Live TV keeps the guide, so a guide opened at 00:43 still showed 00:00–03:00 at 19:27. Its
+listings were fresh, but `EPGStore.clean` keeps only three hours back for channels without
+archive, so those rows showed only empty bars and the now line was off screen. The window now
+follows now (`GuideWindow` in FernsyCore, unit-tested): a window the guide placed itself moves on
+once now is within half an hour of its end; any window, paged or not, returns to now after the
+guide was out of sight (app in the background, other tab or view) for 30 minutes. A paged window
+stays while the user is in the guide.
