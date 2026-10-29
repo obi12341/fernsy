@@ -138,6 +138,74 @@ final class FernsyiOSUITests: XCTestCase {
         XCTAssertTrue(wait(5) { !self.isLandscape(app) }, "held upright, the app stayed in landscape after the player")
     }
 
+    /// The guide on an iPad (ios-guide-performance): scrolling down, up and back in time stays
+    /// fluid, and only rows that came on screen are built. With IPTV_FRAMESTATS=1 the app logs
+    /// late frames and the longest one per second; DEBUG logs each guide row that appears.
+    func testGuideScrollsSmoothly() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("measured on an iPad") }
+        let app = launchDemo(["IPTV_TAB": "live", "IPTV_LIVEVIEW": "guide", "IPTV_FRAMESTATS": "1", "IPTV_TESTBIGLIVE": "400"])
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let guide = app.descendants(matching: .any)["guide"]
+        XCTAssertTrue(guide.waitForExistence(timeout: 20), "no guide:\n\(app.debugDescription)")
+        // Listings arrive: a show cell of the first channel.
+        let cell = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.101.' AND NOT (identifier CONTAINS '.gap.')")).firstMatch
+        XCTAssertTrue(cell.waitForExistence(timeout: 30), "no listings in the guide:\n\(app.debugDescription)")
+        let rowsAtOpen = guideRows()
+        let tree = app.debugDescription
+        let ids = Set(tree.matches(of: /identifier: 'guide\.(\d+)\./).map { String($0.1) })
+        let framesBefore = log("frames:").count
+        // Drags by coordinates of the window, resolved once: an element swipe snapshots the
+        // app's accessibility tree on its main thread each time, which shows as late frames.
+        let window = app.windows.firstMatch
+        func drag(_ from: CGVector, _ to: CGVector) {
+            window.coordinate(withNormalizedOffset: from)
+                .press(forDuration: 0.01, thenDragTo: window.coordinate(withNormalizedOffset: to), withVelocity: .fast, thenHoldForDuration: 0)
+        }
+        let start = Date()
+        for _ in 0..<3 { drag(CGVector(dx: 0.6, dy: 0.85), CGVector(dx: 0.6, dy: 0.25)) }
+        for _ in 0..<3 { drag(CGVector(dx: 0.6, dy: 0.25), CGVector(dx: 0.6, dy: 0.85)) }
+        for _ in 0..<4 { drag(CGVector(dx: 0.2, dy: 0.5), CGVector(dx: 0.9, dy: 0.5)) }
+        for _ in 0..<2 { drag(CGVector(dx: 0.6, dy: 0.85), CGVector(dx: 0.6, dy: 0.25)) }
+        let seconds = Date().timeIntervalSince(start)
+        // Let the last second's frame line arrive.
+        Thread.sleep(forTimeInterval: 1.5)
+        shot("guide after scrolling", app)
+        let lines = Array(log("frames:").dropFirst(framesBefore))
+        func numbers(_ pattern: String) -> [Int] {
+            lines.compactMap { line in
+                line.range(of: pattern, options: .regularExpression).flatMap { Int(line[$0].filter(\.isNumber)) }
+            }
+        }
+        let late = numbers(#"\d+ late"#).reduce(0, +)
+        let longest = numbers(#"longest \d+"#).max() ?? 0
+        let rows = guideRows()
+        let report = "rows in tree at open: \(ids.count) of window \(app.windows.firstMatch.frame.size); rows at open: \(rowsAtOpen), after scrolling: \(rows); late frames: \(late) in \(Int(seconds)) s, longest \(longest) ms\n"
+            + lines.joined(separator: "\n")
+        let attachment = XCTAttachment(string: report)
+        attachment.name = "guide-scrolling"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        print("GUIDE_SCROLLING \(report)")
+        // Rows are built as they come into view: the old guide built all 400 at once.
+        XCTAssertLessThan(rows, 150, "the guide builds rows that are not on screen: \(report)")
+        // Each XCTest drag stalls the app for 250-600 ms (its accessibility snapshot), so a
+        // freeze counts from 1 s; the old guide froze for about 10 s.
+        XCTAssertLessThanOrEqual(longest, 1000, "the guide froze while scrolling: \(report)")
+        XCTAssertLessThanOrEqual(late, Int(seconds * 6), "the guide stutters while scrolling: \(report)")
+    }
+
+    /// Distinct guide rows the app built so far (its DEBUG log).
+    private func guideRows() -> Int {
+        Set(log("guide row").compactMap { line in line.range(of: #"guide row \d+"#, options: .regularExpression).map { String(line[$0]) } }).count
+    }
+
+    /// App log lines (detail and up) containing `query`, via the debug MCP server.
+    private func log(_ query: String) -> [String] {
+        let answer = mcp("get_log", #"{"level":"detail","query":"\#(query)","limit":5000}"#)
+        // The tool's JSON text is embedded in the JSON-RPC answer: lines are separated by escaped quotes.
+        return answer.components(separatedBy: "\\\"").filter { $0.contains(query) }
+    }
+
     private func isLandscape(_ app: XCUIApplication) -> Bool {
         let frame = app.windows.firstMatch.frame
         return frame.width > frame.height

@@ -9,11 +9,18 @@ struct GuideView: View {
     @EnvironmentObject private var model: TVModel
     @State private var asked: (show: EPGEntry, channel: LiveChannel)?
     @State private var position = ScrollPosition()
+    /// The horizontal offset, for the channel column only: held, not observed (a @StateObject
+    /// would redraw the whole guide on every frame of scrolling).
+    @State private var scroll = GuideScroll()
+    /// The part of the axis rows draw, in blocks of `block` hours around what is on screen.
+    @State private var hours: ClosedRange<Int> = 0...0
+    static let block = 6
 
     /// Points per hour on the axis.
     static let hourWidth: CGFloat = 220
     static let rowHeight: CGFloat = 64
     static let channelColumn: CGFloat = 76
+    static let hourBar: CGFloat = 28
     /// The axis runs from the earliest archive day (or half an hour ago) to twelve hours ahead.
     static let ahead: TimeInterval = 12 * 3600
 
@@ -28,46 +35,61 @@ struct GuideView: View {
         let start = reach > 0 ? Calendar.current.startOfDay(for: Date().addingTimeInterval(-Double(reach) * 86_400)) : Self.defaultStart()
         let end = Date().addingTimeInterval(Self.ahead)
         let width = CGFloat(end.timeIntervalSince(start) / 3600) * Self.hourWidth
-        ScrollView(.vertical) {
-            HStack(alignment: .top, spacing: 0) {
-                // The channel column stays while the axis scrolls sideways.
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    Section {
-                        ForEach(channels) { channel in
-                            Button { play(channel) } label: {
-                                ChannelLogo(channel: channel).frame(width: 60, height: 38)
-                                    .frame(width: Self.channelColumn, height: Self.rowHeight)
+        let window = max(start, start.addingTimeInterval(Double(hours.lowerBound) * 3600))...min(end, start.addingTimeInterval(Double(hours.upperBound) * 3600))
+        // Sideways outside, up and down inside (ios-guide-performance): the inner scroll view has
+        // the screen's height, so its lazy stack builds only the rows on screen, which load their
+        // listings then; each row draws only `window`. (A vertical scroll view outside, or one
+        // for both directions, measures the stack with unbounded height and builds every row.)
+        ScrollView(.horizontal) {
+            ScrollView(.vertical) {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                Section {
+                    ForEach(channels) { channel in
+                        ZStack(alignment: .topLeading) {
+                            GuideRow(channel: channel, guide: model.guide.guide(channel.id), start: start, end: end, window: window) { show in
+                                select(show, on: channel)
+                            } play: { play(channel) }
+                            .equatable()
+                            .padding(.leading, Self.channelColumn)
+                            // The channel column stays at the left edge while the axis scrolls sideways.
+                            PinnedColumn(scroll: scroll) {
+                                Button { play(channel) } label: {
+                                    ChannelLogo(channel: channel).frame(width: 60, height: 38)
+                                        .frame(width: Self.channelColumn, height: Self.rowHeight)
+                                        .background(TVTheme.background)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(Text(verbatim: channel.displayName))
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(Text(verbatim: channel.displayName))
                         }
-                    } header: {
-                        Color.clear.frame(width: Self.channelColumn, height: 28).background(TVTheme.background)
+                    }
+                } header: {
+                    ZStack(alignment: .topLeading) {
+                        hourBar(start: start, end: end, window: window).padding(.leading, Self.channelColumn)
+                        PinnedColumn(scroll: scroll) {
+                            Color.clear.frame(width: Self.channelColumn, height: Self.hourBar).background(TVTheme.background)
+                        }
                     }
                 }
-                .frame(width: Self.channelColumn)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                            Section {
-                                ForEach(channels) { channel in
-                                    GuideRow(channel: channel, guide: model.guide.guide(channel.id), start: start, end: end) { show in
-                                        select(show, on: channel)
-                                    } play: { play(channel) }
-                                }
-                            } header: {
-                                hours(start: start, end: end)
-                            }
-                        }
-                        .frame(width: width, alignment: .leading)
-                        .overlay(alignment: .topLeading) { nowLine(start: start) }
-                    }
-                    .scrollPosition($position)
-                    .task(id: start) {
-                        // Opens half an hour before now; after the first layout, so the axis is there.
-                        try? await Task.sleep(for: .milliseconds(50))
-                        position.scrollTo(x: CGFloat(Self.defaultStart().timeIntervalSince(start) / 3600) * Self.hourWidth)
-                    }
             }
+            .frame(width: Self.channelColumn + width, alignment: .leading)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: CGRect.self) { $0.visibleRect } action: { _, rect in
+            scroll.x = rect.minX
+            // Rounded out to blocks of hours with a screen's margin: rows filter again only every
+            // few hours of scrolling, not on every frame.
+            let block = CGFloat(Self.block) * Self.hourWidth
+            let lower = Int(((rect.minX - rect.width) / block).rounded(.down)) * Self.block
+            let upper = Int(((rect.maxX + rect.width) / block).rounded(.up)) * Self.block
+            if lower...upper != hours { hours = lower...upper }
+        }
+        .task(id: start) {
+            // Opens half an hour before now; after the first layout, so the axis is there.
+            try? await Task.sleep(for: .milliseconds(50))
+            position.scrollTo(x: CGFloat(Self.defaultStart().timeIntervalSince(start) / 3600) * Self.hourWidth)
         }
         .background(TVTheme.background.ignoresSafeArea())
         .sheet(isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } })) {
@@ -76,10 +98,13 @@ struct GuideView: View {
         .accessibilityIdentifier("guide")
     }
 
-    private func hours(start: Date, end: Date) -> some View {
-        let count = Int(end.timeIntervalSince(start) / 1800)
+    /// The half hours of `window` only: labels across the whole axis (days of archive) are drawn
+    /// as one huge text layer.
+    private func hourBar(start: Date, end: Date, window: ClosedRange<Date>) -> some View {
+        let first = max(0, Int(window.lowerBound.timeIntervalSince(start) / 1800))
+        let last = min(Int(end.timeIntervalSince(start) / 1800), Int(window.upperBound.timeIntervalSince(start) / 1800) + 1)
         return ZStack(alignment: .topLeading) {
-            ForEach(0..<count, id: \.self) { i in
+            ForEach(first..<max(first, last), id: \.self) { i in
                 let time = start.addingTimeInterval(Double(i) * 1800)
                 Text(time, format: .dateTime.hour().minute())
                     .font(.caption.monospacedDigit())
@@ -87,18 +112,9 @@ struct GuideView: View {
                     .offset(x: CGFloat(i) * Self.hourWidth / 2 + 4, y: 6)
             }
         }
-        .frame(width: CGFloat(end.timeIntervalSince(start) / 3600) * Self.hourWidth, height: 28, alignment: .topLeading)
+        .frame(width: CGFloat(end.timeIntervalSince(start) / 3600) * Self.hourWidth, height: Self.hourBar, alignment: .topLeading)
+        .overlay(alignment: .topLeading) { NowLine(start: start) }
         .background(TVTheme.background)
-    }
-
-    @ViewBuilder private func nowLine(start: Date) -> some View {
-        let offset = Date().timeIntervalSince(start)
-        if offset > 0 {
-            Capsule().fill(Color(hex: 0xFF4D45))
-                .frame(width: 2)
-                .offset(x: CGFloat(offset / 3600) * Self.hourWidth)
-                .allowsHitTesting(false)
-        }
     }
 
     private func play(_ channel: LiveChannel) {
@@ -119,20 +135,28 @@ struct GuideView: View {
     }
 }
 
-private struct GuideRow: View {
+/// Compared by channel and span only (the actions are the same for a channel): the guide redraws
+/// when the visible span or the model changes, and unchanged rows are skipped then.
+private struct GuideRow: View, Equatable {
+    static func == (a: GuideRow, b: GuideRow) -> Bool {
+        a.channel == b.channel && a.start == b.start && a.end == b.end && a.window == b.window
+    }
+
     @EnvironmentObject private var model: TVModel
     let channel: LiveChannel
     @ObservedObject var guide: ChannelGuide
     let start: Date
     let end: Date
+    /// The part of the axis to draw (around what is on screen).
+    let window: ClosedRange<Date>
     let select: (EPGEntry) -> Void
     /// A bar without listings plays the channel.
     let play: () -> Void
 
     var body: some View {
         let entries = listings
-        let shows = (entries ?? []).filter { $0.end > start && $0.start < end }
-        let gaps = entries == nil ? [start...end] : GuideGaps.free(shows: shows, window: start...end)
+        let shows = (entries ?? []).filter { $0.end > window.lowerBound && $0.start < window.upperBound }
+        let gaps = entries == nil ? [window] : GuideGaps.free(shows: shows, window: window)
         ZStack(alignment: .topLeading) {
             ForEach(shows, id: \.start) { show in
                 Button { select(show) } label: {
@@ -155,13 +179,18 @@ private struct GuideRow: View {
                 .modifier(Placement(from: gap.lowerBound, to: gap.upperBound, start: start, end: end))
                 .accessibilityIdentifier("guide.\(channel.id).gap.\(Int(gap.lowerBound.timeIntervalSince1970))")
             }
+            NowLine(start: start)
         }
         .frame(height: GuideView.rowHeight, alignment: .topLeading)
+        #if DEBUG
+        // Counted by the guide scrolling test (ios-guide-performance): rows built, not only shown.
+        .onAppear { AppLog.detail(.guide, "guide row \(channel.id) appears") }
+        #endif
         .task(id: channel.id) { await model.loadGuide(for: channel) }
-        .task(id: channel.id) {
-            // An archive channel's past days: their programme from back then (catch-up).
-            guard channel.archiveDays > 0, start < Date().addingTimeInterval(-3 * 3600) else { return }
-            await model.guide.loadPast(channel.id, client: model.client, from: start)
+        .task(id: "\(channel.id).\(Int(window.lowerBound.timeIntervalSince1970 / 86_400))") {
+            // An archive channel's past days, once scrolled to: their programme from back then (catch-up).
+            guard channel.archiveDays > 0, window.lowerBound < Date().addingTimeInterval(-3 * 3600) else { return }
+            await model.guide.loadPast(channel.id, client: model.client, from: window.lowerBound)
         }
     }
 
@@ -171,6 +200,38 @@ private struct GuideRow: View {
         if ProcessInfo.processInfo.environment["IPTV_TESTNOEPG"] == String(channel.id) { return [] }
         #endif
         return guide.entries
+    }
+}
+
+/// The guide's horizontal scroll offset, observed only by the pinned channel column.
+private final class GuideScroll: ObservableObject {
+    @Published var x: CGFloat = 0
+}
+
+/// Content kept at the left edge of the guide: moved right by the horizontal offset, above the
+/// shows scrolling under it.
+private struct PinnedColumn<Content: View>: View {
+    @ObservedObject var scroll: GuideScroll
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content.offset(x: max(0, scroll.x)).zIndex(1)
+    }
+}
+
+/// The current time on the axis.
+private struct NowLine: View {
+    let start: Date
+
+    var body: some View {
+        let offset = Date().timeIntervalSince(start)
+        if offset > 0 {
+            Capsule().fill(Color(hex: 0xFF4D45))
+                .frame(width: 2)
+                .frame(maxHeight: .infinity)
+                .offset(x: CGFloat(offset / 3600) * GuideView.hourWidth)
+                .allowsHitTesting(false)
+        }
     }
 }
 

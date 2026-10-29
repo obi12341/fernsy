@@ -294,9 +294,33 @@ final class TVModel: ObservableObject {
 
     private func apply(_ catalog: CatalogCache) {
         categories = (try? JSONDecoder().decode([XCategory].self, from: catalog.categories)) ?? []
-        channels = (try? JSONDecoder().decode([LiveChannel].self, from: catalog.channels)) ?? []
+        channels = (try? JSONDecoder().decode([LiveChannel].self, from: Self.debugEnlargedChannels(catalog.channels))) ?? []
         // Archive channels keep their past programme (catch-up design 5).
         guide.archiveDays = Dictionary(channels.filter { $0.archiveDays > 0 }.map { ($0.id, $0.archiveDays) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// IPTV_TESTBIGLIVE=<n> (debug): the live channels repeated with new ids up to n, in memory, so
+    /// the simulator has a provider-sized channel list (ios-guide-performance). Copies have no
+    /// listings of their own.
+    private static func debugEnlargedChannels(_ data: Data) -> Data {
+        #if DEBUG
+        guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGLIVE"].flatMap(Int.init),
+              let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !items.isEmpty else { return data }
+        var out = items
+        var copy = 1
+        while out.count < target {
+            for item in items where out.count < target {
+                var item = item
+                let base = (item["stream_id"] as? Int) ?? Int("\(item["stream_id"] ?? 0)") ?? 0
+                item["stream_id"] = base + copy * 1_000_000
+                out.append(item)
+            }
+            copy += 1
+        }
+        return (try? JSONSerialization.data(withJSONObject: out)) ?? data
+        #else
+        return data
+        #endif
     }
 
     func channels(in category: XCategory) -> [LiveChannel] {
