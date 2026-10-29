@@ -190,8 +190,10 @@ struct PlayerStatusLayer: View {
         .frame(maxWidth: 820)
         .padding(.horizontal, 56).padding(.vertical, 44)
         .background(Self.plate, in: .rect(cornerRadius: 32))
+        #if os(tvOS)
         .focusSection()
         .onExitCommand(perform: close)
+        #endif
     }
 
     private func card(@ViewBuilder _ content: () -> some View) -> some View {

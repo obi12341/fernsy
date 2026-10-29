@@ -577,6 +577,40 @@ as cells named by their symbol.
 artefacts; check picture and performance on a real Apple TV. Right after a relaunch the demo
 server may close connections for about 20 s.
 
+### iPhone and iPad
+
+The target "Fernsy iOS" (`FernsyiOS/`, product `FernsyiOS.app`, one app for iPhone and iPad,
+iOS 27, same bundle id as the Mac and Apple TV apps: universal purchase) shares the Apple TV
+app's model and helpers: the `FernsyTV` folder is a member of the iOS target, except the files
+listed in its exception set in `Fernsy.xcodeproj` (`FernsyTVApp.swift`, `Screens/`,
+`Design/TVTextEntry.swift`, the asset catalog, `InfoPlist.xcstrings`). **A new file in
+`FernsyTV/Screens/` must be added to that list** (Xcode does not take folders there), or the
+iOS build compiles a tvOS screen and fails. Shared files use `#if os(tvOS)` for tvOS-only API.
+The screens in `FernsyiOS/` are drawn for touch and read only `TVModel`; there are no
+recordings on iOS (ios-app).
+
+- `scripts/ios-run.sh [--no-build] [--log <file>] [KEY=value …]` builds at background priority,
+  boots the "iPhone 18 Pro" simulator with its window (`DEVICE_NAME="iPad Pro 13-inch (M5)"`
+  for an iPad) and launches Fernsy Dev with the demo account. The Apple TV's debug switches
+  (`IPTV_AUTOPLAY=live:<id>`, `IPTV_MCP=1` with token `IPTV_MCPTOKEN`, `IPTV_SOUND=1`, …) work
+  the same; the debug MCP server listens on port 52326 (Apple TV: 52325).
+- Screenshots: `xcrun simctl io <device> screenshot <file>`. The simulator takes no touch input
+  from scripts, so debug switches open screens: `IPTV_TAB=start|live|films|series|jellyfin|search|settings`,
+  `IPTV_LIVEVIEW=list|guide`, `IPTV_ALLCATEGORIES=1`, `IPTV_DETAIL=movie:<id>|series:<id>` (from the
+  Movies or Series tab), `IPTV_SEARCH=<query>`, `IPTV_PLAYERMODE=channels` (the player's channel
+  list), `IPTV_KEEPCONTROLS=1` (the player's controls stay).
+- `scripts/ios-uitest.sh [--no-build] [xcodebuild arguments]` runs the UI tests
+  (`FernsyiOSUITests`, target "Fernsy iOS UITests") with real touch input on the iPhone
+  simulator, `DEVICE_NAME="iPad Pro 13-inch (M5)"` on the iPad one. On iPhone the player turns
+  the interface to landscape by itself; the tests turn the test device to `landscapeLeft`
+  (interface landscape right) and draw gestures on the window, or taps and swipes land at
+  portrait coordinates.
+- CI (`tests.yml`, job `apple-tv`) builds the target for the iOS simulator; a shared file that
+  breaks it fails the run. The UI tests run locally only for now (CI would have to download the
+  iOS runtime as it does the tvOS one).
+- The icons come from the Mac icon: `swift scripts/make-ios-icons.swift`.
+- Picture in Picture and AirPlay need a real device; the simulator checks screens and flows.
+
 ### Tests and FernsyCore
 
 Fernsy's platform-independent logic lives in the local package `Packages/FernsyCore` (macOS and
