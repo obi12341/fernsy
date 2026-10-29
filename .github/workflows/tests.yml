@@ -1,7 +1,8 @@
-# Runs the FernsyCore tests (see DEVELOPMENT.md › Tests and FernsyCore): on macOS, and on a tvOS
-# simulator after building the package for tvOS. Builds the Apple TV app with FFmpeg and runs its
-# UI test against the demo server (DEVELOPMENT.md › Apple TV), and builds the iPhone and iPad app
-# for the iOS simulator (DEVELOPMENT.md › iPhone and iPad). On pushes to main (not for commits that
+# Three jobs, one per part (ci-job-names): `core` runs the FernsyCore tests (see DEVELOPMENT.md ›
+# Tests and FernsyCore) on macOS, and on a tvOS simulator after building the package for tvOS;
+# `apple-tv` builds the Apple TV app with FFmpeg and runs its UI test against the demo server
+# (DEVELOPMENT.md › Apple TV); `ios` builds the iPhone and iPad app for the iOS simulator
+# (DEVELOPMENT.md › iPhone and iPad). On pushes to main (not for commits that
 # change only specs and docs), on pull requests, and from release.yml before anything is built or
 # published, unless a run of this workflow already passed for that commit (ci-test-runs). Change
 # branches are tested locally in full before they are pushed and merged.
@@ -28,6 +29,7 @@ concurrency:
 
 jobs:
   core:
+    name: FernsyCore tests (macOS, tvOS)
     runs-on: xcode-27
     timeout-minutes: 40
     steps:
@@ -61,6 +63,7 @@ jobs:
         run: scripts/test.sh --tvos-sim
 
   apple-tv:
+    name: Apple TV app and UI test
     runs-on: xcode-27
     timeout-minutes: 60
     steps:
@@ -103,13 +106,6 @@ jobs:
             Packages/FernsyPlayer/Sources/CFFShim/include/lib*
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
 
-      # Build only (no UI test yet): a shared FernsyTV file that breaks the iOS target fails here.
-      - name: iPhone and iPad app build
-        run: |
-          xcodebuild -project Fernsy.xcodeproj -scheme "Fernsy iOS" -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ios \
-            CODE_SIGNING_ALLOWED=NO build -quiet
-
       - name: Apple TV simulator
         run: |
           if ! xcrun simctl list runtimes | grep -q 'tvOS 27'; then
@@ -137,3 +133,45 @@ jobs:
           name: apple-tv-uitest-results
           path: build/tv/Logs/uitest-*.xcresult
           retention-days: 7
+
+  ios:
+    name: iPhone and iPad app
+    runs-on: xcode-27
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Select Xcode
+        env:
+          XCODE_VERSION: '27.1'
+        run: |
+          XCODE="/Applications/Xcode_$XCODE_VERSION.app"
+          if [ ! -d "$XCODE" ]; then
+            echo "::error::This runner has no Xcode $XCODE_VERSION. Installed: $(ls -d /Applications/Xcode*.app | xargs -n1 basename | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      # The same cache as release.yml; only apple-tv saves it on a miss (two saves of one key race).
+      - name: Restore FFmpeg
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            Packages/FernsyPlayer/Frameworks
+            Packages/FernsyPlayer/Sources/CFFShim/include/lib*
+          key: ffmpeg-${{ runner.os }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
+
+      - name: Build FFmpeg (LGPL)
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: scripts/build-ffmpeg.sh
+
+      # Build only (UI tests run locally): a shared FernsyTV file that breaks the iOS target fails here.
+      - name: iPhone and iPad app build
+        run: |
+          xcodebuild -project Fernsy.xcodeproj -scheme "Fernsy iOS" -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO build -quiet

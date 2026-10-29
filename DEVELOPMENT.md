@@ -605,7 +605,7 @@ recordings on iOS (ios-app).
   the interface to landscape by itself; the tests turn the test device to `landscapeLeft`
   (interface landscape right) and draw gestures on the window, or taps and swipes land at
   portrait coordinates.
-- CI (`tests.yml`, job `apple-tv`) builds the target for the iOS simulator; a shared file that
+- CI (`tests.yml`, job `ios`) builds the target for the iOS simulator; a shared file that
   breaks it fails the run. The UI tests run locally only for now (CI would have to download the
   iOS runtime as it does the tvOS one).
 - The icons come from the Mac icon: `swift scripts/make-ios-icons.swift`.
