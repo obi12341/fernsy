@@ -58,4 +58,29 @@ final class JellyfinOverviewUITests: FernsyUITestCase {
         remote.press(.menu)
         XCTAssertTrue(tile.waitForExistence(timeout: 5), "Back did not return to the tiles")
     }
+
+    /// tvos-rows-edge-cards 2.1: without moving right, Recently Added shows the poster after the
+    /// last whole one at the right screen edge; the first poster stays where the page starts.
+    func testNextPosterShowsAtTheEdge() throws {
+        try XCTSkipUnless(jellyfinRunning(), "the local test Jellyfin is not running")
+        let app = launchDemo(["IPTV_SERVER": "", "JF_SERVER": "http://127.0.0.1:8097", "JF_USER": "fixture",
+                              "JF_PASS": "fixture-pass", "JF_TESTMANY": "80"])
+        showTab("Jellyfin", app)
+        let numbers = app.staticTexts["jellyfin.numbers"]
+        XCTAssertTrue(numbers.waitForExistence(timeout: 30), "no Übersicht:\n\(app.debugDescription)")
+        // The page's start, before the header scrolls away.
+        let pageStart = numbers.frame.minX
+        // Down to the rows (focus on the first poster keeps every row at its start).
+        for _ in 0..<3 { remote.press(.down); Thread.sleep(forTimeInterval: 1) }
+        Thread.sleep(forTimeInterval: 2)
+        let screen = app.windows.firstMatch.frame
+        let posters = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'jellyfin.item.'")).allElementsBoundByIndex
+        let row = posters.filter { $0.frame.minY >= 0 && $0.frame.maxY <= screen.maxY }
+        XCTAssertFalse(row.isEmpty, "no poster of Recently Added on screen:\n\(app.debugDescription)")
+        let edge = row.first { $0.frame.minX < screen.maxX && $0.frame.maxX > screen.maxX }
+        XCTAssertNotNil(edge, "no poster reaches past the right edge: \(row.map { Int($0.frame.minX) })")
+        let first = row.map(\.frame.minX).min() ?? 0
+        XCTAssertEqual(first, pageStart + 4, accuracy: 3, "the first poster moved away from the page's start")
+        shot("edge-poster", app)
+    }
 }
