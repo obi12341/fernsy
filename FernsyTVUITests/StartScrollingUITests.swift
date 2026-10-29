@@ -18,7 +18,8 @@ final class StartScrollingUITests: FernsyUITestCase {
         let remote = XCUIRemote.shared
         XCTAssertTrue(app.buttons["start.hero.resume"].waitForExistence(timeout: 60), "Start did not load")
         // The catalog, images and guide settle first.
-        XCTAssertTrue(wait(30) { !self.appLog("films, ").isEmpty }, "the films did not load")
+        XCTAssertTrue(waitForLog("films, ", timeout: 30), "the films did not load")
+        // Kept: images and guide keep arriving after the films, and no single state marks the end.
         Thread.sleep(forTimeInterval: 5)
         let before = appLog("frames:").count
         let started = Date()

@@ -87,6 +87,10 @@ struct PlayerScreen: View {
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .contain)
+        // The UI tests wait for the player's focus before pressing (tvos-uitest-shards); tvOS does
+        // not report the focus of this container to them, so its value does.
+        .accessibilityIdentifier("player.surface")
+        .accessibilityValue(focused ? "focused" : "unfocused")
         .focusable(mode != .strip && !isTracks && !(failed && (mode == .hidden || mode == .info)))
         .focused($focused)
         .onAppear { focused = true }

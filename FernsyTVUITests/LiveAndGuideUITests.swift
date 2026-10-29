@@ -16,6 +16,7 @@ final class LiveAndGuideUITests: FernsyUITestCase {
         for _ in 0..<3 where !favorites.hasFocus { remote.press(.down); Thread.sleep(forTimeInterval: 0.5) }
         XCTAssertTrue(favorites.hasFocus, "Favourites has no focus:\n\(app.debugDescription)")
         remote.press(.down)
+        // Kept: real time, it checks that passing Favourites does not switch the source.
         Thread.sleep(forTimeInterval: 1)
         XCTAssertEqual(all.value as? String, "selected", "passing the column changed the source")
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch.exists,

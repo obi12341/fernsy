@@ -51,8 +51,7 @@ final class TabsUITests: XCTestCase {
         XCTAssertTrue(waitForFocus(liveTab), "Live TV has no focus again")
         // The tab's screen follows the focus a moment later.
         XCTAssertTrue(channel.waitForExistence(timeout: 5), "Live TV's screen did not come back")
-        Thread.sleep(forTimeInterval: 1)
-        // The Live TV screen is shown again first; Down may need a moment.
+        // The Live TV screen is shown again first; Down may need a moment (each try waits for focus).
         var entered = false
         for _ in 0..<3 where !entered {
             remote.press(.down)
@@ -62,15 +61,6 @@ final class TabsUITests: XCTestCase {
         // Up row by row: from the first row it reaches the tab bar.
         for _ in 0..<6 where !liveTab.hasFocus { remote.press(.up); Thread.sleep(forTimeInterval: 0.5) }
         XCTAssertTrue(waitForFocus(liveTab), "Up did not reach the tab bar:\n\(app.debugDescription)")
-    }
-
-    private func waitForFocus(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if element.exists && element.hasFocus { return true }
-            Thread.sleep(forTimeInterval: 0.2)
-        }
-        return false
     }
 
     /// Something below the tab bar has focus.

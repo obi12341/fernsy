@@ -27,7 +27,7 @@ final class RecordingsUITests: FernsyUITestCase {
         let state = app.descendants(matching: .any)["player.state"]
         XCTAssertTrue(wait(15) { state.value as? String == "playing" }, "the recording does not play")
         // The player takes focus a moment after it starts; earlier presses go nowhere.
-        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue(waitForPlayerFocus(app), "the player did not take focus:\n\(app.debugDescription)")
         remote.press(.menu)
         XCTAssertTrue(wait(10) { !state.exists }, "Back did not close the recording:\n\(app.debugDescription)")
         XCTAssertTrue(wait(10) { card.hasFocus }, "focus did not return to the card")
