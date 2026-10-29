@@ -319,7 +319,12 @@ starts live closer to the newest data for the dry-player rule) also runs for fil
 before the file does (an idle connection closed during a long pause) continues with a range
 request and keeps its buffer; an end more than 60 s before the known duration reloads at the
 position instead of finishing (`IPTV_TESTNOCONTINUE=1` switches the first part off to test the
-second). Live playback never jumps
+second). A film's download is held at 24 MB buffered ahead and resumes at 8 MB; every 15 s a
+keep-alive lets it run briefly (up to 48 MB ahead): the 30 s request timeout also runs while the task is held, and a
+timed-out hold continues on a new connection whose seam plays as an audio gap
+(`IPTV_TESTWATER=<high KB>:<low KB>[:<timeout s>]` sets smaller marks and a shorter timeout, the
+cap being half of it, so the demo film, 52 s and 14.6 MB, is held long enough to time out;
+holds and resumes are logged at detail level). Live playback never jumps
 on its own: the backlog a provider sends on connect is played (still "LIVE"), and when playback
 later falls clearly further behind, it leaves the live state instead of skipping ahead.
 

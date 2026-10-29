@@ -43,7 +43,12 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var finished = false
     private var failure: Error?
     private var cancelled = false
-    private var suspended = false
+    /// The download is held (task suspended) because enough is buffered ahead.
+    private var suspended = false {
+        didSet { if suspended != oldValue { heldSince = suspended ? Date() : nil } }
+    }
+    private var heldSince: Date?
+    private var holdGeneration = 0
 
     public private(set) var contentLength: Int64 = -1
     public private(set) var supportsRanges = false
@@ -132,15 +137,32 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     // Bitrate measurement
     private var bytesReceivedTotal: Int64 = 0
 
-    private let highWater = 24 << 20
-    private let lowWater = 8 << 20
+    /// A film's download is held above `highWater` buffered ahead and resumes below `lowWater`,
+    /// or after half the request timeout up to `keepAliveCeiling`: the timeout also runs while
+    /// the task is held, and a timed-out hold continues on a new connection whose seam can play
+    /// as an audio gap when the server's bytes differ (low-bitrate archives: 16 MB ≈ 30 s).
+    private let highWater: Int
+    private let lowWater: Int
+    private var keepAliveCeiling: Int { highWater * 2 }
     private let keepBehind = 1 << 20
     private let readTimeout: TimeInterval
 
     public init(url: URL, isLive: Bool) {
         self.url = url
         self.isLive = isLive
-        self.readTimeout = isLive ? 12 : 30
+        var timeout: TimeInterval = isLive ? 12 : 30
+        var water = (high: 24 << 20, low: 8 << 20)
+        #if DEBUG
+        // IPTV_TESTWATER=<high KB>:<low KB>[:<timeout s>]: small marks (and a short timeout), so
+        // the demo server's film (52 s, 14.6 MB) is held long enough to time out.
+        if let parts = ProcessInfo.processInfo.environment["IPTV_TESTWATER"]?.split(separator: ":").compactMap({ Int($0) }),
+           parts.count >= 2 {
+            water = (parts[0] << 10, parts[1] << 10)
+            if parts.count > 2 && !isLive { timeout = TimeInterval(parts[2]) }
+        }
+        #endif
+        (highWater, lowWater) = water
+        self.readTimeout = timeout
         super.init()
         let config = URLSessionConfiguration.ephemeral
         config.httpMaximumConnectionsPerHost = 1
@@ -677,7 +699,26 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     }
 
     private func resumeIfNeeded() {
-        if suspended && buffer.count - readIndex < lowWater {
+        guard suspended, let heldSince else { return }
+        if buffer.count - readIndex < lowWater {
+            AppLog.detail(.network, String(format: "download resumed after %.1f s", Date().timeIntervalSince(heldSince)))
+            suspended = false
+            task?.resume()
+        }
+    }
+
+    /// Lets a held download run again before the request timeout, read or not: below
+    /// `highWater` it fills up as usual, above it the next delivery holds it again, so only a
+    /// little arrives. Above `keepAliveCeiling` (a long pause) the hold may time out as before.
+    private func scheduleKeepAlive() {
+        guard !streaming else { return }
+        holdGeneration += 1
+        let generation = holdGeneration
+        DispatchQueue.global().asyncAfter(deadline: .now() + readTimeout / 2) { [weak self] in
+            guard let self else { return }
+            cond.lock(); defer { cond.unlock() }
+            guard suspended, holdGeneration == generation, !cancelled, buffer.count - readIndex < keepAliveCeiling else { return }
+            AppLog.detail(.network, "download kept alive, \((buffer.count - readIndex) >> 10) KB ahead")
             suspended = false
             task?.resume()
         }
@@ -822,8 +863,10 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         // that accepts and drops again right away keeps counting towards giving up.
         if reconnectAttempts > 0 && lastDataAt.timeIntervalSince(connectedAt) > 10 { reconnectAttempts = 0 }
         if buffer.count - readIndex > highWater && !suspended {
+            AppLog.detail(.network, "download held at \(bufferBase + Int64(buffer.count))")
             suspended = true
             dataTask.suspend()
+            scheduleKeepAlive()
         }
         cond.broadcast()
     }
