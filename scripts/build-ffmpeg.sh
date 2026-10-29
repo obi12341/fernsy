@@ -2,10 +2,10 @@
 # Builds the FFmpeg libraries Fernsy links against: LGPL only (no --enable-gpl, no
 # nonfree), decoding plus the MPEG-TS muxer for timeshift and recordings (no encoders,
 # network, devices, programs), arm64, as dynamic frameworks (LGPL: replaceable) for
-# macOS, tvOS and the tvOS simulator, combined into one XCFramework per library.
+# macOS, tvOS, iOS and their simulators, combined into one XCFramework per library.
 #
 #   scripts/build-ffmpeg.sh                  # all platforms
-#   PLATFORMS=macos scripts/build-ffmpeg.sh  # only some (macos, tvos, tvsim)
+#   PLATFORMS=macos scripts/build-ffmpeg.sh  # only some (macos, tvos, tvsim, ios, iossim)
 #   FFMPEG_VERSION=9.0.2 scripts/build-ffmpeg.sh
 #
 # Output (git-ignored), used by Packages/FernsyPlayer:
@@ -22,9 +22,10 @@ URL="https://ffmpeg.org/releases/ffmpeg-$VERSION.tar.xz"
 WORK="$ROOT/build/ffmpeg"
 OUT="$ROOT/Packages/FernsyPlayer/Frameworks"
 HEADERS="$ROOT/Packages/FernsyPlayer/Sources/CFFShim/include"
-PLATFORMS="${PLATFORMS:-macos tvos tvsim}"
+PLATFORMS="${PLATFORMS:-macos tvos tvsim ios iossim}"
 MIN_MACOS=14.0
 MIN_TVOS=27.0
+MIN_IOS=27.0
 # In dependency order: each library only links the ones before it.
 LIBS=(avutil swresample swscale avcodec avformat avfilter)
 
@@ -58,6 +59,14 @@ platform_flags() {
         local sdk; sdk="$(xcrun --sdk appletvsimulator --show-sdk-path)"
         echo "--arch=arm64 --target-os=darwin --enable-cross-compile --cc=$(xcrun --sdk appletvsimulator -f clang) --sysroot=$sdk"
         echo "--extra-cflags=-target --extra-cflags=arm64-apple-tvos$MIN_TVOS-simulator --extra-ldflags=-target --extra-ldflags=arm64-apple-tvos$MIN_TVOS-simulator" ;;
+    ios)
+        local sdk; sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+        echo "--arch=arm64 --target-os=darwin --enable-cross-compile --cc=$(xcrun --sdk iphoneos -f clang) --sysroot=$sdk"
+        echo "--extra-cflags=-target --extra-cflags=arm64-apple-ios$MIN_IOS --extra-ldflags=-target --extra-ldflags=arm64-apple-ios$MIN_IOS" ;;
+    iossim)
+        local sdk; sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+        echo "--arch=arm64 --target-os=darwin --enable-cross-compile --cc=$(xcrun --sdk iphonesimulator -f clang) --sysroot=$sdk"
+        echo "--extra-cflags=-target --extra-cflags=arm64-apple-ios$MIN_IOS-simulator --extra-ldflags=-target --extra-ldflags=arm64-apple-ios$MIN_IOS-simulator" ;;
     esac
 }
 
@@ -81,6 +90,11 @@ make_framework() {
         binary="$fw/$lib"; plist="$fw/Info.plist"
         supported=$([ "$platform" = tvos ] && echo AppleTVOS || echo AppleTVSimulator)
         minkey=MinimumOSVersion; minvalue=$MIN_TVOS ;;
+    ios|iossim)
+        mkdir -p "$fw"
+        binary="$fw/$lib"; plist="$fw/Info.plist"
+        supported=$([ "$platform" = ios ] && echo iPhoneOS || echo iPhoneSimulator)
+        minkey=MinimumOSVersion; minvalue=$MIN_IOS ;;
     esac
     cp "$real" "$binary"
     install_name_tool -id "@rpath/$lib.framework/$lib" "$binary"

@@ -2682,6 +2682,286 @@
           }
         }
       }
+    },
+    "AUDIO": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TON"
+          }
+        }
+      }
+    },
+    "CAST": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BESETZUNG"
+          }
+        }
+      }
+    },
+    "DIRECTOR": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "REGIE"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konten"
+          }
+        }
+      }
+    },
+    "App": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App"
+          }
+        }
+      }
+    },
+    "Audio Track": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tonspur"
+          }
+        }
+      }
+    },
+    "Audio and Subtitles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton und Untertitel"
+          }
+        }
+      }
+    },
+    "Categories": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorien"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorie"
+          }
+        }
+      }
+    },
+    "Category and Sorting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorie und Sortierung"
+          }
+        }
+      }
+    },
+    "Channels, shows, movies, series": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender, Sendungen, Filme, Serien"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        }
+      }
+    },
+    "Favorites and hidden channels stay on this device for when you sign in again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoriten und ausgeblendete Sender bleiben auf diesem Gerät, falls du dich wieder anmeldest."
+          }
+        }
+      }
+    },
+    "Hidden categories and channels, favorites, recently watched channels, where you stopped movies and episodes, and audio and subtitle languages, on all your devices.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeblendete Kategorien und Sender, Favoriten, zuletzt gesehene Sender, wo du Filme und Folgen angehalten hast, sowie Ton- und Untertitelsprachen, auf all deinen Geräten."
+          }
+        }
+      }
+    },
+    "No favorites yet. Touch and hold a channel and choose “Favorite”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Favoriten. Halte einen Sender gedrückt und wähle „Favorit“."
+          }
+        }
+      }
+    },
+    "On now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft jetzt"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
+          }
+        }
+      }
+    },
+    "Picture in Picture": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild-in-Bild"
+          }
+        }
+      }
+    },
+    "SUGGESTION": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VORSCHLAG"
+          }
+        }
+      }
+    },
+    "Search Categories": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorien suchen"
+          }
+        }
+      }
+    },
+    "Season": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Staffel"
+          }
+        }
+      }
+    },
+    "Sort": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortierung"
+          }
+        }
+      }
+    },
+    "Source": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quelle"
+          }
+        }
+      }
+    },
+    "View": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansicht"
+          }
+        }
+      }
+    },
+    "Watch Channel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender ansehen"
+          }
+        }
+      }
+    },
+    "Your provider’s and your Jellyfin server’s address, user and password, end-to-end encrypted in your iCloud. Another device offers them when it has no account yet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse, Benutzer und Passwort deines Anbieters und deines Jellyfin-Servers, Ende-zu-Ende-verschlüsselt in deiner iCloud. Ein anderes Gerät bietet sie an, wenn es noch kein Konto hat."
+          }
+        }
+      }
+    },
+    "iCloud is not available. Sign in to iCloud in the device’s settings; until then Fernsy keeps this device’s settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud ist nicht verfügbar. Melde dich in den Einstellungen des Geräts bei iCloud an; bis dahin behält Fernsy die Einstellungen dieses Geräts."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

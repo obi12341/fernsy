@@ -8,7 +8,11 @@ import Foundation
 /// shares the Mac's network. Release builds have no listener.
 @MainActor
 final class TVDebugServer {
+    #if os(iOS)
+    static let port: UInt16 = 52326   // the iPhone and iPad app (ios-app design 9)
+    #else
     static let port: UInt16 = 52325
+    #endif
     private var http: MCPHTTPServer?
     private var dispatcher: MCPDispatcher?
 
