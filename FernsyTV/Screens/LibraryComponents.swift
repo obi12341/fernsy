@@ -169,7 +169,9 @@ struct RowTitle: View {
     }
 }
 
-/// A horizontal row of cards that keeps the focused card's scale visible.
+/// A horizontal row of cards that keeps the focused card's scale visible. A focus section, so
+/// Up and Down move one row: without it Down from a card past a shorter row's end went to the
+/// card below it further down (tvos-row-by-row-focus).
 struct CardRow<Content: View>: View {
     /// The page's side margin: the row reaches past it to the screen edges and keeps its first
     /// card aligned with the page, so cards scroll out (and are dropped) off-screen, not at the
@@ -183,6 +185,7 @@ struct CardRow<Content: View>: View {
                 .padding(.vertical, 24)
                 .padding(.horizontal, 4)
         }
+        .focusSection()
     }
 }
 
