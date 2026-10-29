@@ -41,7 +41,7 @@ None.
 
 ### Modified Capabilities
 
-- `playback`: "Dropped connections do not end on-demand playback" gains the rule that steady
+- `playback`: a new requirement "On-demand downloads stay connected while playing" states that steady
   playback does not let its own download connection go idle, plus a scenario for a
   low-bitrate archive.
 
