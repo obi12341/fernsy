@@ -58,12 +58,4 @@ final class SignInUITests: XCTestCase {
         XCTFail("\(element.identifier) did not get focus:\n\(app.debugDescription)")
     }
 
-    private func waitForFocus(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if element.exists && element.hasFocus { return true }
-            Thread.sleep(forTimeInterval: 0.2)
-        }
-        return false
-    }
 }

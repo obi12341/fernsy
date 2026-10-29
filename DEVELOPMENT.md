@@ -562,13 +562,20 @@ user `fixture`, an 8-minute film resuming at 2:30 and three 2-minute episodes, t
 watched) and remove it afterwards with
 `docker rm -f fernsy-jf-fixtures`. Jellyfin keeps no resume position for items under 5 minutes and
 the demo films are under a minute, so resume tests use the fixture film or `IPTV_TESTRESUME`. Further arguments go to `xcodebuild`, e.g.
-`scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"`. Tests derive from
+`scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"`. `--shard 2/3` runs only one
+of three parts (every test class in exactly one, balanced by test count, found in the sources) and
+`--list 3` prints the parts; CI runs the three parts on three runners in parallel. Another
+simulator: `DEVICE_NAME="…" scripts/tv-uitest.sh`. Tests derive from
 `FernsyUITestCase` (`UITestSupport.swift`): the demo account with the debug MCP, and on a
-failure the app's log as an attachment. The script passes `-collect-test-diagnostics never`;
+failure the app's log as an attachment. Tests wait for a state, not a fixed time:
+`waitForFocus`, `waitForPlayerFocus` (the value of the player surface `player.surface`), `waitForLog`,
+`pressAndWaitForFocusMove` and `typeOnKeyboard`; `showTab` waits for the `tabs` element's value
+(the selected tab). A sleep that stays says why in a comment ("real time" for checks that
+nothing happens, or no state to wait for). The script passes `-collect-test-diagnostics never`;
 without it a failing test makes `xcodebuild` run `simctl diagnose` for many minutes, which looks
 like a hang. At the end of each test Xcode quits the app, so the simulator shows the home screen.
 Pitfalls found while writing them: a press right after a screen appears can go nowhere until it
-has taken focus (wait a moment); `try? await Task.sleep` in a `.task(id:)` returns at once when
+has taken focus (wait for its focus, e.g. `waitForPlayerFocus`); `try? await Task.sleep` in a `.task(id:)` returns at once when
 the task is cancelled, so code after it runs (check the result); tvOS lists context-menu entries
 as cells named by their symbol.
 

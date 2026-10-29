@@ -15,10 +15,7 @@ final class SearchUITests: FernsyUITestCase {
         let field = app.buttons["search.field"]
         for _ in 0..<4 where !field.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.4) }
         XCTAssertTrue(field.hasFocus, "the search field has no focus:\n\(app.debugDescription)")
-        XCUIRemote.shared.press(.select)
-        app.typeText(text)
-        XCUIRemote.shared.press(.menu)
-        Thread.sleep(forTimeInterval: 2)
+        typeOnKeyboard(text, app)
     }
 
     func testFindAndPlay() {
@@ -59,8 +56,7 @@ final class SearchUITests: FernsyUITestCase {
         XCTAssertTrue(now.waitForExistence(timeout: 20), "no running show found")
         // Down from the field reaches the live row; any show on now will do.
         let focused = app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch
-        XCUIRemote.shared.press(.down)
-        Thread.sleep(forTimeInterval: 0.6)
+        pressAndWaitForFocusMove(.down, app)
         XCTAssertTrue(focused.identifier.hasPrefix("search.live.") && focused.label.contains("on now"),
                       "focus is not on a show on now: \(focused.identifier) \(focused.label)")
         XCUIRemote.shared.press(.select)
@@ -73,6 +69,7 @@ final class SearchUITests: FernsyUITestCase {
         openSearch(app)
         XCUIRemote.shared.press(.down)
         type("world report", app)
+        // Kept: real time, it checks that no hidden show turns up.
         Thread.sleep(forTimeInterval: 4)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'search.live.'")).firstMatch.exists,
                        "shows of the hidden News channels were found")

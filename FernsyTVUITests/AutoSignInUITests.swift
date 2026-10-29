@@ -83,6 +83,7 @@ final class AutoSignInUITests: FernsyUITestCase {
         shot("signout-after", app)
         XCTAssertTrue(app.buttons["welcome.iptv"].waitForExistence(timeout: 15), "no welcome screen after signing out")
         XCTAssertTrue(app.buttons["welcome.synced.iptv"].waitForExistence(timeout: 10), "the iCloud login is not offered")
+        // Kept: real time, it checks that the app does not sign in again by itself.
         Thread.sleep(forTimeInterval: 3)
         XCTAssertFalse(app.tabBars.firstMatch.exists, "signed in again by itself")
     }

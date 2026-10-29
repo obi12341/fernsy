@@ -26,6 +26,7 @@ final class PlayerUITests: XCTestCase {
         XCTAssertTrue(wait(30) { state.value as? String == "playing" }, "not playing")
 
         // 20 s of buffer, then 20 s back: the overlay shows the time behind live.
+        // Kept: real time, the buffer fills as the channel plays.
         Thread.sleep(forTimeInterval: 20)
         remote.press(.left)
         remote.press(.left)

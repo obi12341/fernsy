@@ -31,6 +31,7 @@ final class LiveTVUITests: FernsyUITestCase {
         // Channel 102 is recorded from now for two minutes; the account allows one stream.
         let app = launch(["IPTV_MAXCONN": "1", "IPTV_TESTRECORD": "102:0:120:0:0"])
         _ = focusFirstChannel(app)
+        // Kept: real time, it checks that no preview opens.
         Thread.sleep(forTimeInterval: 4)
         XCTAssertFalse(app.otherElements["live.preview"].exists, "a preview opened a second stream")
     }
@@ -69,15 +70,14 @@ final class LiveTVUITests: FernsyUITestCase {
         let next = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel.'")).firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 15), "Live TV lists no channel:\n\(app.debugDescription)")
         // Right from the column lands on the row at its height; Up to the first one.
-        XCUIRemote.shared.press(.right)
-        Thread.sleep(forTimeInterval: 0.6)
+        pressAndWaitForFocusMove(.right, app)
         for _ in 0..<6 where !next.hasFocus { XCUIRemote.shared.press(.up); Thread.sleep(forTimeInterval: 0.6) }
         XCTAssertTrue(next.hasFocus, "the first channel has no focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.select)
         let state = app.descendants(matching: .any)["player.state"]
         XCTAssertTrue(wait(30) { state.exists && state.value as? String == "playing" }, "the player does not play:\n\(app.debugDescription)")
-        // The player takes focus a moment after it appears; an earlier Down goes nowhere (slow CI runners).
-        Thread.sleep(forTimeInterval: 2)
+        // The player takes focus a moment after it appears; an earlier Down goes nowhere.
+        XCTAssertTrue(waitForPlayerFocus(app), "the player did not take focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.down)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'strip.'")).firstMatch.waitForExistence(timeout: 5),
                       "Down did not open the channel strip:\n\(app.debugDescription)")

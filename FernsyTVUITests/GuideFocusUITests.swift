@@ -29,8 +29,9 @@ final class GuideFocusUITests: FernsyUITestCase {
         let loading = "\(reached) reached; loading: \(loadingRows)"
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND value == 'loading'", "guide.\(reached).")).firstMatch.exists,
                       "the row reached had already loaded (\(loading)); the test did not reach a loading row")
-        // Its programme arrives: focus stays in the row.
-        Thread.sleep(forTimeInterval: 18)
+        // Its programme arrives (after the 15 s test delay): focus stays in the row.
+        let stillLoading = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND value == 'loading'", "guide.\(reached)."))
+        XCTAssertTrue(wait(30) { !stillLoading.firstMatch.exists }, "the row \(reached) did not load")
         XCTAssertEqual(focusedChannel(app), reached, "focus left the row \(reached) when its programme arrived")
         shot("guide-focus-after-load", app)
         XCTAssertFalse(appLog("focus kept").isEmpty, "the row did not hand focus over")

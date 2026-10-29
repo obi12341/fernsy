@@ -30,7 +30,8 @@ final class LivingHeroUITests: FernsyUITestCase {
         }
         XCTAssertTrue(wait(10) { hero.exists }, "the large entry has no focus:\n\(app.debugDescription)")
         XCTAssertTrue(wait(5) { backdrop.value as? String == "moving" }, "the backdrop does not move")
-        // The film's details (with its backdrop) load after Start shows.
+        // The film's details (with its backdrop) load after Start shows. Kept: no state marks that
+        // the backdrop image has arrived.
         Thread.sleep(forTimeInterval: 4)
         let framesBefore = appLog("frames:").count
         shot("hero-moving-0s", app)

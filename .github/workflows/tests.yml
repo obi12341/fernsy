@@ -1,7 +1,7 @@
 # Three jobs, one per part (ci-job-names): `core` runs the FernsyCore tests (see DEVELOPMENT.md ›
 # Tests and FernsyCore) on macOS, and on a tvOS simulator after building the package for tvOS;
-# `apple-tv` builds the Apple TV app with FFmpeg and runs its UI test against the demo server
-# (DEVELOPMENT.md › Apple TV); `ios` builds the iPhone and iPad app for the iOS simulator
+# `apple-tv` builds the Apple TV app with FFmpeg and runs its UI tests against the demo server,
+# split into 3 parallel parts (DEVELOPMENT.md › Apple TV); `ios` builds the iPhone and iPad app for the iOS simulator
 # (DEVELOPMENT.md › iPhone and iPad). On pushes to main (not for commits that
 # change only specs and docs), on pull requests, and from release.yml before anything is built or
 # published, unless a run of this workflow already passed for that commit (ci-test-runs). Change
@@ -62,10 +62,16 @@ jobs:
       - name: Tests on a tvOS simulator
         run: scripts/test.sh --tvos-sim
 
+  # The UI tests in 3 parts on 3 runners (tvos-uitest-shards): tv-uitest.sh assigns every test class
+  # to one part; a failing part does not cancel the others, so a run shows every failure.
   apple-tv:
-    name: Apple TV app and UI test
+    name: Apple TV app and UI test (${{ matrix.shard }}/3)
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -97,8 +103,9 @@ jobs:
         if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         run: scripts/build-ffmpeg.sh
 
+      # Every part builds FFmpeg on a miss, one saves it: two saves of one key race.
       - name: Save FFmpeg
-        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true' && matrix.shard == 1
         uses: actions/cache/save@v6
         with:
           path: |
@@ -122,7 +129,7 @@ jobs:
         # FERNSY_CI in the test runner: tests skip judgments a GPU-less runner cannot meet.
         env:
           TEST_RUNNER_FERNSY_CI: '1'
-        run: scripts/tv-uitest.sh
+        run: scripts/tv-uitest.sh --shard ${{ matrix.shard }}/3
 
       # The result bundle (failure messages with the element tree, screenshots, the screen
       # recording and the app log) for a failing UI test; the log shows only the first lines.
@@ -130,7 +137,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: apple-tv-uitest-results
+          name: apple-tv-uitest-results-${{ matrix.shard }}
           path: build/tv/Logs/uitest-*.xcresult
           retention-days: 7
 

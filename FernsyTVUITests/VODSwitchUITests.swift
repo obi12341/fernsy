@@ -25,8 +25,7 @@ final class VODSwitchUITests: FernsyUITestCase {
         // The page stays open (removing a tab used to close it).
         shot("vod-switch-\(on ? "on" : "off")", app)
         XCTAssertTrue(row.exists, "the account page closed after switching:\n\(app.debugDescription)")
-        remote.press(.menu)
-        Thread.sleep(forTimeInterval: 1)
+        pressAndWaitForFocusMove(.menu, app)
     }
 
     private func search(_ text: String, _ app: XCUIApplication) {
@@ -34,10 +33,7 @@ final class VODSwitchUITests: FernsyUITestCase {
         let field = app.buttons["search.field"]
         for _ in 0..<4 where !field.hasFocus { remote.press(.down); Thread.sleep(forTimeInterval: 0.4) }
         XCTAssertTrue(field.hasFocus, "the search field has no focus:\n\(app.debugDescription)")
-        remote.press(.select)
-        app.typeText(text)
-        remote.press(.menu)
-        Thread.sleep(forTimeInterval: 2)
+        typeOnKeyboard(text, app)
     }
 
     func testSwitchingFilmsOffAndOn() {
@@ -70,8 +66,7 @@ final class VODSwitchUITests: FernsyUITestCase {
         for _ in 0..<12 {
             sawFilm = sawFilm || film.exists
             XCTAssertEqual(series.count, 0, "Start shows series while they are off")
-            remote.press(.down)
-            Thread.sleep(forTimeInterval: 0.6)
+            pressAndWaitForFocusMove(.down, app, timeout: 1)
         }
         XCTAssertTrue(sawFilm || film.exists, "Start has no films:\n\(app.debugDescription)")
     }

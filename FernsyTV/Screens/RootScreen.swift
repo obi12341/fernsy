@@ -80,6 +80,8 @@ struct MainTabs: View {
             }
         }
         .accessibilityIdentifier("tabs")
+        // The selected tab for the UI tests, which wait for it instead of a fixed time (tvos-uitest-shards).
+        .accessibilityValue(String(describing: selection))
         .onChange(of: model.showsIPTVMovies) { updateVODTabs() }
         .onChange(of: model.showsIPTVSeries) { updateVODTabs() }
         .onChange(of: selection) { updateVODTabs() }

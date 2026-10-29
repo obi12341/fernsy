@@ -21,8 +21,8 @@ final class StreamInfoUITests: FernsyUITestCase {
         let state = playFirstChannel(app)
         XCTAssertTrue(panel(app).waitForExistence(timeout: 5), "no panel in the live player")
         shot("live", app)
-        // The remote works as without it: Down opens the channel strip.
-        Thread.sleep(forTimeInterval: 2)
+        // The remote works as without it: Down opens the channel strip (once the player has focus).
+        XCTAssertTrue(waitForPlayerFocus(app), "the player did not take focus:\n\(app.debugDescription)")
         remote.press(.down)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'strip.'")).firstMatch.waitForExistence(timeout: 5),
                       "Down did not open the strip with the panel shown")
@@ -56,6 +56,7 @@ final class StreamInfoUITests: FernsyUITestCase {
     func testNoPanelByDefault() {
         let app = launchDemo()
         _ = playFirstChannel(app)
+        // Kept: real time, it checks that no panel appears.
         Thread.sleep(forTimeInterval: 2)
         XCTAssertFalse(panel(app).exists, "a panel without the setting")
         _ = mcpCall("stop_playback")
@@ -83,8 +84,7 @@ final class StreamInfoUITests: FernsyUITestCase {
         XCTAssertTrue(row.hasFocus, "Technical Info has no focus:\n\(app.debugDescription)")
         if (row.value as? String == "on") != on { remote.press(.select) }
         XCTAssertTrue(wait(3) { (row.value as? String == "on") == on }, "Technical Info did not switch")
-        remote.press(.menu)
-        Thread.sleep(forTimeInterval: 1)
+        pressAndWaitForFocusMove(.menu, app)
         remote.press(.menu)
     }
 }

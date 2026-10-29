@@ -61,10 +61,7 @@ final class JellyfinSignInUITests: FernsyUITestCase {
     }
 
     private func enter(_ text: String, _ app: XCUIApplication) {
-        XCUIRemote.shared.press(.select)
-        app.typeText(text)
-        XCUIRemote.shared.press(.menu)
-        Thread.sleep(forTimeInterval: 0.8)
+        typeOnKeyboard(text, app)
     }
 
     private func move(_ direction: XCUIRemote.Button, to element: XCUIElement, _ app: XCUIApplication) {

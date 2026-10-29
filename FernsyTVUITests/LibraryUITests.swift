@@ -14,21 +14,20 @@ final class LibraryUITests: FernsyUITestCase {
         shot("films", app)
         // Down lands in the grid; Up from its first row reaches the sorting, then sideways to Rating.
         // Down from the tab bar reaches the header (category and sorting); Rating is to the right.
-        XCUIRemote.shared.press(.down)
-        Thread.sleep(forTimeInterval: 0.6)
+        pressAndWaitForFocusMove(.down, app)
         for direction in [XCUIRemote.Button.right, .right, .right, .left, .left, .left, .left] where !rating.hasFocus {
             XCUIRemote.shared.press(direction)
             Thread.sleep(forTimeInterval: 0.3)
         }
         XCTAssertTrue(rating.hasFocus, "the Rating sort has no focus:\n\(app.debugDescription)")
         XCUIRemote.shared.press(.select)
-        Thread.sleep(forTimeInterval: 1)
+        // The first poster then has the highest rating of the visible ones.
+        let ratings = {
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'movie.'")).allElementsBoundByIndex.prefix(14)
+                .compactMap { Double($0.label.components(separatedBy: ",").first?.replacingOccurrences(of: "★ ", with: "") ?? "") }
+        }
+        XCTAssertTrue(wait(10) { let r = ratings(); return !r.isEmpty && r.first == r.max() }, "the grid is not sorted by rating: \(ratings())")
         shot("films-rating", app)
-        // The first poster now has the highest rating of the visible ones.
-        let ratings = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'movie.'")).allElementsBoundByIndex.prefix(14)
-            .compactMap { Double($0.label.components(separatedBy: ",").first?.replacingOccurrences(of: "★ ", with: "") ?? "") }
-        XCTAssertFalse(ratings.isEmpty, "no ratings on the posters")
-        XCTAssertEqual(ratings.first, ratings.max(), "the grid is not sorted by rating: \(ratings)")
         // Scroll through the grid and back: posters come from the cache the second time.
         for _ in 0..<6 { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.4) }
         // Up row by row until focus leaves the grid: it lands in the header, not in the tab bar.
@@ -90,6 +89,7 @@ final class DetailPagesUITests: FernsyUITestCase {
         XCTAssertTrue(wait(5) { play.hasFocus } || { XCUIRemote.shared.press(.down); return wait(3) { play.hasFocus } }())
         XCUIRemote.shared.press(.select)
         XCTAssertTrue(wait(20) { self.position() > 100 }, "Resume did not start at the server's position (\(position()))")
+        // Kept: playback runs a moment before Back.
         Thread.sleep(forTimeInterval: 2)
         XCUIRemote.shared.press(.menu)
         let fromStart = app.buttons["film.fromStart"]
@@ -99,7 +99,7 @@ final class DetailPagesUITests: FernsyUITestCase {
         XCTAssertTrue(wait(20) { (0...15).contains(self.position()) }, "From the Beginning did not start at 0 (\(position()))")
         // Back at about two minutes, so the next run still has a resume position.
         _ = mcpCall("seek", #"{"by_seconds":150}"#)
-        Thread.sleep(forTimeInterval: 3)
+        XCTAssertTrue(wait(15) { self.position() >= 140 }, "the seek to two minutes did not arrive (\(position()))")
         XCUIRemote.shared.press(.menu)
     }
 

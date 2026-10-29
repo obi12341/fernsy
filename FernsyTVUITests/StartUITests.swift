@@ -25,8 +25,7 @@ final class StartUITests: FernsyUITestCase {
         // Scroll down row by row for screenshots of the whole page.
         _ = focus("start.live.", app)
         for n in 1...6 {
-            remote.press(.down)
-            Thread.sleep(forTimeInterval: 1)
+            pressAndWaitForFocusMove(.down, app)
             shot("start-\(n)", app)
         }
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.films.'")).firstMatch.exists, "no film category row")
