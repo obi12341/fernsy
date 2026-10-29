@@ -191,7 +191,7 @@ right on the picture (controls hidden) SHALL zap to the next or previous channel
 Live channels and on-demand items SHALL be able to continue in Picture in Picture: from the
 player's button, and automatically when the user leaves the app while playing. Playback SHALL
 continue with sound while in Picture in Picture; returning from it SHALL show the full-screen
-player again.
+player again. Leaving the app while nothing plays SHALL NOT open a Picture in Picture window.
 
 #### Scenario: Leaving the app while watching
 - **WHEN** a channel plays full screen and the user goes to the home screen
@@ -200,6 +200,10 @@ player again.
 #### Scenario: Back from Picture in Picture
 - **WHEN** the user taps the button to return in the Picture in Picture window
 - **THEN** Fernsy opens with the player full screen, still playing
+
+#### Scenario: Leaving the app after closing the player
+- **WHEN** the user watched a channel, closed the player, and then goes to the home screen
+- **THEN** no Picture in Picture window opens
 
 ### Requirement: AirPlay on iPhone and iPad
 The player SHALL offer the system's AirPlay picker. When an AirPlay speaker is chosen the sound

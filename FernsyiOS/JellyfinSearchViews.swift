@@ -245,42 +245,52 @@ private struct Spotlight: View {
     let item: JFItem
     let canDrawAgain: Bool
     let another: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private static let padHeight: CGFloat = 440
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Color.clear
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
-                    RemoteImage(url: (model.jellyfin.backdropURL(item) ?? model.jellyfin.posterURL(item)).flatMap(URL.init(string:)), maxPixel: 1200) {
-                        ArtPlaceholder(seed: item.name)
-                    }
+        // 16:9 on iPhone; on iPad a fixed height, since 16:9 of the iPad's width fills the
+        // screen (as the Start hero). Title and buttons lie on the picture.
+        Color.clear
+            .aspectRatio(sizeClass == .regular ? nil : 16 / 9, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .frame(height: sizeClass == .regular ? Self.padHeight : nil)
+            // Cropped near the top on iPad: faces sit in the upper part of a backdrop. A few
+            // percent go at the top, as long as the picture still reaches the bottom.
+            .overlay(alignment: .top) {
+                RemoteImage(url: (model.jellyfin.backdropURL(item) ?? model.jellyfin.posterURL(item)).flatMap(URL.init(string:)), maxPixel: 1200) {
+                    ArtPlaceholder(seed: item.name)
                 }
-                .clipShape(.rect(cornerRadius: 14))
-                .overlay(alignment: .bottomLeading) {
+                .alignmentGuide(.top) { d in sizeClass == .regular ? max(0, min(d.height * 0.06, d.height - Self.padHeight)) : d[.top] }
+            }
+            .overlay {
+                LinearGradient(stops: [.init(color: .clear, location: 0.35), .init(color: .black.opacity(0.8), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("SUGGESTION").font(.caption.weight(.bold)).tracking(1.2).opacity(0.8)
                         Text(verbatim: item.name).font(.title2.bold()).lineLimit(2)
                     }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
-                    .clipShape(.rect(cornerRadius: 14))
+                    HStack(spacing: 10) {
+                        Button { model.play(.jellyfin(item)) } label: { Label("Play", systemImage: "play.fill") }
+                            .buttonStyle(ActionButtonStyle())
+                            .accessibilityIdentifier("jellyfin.spotlight.play")
+                        if canDrawAgain {
+                            Button(action: another) { Text("Another Suggestion") }
+                                .buttonStyle(ActionButtonStyle(prominent: false))
+                                .accessibilityIdentifier("jellyfin.spotlight.another")
+                        }
+                        NavigationLink(value: DetailTarget.jellyfin(item)) { Image(systemName: "info.circle") }
+                            .buttonStyle(ActionButtonStyle(prominent: false))
+                            .accessibilityIdentifier("jellyfin.spotlight.details")
+                    }
                 }
-            HStack(spacing: 10) {
-                Button { model.play(.jellyfin(item)) } label: { Label("Play", systemImage: "play.fill") }
-                    .buttonStyle(ActionButtonStyle())
-                    .accessibilityIdentifier("jellyfin.spotlight.play")
-                if canDrawAgain {
-                    Button(action: another) { Text("Another Suggestion") }
-                        .buttonStyle(ActionButtonStyle(prominent: false))
-                        .accessibilityIdentifier("jellyfin.spotlight.another")
-                }
-                NavigationLink(value: DetailTarget.jellyfin(item)) { Image(systemName: "info.circle") }
-                    .buttonStyle(ActionButtonStyle(prominent: false))
-                    .accessibilityIdentifier("jellyfin.spotlight.details")
+                .padding(14)
             }
-        }
-        .padding(.horizontal, 16)
+            .clipShape(.rect(cornerRadius: 14))
+            .padding(.horizontal, 16)
     }
 }
 
