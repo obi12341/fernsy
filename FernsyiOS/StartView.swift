@@ -228,6 +228,7 @@ private struct Hero: View {
     let resume: () -> Void
     let info: () -> Void
     @Environment(\.horizontalSizeClass) private var sizeClass
+    private static let padHeight: CGFloat = 560
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -236,8 +237,13 @@ private struct Hero: View {
             Color.clear
                 .aspectRatio(sizeClass == .regular ? nil : 4 / 3, contentMode: .fit)
                 .frame(maxWidth: .infinity)
-                .frame(height: sizeClass == .regular ? 560 : nil)
-                .overlay { RemoteImage(url: backdrop, maxPixel: 1400) { ArtPlaceholder(seed: entry.title) } }
+                .frame(height: sizeClass == .regular ? Self.padHeight : nil)
+                // Cropped near the top on iPad, as the Jellyfin suggestion: faces sit in the
+                // upper part of a backdrop.
+                .overlay(alignment: .top) {
+                    RemoteImage(url: backdrop, maxPixel: 1400) { ArtPlaceholder(seed: entry.title) }
+                        .alignmentGuide(.top) { d in sizeClass == .regular ? max(0, min(d.height * 0.06, d.height - Self.padHeight)) : d[.top] }
+                }
                 .clipped()
                 .overlay {
                     LinearGradient(stops: [.init(color: .clear, location: 0.3), .init(color: TVTheme.background, location: 1)],
