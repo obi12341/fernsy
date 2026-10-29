@@ -5,8 +5,9 @@ import FernsyPlayer
 
 /// System Picture in Picture for the engine's display layer (ios-app design 5), after the Mac
 /// app's controller without its macOS stage: iOS scales the sample-buffer source itself. It
-/// starts from the player's button or by itself when the app leaves while playing; the
-/// full-screen player closes meanwhile, "back" reopens it, closing the window stops playback.
+/// starts from the player's button or by itself when the app leaves while playing (only then:
+/// automatic start follows the engine's status, ios-pip-only-while-playing); the full-screen
+/// player closes meanwhile, "back" reopens it, closing the window stops playback.
 @MainActor
 final class PictureInPicture: NSObject, ObservableObject {
     static let shared = PictureInPicture()
@@ -17,6 +18,8 @@ final class PictureInPicture: NSObject, ObservableObject {
     private weak var engine: PlayerEngine?
     private var controller: AVPictureInPictureController?
     private var restoring = false
+    /// Playing when "back" was tapped: the full-screen player continues playing.
+    private var playingBeforeRestore = false
     private var observers: Set<AnyCancellable> = []
 
     /// Creates the controller once for the engine (the model has one engine for the app's life).
@@ -29,8 +32,14 @@ final class PictureInPicture: NSObject, ObservableObject {
         let source = AVPictureInPictureController.ContentSource(sampleBufferDisplayLayer: engine.displayLayer, playbackDelegate: self)
         let controller = AVPictureInPictureController(contentSource: source)
         controller.delegate = self
-        controller.canStartPictureInPictureAutomaticallyFromInline = true
         self.controller = controller
+        // By itself only while something plays: after the player closes the controller stays,
+        // and leaving the app would open an empty window.
+        engine.$status.map(Self.hasPlayback).removeDuplicates().sink { [weak self] playing in
+            guard let controller = self?.controller, controller.canStartPictureInPictureAutomaticallyFromInline != playing else { return }
+            controller.canStartPictureInPictureAutomaticallyFromInline = playing
+            AppLog.info(.pip, "automatic Picture in Picture \(playing ? "on" : "off")")
+        }.store(in: &observers)
         controller.publisher(for: \.isPictureInPicturePossible).receive(on: RunLoop.main)
             .sink { [weak self] in self?.isPossible = $0 }.store(in: &observers)
         // The window shows pause state, duration and live; keep it current.
@@ -52,6 +61,14 @@ final class PictureInPicture: NSObject, ObservableObject {
     var canStart: Bool {
         isPossible && engine?.lastPicture.value != nil
     }
+
+    /// Loading, playing, paused or buffering: the player has something to continue in the window.
+    nonisolated static func hasPlayback(_ status: PlayerEngine.Status) -> Bool {
+        switch status {
+        case .idle, .ended, .failed: false
+        case .loading, .playing, .paused, .buffering: true
+        }
+    }
 }
 
 extension PictureInPicture: AVPictureInPictureControllerDelegate {
@@ -69,6 +86,7 @@ extension PictureInPicture: AVPictureInPictureControllerDelegate {
                                                 restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
         MainActor.assumeIsolated {
             restoring = true
+            playingBeforeRestore = engine.map { Self.hasPlayback($0.status) && !$0.isPaused } ?? false
             PlayerPresentation.shared.inPictureInPicture = false
             AppLog.info(.pip, "back from Picture in Picture")
         }
@@ -84,8 +102,13 @@ extension PictureInPicture: AVPictureInPictureControllerDelegate {
                 AppLog.info(.pip, "Picture in Picture closed")
                 TVModel.shared.stop()
                 Orientation.landscapeOnPhone(false)
+            } else if playingBeforeRestore, let engine, engine.isPaused {
+                // Back in the app the system may have paused the window's playback on the way.
+                AppLog.info(.pip, "back from Picture in Picture: playback continues")
+                engine.setPaused(false)
             }
             restoring = false
+            playingBeforeRestore = false
         }
     }
 
@@ -99,7 +122,15 @@ extension PictureInPicture: AVPictureInPictureControllerDelegate {
 
 extension PictureInPicture: AVPictureInPictureSampleBufferPlaybackDelegate {
     nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, setPlaying playing: Bool) {
-        MainActor.assumeIsolated { engine?.setPaused(!playing) }
+        MainActor.assumeIsolated {
+            // Returning to the app is no pause (ios-app "Back from Picture in Picture").
+            if restoring && !playing {
+                AppLog.info(.pip, "pause while returning from Picture in Picture ignored")
+                return
+            }
+            AppLog.detail(.pip, playing ? "play from Picture in Picture" : "pause from Picture in Picture")
+            engine?.setPaused(!playing)
+        }
     }
 
     nonisolated func pictureInPictureControllerTimeRangeForPlayback(_ controller: AVPictureInPictureController) -> CMTimeRange {
@@ -116,7 +147,8 @@ extension PictureInPicture: AVPictureInPictureSampleBufferPlaybackDelegate {
     }
 
     nonisolated func pictureInPictureControllerIsPlaybackPaused(_ controller: AVPictureInPictureController) -> Bool {
-        MainActor.assumeIsolated { engine?.isPaused ?? false }
+        // A stopped engine keeps isPaused false; it must not read as playing.
+        MainActor.assumeIsolated { engine.map { !Self.hasPlayback($0.status) || $0.isPaused } ?? true }
     }
 
     nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, didTransitionToRenderSize newRenderSize: CMVideoDimensions) {}
