@@ -52,13 +52,13 @@ private struct Shelf: View {
                 Text(title).font(.system(size: 30, weight: .bold))
                 Text(verbatim: count).font(.system(size: 21)).foregroundStyle(TVTheme.text.opacity(0.55))
             }
-            ScrollView(.horizontal) {
+            // To the screen's edges, the first card where the page starts (tvos-rows-edge-cards).
+            EdgeToEdgeRow(margin: 90) {
                 LazyHStack(alignment: .top, spacing: 36) {
                     ForEach(recordings) { RecordingCard(recording: $0) }
                 }
                 .padding(.vertical, 20)
             }
-            .scrollClipDisabled()
         }
         .focusSection()
     }

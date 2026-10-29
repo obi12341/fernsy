@@ -178,14 +178,40 @@ struct CardRow<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        ScrollView(.horizontal) {
+        EdgeToEdgeRow(margin: margin) {
             LazyHStack(alignment: .top, spacing: 40) { content }
                 .padding(.vertical, 24)
                 .padding(.horizontal, 4)
         }
-        .contentMargins(.horizontal, margin, for: .scrollContent)
-        .scrollClipDisabled()
-        .padding(.horizontal, -margin)
+    }
+}
+
+/// A horizontal scroll view that reaches past the page margin to the screen's edges, also into
+/// the safe area where the page stops short of it, keeping its first card where the page starts.
+/// A lazy row whose scroll view ends at the safe area does not create the cards starting past it
+/// until scrolled, so the next card was missing at the right edge (tvos-rows-edge-cards).
+struct EdgeToEdgeRow<Content: View>: View {
+    /// The page's margin on each side (tvos-edge-scrolling).
+    var margin: CGFloat
+    @ViewBuilder let content: Content
+    /// The width the page gives the row, and the scroll view's width after reaching out: their
+    /// difference is how far it reached into the safe area (sizes, unlike positions, hold still
+    /// during transitions).
+    @State private var given: CGFloat = 0
+    @State private var reached: CGFloat = 0
+
+    var body: some View {
+        let side = given > 0 ? max(0, (reached - given - 2 * margin) / 2) : 0
+        ZStack(alignment: .topLeading) {
+            Color.clear.frame(height: 0)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { given = $0 }
+            ScrollView(.horizontal) { content }
+                .contentMargins(.horizontal, margin + side, for: .scrollContent)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { reached = $0 }
+                .scrollClipDisabled()
+                .padding(.horizontal, -margin)
+                .ignoresSafeArea(.container, edges: .horizontal)
+        }
     }
 }
 
