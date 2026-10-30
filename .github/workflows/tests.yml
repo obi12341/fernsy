@@ -1,5 +1,5 @@
-# Three jobs, one per part (ci-job-names): `core` runs the FernsyCore tests (see DEVELOPMENT.md ›
-# Tests and FernsyCore) on macOS, and on a tvOS simulator after building the package for tvOS;
+# Three jobs, one per part (ci-job-names): `core` runs the Fernsy Cloud worker tests and the
+# FernsyCore tests (see DEVELOPMENT.md › Tests and FernsyCore) on macOS, and on a tvOS simulator after building the package for tvOS;
 # `apple-tv` builds the Apple TV app with FFmpeg and runs its UI tests against the demo server,
 # split into 3 parallel parts (DEVELOPMENT.md › Apple TV); `ios` builds the iPhone and iPad app for the iOS simulator
 # (DEVELOPMENT.md › iPhone and iPad). On pushes to main (not for commits that
@@ -49,7 +49,11 @@ jobs:
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
 
-      - name: macOS tests and tvOS build
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Worker tests, macOS tests and tvOS build
         run: scripts/test.sh
 
       - name: tvOS simulator runtime

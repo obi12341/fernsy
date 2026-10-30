@@ -530,6 +530,16 @@
           }
         }
       }
+    },
+    "This recording is damaged and cannot be played.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Aufnahme ist beschädigt und kann nicht abgespielt werden."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

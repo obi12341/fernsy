@@ -5081,6 +5081,316 @@
           }
         }
       }
+    },
+    "Waiting to upload": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartet auf Upload"
+          }
+        }
+      }
+    },
+    "Uploading %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird hochgeladen: %@"
+          }
+        }
+      }
+    },
+    "In Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Fernsy Cloud"
+          }
+        }
+      }
+    },
+    "Retry Upload": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload erneut versuchen"
+          }
+        }
+      }
+    },
+    "Cancel Upload": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload abbrechen"
+          }
+        }
+      }
+    },
+    "Delete from Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus Fernsy Cloud löschen"
+          }
+        }
+      }
+    },
+    "Upload to Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Fernsy Cloud hochladen"
+          }
+        }
+      }
+    },
+    "Damaged cloud recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beschädigte Cloud-Aufnahme"
+          }
+        }
+      }
+    },
+    "Locked cloud recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesperrte Cloud-Aufnahme"
+          }
+        }
+      }
+    },
+    "Its details cannot be read.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihre Angaben lassen sich nicht lesen."
+          }
+        }
+      }
+    },
+    "This device does not have the key from iCloud for it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesem Gerät fehlt der Schlüssel dafür aus iCloud."
+          }
+        }
+      }
+    },
+    "Delete from Fernsy Cloud?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus Fernsy Cloud löschen?"
+          }
+        }
+      }
+    },
+    "“%@” is removed from Fernsy Cloud on all devices. A file on this Mac stays.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ wird auf allen Geräten aus Fernsy Cloud entfernt. Eine Datei auf diesem Mac bleibt erhalten."
+          }
+        }
+      }
+    },
+    "this recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "diese Aufnahme"
+          }
+        }
+      }
+    },
+    "Upload recordings to Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmen in Fernsy Cloud hochladen"
+          }
+        }
+      }
+    },
+    "Subscription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo"
+          }
+        }
+      }
+    },
+    "Storage": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicher"
+          }
+        }
+      }
+    },
+    "Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Cloud"
+          }
+        }
+      }
+    },
+    "While this is on, finished recordings are uploaded by themselves. They are encrypted on this Mac first: only your devices with the same Apple ID can play them, because the key stays in your iCloud. Without the key, for example after resetting iCloud data, cloud recordings cannot be played anymore.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solange das an ist, werden fertige Aufnahmen von selbst hochgeladen. Vorher werden sie auf diesem Mac verschlüsselt: Nur deine Geräte mit derselben Apple-ID können sie abspielen, weil der Schlüssel in deiner iCloud bleibt. Ohne den Schlüssel, etwa nach dem Zurücksetzen der iCloud-Daten, lassen sich Cloud-Aufnahmen nicht mehr abspielen."
+          }
+        }
+      }
+    },
+    "Your recordings in your own private storage, playable on iPad, iPhone and Apple TV – end-to-end encrypted, so nobody else can see them, not even mobilistics.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Aufnahmen in deinem eigenen privaten Speicher, abspielbar auf iPad, iPhone und Apple TV – Ende-zu-Ende-verschlüsselt, sodass niemand sonst sie sehen kann, auch nicht mobilistics."
+          }
+        }
+      }
+    },
+    "%@ – %@ per month": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ – %2$@ pro Monat"
+          }
+        }
+      }
+    },
+    "Subscribe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnieren"
+          }
+        }
+      }
+    },
+    "Restore Purchases": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Käufe wiederherstellen"
+          }
+        }
+      }
+    },
+    "Sign in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmelden"
+          }
+        }
+      }
+    },
+    "Manage Subscription…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo verwalten …"
+          }
+        }
+      }
+    },
+    "Delete Fernsy Cloud Data…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy-Cloud-Daten löschen …"
+          }
+        }
+      }
+    },
+    "Your subscription is linked to another Fernsy Cloud key, for example from before your iCloud data was reset. Move it here to use Fernsy Cloud with this key. Recordings under the old key cannot be read anymore and are deleted after 30 days.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Abo gehört zu einem anderen Fernsy-Cloud-Schlüssel, zum Beispiel von vor dem Zurücksetzen deiner iCloud-Daten. Zieh es hierher um, um Fernsy Cloud mit diesem Schlüssel zu nutzen. Aufnahmen mit dem alten Schlüssel lassen sich nicht mehr lesen und werden nach 30 Tagen gelöscht."
+          }
+        }
+      }
+    },
+    "Move Subscription Here": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo hierher umziehen"
+          }
+        }
+      }
+    },
+    "Delete all Fernsy Cloud data?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Fernsy-Cloud-Daten löschen?"
+          }
+        }
+      }
+    },
+    "Delete All": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle löschen"
+          }
+        }
+      }
+    },
+    "All cloud recordings are removed on all devices. Recordings on this Mac stay. Your subscription continues until you cancel it in the App Store.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Cloud-Aufnahmen werden auf allen Geräten entfernt. Aufnahmen auf diesem Mac bleiben. Dein Abo läuft weiter, bis du es im App Store kündigst."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

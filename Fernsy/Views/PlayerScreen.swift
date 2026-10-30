@@ -400,6 +400,18 @@ struct PlayerScreen: View {
         } else if case .recording(let id) = item.kind {
             let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
             engine.load(file: item.url, isGrowing: { Recorder.isGrowing(id) }, startAt: start)
+        } else if case .cloud(let id) = item.kind {
+            let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
+            Task { @MainActor in
+                do {
+                    let source = try await app.cloudSource(id)
+                    guard loadedItem == item else { return }
+                    engine.load(cloud: source, startAt: start)
+                } catch {
+                    AppLog.warning(.player, "Fernsy Cloud: cannot play \(id.prefix(8)): \(error)")
+                    engine.reportFailure(CloudModel.describe(error))
+                }
+            }
         } else if case .archive(let channelId, let start, let end) = item.kind {
             // Every seek requests the archive again from there (catch-up design 3).
             let client = app.client, zone = app.account?.serverTimeZone

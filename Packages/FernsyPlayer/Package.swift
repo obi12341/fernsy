@@ -29,6 +29,7 @@ let package = Package(
             dependencies: ["CFFShim", .product(name: "FernsyCore", package: "FernsyCore")],
             resources: [.process("Resources")]
         ),
+        .testTarget(name: "FernsyPlayerTests", dependencies: ["FernsyPlayer"]),
     ],
     swiftLanguageModes: [.v5]
 )

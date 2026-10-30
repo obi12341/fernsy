@@ -69,12 +69,12 @@ final class MCPTools {
         tool("cancel_recording", "Remove a scheduled recording. Running and finished recordings and their files are not touched.", [
             "recording_id": ["type": "string"],
         ], required: ["recording_id"], readOnly: false),
-        tool("play", "Play an item in Fernsy's player: live:<channel id> (switches channels), movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>. Never ends a running recording.", [
+        tool("play", "Play an item in Fernsy's player: live:<channel id> (switches channels), movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<Fernsy Cloud id>. Never ends a running recording.", [
             "item_id": ["type": "string"],
         ], required: ["item_id"], readOnly: false),
         tool("now_playing", "What Fernsy's player plays right now, with position, duration, remaining time, end time and paused state; for live TV how far behind live and the current show.", [:], readOnly: true),
         tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode; for Jellyfin items the audio and subtitle tracks, and for episodes the previous and next episode.", [
-            "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id> or recording:<id>"],
+            "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<id>"],
         ], required: ["item_id"], readOnly: true),
         tool("list_episodes", "Seasons of a Jellyfin series, or the episodes of one season with item ids, runtime and watched state.", [
             "series_id": ["type": "string", "description": "jellyfin:<series id>, or an episode's jellyfin:<item id>"],
@@ -390,8 +390,14 @@ final class MCPTools {
             guard let id = UUID(uuidString: parts[1]), let recording = app.recorder.recordings.first(where: { $0.id == id }),
                   recording.fileName != nil else { throw ToolError("No recording with a file and this id") }
             app.play(recording)
+        case ("cloud", 2):
+            if app.cloud.items.isEmpty { await app.cloud.refresh() }
+            guard let item = app.cloud.items.first(where: { $0.id == parts[1] }), item.meta != nil else {
+                throw ToolError("No playable Fernsy Cloud recording with this id")
+            }
+            app.play(cloud: item)
         default:
-            throw ToolError("item_id must be live:<id>, movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
+            throw ToolError("item_id must be live:<id>, movie:<id>, episode:<series>:<episode>, jellyfin:<id>, recording:<id> or cloud:<id>")
         }
         PlayerWindow.show(app)
         AppLog.info(.mcp, "play \(itemId)")
@@ -412,6 +418,7 @@ final class MCPTools {
         case .movie(let id): value["item_id"] = "movie:\(id)"
         case .episode(let id, let seriesId): value["item_id"] = "episode:\(seriesId):\(id)"
         case .recording(let id): value["item_id"] = "recording:\(id.uuidString)"
+        case .cloud(let id): value["item_id"] = "cloud:\(id)"
         case .jellyfin(let id, _, _): value["item_id"] = "jellyfin:\(id)"
         case .archive(let id, let start, _):
             value["item_id"] = "archive:\(id):\(Int(start.timeIntervalSince1970))"

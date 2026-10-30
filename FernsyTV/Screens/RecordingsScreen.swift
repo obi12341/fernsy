@@ -30,6 +30,7 @@ struct RecordingsScreen: View {
                 if !recorded.isEmpty {
                     Shelf(title: "Recorded", count: "\(recorded.count)", recordings: recorded)
                 }
+                if CloudFeature.isEnabled && model.cloud.canUseCloud { CloudShelf() }
             }
             .padding(.horizontal, 90)
             .padding(.vertical, 20)
@@ -38,6 +39,104 @@ struct RecordingsScreen: View {
         .background(TVTheme.background)
         .foregroundStyle(TVTheme.text)
         .accessibilityIdentifier("recordings.screen")
+        .task { if CloudFeature.isEnabled { await model.cloud.refresh() } }
+    }
+}
+
+/// Fernsy Cloud's recordings (add-recording-cloud): uploaded from the Mac, streamed here, without
+/// any prompt (cloud-account-from-icloud-key).
+private struct CloudShelf: View {
+    @EnvironmentObject private var model: TVModel
+
+    var body: some View {
+        let cloud = model.cloud
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Text("Fernsy Cloud").font(.system(size: 30, weight: .bold))
+                if cloud.hasAccount { Text(verbatim: "\(cloud.items.count)").font(.system(size: 21)).foregroundStyle(TVTheme.text.opacity(0.55)) }
+            }
+            if !cloud.hasAccount {
+                Text(verbatim: cloud.missingKeyText)
+                    .font(.system(size: 24)).foregroundStyle(TVTheme.secondary).frame(maxWidth: 1100, alignment: .leading)
+            } else {
+                if let note = cloud.deletionNote {
+                    Text(verbatim: note).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
+                }
+                if !cloud.hasKey && !cloud.items.isEmpty {
+                    Text("This Apple TV does not have the key for your cloud recordings yet. It comes from iCloud of the same Apple ID as on your Mac.")
+                        .font(.system(size: 22)).foregroundStyle(TVTheme.warning).frame(maxWidth: 1100, alignment: .leading)
+                }
+                if cloud.items.isEmpty {
+                    Text("No recordings in Fernsy Cloud yet. Turn on uploading in Fernsy’s settings on your Mac.")
+                        .font(.system(size: 24)).foregroundStyle(TVTheme.secondary)
+                } else {
+                    EdgeToEdgeRow(margin: 90) {
+                        LazyHStack(alignment: .top, spacing: 36) {
+                            ForEach(cloud.items) { CloudCard(item: $0) }
+                        }
+                        .padding(.vertical, 20)
+                    }
+                }
+            }
+        }
+        .focusSection()
+        .accessibilityIdentifier("recordings.cloud")
+    }
+}
+
+private struct CloudCard: View {
+    @EnvironmentObject private var model: TVModel
+    let item: CloudRecordingItem
+    @State private var confirmDelete = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                if item.meta != nil { model.play(.cloud(item)) }
+            } label: {
+                ZStack(alignment: .topLeading) {
+                    LinearGradient(colors: CardImage.colors(item.id.unicodeScalars.reduce(0) { $0 + Int($1.value) }), startPoint: .top, endPoint: .bottom)
+                    Image(systemName: item.meta == nil ? "lock.icloud" : "icloud")
+                        .font(.system(size: 30, weight: .semibold)).padding(16)
+                    let share = model.watchedShare(item)
+                    if share > 0 {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(.white.opacity(0.3))
+                                Capsule().fill(.white).frame(width: geo.size.width * share)
+                            }
+                        }
+                        .frame(height: 6)
+                        .padding(14)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
+                }
+                .frame(width: 340, height: 191)
+                .opacity(item.meta == nil ? 0.6 : 1)
+            }
+            .buttonStyle(.card)
+            .contextMenu {
+                Button("Delete from Fernsy Cloud", systemImage: "trash", role: .destructive) { confirmDelete = true }
+            }
+            .accessibilityIdentifier("recording.cloud.\(item.id)")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: item.meta?.title ?? String(localized: "Locked cloud recording")).font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                Text(verbatim: detail).font(.system(size: 19)).lineLimit(1).foregroundStyle(TVTheme.text.opacity(0.6))
+            }
+            .frame(width: 340, alignment: .leading)
+            .padding(.top, -6)
+        }
+        .confirmationDialog("Delete from Fernsy Cloud?", isPresented: $confirmDelete) {
+            Button("Delete", role: .destructive) { Task { try? await model.cloud.delete(item) } }
+        } message: {
+            Text("“\(item.meta?.title ?? "")” is removed from Fernsy Cloud on all devices.")
+        }
+    }
+
+    private var detail: String {
+        guard let meta = item.meta else { return item.isDamaged ? String(localized: "Damaged") : String(localized: "Key missing on this device") }
+        let time = meta.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+        return String(localized: "\(meta.channel) · \(time) · \(Int(meta.duration / 60)) min")
     }
 }
 

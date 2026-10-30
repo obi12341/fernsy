@@ -600,6 +600,166 @@
           }
         }
       }
+    },
+    "Waiting for the network": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartet auf das Netzwerk"
+          }
+        }
+      }
+    },
+    "Not enough Fernsy Cloud storage: %@ needed, %@ free.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht genug Speicher in Fernsy Cloud: %@ benötigt, %@ frei."
+          }
+        }
+      }
+    },
+    "Fernsy Cloud needs an active subscription.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Cloud braucht ein aktives Abo."
+          }
+        }
+      }
+    },
+    "The subscription is not available right now.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Abo ist gerade nicht verfügbar."
+          }
+        }
+      }
+    },
+    "Fernsy Cloud cannot be reached.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Cloud ist nicht erreichbar."
+          }
+        }
+      }
+    },
+    "Fernsy Cloud is not ready yet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Cloud ist noch nicht bereit."
+          }
+        }
+      }
+    },
+    "Your subscription has ended. Cloud recordings are deleted in %lld days unless you renew.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Abo ist abgelaufen. Die Cloud-Aufnahmen werden in %lld Tagen gelöscht, wenn du es nicht verlängerst."
+          }
+        }
+      }
+    },
+    "Active, renews %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv, verlängert sich am %@"
+          }
+        }
+      }
+    },
+    "Active": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv"
+          }
+        }
+      }
+    },
+    "Ended %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abgelaufen am %@"
+          }
+        }
+      }
+    },
+    "No subscription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Abo"
+          }
+        }
+      }
+    },
+    "%@ of %@ used": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ von %2$@ belegt"
+          }
+        }
+      }
+    },
+    "This device does not have the key for Fernsy Cloud yet. It comes from iCloud of the same Apple ID.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesem Gerät fehlt noch der Schlüssel für Fernsy Cloud. Er kommt aus der iCloud derselben Apple-ID."
+          }
+        }
+      }
+    },
+    "Fernsy Cloud does not accept this device’s key. Please contact support.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Cloud nimmt den Schlüssel dieses Geräts nicht an. Bitte wende dich an den Support."
+          }
+        }
+      }
+    },
+    "iCloud cannot be reached, so Fernsy Cloud is not available right now.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud ist nicht erreichbar, deshalb ist Fernsy Cloud gerade nicht verfügbar."
+          }
+        }
+      }
+    },
+    "The App Store did not confirm the subscription. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der App Store hat das Abo nicht bestätigt. Bitte versuch es noch einmal."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

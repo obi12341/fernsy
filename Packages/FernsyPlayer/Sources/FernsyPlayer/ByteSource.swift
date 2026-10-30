@@ -3,7 +3,8 @@ import FernsyCore
 import Foundation
 
 /// What PlaybackSession reads from: the network (HTTPByteSource), the timeshift buffer of
-/// a tuned channel (BufferByteSource) or a recording on disk (FileByteSource).
+/// a tuned channel (BufferByteSource), a recording on disk (FileByteSource) or in Fernsy Cloud
+/// (CloudByteSource).
 public protocol ByteSource: AnyObject {
     var isCancelled: Bool { get }
     var supportsRanges: Bool { get }
@@ -21,6 +22,12 @@ public protocol ByteSource: AnyObject {
     func read(into ptr: UnsafeMutablePointer<UInt8>, size: Int) -> Int32
     func seek(offset: Int64, whence: Int32) -> Int64
     func reportPlaybackAhead(_ seconds: Double)
+    /// Why reading failed, when the source knows better than "Connection lost" (a damaged cloud recording).
+    var failureMessage: String? { get }
+}
+
+extension ByteSource {
+    public var failureMessage: String? { nil }
 }
 
 extension HTTPByteSource: ByteSource {}

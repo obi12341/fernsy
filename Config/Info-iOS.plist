@@ -11,5 +11,8 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<!-- Fernsy Cloud shows only with FERNSY_CLOUD = YES (add-recording-cloud design H). -->
+	<key>FernsyCloud</key>
+	<string>$(FERNSY_CLOUD)</string>
 </dict>
 </plist>
