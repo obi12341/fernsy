@@ -84,6 +84,8 @@ final class TVModel: ObservableObject {
     var libraryLoading = false
     /// The film, episode or Jellyfin item in the player, nil when none plays.
     @Published var playingVOD: VODItem?
+    /// Fernsy Cloud (add-recording-cloud): subscription, account and cloud recordings.
+    let cloud = CloudModel()
     var jellyfinPlayback: JellyfinPlayback?
     var archivePlayback: ArchivePlayback?
     /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory.
@@ -176,6 +178,7 @@ final class TVModel: ObservableObject {
             signingInFromICloud = true
         }
         startSync()
+        if CloudFeature.isEnabled { Task { await cloud.start() } }
         startPathMonitor()
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_FRAMESTATS"] == "1" { FrameStats.shared.start() }

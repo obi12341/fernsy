@@ -54,6 +54,8 @@ struct PlayItem: Equatable {
         case movie(id: Int)
         case episode(id: String, seriesId: Int)
         case recording(id: UUID)
+        /// A recording in Fernsy Cloud, by its cloud id.
+        case cloud(id: String)
         /// A Jellyfin film or episode, started at `startAt` seconds.
         case jellyfin(itemId: String, startAt: Double, seriesId: String? = nil)
         /// A past show from the channel's archive (catch-up).
@@ -76,6 +78,7 @@ struct PlayItem: Equatable {
         case .movie(let id): return "movie.\(id)"
         case .episode(let id, _): return "episode.\(id)"
         case .recording(let id): return "recording.\(id.uuidString)"
+        case .cloud(let id): return "cloud.\(id)"
         case .jellyfin: return nil // resume positions live on the server
         case .archive: return nil  // archives expire within days
         }
@@ -88,6 +91,7 @@ struct PlayItem: Equatable {
         case .movie(let id): return "film \(id)"
         case .episode(let id, _): return "episode \(id)"
         case .recording: return "recording"
+        case .cloud: return "cloud recording"
         case .jellyfin(let id, let startAt, _): return "Jellyfin item \(id)\(startAt > 0 ? " at \(Int(startAt)) s" : "")"
         case .archive(let id, let start, _): return "archive of channel \(id) from \(start.formatted(date: .abbreviated, time: .shortened))"
         }
@@ -226,6 +230,12 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
+    /// Fernsy Cloud (add-recording-cloud): subscription, account, cloud recordings, uploads.
+    let cloud = CloudModel()
+    private(set) lazy var cloudUploads = CloudUploadQueue(api: cloud.client, keys: cloud.keys, stateURL: CloudUploadQueue.defaultStateURL())
+    var cloudRecordingWatch: AnyCancellable?
+    /// Recordings the automatic upload has seen finish (each is queued at most once).
+    var cloudAutoQueued: Set<UUID> = []
     /// Held against idle sleep for recordings (`keepAwake(reason:)`).
     var recordingActivity: NSObjectProtocol?
     /// The local MCP server (Settings › Assistenten); created after launch.
@@ -315,6 +325,7 @@ final class AppModel: ObservableObject {
         loadVisibility()
         if credentials == nil && jellyfin.session == nil && logins.isActive { signingInFromICloud = true }
         startSync()
+        startCloud()
     }
 
     private func startPathMonitor() {

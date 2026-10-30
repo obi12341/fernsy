@@ -53,6 +53,12 @@ struct SettingsScreen: View {
                             SettingsRow(title: Text("Recordings"), value: Text("Before \(padBefore) · After \(padAfter) min"))
                         }
                         .accessibilityIdentifier("settings.recordings")
+                        if CloudFeature.isEnabled {
+                            NavigationLink { CloudSettingsScreen() } label: {
+                                SettingsRow(title: Text(verbatim: "Fernsy Cloud"), value: Text(verbatim: cloudSummary))
+                            }
+                            .accessibilityIdentifier("settings.cloud")
+                        }
                         NavigationLink { ICloudSettingsScreen() } label: {
                             SettingsRow(title: Text("iCloud"), value: Text(model.iCloudAvailable ? (syncChoices ? "On" : "Off") : "Not Available"))
                         }
@@ -85,6 +91,11 @@ struct SettingsScreen: View {
         default: String(localized: "subtitles \(LanguageChoice.name(subtitles))")
         }
         return "\(audio) · \(subs)"
+    }
+
+    private var cloudSummary: String {
+        if let account = model.cloud.account, model.cloud.hasAccount { return CloudModel.stateText(account) }
+        return model.cloud.hasSubscription ? String(localized: "Active") : String(localized: "No subscription")
     }
 
     private func header(_ title: LocalizedStringKey) -> some View {
@@ -344,5 +355,72 @@ enum LanguageChoice {
 
     static func name(_ code: String) -> String {
         Locale.current.localizedString(forLanguageCode: code)?.capitalized ?? code
+    }
+}
+
+/// Settings › Fernsy Cloud (add-recording-cloud, cloud-account-from-icloud-key): the offer only
+/// when a Mac with Fernsy is known in iCloud, otherwise a note; with a subscription the account,
+/// moving and deleting. No sign-in. This device only plays; uploads come from the Mac.
+private struct CloudSettingsScreen: View {
+    @EnvironmentObject private var model: TVModel
+    @State private var confirmDeleteAll = false
+
+    var body: some View {
+        let cloud = model.cloud
+        SettingsPage(title: "Fernsy Cloud") {
+            Text("Your Mac’s recordings in your own private storage, played here – end-to-end encrypted, so nobody else can see them, not even mobilistics.")
+                .font(.system(size: 24)).foregroundStyle(TVTheme.secondary).padding(.bottom, 10)
+            if !cloud.canUseCloud {
+                if cloud.mayOffer {
+                    if let offer = cloud.offer {
+                        Text(verbatim: "\(offer.name) · \(offer.price)").font(.system(size: 26, weight: .semibold))
+                    }
+                    Button { Task { await cloud.purchase() } } label: { SettingsRow(title: Text("Subscribe")) }
+                        .accessibilityIdentifier("cloud.subscribe")
+                } else if cloud.macPresence == .unavailable {
+                    Text("Fernsy Cloud needs iCloud. Sign in to iCloud with the same Apple ID as on your Mac.")
+                        .font(.system(size: 22)).foregroundStyle(TVTheme.secondary)
+                } else if cloud.macPresence == .unknown {
+                    Text("Fernsy on your Mac records, and Fernsy Cloud brings the recordings here. Install Fernsy on a Mac with the same Apple ID to use it.")
+                        .font(.system(size: 22)).foregroundStyle(TVTheme.secondary)
+                        .accessibilityIdentifier("cloud.needsMac")
+                }
+                Button { Task { await cloud.restore() } } label: { SettingsRow(title: Text("Restore Purchases")) }
+            } else {
+                if let account = cloud.account, cloud.hasAccount {
+                    SettingsRow(title: Text("Subscription"), value: Text(verbatim: CloudModel.stateText(account)))
+                    SettingsRow(title: Text("Storage"), value: Text(verbatim: CloudModel.storageText(account)))
+                    if let note = cloud.deletionNote {
+                        Text(verbatim: note).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
+                    }
+                }
+                if cloud.canMoveSubscription {
+                    Text("Your subscription is linked to another Fernsy Cloud key, for example from before your iCloud data was reset. Move it here to use Fernsy Cloud with this key. Recordings under the old key cannot be read anymore and are deleted after 30 days.")
+                        .font(.system(size: 22)).foregroundStyle(TVTheme.warning)
+                    Button { Task { await cloud.moveSubscription() } } label: { SettingsRow(title: Text("Move Subscription Here")) }
+                        .accessibilityIdentifier("cloud.move")
+                }
+                if cloud.hasAccount {
+                    Button(role: .destructive) { confirmDeleteAll = true } label: { SettingsRow(title: Text("Delete Fernsy Cloud Data")) }
+                        .accessibilityIdentifier("cloud.deleteAll")
+                }
+                // tvOS has no subscription sheet: name the place instead.
+                Text("To cancel the subscription, open Settings › Users and Accounts › your account › Subscriptions on this Apple TV.")
+                    .font(.system(size: 20)).foregroundStyle(TVTheme.secondary)
+            }
+            if case .failed(let message) = cloud.phase {
+                Text(verbatim: message).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
+            }
+        }
+        .confirmationDialog("Delete all Fernsy Cloud data?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
+            Button("Delete All", role: .destructive) { Task { try? await cloud.deleteCloudData() } }
+        } message: {
+            Text("All cloud recordings are removed on all devices. Recordings on your Mac stay. Your subscription continues until you cancel it.")
+        }
+        .task {
+            await cloud.refreshMacPresence()
+            await cloud.refreshSubscription()
+            await cloud.refresh()
+        }
     }
 }

@@ -9,6 +9,8 @@ enum VODItem: Equatable {
     case episode(Episode, Series)
     case jellyfin(JFItem)
     case archive(EPGEntry, LiveChannel)
+    /// A recording in Fernsy Cloud (add-recording-cloud), streamed and decrypted.
+    case cloud(CloudRecordingItem)
 
     static func == (a: VODItem, b: VODItem) -> Bool {
         switch (a, b) {
@@ -16,6 +18,7 @@ enum VODItem: Equatable {
         case let (.episode(x, _), .episode(y, _)): x == y
         case let (.jellyfin(x), .jellyfin(y)): x == y
         case let (.archive(x, c), .archive(y, d)): x.start == y.start && c.id == d.id
+        case let (.cloud(x), .cloud(y)): x.id == y.id
         default: false
         }
     }
@@ -26,6 +29,7 @@ enum VODItem: Equatable {
         case .episode(_, let series): series.name
         case .jellyfin(let item): item.seriesName ?? item.name
         case .archive(let show, _): show.title
+        case .cloud(let item): item.meta?.title ?? "Fernsy Cloud"
         }
     }
 
@@ -33,6 +37,8 @@ enum VODItem: Equatable {
         switch self {
         case .archive(let show, let channel):
             "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))"
+        case .cloud(let item):
+            item.meta.map { "\($0.channel) · \($0.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))" }
         case .movie: nil
         case .episode(let episode, _): "S\(episode.season) F\(episode.number) · \(episode.title)"
         case .jellyfin(let item):
@@ -45,6 +51,7 @@ enum VODItem: Equatable {
         switch self {
         case .movie(let movie): ResumeStore.movieKey(movie.id)
         case .episode(let episode, _): "episode.\(episode.id)"
+        case .cloud(let item): "cloud.\(item.id)"
         case .jellyfin, .archive: nil   // archives expire within days
         }
     }
@@ -269,6 +276,18 @@ extension TVModel {
             }
             archivePlayback = playback
             playback.play()
+        case .cloud(let cloudItem):
+            let start = fromStart ? 0 : resume.position(item.resumeKey ?? "")
+            Task { @MainActor in
+                do {
+                    let source = try await cloudSource(cloudItem)
+                    guard playingVOD == item else { return }
+                    engine.load(cloud: source, startAt: start)
+                } catch {
+                    AppLog.warning(.player, "Fernsy Cloud: cannot play \(cloudItem.id.prefix(8)): \(error)")
+                    engine.reportFailure(CloudModel.describe(error))
+                }
+            }
         }
         AppLog.info(.player, "play \(item.title)")
     }

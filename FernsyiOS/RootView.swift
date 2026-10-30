@@ -42,9 +42,10 @@ struct RootView: View {
 }
 
 /// The tabs (ios-app "Navigation"): a tab bar on iPhone, a sidebar-capable tab bar on iPad.
-/// Tabs whose source is not signed in or switched off are left out; no Recordings tab.
+/// Tabs whose source is not signed in or switched off are left out; Recordings shows Fernsy
+/// Cloud's recordings for subscribers.
 struct MainTabView: View {
-    enum Tab: Hashable { case start, live, films, series, jellyfin, search, settings }
+    enum Tab: Hashable { case start, live, films, series, jellyfin, recordings, search, settings }
 
     @EnvironmentObject private var model: TVModel
     @SceneStorage("tab") private var selection: Tab = .start
@@ -75,6 +76,12 @@ struct MainTabView: View {
             if jellyfin {
                 SwiftUI.Tab("Jellyfin", systemImage: "play.rectangle.on.rectangle", value: Tab.jellyfin) {
                     NavigationStack { JellyfinView() }
+                }
+            }
+            // Fernsy Cloud's recordings, for subscribers (add-recording-cloud).
+            if CloudFeature.isEnabled && model.cloud.canUseCloud {
+                SwiftUI.Tab("Recordings", systemImage: "record.circle", value: Tab.recordings) {
+                    NavigationStack { CloudRecordingsView() }
                 }
             }
             // An iPhone shows five tabs at most: there Settings opens from Start's gear.
@@ -109,6 +116,7 @@ extension MainTabView.Tab: RawRepresentable {
         case "films": self = .films
         case "series": self = .series
         case "jellyfin": self = .jellyfin
+        case "recordings": self = .recordings
         case "search": self = .search
         case "settings": self = .settings
         default: return nil
@@ -122,6 +130,7 @@ extension MainTabView.Tab: RawRepresentable {
         case .films: "films"
         case .series: "series"
         case .jellyfin: "jellyfin"
+        case .recordings: "recordings"
         case .search: "search"
         case .settings: "settings"
         }

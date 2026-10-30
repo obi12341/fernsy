@@ -15,9 +15,10 @@ struct RecordingsView: View {
         let finished = all.filter { !$0.isUpcomingOrRunning }.sorted { $0.start > $1.start }
         let showUpcoming = filter == allCategoryID || filter == "upcoming"
         let showFinished = filter == allCategoryID || filter == "done"
+        let cloudOnly = showFinished ? cloudOnlyItems(local: all) : []
 
         Group {
-            if (showUpcoming ? running.count + scheduled.count : 0) + (showFinished ? finished.count : 0) == 0 {
+            if (showUpcoming ? running.count + scheduled.count : 0) + (showFinished ? finished.count : 0) + cloudOnly.count == 0 {
                 ContentUnavailableView {
                     Label("No Recordings", systemImage: "record.circle")
                 } description: {
@@ -34,6 +35,9 @@ struct RecordingsView: View {
                     if showFinished && !finished.isEmpty {
                         Section("Recorded") { ForEach(finished) { RecordingRow(recording: $0) } }
                     }
+                    if !cloudOnly.isEmpty {
+                        Section("In Fernsy Cloud") { ForEach(cloudOnly) { CloudRecordingRow(item: $0) } }
+                    }
                 }
             }
         }
@@ -47,6 +51,7 @@ struct RecordingsView: View {
                 .background(.bar)
         }
         .navigationTitle("Recordings")
+        .task { if CloudFeature.isEnabled && app.cloud.hasAccount { await app.cloud.refresh() } }
         .toolbar {
             ToolbarItem {
                 Button {
@@ -61,10 +66,21 @@ struct RecordingsView: View {
     }
 }
 
+extension RecordingsView {
+    /// Cloud recordings without a local entry (uploaded from another Mac, or the entry was
+    /// removed). An entry whose file is gone plays from the cloud in its own row.
+    func cloudOnlyItems(local: [Recording]) -> [CloudRecordingItem] {
+        guard CloudFeature.isEnabled, app.cloud.canUseCloud else { return [] }
+        let present = Set(local.compactMap { app.cloudUploads.uploaded[$0.id] })
+        return app.cloud.items.filter { !present.contains($0.id) }
+    }
+}
+
 struct RecordingRow: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var recorder: Recorder
     let recording: Recording
+    @State private var confirmCloudDelete = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -105,6 +121,7 @@ struct RecordingRow: View {
                     .foregroundStyle(.secondary)
                     .help(gaps.help)
                 }
+                if CloudFeature.isEnabled { CloudRowStatus(recording: recording) }
                 if recording.status == .recording {
                     TimelineView(.periodic(from: .now, by: 5)) { context in
                         ProgressBar(value: progress(at: context.date), tint: Theme.record)
@@ -118,12 +135,13 @@ struct RecordingRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { if canPlay { app.play(recording) } }
+        .onTapGesture(count: 2) { if canPlay { play() } }
         .contextMenu {
-            if canPlay { Button("Play") { app.play(recording) } }
+            if canPlay { Button("Play") { play() } }
             if let url = recorder.fileURL(recording), FileManager.default.fileExists(atPath: url.path) {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
             }
+            CloudRowMenu(recording: recording, confirmDelete: $confirmCloudDelete)
             Divider()
             switch recording.status {
             case .recording: Button("Stop Recording") { recorder.stop(recording.id) }
@@ -131,12 +149,30 @@ struct RecordingRow: View {
             default: Button("Move to Trash", role: .destructive) { recorder.delete(recording.id) }
             }
         }
+        .cloudDeleteConfirmation(isPresented: $confirmCloudDelete, title: recording.title) {
+            guard let cloudId = app.cloudUploads.uploaded[recording.id],
+                  let item = app.cloud.items.first(where: { $0.id == cloudId }) else { return }
+            try? await app.cloud.delete(item)
+            app.cloudUploads.forgetUploaded(cloudId: cloudId)
+        }
     }
 
-    private var canPlay: Bool {
+    private var canPlay: Bool { hasFile || cloudItem != nil }
+
+    private var hasFile: Bool {
         guard recording.status == .recording || recording.status == .done || recording.status == .failed,
               let url = recorder.fileURL(recording) else { return false }
         return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    /// The cloud copy, played when the local file is gone (add-recording-cloud).
+    private var cloudItem: CloudRecordingItem? {
+        guard CloudFeature.isEnabled, let id = app.cloudUploads.uploaded[recording.id] else { return nil }
+        return app.cloud.items.first { $0.id == id && $0.meta != nil }
+    }
+
+    private func play() {
+        if hasFile { app.play(recording) } else if let cloudItem { app.play(cloud: cloudItem) }
     }
 
     @ViewBuilder
@@ -153,8 +189,14 @@ struct RecordingRow: View {
     @ViewBuilder
     private var actions: some View {
         HStack(spacing: 8) {
+            if CloudFeature.isEnabled && app.cloudUploadEnabled && app.cloud.canUpload && AppModel.isUploadable(recording)
+                && !app.queuedOrUploaded(recording) {
+                Button("Upload to Fernsy Cloud", systemImage: "icloud.and.arrow.up") { app.uploadToCloud(recording) }
+                    .labelStyle(.iconOnly)
+                    .help("Upload to Fernsy Cloud")
+            }
             if canPlay {
-                Button("Play", systemImage: "play.fill") { app.play(recording) }
+                Button("Play", systemImage: "play.fill") { play() }
                     .labelStyle(.iconOnly)
                     .help("Play")
             }

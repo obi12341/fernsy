@@ -49,8 +49,8 @@ public final class PlaybackSession {
         case tuner(TunerOutput)
         /// A tuned channel's timeshift buffer. Start position -1 = live edge.
         case buffer(TimeshiftBuffer)
-        /// A recording on disk.
-        case file(FileByteSource)
+        /// A recording on disk or in Fernsy Cloud: seekable, not live.
+        case file(ByteSource)
     }
 
     public enum Event {
@@ -451,7 +451,7 @@ public final class PlaybackSession {
                 }
                 if ret != ffs_error_eof() && fmt.pointee.pb?.pointee.eof_reached == 0 {
                     // Network error mid-file: surface it rather than pretending we ended.
-                    emit(.failed(String(localized: "Connection lost", bundle: .module), retry: false))
+                    emit(.failed(source.failureMessage ?? String(localized: "Connection lost", bundle: .module), retry: false))
                     break
                 }
                 markEOF()

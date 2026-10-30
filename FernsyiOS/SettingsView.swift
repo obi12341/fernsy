@@ -35,6 +35,10 @@ struct SettingsView: View {
             Section("App") {
                 NavigationLink { PlaybackSettingsView() } label: { row(Text("Playback"), Text(playbackSummary)) }
                     .accessibilityIdentifier("settings.playback")
+                if CloudFeature.isEnabled {
+                    NavigationLink { CloudSettingsView() } label: { row(Text(verbatim: "Fernsy Cloud"), Text(verbatim: cloudSummary)) }
+                        .accessibilityIdentifier("settings.cloud")
+                }
                 NavigationLink { ICloudSettingsView() } label: {
                     row(Text("iCloud"), Text(model.iCloudAvailable ? (syncChoices ? "On" : "Off") : "Not Available"))
                 }
@@ -66,6 +70,11 @@ struct SettingsView: View {
         default: String(localized: "subtitles \(LanguageChoice.name(subtitles))")
         }
         return "\(audio) · \(subs)"
+    }
+
+    private var cloudSummary: String {
+        if let account = model.cloud.account, model.cloud.hasAccount { return CloudModel.stateText(account) }
+        return model.cloud.hasSubscription ? String(localized: "Active") : String(localized: "No subscription")
     }
 
     private func row(_ title: Text, _ value: Text, dot: Color? = nil) -> some View {

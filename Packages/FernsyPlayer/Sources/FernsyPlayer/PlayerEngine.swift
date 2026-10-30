@@ -332,6 +332,19 @@ public final class PlayerEngine: ObservableObject {
         start(url: url, mode: .file(FileByteSource(url: url, isGrowing: isGrowing)), startAt: startAt)
     }
 
+    /// A Fernsy Cloud recording, streamed and decrypted by `source` (add-recording-cloud).
+    public func load(cloud source: CloudByteSource, startAt: Double = 0) {
+        trackRequest = .preferences(trackPreferences)
+        detachTuner()
+        external = nil
+        externalCues = nil
+        reconnectAttempts = 0
+        restarts = 0
+        recoveries = []
+        bufferHistory.reset()
+        start(url: CloudByteSource.itemURL(source.recordingId), mode: .file(source), startAt: startAt)
+    }
+
     /// Live TV through the channel's tuner: starts at the live edge of its timeshift buffer.
     public func load(tuner: LiveTuner) {
         trackRequest = .preferences(trackPreferences)

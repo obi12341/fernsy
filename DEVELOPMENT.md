@@ -436,6 +436,14 @@ of `iCloud.<bundle id>`; Jellyfin sessions never sync.
 - **CloudKit schema.** Debug builds create the record type `Login` in the Development
   environment on first save. Before a release uses it, deploy the schema to Production in the
   CloudKit console (container `iCloud.de.mobilistics.fernsy`, "Deploy Schema Changes").
+  Debug builds use the container of `de.mobilistics.fernsy.dev`, so a type they create never
+  reaches the release container: create it there by hand in Development, then deploy.
+  Fernsy Cloud's key is the record type `CloudKey` with the encrypted bytes field `key`
+  (record name `cloud.key`, no index); without it in Production the first purchase or upload
+  fails with "Cannot create new type CloudKey in production schema" (created 2026-10-30). The Mac
+  marker is the record type `CloudMac` with the Date/Time field `seenAt` (record name
+  `cloud.mac`, no index); without it the Mac logs "Mac marker not saved" and other devices say
+  that no Mac is known.
 - **Test runs.** Keychain-less runs (`FERNSY_NO_KEYCHAIN`, UI tests) sync nothing unless
   `IPTV_SYNC=1`, so tests never touch the developer's iCloud. Apple TV debug builds:
   `IPTV_TESTDEFAULTS=<key>=<value>,…` changes settings at launch as if made there. Both apps'
@@ -449,6 +457,47 @@ of `iCloud.<bundle id>`; Jellyfin sessions never sync.
   `ubiquityIdentityToken` is nil on tvOS (no iCloud Drive); availability comes from
   `CKContainer.accountStatus()`. The key-value store's keys are limited to 64 bytes (account
   values use a hash of the account key).
+
+### Fernsy Cloud
+
+Private, end-to-end encrypted storage for recordings (add-recording-cloud,
+cloud-account-from-icloud-key; specs `recording-cloud`, `cloud-server`). The Mac encrypts and
+uploads finished recordings, every app streams them. There is no sign-in: the account id and its
+access secret are derived from the cloud key in iCloud (`CloudAccountKey.accountId`,
+`accessSecret`, HKDF), the server keeps only a hash of the secret, and a purchase carries the
+account id as `appAccountToken`. Any device may create the key when subscribing; the Mac writes
+the marker `cloud.mac` at launch, and iPad, iPhone and Apple TV offer the subscription only when
+it exists. Server: `cloud-server/` (routes, secrets, deploy in its README). App code:
+`FernsyCore/Cloud*.swift` (format `FCR1`, key, client, list, upload queue, `CloudModel`),
+`FernsyPlayer/CloudByteSource.swift` (decrypts while streaming), the Mac's
+`Recording/MacCloud.swift` and `Views/CloudViews.swift`, the Apple TV's `RecordingsScreen`
+and `SettingsScreen`, iOS's `CloudViews.swift`.
+
+- **Hidden until launch.** Cloud UI shows only with the build setting `FERNSY_CLOUD=YES`
+  (Info.plist key `FernsyCloud`, Mac and iOS so far; the Apple TV's Info-TV.plist still needs the
+  key) or, in debug builds, with `IPTV_CLOUD`. App Store builds only: IAP does not work in the DMG.
+- **Debug switches.** `IPTV_CLOUD=<server URL>` picks the server (development:
+  `https://fernsy-cloud-dev.mobilistics.workers.dev`), `IPTV_CLOUDTOKEN=<dev token>` uses the
+  development server's dev user instead of a key-derived account and without a purchase.
+  `IPTV_CLOUDKEY=local` keeps the account key in the keychain only (no iCloud, simulators);
+  `IPTV_CLOUDKEY=<base64 key JSON>` uses that key in memory. With either, `IPTV_CLOUDMAC=0`
+  answers "no Mac known" (default: known), so the no-Mac note shows instead of the offer.
+  `IPTV_TESTCLOUDDELETE=1` opens the Mac's "Delete all Fernsy Cloud data?" confirmation. The dev user's state: `POST /v1/dev/account
+  {"state":"none|active|ended","endedDaysAgo":10,"quotaBytes":…}` with `Authorization: Dev …`.
+- **Mac run.** `scripts/dev-run.sh IPTV_CLOUD=… IPTV_CLOUDTOKEN=… IPTV_CLOUDKEY=local
+  IPTV_TESTRECORD=101:5:70` and `defaults write ~/Library/Containers/de.mobilistics.fernsy.dev/Data/Library/Preferences/de.mobilistics.fernsy.dev cloud.uploadEnabled -bool true`:
+  the test recording uploads by itself when it ends ("Fernsy Cloud: uploaded …" in the log).
+  MCP `play` takes `cloud:<id>`.
+- **Tests.** `FernsyCoreTests/Cloud*Tests` and `FernsyPlayer`'s `CloudByteSourceTests` run
+  offline. `CloudClientTests/liveDevelopmentServer` runs against the development server with
+  `IPTV_CLOUD` and `IPTV_CLOUDTOKEN` set. The UI tests `CloudRecordingsUITests` (Apple TV, iOS)
+  need `TEST_RUNNER_IPTV_CLOUD`, `TEST_RUNNER_IPTV_CLOUDTOKEN`, `TEST_RUNNER_IPTV_CLOUDKEY` and
+  `TEST_RUNNER_FERNSY_CLOUD_FIXTURE_ID`, and skip without them (CI). The fixture is uploaded once
+  with `FERNSY_CLOUD_FIXTURE=<demo live.ts> IPTV_CLOUDKEY=<key> swift test --filter
+  CloudClientTests/uploadUITestFixture`, which prints its id.
+- **StoreKit.** `Config/FernsyCloud.storekit` has the subscription
+  `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
+  Options › StoreKit Configuration.
 
 ### Apple TV
 

@@ -1,0 +1,64 @@
+{
+  "identifier" : "7A1C2B6E",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "B8YT7FNB66",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "de_DE",
+    "_storefront" : "DEU",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "5C3E9A10",
+      "localizations" : [
+
+      ],
+      "name" : "Fernsy Cloud",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "9F4D2E71",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Private, end-to-end encrypted storage for your recordings",
+              "displayName" : "Fernsy Cloud",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "Privater, Ende-zu-Ende-verschlüsselter Speicher für deine Aufnahmen",
+              "displayName" : "Fernsy Cloud",
+              "locale" : "de"
+            }
+          ],
+          "productID" : "de.mobilistics.fernsy.cloud.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Fernsy Cloud monthly",
+          "subscriptionGroupID" : "5C3E9A10",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Runs the FernsyCore tests on macOS and builds the package for tvOS (see DEVELOPMENT.md ›
-# Tests and FernsyCore).
+# Runs the Fernsy Cloud worker tests (cloud-server/test, Node 24), the FernsyCore tests on
+# macOS and builds the package for tvOS (see DEVELOPMENT.md › Tests and FernsyCore).
 #
 #   scripts/test.sh             # macOS tests + tvOS build
 #   scripts/test.sh --tvos-sim  # also run the tests on a tvOS simulator (needs the tvOS runtime)
@@ -9,6 +9,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# The worker's tests use only Node's built-ins (node:test, node:sqlite, WebCrypto).
+if command -v node > /dev/null; then
+    echo "▸ node --test cloud-server/test"
+    mkdir -p "$ROOT/build"
+    node --test "$ROOT"/cloud-server/test/*.test.js > "$ROOT/build/cloud-server-tests.log" 2>&1 \
+        || { cat "$ROOT/build/cloud-server-tests.log"; exit 1; }
+else
+    echo "▸ skipping cloud-server tests: node is not installed"
+fi
+
 cd "$ROOT/Packages/FernsyCore"
 DD="$ROOT/build/core"
 

@@ -559,6 +559,7 @@ private struct RecordingSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            if CloudFeature.isEnabled { CloudSettingsSection() }
             Section {
                 Toggle("Show in menu bar", isOn: $showsMenuBarItem)
                 Toggle("Open at Login", isOn: Binding(
