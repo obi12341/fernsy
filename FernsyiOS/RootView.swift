@@ -12,7 +12,7 @@ struct RootView: View {
             // The iCloud launch screen first: it stays until the channels are loaded (icloud-auto-signin).
             if model.signingInFromICloud {
                 ICloudSignInView().transition(.opacity)
-            } else if model.signIn == .signedIn || !model.channels.isEmpty || model.jellyfin.session != nil {
+            } else if model.signIn == .signedIn || model.signIn == .offline || !model.channels.isEmpty || model.jellyfin.session != nil {
                 MainTabView().transition(.opacity)
             } else if model.signIn == .signingIn && model.startedWithAccount {
                 ProgressView("Signing in …").frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -78,8 +78,9 @@ struct MainTabView: View {
                     NavigationStack { JellyfinView() }
                 }
             }
-            // Fernsy Cloud's recordings, for subscribers (add-recording-cloud).
-            if CloudFeature.isEnabled && model.cloud.canUseCloud {
+            // Fernsy Cloud's recordings, for subscribers (add-recording-cloud), and whenever
+            // downloads exist, with or without a subscription (offline-recording-downloads).
+            if CloudFeature.isEnabled && (model.cloud.canUseCloud || !(model.downloads?.downloads.isEmpty ?? true)) {
                 SwiftUI.Tab("Recordings", systemImage: "record.circle", value: Tab.recordings) {
                     NavigationStack { CloudRecordingsView() }
                 }
@@ -96,6 +97,18 @@ struct MainTabView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .accessibilityIdentifier("tabs")
+        // Opened without a connection (ios-app "Opening without a connection").
+        .overlay(alignment: .bottom) {
+            if model.signIn == .offline || !model.isNetworkAvailable {
+                Label("No connection", systemImage: "wifi.slash")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 16).padding(.vertical, 9)
+                    .background(.thinMaterial, in: Capsule())
+                    .padding(.bottom, sizeClass == .compact ? 64 : 24)
+                    .accessibilityIdentifier("offline.note")
+                    .allowsHitTesting(false)
+            }
+        }
         #if DEBUG
         // IPTV_TAB=start|live|films|series|jellyfin|search|settings: opens that tab (screenshots
         // without touch input); IPTV_LIVEVIEW=list|guide picks Live TV's view.

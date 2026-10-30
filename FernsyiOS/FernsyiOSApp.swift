@@ -39,4 +39,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         MainActor.assumeIsolated { AppDelegateOrientation.mask }
     }
+
+    /// A cloud download finished while the app was not running (offline-recording-downloads
+    /// design B): the session's events go to the download store, which then calls back.
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
+        MainActor.assumeIsolated {
+            AppLog.info(.app, "Fernsy Cloud: background download events for \(identifier)")
+            _ = TVModel.shared.downloads
+            BackgroundDownloadTransfer.shared.handleEvents(identifier: identifier, completion: completionHandler)
+        }
+    }
 }

@@ -35,12 +35,18 @@ struct CloudModelTests {
         nonisolated(unsafe) static var calls: [(method: String, path: String, auth: String, body: [String: Any])] = []
         nonisolated(unsafe) static var state = "none"
         nonisolated(unsafe) static var foreign = false
+        /// Every request fails as without network.
+        nonisolated(unsafe) static var offline = false
         nonisolated(unsafe) static var recordings = #"[{"id":"r1","dataBytes":10,"metaBytes":5,"completedAt":"2026-10-30T10:00:00Z"}]"#
-        static func reset() { calls = []; state = "none"; foreign = false }
+        static func reset() { calls = []; state = "none"; foreign = false; offline = false }
         override class func canInit(with request: URLRequest) -> Bool { true }
         override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
         override func startLoading() {
             let path = request.url?.path ?? ""
+            if Self.offline {
+                client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+                return
+            }
             let body = (try? JSONSerialization.jsonObject(with: CloudClientTests.body(of: request))) as? [String: Any] ?? [:]
             Self.calls.append((request.httpMethod ?? "", path, request.value(forHTTPHeaderField: "Authorization") ?? "", body))
             var status = 200
@@ -163,4 +169,72 @@ struct CloudModelTests {
         #expect(Server.calls.contains { $0.method == "DELETE" && $0.path == "/v1/account" })
         #expect(memory.key != nil, "the key stays")
     }
+
+    // MARK: Downloads (offline-recording-downloads 1.3)
+
+    /// A model with a key and two finished downloads, r1 and r2.
+    func modelWithDownloads() async throws -> (CloudModel, CloudDownloads, URL) {
+        let memory = Memory()
+        memory.key = CloudAccountKey()
+        let cloud = model(FakeStore(), memory)
+        let dir = CloudDownloadsTests.directory()
+        let transfer = CloudDownloadsTests.FakeTransfer()
+        let fixtures = try ["r1", "r2"].map { try CloudDownloadsTests.Fixture(id: $0, bytes: 100) }
+        let downloads = CloudDownloadsTests.store(dir, transfer, fixtures)
+        for fixture in fixtures {
+            try downloads.add(fixture.item)
+            await CloudDownloadsTests.waitUntil { transfer.started.contains { $0.id == fixture.id } }
+            transfer.onEvent?(.finished(id: fixture.id, file: try CloudDownloadsTests.staged(fixture.data)))
+        }
+        #expect(downloads.downloads.filter { $0.state == .downloaded }.count == 2)
+        cloud.downloads = downloads
+        await cloud.connect()
+        return (cloud, downloads, dir)
+    }
+
+    @Test func downloadFollowsADeletionElsewhere() async throws {
+        Server.reset()
+        Server.state = "active"
+        Server.recordings = #"[{"id":"r1","dataBytes":10,"metaBytes":5,"completedAt":"2026-10-30T10:00:00Z"}]"#
+        let (cloud, downloads, dir) = try await modelWithDownloads()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        await cloud.refresh()
+        #expect(downloads.downloads.map(\.id) == ["r1"])
+    }
+
+    @Test func downloadsStayAfterTheSubscriptionEnded() async throws {
+        Server.reset()
+        Server.state = "ended"
+        Server.recordings = "[]"
+        let (cloud, downloads, dir) = try await modelWithDownloads()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        await cloud.refresh()
+        #expect(downloads.downloads.count == 2)
+    }
+
+    @Test func downloadsStayWhenTheListFails() async throws {
+        Server.reset()
+        Server.state = "active"
+        let (cloud, downloads, dir) = try await modelWithDownloads()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        Server.offline = true
+        await cloud.refresh()
+        #expect(downloads.downloads.count == 2)
+        guard case .failed = cloud.phase else { Issue.record("no failure shown"); return }
+    }
+
+    @Test func deletingCloudDataRemovesDownloads() async throws {
+        Server.reset()
+        Server.state = "active"
+        Server.recordings = #"[{"id":"r1","dataBytes":10,"metaBytes":5,"completedAt":"2026-10-30T10:00:00Z"},{"id":"r2","dataBytes":10,"metaBytes":5,"completedAt":"2026-10-30T10:00:00Z"}]"#
+        let (cloud, downloads, dir) = try await modelWithDownloads()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        await cloud.refresh()
+        #expect(downloads.downloads.count == 2)
+        try await cloud.delete(try #require(cloud.items.first { $0.id == "r2" }))
+        #expect(downloads.downloads.map(\.id) == ["r1"])
+        try await cloud.deleteCloudData()
+        #expect(downloads.downloads.isEmpty)
+    }
 }
+

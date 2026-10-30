@@ -8,6 +8,8 @@ import Foundation
 /// the signed URL, decrypts them and keeps a bounded read-ahead and cache, sized for the Apple
 /// TV. An expired URL (403) is replaced through `refreshURL`; a chunk that fails authentication
 /// ends playback as a damaged recording instead of feeding altered data to the demuxer.
+/// A downloaded recording reads the same encrypted chunks from its file instead
+/// (offline-recording-downloads design C).
 public final class CloudByteSource: ByteSource {
     public static let readAhead = 8
     public static let cacheLimit = 32
@@ -19,6 +21,9 @@ public final class CloudByteSource: ByteSource {
     private let key: SymmetricKey
     private let refreshURL: @Sendable () async throws -> URL
     private let urlSession: URLSession
+    /// The downloaded object; nil when streaming.
+    private let file: FileHandle?
+    private let fileLock = NSLock()
 
     private let condition = NSCondition()
     private var dataURL: URL
@@ -43,7 +48,21 @@ public final class CloudByteSource: ByteSource {
         self.dataURL = dataURL
         self.urlSession = urlSession
         self.refreshURL = refreshURL
+        self.file = nil
     }
+
+    /// A downloaded recording: the cloud object as a local file, no network.
+    public init(recordingId: String, plaintextSize: Int64, fileKey: SymmetricKey, file url: URL) throws {
+        self.recordingId = recordingId
+        self.layout = CloudFileLayout(plaintextSize: plaintextSize)
+        self.key = fileKey
+        self.dataURL = url
+        self.urlSession = .shared
+        self.refreshURL = { url }
+        self.file = try FileHandle(forReadingFrom: url)
+    }
+
+    deinit { try? file?.close() }
 
     /// The URL the player keys this item by (resume positions, logs); never fetched.
     public static func itemURL(_ recordingId: String) -> URL { URL(string: "fernsy-cloud://recording/\(recordingId)")! }
@@ -165,8 +184,18 @@ public final class CloudByteSource: ByteSource {
         var errorDescription: String? { "HTTP \(status)" }
     }
 
-    /// One range request; on 403 the URL is renewed once and the request repeated.
+    /// One range request; on 403 the URL is renewed once and the request repeated. From the
+    /// downloaded file, a read of the same range.
     private func fetchRange(_ range: Range<Int64>) async throws -> Data {
+        if let file {
+            return try fileLock.withLock {
+                try file.seek(toOffset: UInt64(range.lowerBound))
+                guard let data = try file.read(upToCount: Int(range.count)), Int64(data.count) == range.count else {
+                    throw CloudCrypto.Failure.damaged
+                }
+                return data
+            }
+        }
         for renewed in [false, true] {
             var request = URLRequest(url: condition.withLock { dataURL })
             request.setValue("bytes=\(range.lowerBound)-\(range.upperBound - 1)", forHTTPHeaderField: "Range")

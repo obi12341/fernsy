@@ -495,6 +495,17 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `TEST_RUNNER_FERNSY_CLOUD_FIXTURE_ID`, and skip without them (CI). The fixture is uploaded once
   with `FERNSY_CLOUD_FIXTURE=<demo live.ts> IPTV_CLOUDKEY=<key> swift test --filter
   CloudClientTests/uploadUITestFixture`, which prints its id.
+- **Downloads (iPad, iPhone).** `FernsyCore/CloudDownloads.swift` keeps downloaded recordings
+  encrypted as in the cloud (`FCR1` data plus sealed details) in
+  `Application Support/CloudDownloads/`, excluded from backups, and loads them in the background
+  session `de.mobilistics.fernsy.downloads`; `CloudByteSource(file:)` plays them without network
+  (offline-recording-downloads). `CloudDownloadsTests/downloadsTheFixtureFromTheDevServer` runs
+  with `IPTV_CLOUD`, `IPTV_CLOUDTOKEN`, `IPTV_CLOUDKEY` and `FERNSY_CLOUD_FIXTURE_ID`.
+- **Offline.** `IPTV_TESTOFFLINE=1` (debug, iOS and Apple TV) fails every request of the app's
+  sessions as `notConnectedToInternet` and reports no network path, so the offline start can be
+  tested on a Mac that is online; the debug MCP tool `set_offline {"on": false}` brings the
+  network back during the run. `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
+  (catalog, guide, artwork, cloud details; downloads stay).
 - **StoreKit.** `Config/FernsyCloud.storekit` has the subscription
   `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
   Options › StoreKit Configuration.

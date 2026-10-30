@@ -760,6 +760,16 @@
           }
         }
       }
+    },
+    "The download is incomplete. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download ist unvollständig. Bitte versuch es noch einmal."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

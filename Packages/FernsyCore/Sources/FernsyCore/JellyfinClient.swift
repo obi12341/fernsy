@@ -36,7 +36,7 @@ public struct JellyfinClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 20
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        return URLSession(configuration: config)
+        return URLSession(configuration: TestOffline.configure(config))
     }()
 
     /// Subtitle files: on the first request the server extracts an embedded track from the whole
@@ -45,7 +45,7 @@ public struct JellyfinClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        return URLSession(configuration: config)
+        return URLSession(configuration: TestOffline.configure(config))
     }()
 
     public static var decoder: JSONDecoder { JellyfinJSON.decoder }

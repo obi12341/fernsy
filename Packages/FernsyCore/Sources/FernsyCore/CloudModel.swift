@@ -111,6 +111,8 @@ public final class CloudModel {
     @ObservationIgnored public let client: CloudClient
     @ObservationIgnored public let keys: CloudKeyStore
     @ObservationIgnored public let library: CloudLibrary
+    /// Downloads on iPad and iPhone (offline-recording-downloads); nil on the Mac and Apple TV.
+    @ObservationIgnored public var downloads: CloudDownloads?
     @ObservationIgnored private let store: CloudStore
     @ObservationIgnored private var updates: Task<Void, Never>?
 
@@ -256,6 +258,7 @@ public final class CloudModel {
             if keyState == nil || !hasKey { keyState = await keys.lookup() }
             items = (account?.canPlay ?? false) ? try await library.items() : []
             phase = .idle
+            followCloudDeletions()
         } catch {
             phase = .failed(Self.describe(error))
         }
@@ -264,9 +267,11 @@ public final class CloudModel {
     /// "Delete Fernsy Cloud data" (design G): every recording and the account on the server.
     /// The subscription stays and comes back to this key with the next request.
     public func deleteCloudData() async throws {
+        let wasActive = account?.state == .active
         try await client.deleteAccount()
         for item in items { library.forget(item.id) }
         items = []
+        if wasActive { downloads?.keepOnly([]) }
         account = try? await client.account()
         AppLog.info(.app, "Fernsy Cloud: all cloud data deleted")
     }
@@ -274,9 +279,18 @@ public final class CloudModel {
     public func delete(_ item: CloudRecordingItem) async throws {
         try await client.delete(id: item.id)
         library.forget(item.id)
+        downloads?.remove(item.id)
         items.removeAll { $0.id == item.id }
         account = try? await client.account()
         AppLog.info(.app, "Fernsy Cloud: deleted \(item.id.prefix(8))")
+    }
+
+    /// Downloads whose cloud copy was deleted on some device go too, but only while the
+    /// subscription is active: after it ends the server's cleanup removes the copies, and the
+    /// downloads stay (offline-recording-downloads design E).
+    private func followCloudDeletions() {
+        guard let downloads, account?.state == .active else { return }
+        downloads.keepOnly(Set(items.map(\.id)))
     }
 
     /// Everything a player needs for one recording: the signed URL and the file key.

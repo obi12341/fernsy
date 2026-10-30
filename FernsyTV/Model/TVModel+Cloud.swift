@@ -7,6 +7,12 @@ import Foundation
 extension TVModel {
     /// The player's source for a cloud recording: signed URL, file key, renewal on expiry.
     func cloudSource(_ item: CloudRecordingItem) async throws -> CloudByteSource {
+        #if os(iOS)
+        // Downloaded: from the file, also online (offline-recording-downloads design C).
+        if let downloads, downloads.isDownloaded(item.id), let meta = item.meta {
+            return try CloudByteSource(recordingId: item.id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, file: downloads.dataURL(item.id))
+        }
+        #endif
         let (url, meta) = try await cloud.playback(for: item)
         let client = cloud.client, id = item.id
         return CloudByteSource(recordingId: id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, dataURL: url) {
