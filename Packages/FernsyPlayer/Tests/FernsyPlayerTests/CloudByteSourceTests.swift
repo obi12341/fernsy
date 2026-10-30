@@ -126,4 +126,46 @@ struct CloudByteSourceTests {
         func increment() { lock.withLock { count += 1 } }
         var value: Int { lock.withLock { count } }
     }
+
+    // MARK: Downloads (offline-recording-downloads 2.1)
+
+    /// The encrypted object written to a file, as a download stores it.
+    static func downloaded() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("cbs-\(UUID()).data")
+        try Storage.object.write(to: url)
+        return url
+    }
+
+    @Test func playsADownloadWithoutNetwork() throws {
+        let size = 12 * CloudCrypto.chunkSize + 4321
+        let (plain, key) = try Self.prepare(bytes: size, id: "d1")
+        let file = try Self.downloaded()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let source = try CloudByteSource(recordingId: "d1", plaintextSize: Int64(size), fileKey: key, file: file)
+        try source.open()
+        let (all, end) = Self.readAll(source)
+        #expect(end == Int32(ffs_error_eof()))
+        #expect(all == plain)
+        // Seeking across a chunk boundary.
+        let middle = Int64(5 * CloudCrypto.chunkSize - 9)
+        let (tail, _) = Self.readAll(source, from: middle)
+        #expect(tail == plain[Int(middle)...])
+        #expect(Storage.requests == 0, "a download never touches the network")
+    }
+
+    @Test func damagedDownloadEndsPlayback() throws {
+        let size = 6 * CloudCrypto.chunkSize
+        let (_, key) = try Self.prepare(bytes: size, id: "d2")
+        let layout = CloudFileLayout(plaintextSize: Int64(size))
+        Storage.object[Int(layout.ciphertextRange(ofChunk: 3).lowerBound) + 99] ^= 0x01
+        let file = try Self.downloaded()
+        defer { try? FileManager.default.removeItem(at: file) }
+        let source = try CloudByteSource(recordingId: "d2", plaintextSize: Int64(size), fileKey: key, file: file)
+        try source.open()
+        let (read, end) = Self.readAll(source)
+        #expect(end == Int32(ffs_error_eio()))
+        #expect(read.count <= 3 * CloudCrypto.chunkSize)
+        #expect(source.failureMessage != nil)
+    }
 }
+

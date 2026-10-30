@@ -37,7 +37,7 @@ public struct XtreamClient: Sendable {
         config.timeoutIntervalForResource = 300
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.httpMaximumConnectionsPerHost = 4
-        return URLSession(configuration: config)
+        return URLSession(configuration: TestOffline.configure(config))
     }()
 
     func apiURL(_ action: String?, _ params: [String: String] = [:]) throws -> URL {

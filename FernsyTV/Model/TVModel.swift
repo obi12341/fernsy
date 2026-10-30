@@ -15,6 +15,10 @@ final class TVModel: ObservableObject {
         case signingIn
         case signedIn
         case failed(String)
+        /// iPad and iPhone: the stored account could not be checked for lack of a connection; the
+        /// tabs show what is cached and it is tried again when the network returns
+        /// (offline-recording-downloads design F).
+        case offline
     }
 
     @Published private(set) var signIn: SignIn = .signedOut
@@ -86,6 +90,10 @@ final class TVModel: ObservableObject {
     @Published var playingVOD: VODItem?
     /// Fernsy Cloud (add-recording-cloud): subscription, account and cloud recordings.
     let cloud = CloudModel()
+    #if os(iOS)
+    /// Downloaded cloud recordings (offline-recording-downloads), iPad and iPhone only.
+    private(set) lazy var downloads: CloudDownloads? = CloudFeature.isEnabled ? CloudDownloads.live(client: cloud.client, keys: cloud.keys) : nil
+    #endif
     var jellyfinPlayback: JellyfinPlayback?
     var archivePlayback: ArchivePlayback?
     /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory.
@@ -146,6 +154,17 @@ final class TVModel: ObservableObject {
     private var jellyfinChanges: AnyCancellable?
 
     private init() {
+        #if DEBUG
+        TestOffline.installShared()
+        // IPTV_FRESHCATALOG=1: start with empty Caches, as after iOS cleared them (catalog,
+        // guide, artwork, cloud details); downloads in Application Support stay.
+        if ProcessInfo.processInfo.environment["IPTV_FRESHCATALOG"] == "1" {
+            let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            for item in (try? FileManager.default.contentsOfDirectory(at: caches, includingPropertiesForKeys: nil)) ?? [] {
+                try? FileManager.default.removeItem(at: item)
+            }
+        }
+        #endif
         // The server lists this Apple TV by its name; debug builds are a device of their own.
         #if DEBUG
         JellyfinClient.deviceName = UIDevice.current.name + " (Debug)"
@@ -156,6 +175,9 @@ final class TVModel: ObservableObject {
         jellyfin = JellyfinStore(skipKeychain: Self.skipKeychain)
         tuners.keepSeconds = Self.timeshiftSeconds
         recorder.host = self
+        #if os(iOS)
+        cloud.downloads = downloads
+        #endif
         #if DEBUG
         // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run, as on
         // the Mac (keys such as movie.500, episode.<id>).
@@ -179,6 +201,9 @@ final class TVModel: ObservableObject {
         }
         startSync()
         if CloudFeature.isEnabled { Task { await cloud.start() } }
+        #if os(iOS)
+        if let downloads { Task { await downloads.resume() } }
+        #endif
         startPathMonitor()
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_FRAMESTATS"] == "1" { FrameStats.shared.start() }
@@ -192,18 +217,39 @@ final class TVModel: ObservableObject {
             isNetworkAvailable = false
             return
         }
+        // IPTV_TESTOFFLINE=1: no network until the MCP tool `set_offline` ends it.
+        if TestOffline.isOn {
+            isNetworkAvailable = false
+            return
+        }
         #endif
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let available = path.status == .satisfied
             DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    guard let self, self.isNetworkAvailable != available else { return }
-                    AppLog.info(.network, available ? "network available" : "no network path")
-                    self.isNetworkAvailable = available
-                }
+                MainActor.assumeIsolated { self?.networkChanged(available) }
             }
         }
         pathMonitor.start(queue: DispatchQueue(label: "tv.path"))
+    }
+
+    func networkChanged(_ available: Bool) {
+        guard isNetworkAvailable != available else { return }
+        AppLog.info(.network, available ? "network available" : "no network path")
+        isNetworkAvailable = available
+        guard available else { return }
+        #if os(iOS)
+        // Opened without a connection: sign in now, and go on with interrupted downloads.
+        if signIn == .offline, let credentials { Task { await signIn(credentials, remember: false) } }
+        if let downloads { Task { await downloads.resume() } }
+        if CloudFeature.isEnabled { Task { await cloud.refresh() } }
+        #endif
+    }
+
+    /// No connection, as opposed to a server that answers with an error.
+    static func isConnectionFailure(_ error: Error) -> Bool {
+        guard let error = error as? URLError else { return false }
+        return [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost,
+                .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff].contains(error.code)
     }
 
     // MARK: Account
@@ -265,6 +311,17 @@ final class TVModel: ObservableObject {
             testRecord()
             #endif
         } catch {
+            #if os(iOS)
+            // The stored account without a connection: keep it and open the tabs anyway (design F).
+            if !remember, Self.isConnectionFailure(error) || !isNetworkAvailable {
+                self.client = client
+                self.credentials = credentials
+                loadLiveState()
+                signIn = .offline
+                AppLog.warning(.catalog, "no connection, opened with \(channels.count) cached channels: \(error.localizedDescription)")
+                return
+            }
+            #endif
             signIn = channels.isEmpty ? .failed(error.localizedDescription) : .signedIn
             AppLog.error(.catalog, "sign-in or catalog failed: \(error.localizedDescription)")
         }
