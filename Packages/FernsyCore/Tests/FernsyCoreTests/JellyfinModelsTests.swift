@@ -82,4 +82,16 @@ struct JellyfinModelsTests {
             #expect(!text.contains("fixture-pass"), "\(file.lastPathComponent)")
         }
     }
+
+    /// Start rebuilds Continue Watching when an item's position changes, not only when the list
+    /// changes: otherwise picking the same entry again starts at the old position.
+    @Test func homeRevisionFollowsPositionsAndMarks() throws {
+        var item = try JSONDecoder().decode(JFItem.self, from: Data(#"{"id":"a","name":"A","type":"Movie","userData":{"playbackPositionTicks":100}}"#.utf8))
+        let before = JellyfinStore.revision(of: [item])
+        item.userData?.playbackPositionTicks = 900
+        let moved = JellyfinStore.revision(of: [item])
+        #expect(moved != before)
+        item.userData?.played = true
+        #expect(JellyfinStore.revision(of: [item]) != moved)
+    }
 }

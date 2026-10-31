@@ -125,7 +125,7 @@ struct StartView: View {
 
     private var resumeInputs: String {
         let playing = model.playingVOD != nil
-        let jellyfin = (model.jellyfin.resume + model.jellyfin.nextUp).map(\.id).joined(separator: ",")
+        let jellyfin = model.jellyfin.homeRevision
         return "\(playing)|\(model.resumeRevision)|\(jellyfin)"
     }
 

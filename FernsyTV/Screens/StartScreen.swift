@@ -145,7 +145,7 @@ struct StartScreen: View {
     /// from iCloud, Jellyfin's lists and the recorder's.
     private var resumeInputs: String {
         let playing = model.playingVOD != nil || model.playingRecording != nil
-        let jellyfin = (model.jellyfin.resume + model.jellyfin.nextUp).map(\.id).joined(separator: ",")
+        let jellyfin = model.jellyfin.homeRevision
         let recordings = model.recorder.recordings.map { "\($0.id)\($0.status)" }.joined(separator: ",")
         return "\(playing)|\(model.resumeRevision)|\(jellyfin)|\(recordings)"
     }

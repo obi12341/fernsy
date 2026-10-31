@@ -28,6 +28,14 @@ public final class JellyfinStore: ObservableObject {
     @Published public private(set) var latestFilms: [JFItem] = []
     @Published public private(set) var latestSeries: [JFItem] = []
 
+    /// What Start's Continue Watching and Next Up show of Jellyfin: the items and their positions
+    /// and watched marks, so a new position of the same item rebuilds the rows too.
+    public var homeRevision: String { Self.revision(of: resume + nextUp) }
+
+    nonisolated public static func revision(of items: [JFItem]) -> String {
+        items.map { "\($0.id):\($0.userData?.playbackPositionTicks ?? 0):\($0.userData?.played == true)" }.joined(separator: ",")
+    }
+
     /// Detail data loaded on demand, updated together with the lists when marks change.
     @Published public private(set) var details: [String: JFItem] = [:]
     @Published public private(set) var seasons: [String: [JFItem]] = [:]
