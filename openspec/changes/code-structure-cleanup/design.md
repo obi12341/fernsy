@@ -191,3 +191,12 @@ A phase that causes a regression is reverted on its own.
   besides those access modifiers and the new `runDebugHooks()` call. The private property
   `sync` had to become internal although no error named it: in another file it resolved to the
   global `sync()` function instead.
+- 3.1: `ICloudSync` lives in FernsyPlayer, not FernsyCore as decision 3 planned: the synced keys
+  include the recorder's padding keys (`Recorder` is in FernsyPlayer). Pitfall: the launch
+  sign-in first kept the steps in a local copy and wrote it back; the model's own sign-in also
+  changes them (`finish(.provider, then: .channels)` when the channels load), so the provider
+  step stayed "running". `AutoSignInUITests.testProviderLoginSignsInAtLaunch` caught it. The
+  helper now reads and writes the model's steps for each change.
+- Phase 3 verification per step: package tests, `scripts/test.sh`, builds of all three apps,
+  the UI test classes that cover the moved code, and a Mac dev run of the affected path; the
+  full Apple TV and iOS suites run once at the end (3.8) instead of after every step.

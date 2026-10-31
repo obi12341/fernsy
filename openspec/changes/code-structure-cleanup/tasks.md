@@ -47,7 +47,7 @@ Verification for each phase:
 
 ## 3. One copy of shared logic
 
-- [ ] 3.1 iCloud sync rules (`syncAllowed`, `syncedKeys`, `makeLogins`, sign-in from iCloud, arrival handling) into FernsyCore. The differing IPTV sign-in and visibility pull are passed in by the Mac and the TV model
+- [x] 3.1 iCloud sync rules (`syncAllowed`, `syncedKeys`, `makeLogins`, sign-in from iCloud, arrival handling) into FernsyCore. The differing IPTV sign-in and visibility pull are passed in by the Mac and the TV model
 - [ ] 3.2 `DebugEnv` in FernsyCore (debug builds only):
   - Credentials, `skipKeychain` and `IPTV_TESTRESUME`, used by Mac and TV.
   - One `IPTV_TESTHIDE` parser that keeps both syntaxes as they are documented.
