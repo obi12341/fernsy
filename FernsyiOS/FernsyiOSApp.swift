@@ -30,6 +30,7 @@ struct FernsyiOSApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { model.appWillLeave() }
+            if phase == .active { model.appBecameActive() }
         }
     }
 }

@@ -282,5 +282,16 @@ final class CloudRecordingsUITests: XCTestCase {
         row.press(forDuration: 1.0)
         app.buttons["Remove Download"].firstMatch.tap()
     }
+
+    /// Offline while the network path already says there is network (a request timed out as the
+    /// network came back, or it came back while the app was suspended): the app tries again by
+    /// itself instead of staying offline until a restart.
+    func testLeavesOfflineWithoutAPathChange() throws {
+        let app = launch(Self.demo.merging(["IPTV_TESTOFFLINE": "requests", "IPTV_FRESHCATALOG": "1"]) { $1 })
+        XCTAssertTrue(element(app, "offline.note").waitForExistence(timeout: 30), "not offline:\n\(app.debugDescription)")
+        _ = mcp("set_offline", #"{"on":false,"report_path":false}"#)
+        XCTAssertTrue(wait(30) { self.mcp("get_log", #"{"query":"signed in"}"#).contains("signed in, ") }, "still offline without a path change")
+        XCTAssertTrue(wait(10) { !self.element(app, "offline.note").exists }, "the offline note stays")
+    }
 }
 
