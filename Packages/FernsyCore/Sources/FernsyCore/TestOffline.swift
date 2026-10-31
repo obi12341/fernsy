@@ -5,9 +5,13 @@ import Foundation
 /// whose network is on. The debug MCP tool `set_offline` switches it during a run.
 public enum TestOffline {
     #if DEBUG
-    nonisolated(unsafe) public static var isOn = ProcessInfo.processInfo.environment["IPTV_TESTOFFLINE"] == "1"
+    nonisolated(unsafe) public static var isOn = ["1", "requests"].contains(ProcessInfo.processInfo.environment["IPTV_TESTOFFLINE"])
+    /// `IPTV_TESTOFFLINE=requests`: the requests fail but the network path says there is
+    /// network, as after a request timed out while the network was coming back.
+    public static let keepsPath = ProcessInfo.processInfo.environment["IPTV_TESTOFFLINE"] == "requests"
     #else
     public static let isOn = false
+    public static let keepsPath = false
     #endif
 
     /// Adds the failing protocol to a session's configuration (it answers only while `isOn`).

@@ -188,3 +188,11 @@ None. New files only. Nothing changes on the server or in the stored cloud forma
 - **The tab's offline line.** It shows when `signIn == .offline` or the path monitor reports no
   network. With a connection but an unreachable cloud server, the list shows the downloads
   next to the cloud's error message.
+- **Pitfall: offline without a path change (found on the iPad, 2026-10-30).** After airplane
+  mode was switched on and off, a request still running from the offline time timed out. The
+  app went `.offline`, but the path monitor already said "network" and reported no change, so
+  the app stayed offline until a restart. The same happens when the network comes back while
+  the app is suspended. While `.offline`, the app now retries with growing pauses (2 s up to
+  60 s) whenever the path says there is network, and at once when it comes to the front.
+  `IPTV_TESTOFFLINE=requests` fails only the requests and keeps the path, for
+  `testLeavesOfflineWithoutAPathChange`.

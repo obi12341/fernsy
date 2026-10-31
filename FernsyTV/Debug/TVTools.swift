@@ -66,8 +66,8 @@ struct TVTools {
         tool("list_recordings", "The recordings on this Apple TV: running, scheduled, finished, failed and missed, with file size.", [:]),
         tool("cancel_recording", "Stop a running recording (keeps what was recorded) or drop a scheduled one; delete: true also removes a finished one and its file.",
              ["recording_id": ["type": "string"], "delete": ["type": "boolean"]], required: ["recording_id"]),
-        tool("set_offline", "Simulate having no network (IPTV_TESTOFFLINE): on: true fails every request of the app, false brings the network back.",
-             ["on": ["type": "boolean"]], required: ["on"]),
+        tool("set_offline", "Simulate having no network (IPTV_TESTOFFLINE): on: true fails every request of the app, false brings the network back. report_path: false changes only the requests, not the network path (as when the network came back while the app was suspended).",
+             ["on": ["type": "boolean"], "report_path": ["type": "boolean"]], required: ["on"]),
     ]
 
     private static func tool(_ name: String, _ description: String, _ properties: [String: Any], required: [String] = []) -> [String: Any] {
@@ -87,7 +87,7 @@ struct TVTools {
         case "set_offline":
             let on = args["on"] as? Bool ?? true
             TestOffline.isOn = on
-            model.networkChanged(!on)
+            if args["report_path"] as? Bool ?? true { model.networkChanged(!on) }
             return ["offline": on, "sign_in": "\(model.signIn)"]
         case "stop_playback":
             model.stop()

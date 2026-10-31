@@ -504,7 +504,9 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
 - **Offline.** `IPTV_TESTOFFLINE=1` (debug, iOS and Apple TV) fails every request of the app's
   sessions as `notConnectedToInternet` and reports no network path, so the offline start can be
   tested on a Mac that is online; the debug MCP tool `set_offline {"on": false}` brings the
-  network back during the run. `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
+  network back during the run (`"report_path": false` without telling the path monitor).
+  `IPTV_TESTOFFLINE=requests` fails only the requests while the path says there is network.
+  `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
   (catalog, guide, artwork, cloud details; downloads stay).
 - **StoreKit.** `Config/FernsyCloud.storekit` has the subscription
   `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
