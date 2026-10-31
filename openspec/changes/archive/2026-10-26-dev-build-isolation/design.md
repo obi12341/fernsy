@@ -161,3 +161,11 @@ Nothing migrates. The installed app's container stays as it is, including the ol
 leftovers. After the change, the developer's helpers (`jfrun.sh` and the demo env) point at
 the dev container, for example for `recordings.json` backups in
 `~/Library/Containers/de.mobilistics.fernsy.dev/...`.
+
+## Pitfall found later (2026-10-31)
+
+The Apple TV and iOS targets, added after this change, copied the Debug configuration's
+`INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev"` into their Release configurations too, so
+Release builds (bundle id `de.mobilistics.fernsy`) showed as "Fernsy Dev" on the Home Screen.
+A new target's Release configuration needs `Fernsy`; only the Debug configuration gets the
+"Fernsy Dev" name.
