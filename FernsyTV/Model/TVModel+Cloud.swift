@@ -13,11 +13,7 @@ extension TVModel {
             return try CloudByteSource(recordingId: item.id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, file: downloads.dataURL(item.id))
         }
         #endif
-        let (url, meta) = try await cloud.playback(for: item)
-        let client = cloud.client, id = item.id
-        return CloudByteSource(recordingId: id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, dataURL: url) {
-            try await client.readURLs(id: id).dataURL
-        }
+        return try await cloud.streamSource(for: item)
     }
 
     /// The share watched (0…1), for the card's bar.

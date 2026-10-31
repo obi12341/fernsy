@@ -237,34 +237,20 @@ extension TVModel {
             guard let url = client?.episodeURL(episode) else { return }
             engine.load(url: url, isLive: false, startAt: fromStart ? 0 : resume.position(item.resumeKey ?? ""))
         case .jellyfin(let jfItem):
-            Task { @MainActor in
-                guard let playback = await JellyfinPlayback.make(itemId: jfItem.id, store: jellyfin, engine: engine),
-                      playingVOD == item else { return }
-                jellyfinPlayback = playback
-                let start = fromStart ? 0 : jfItem.positionSeconds
-                playback.start(at: start)
-            }
+            PlaybackStart.jellyfin(itemId: jfItem.id, store: jellyfin, engine: engine, startAt: fromStart ? 0 : jfItem.positionSeconds,
+                                   stillWanted: { [weak self] in self?.playingVOD == item }, started: { [weak self] in self?.jellyfinPlayback = $0 })
         case .archive(let show, let channel):
             // Its own connection, counted against the account's limit (catch-up design 4).
             tuners.reserveArchive(channel.id)
-            let client = client, zone = serverTimeZone
-            let playback = ArchivePlayback(channelId: channel.id, start: show.start, end: show.end, engine: engine) { from, minutes in
-                client?.archiveURL(channel: channel.id, start: from, minutes: minutes, timeZone: zone)
-            }
-            archivePlayback = playback
-            playback.play()
+            archivePlayback = PlaybackStart.archive(channelId: channel.id, start: show.start, end: show.end, client: client,
+                                                    timeZone: serverTimeZone, engine: engine)
         case .cloud(let cloudItem):
-            let start = fromStart ? 0 : resume.position(item.resumeKey ?? "")
-            Task { @MainActor in
-                do {
-                    let source = try await cloudSource(cloudItem)
-                    guard playingVOD == item else { return }
-                    engine.load(cloud: source, startAt: start)
-                } catch {
-                    AppLog.warning(.player, "Fernsy Cloud: cannot play \(cloudItem.id.prefix(8)): \(error)")
-                    engine.reportFailure(CloudModel.describe(error))
-                }
-            }
+            PlaybackStart.cloud(id: cloudItem.id, engine: engine, startAt: fromStart ? 0 : resume.position(item.resumeKey ?? ""),
+                                source: { [weak self] in
+                                    guard let self else { throw CancellationError() }
+                                    return try await self.cloudSource(cloudItem)
+                                },
+                                stillWanted: { [weak self] in self?.playingVOD == item })
         }
         AppLog.info(.player, "play \(item.title)")
     }

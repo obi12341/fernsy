@@ -56,7 +56,7 @@ Verification for each phase:
   - Resume key and log/subtitle text for films, episodes, archive and cloud items, used by
     `PlayItem` (Mac) and `VODItem` (TV).
   - The archive subtitle format, the Jellyfin tick conversion and `episodeIndex`.
-- [ ] 3.4 Playback start helpers in FernsyPlayer (Jellyfin start, cloud source with failure report, archive playback), used by the Mac `PlayerScreen` and `TVModel+Library`. The Mac's start moves out of the view into the model
+- [x] 3.4 Playback start helpers in FernsyPlayer (Jellyfin start, cloud source with failure report, archive playback), used by the Mac `PlayerScreen` and `TVModel+Library`. The Mac's start moves out of the view into the model
 - [ ] 3.5 StartBuilder setup and the Start refresh inputs (resume, live, catalog) once: shared builder setup in FernsyCore for Mac and TV, and the inputs in `TVModel` for Apple TV and iOS. iOS then also follows recordings, as the TV does
 - [ ] 3.6 The non-UI helpers iOS copied from the TV screens become shared `TVModel` or `LibraryEntry` functions, used by both: detail facts, position and duration texts, entries, Jellyfin search, channel list
 - [ ] 3.7 Platform-neutral wording for messages in code shared with iOS ("Not enough free space on the Apple TV" → per-platform text); German strings updated

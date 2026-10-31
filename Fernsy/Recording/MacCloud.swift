@@ -95,10 +95,6 @@ extension AppModel {
     /// The player's source for a cloud recording: signed URL, file key, renewal on expiry.
     func cloudSource(_ id: String) async throws -> CloudByteSource {
         guard let item = cloud.items.first(where: { $0.id == id }) else { throw CloudClient.Failure.notFound }
-        let (url, meta) = try await cloud.playback(for: item)
-        let client = cloud.client
-        return CloudByteSource(recordingId: id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, dataURL: url) {
-            try await client.readURLs(id: id).dataURL
-        }
+        return try await cloud.streamSource(for: item)
     }
 }

@@ -274,45 +274,12 @@ struct PlayerScreen: View {
     }
 
     private func play(_ item: PlayItem) {
-        engine.trackPreferences = app.trackPreferences(for: item)
-        if item.isLive, let tuner = app.playerTuner {
-            engine.load(tuner: tuner)
-        } else if case .jellyfin(let itemId, let startAt, _) = item.kind {
-            stopJellyfin()
-            Task { @MainActor in
-                guard let playback = await JellyfinPlayback.make(itemId: itemId, store: jellyfin, engine: engine),
-                      loadedItem == item else { return }
-                jellyfinPlayback = playback
-                app.jellyfinPlayback = playback
-                playback.start(at: startAt)
-            }
-        } else if case .recording(let id) = item.kind {
-            let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
-            engine.load(file: item.url, isGrowing: { Recorder.isGrowing(id) }, startAt: start)
-        } else if case .cloud(let id) = item.kind {
-            let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
-            Task { @MainActor in
-                do {
-                    let source = try await app.cloudSource(id)
-                    guard loadedItem == item else { return }
-                    engine.load(cloud: source, startAt: start)
-                } catch {
-                    AppLog.warning(.player, "Fernsy Cloud: cannot play \(id.prefix(8)): \(error)")
-                    engine.reportFailure(CloudModel.describe(error))
-                }
-            }
-        } else if case .archive(let channelId, let start, let end) = item.kind {
-            // Every seek requests the archive again from there (catch-up design 3).
-            let client = app.client, zone = app.account?.serverTimeZone
-            let playback = ArchivePlayback(channelId: channelId, start: start, end: end, engine: engine) { from, minutes in
-                client?.archiveURL(channel: channelId, start: from, minutes: minutes, timeZone: zone)
-            }
-            archivePlayback = playback
-            playback.play()
-        } else {
-            let start = item.resumeKey.map { app.resumePosition($0) } ?? 0
-            engine.load(url: item.url, isLive: item.isLive, startAt: start)
+        if case .jellyfin = item.kind { stopJellyfin() }
+        let archive = app.startPlayback(item, on: engine, isCurrent: { loadedItem == item }) { playback in
+            jellyfinPlayback = playback
+            app.jellyfinPlayback = playback
         }
+        if let archive { archivePlayback = archive }
     }
 
     // MARK: Track choice
