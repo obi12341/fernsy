@@ -225,7 +225,7 @@ public struct JellyfinClient {
         ]
         var body: [String: Any] = [
             "UserId": userId, "MediaSourceId": mediaSourceId, "DeviceProfile": profile,
-            "StartTimeTicks": Int64(startSeconds * 10_000_000), "EnableDirectPlay": false, "EnableDirectStream": false,
+            "StartTimeTicks": JellyfinTicks.ticks(startSeconds), "EnableDirectPlay": false, "EnableDirectStream": false,
             "EnableTranscoding": true, "AllowVideoStreamCopy": false, "AllowAudioStreamCopy": true, "AutoOpenLiveStream": false,
             "SubtitleStreamIndex": subtitleIndex ?? -1,
         ]
@@ -257,7 +257,7 @@ public struct JellyfinClient {
     public func report(_ event: ProgressEvent, itemId: String, mediaSourceId: String, positionSeconds: Double, isPaused: Bool,
                 transcoding: Bool, playSessionId: String?, audioIndex: Int?, subtitleIndex: Int?) async throws {
         var body: [String: Any] = [
-            "ItemId": itemId, "MediaSourceId": mediaSourceId, "PositionTicks": Int64(max(0, positionSeconds) * 10_000_000),
+            "ItemId": itemId, "MediaSourceId": mediaSourceId, "PositionTicks": JellyfinTicks.ticks(max(0, positionSeconds)),
             "IsPaused": isPaused, "PlayMethod": transcoding ? "Transcode" : "DirectPlay", "CanSeek": true,
             "SubtitleStreamIndex": subtitleIndex ?? -1,
         ]

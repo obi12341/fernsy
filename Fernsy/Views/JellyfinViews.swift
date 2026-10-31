@@ -141,7 +141,7 @@ struct JellyfinPlayButton: View {
     let item: JFItem
 
     var body: some View {
-        let resume = item.isSeries ? 0 : Double(item.userData?.playbackPositionTicks ?? 0) / 10_000_000
+        let resume = item.isSeries ? 0 : item.positionSeconds
         Button {
             app.play(jellyfin: item)
         } label: {

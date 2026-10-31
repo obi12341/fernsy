@@ -183,7 +183,7 @@ extension AppModel {
                 guard var item = jellyfin.details[parts[0]] else { debugLog("[test] autoplay: unknown item"); return }
                 if parts.count > 1, let start = Double(parts[1]) {
                     item.userData = (item.userData ?? JFUserData())
-                    item.userData?.playbackPositionTicks = Int64(start * 10_000_000)
+                    item.userData?.playbackPositionTicks = JellyfinTicks.ticks(start)
                 }
                 play(jellyfin: item)
             }

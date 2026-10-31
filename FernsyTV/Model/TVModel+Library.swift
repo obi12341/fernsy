@@ -36,9 +36,9 @@ enum VODItem: Equatable {
     var subtitle: String? {
         switch self {
         case .archive(let show, let channel):
-            "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))"
+            ItemText.channelAndTime(channel.displayName, show.start)
         case .cloud(let item):
-            item.meta.map { "\($0.channel) · \($0.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))" }
+            item.meta.map { ItemText.channelAndTime($0.channel, $0.recordStart) }
         case .movie: nil
         case .episode(let episode, _): "S\(episode.season) F\(episode.number) · \(episode.title)"
         case .jellyfin(let item):
@@ -51,7 +51,7 @@ enum VODItem: Equatable {
         switch self {
         case .movie(let movie): ResumeStore.movieKey(movie.id)
         case .episode(let episode, _): ResumeStore.episodeKey(episode.id)
-        case .cloud(let item): "cloud.\(item.id)"
+        case .cloud(let item): ResumeStore.cloudKey(item.id)
         case .jellyfin, .archive: nil   // archives expire within days
         }
     }
@@ -218,12 +218,7 @@ extension TVModel {
 
     /// Episodes seen in loaded series, by id, so "Continue Watching" can name them.
     var episodeIndex: [String: (Episode, Series)] {
-        var index: [String: (Episode, Series)] = [:]
-        for (id, info) in seriesInfo {
-            guard let show = seriesByID[id] else { continue }
-            for episode in info.seasons.values.flatMap({ $0 }) { index[episode.id] = (episode, show) }
-        }
-        return index
+        SeriesInfo.episodeIndex(seriesInfo) { seriesByID[$0] }
     }
 
     // MARK: Playback
@@ -246,7 +241,7 @@ extension TVModel {
                 guard let playback = await JellyfinPlayback.make(itemId: jfItem.id, store: jellyfin, engine: engine),
                       playingVOD == item else { return }
                 jellyfinPlayback = playback
-                let start = fromStart ? 0 : Double(jfItem.userData?.playbackPositionTicks ?? 0) / 10_000_000
+                let start = fromStart ? 0 : jfItem.positionSeconds
                 playback.start(at: start)
             }
         case .archive(let show, let channel):

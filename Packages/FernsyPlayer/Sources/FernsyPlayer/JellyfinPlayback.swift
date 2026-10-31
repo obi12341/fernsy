@@ -73,7 +73,7 @@ public final class JellyfinPlayback: ObservableObject {
         embeddedIndices.firstIndex(of: index).map(Int32.init)
     }
     private var mediaSourceId: String { source.id ?? item.id }
-    private var duration: Double? { (source.runTimeTicks ?? item.runTimeTicks).map { Double($0) / 10_000_000 } }
+    private var duration: Double? { (source.runTimeTicks ?? item.runTimeTicks).map(JellyfinTicks.seconds) }
 
     // MARK: Decision
 

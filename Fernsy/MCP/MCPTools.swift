@@ -294,8 +294,8 @@ final class MCPTools {
         }
         var value: [String: Any] = ["item_id": "jellyfin:\(item.id)", "title": title, "type": item.type]
         if let percent = item.userData?.playedPercentage { value["progress_percent"] = Int(percent) }
-        value.merge(Self.runtime(duration: item.runTimeTicks.map { Double($0) / 10_000_000 },
-                                 position: item.userData?.playbackPositionTicks.map { Double($0) / 10_000_000 })) { $1 }
+        value.merge(Self.runtime(duration: item.runTimeSeconds,
+                                 position: item.userData?.playbackPositionTicks.map(JellyfinTicks.seconds))) { $1 }
         return value
     }
 
@@ -558,7 +558,7 @@ final class MCPTools {
             value["type"] = "recording"
             if !recording.description.isEmpty { value["plot"] = recording.description }
             value.merge(Self.runtime(duration: recording.recordEnd.timeIntervalSince(recording.recordStart),
-                                     position: app.resumePosition("recording.\(id.uuidString)"))) { $1 }
+                                     position: app.resumePosition(ResumeStore.recordingKey(id)))) { $1 }
         default:
             throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
         }

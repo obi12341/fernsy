@@ -23,6 +23,6 @@ extension TVModel {
     /// The share watched (0…1), for the card's bar.
     func watchedShare(_ item: CloudRecordingItem) -> Double {
         guard let duration = item.meta?.duration, duration > 0 else { return 0 }
-        return min(1, resume.position("cloud.\(item.id)") / duration)
+        return min(1, resume.position(ResumeStore.cloudKey(item.id)) / duration)
     }
 }

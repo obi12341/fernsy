@@ -389,7 +389,7 @@ struct FilmPage: View {
         if let item = jfItem {
             if let year = item.productionYear { list.append("\(year)") }
             if let genre = item.genres?.first { list.append(genre) }
-            if let ticks = item.runTimeTicks { list.append(Runtime.text(seconds: Double(ticks) / 10_000_000)) }
+            if let seconds = item.runTimeSeconds { list.append(Runtime.text(seconds: seconds)) }
             if let rating = item.communityRating { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
         } else if case .iptv(let movie) = film {
             if let year = details?.releaseDate?.prefix(4), !year.isEmpty { list.append(String(year)) }
@@ -403,7 +403,7 @@ struct FilmPage: View {
     private var position: Double {
         switch film {
         case .iptv(let movie): model.resume.position(ResumeStore.movieKey(movie.id))
-        case .jellyfin(let item): Double((jfItem ?? item).userData?.playbackPositionTicks ?? 0) / 10_000_000
+        case .jellyfin(let item): (jfItem ?? item).positionSeconds
         }
     }
 
@@ -412,7 +412,7 @@ struct FilmPage: View {
         case .iptv(let movie):
             let key = ResumeStore.movieKey(movie.id)
             return model.resume.fraction(key).map { model.resume.position(key) / $0 } ?? 0
-        case .jellyfin(let item): return Double((jfItem ?? item).runTimeTicks ?? 0) / 10_000_000
+        case .jellyfin(let item): return ((jfItem ?? item).runTimeSeconds ?? 0)
         }
     }
 
@@ -627,7 +627,7 @@ struct SeriesPage: View {
     }
 
     private static func entry(_ item: JFItem) -> EpisodeEntry {
-        let runtime = item.runTimeTicks.map { " · " + Runtime.text(seconds: Double($0) / 10_000_000) } ?? ""
+        let runtime = item.runTimeSeconds.map { " · " + Runtime.text(seconds: $0) } ?? ""
         let label = "S\(item.parentIndexNumber ?? 0) F\(item.indexNumber ?? 0)"
         let share = item.userData?.playedPercentage.map { $0 / 100 }
         return EpisodeEntry(id: item.id, title: item.name, number: label + runtime, label: label,

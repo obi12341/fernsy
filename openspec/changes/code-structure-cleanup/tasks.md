@@ -52,7 +52,7 @@ Verification for each phase:
   - Credentials, `skipKeychain` and `IPTV_TESTRESUME`, used by Mac and TV.
   - One `IPTV_TESTHIDE` parser that keeps both syntaxes as they are documented.
   - The library-enlarging loop once in TVModel.
-- [ ] 3.3 Item helpers in FernsyCore:
+- [x] 3.3 Item helpers in FernsyCore:
   - Resume key and log/subtitle text for films, episodes, archive and cloud items, used by
     `PlayItem` (Mac) and `VODItem` (TV).
   - The archive subtitle format, the Jellyfin tick conversion and `episodeIndex`.

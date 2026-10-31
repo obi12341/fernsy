@@ -355,7 +355,7 @@ private struct Hero: View {
             if item.type == "Episode" { if let subtitle = VODItem.jellyfin(item).subtitle { list.append(subtitle) } } else {
                 if let year = item.productionYear { list.append("\(year)") }
                 if let genre = item.genres?.first { list.append(genre) }
-                if let ticks = item.runTimeTicks { list.append(Runtime.text(seconds: Double(ticks) / 10_000_000)) }
+                if let seconds = item.runTimeSeconds { list.append(Runtime.text(seconds: seconds)) }
                 if let rating = item.communityRating { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
             }
         case .movie(let movie):

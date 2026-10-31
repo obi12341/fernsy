@@ -135,7 +135,7 @@ private struct CloudCard: View {
 
     private var detail: String {
         guard let meta = item.meta else { return item.isDamaged ? String(localized: "Damaged") : String(localized: "Key missing on this device") }
-        let time = meta.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+        let time = ItemText.shortDateTime(meta.recordStart)
         return String(localized: "\(meta.channel) · \(time) · \(Int(meta.duration / 60)) min")
     }
 }

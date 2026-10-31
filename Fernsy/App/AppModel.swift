@@ -479,7 +479,7 @@ final class AppModel: ObservableObject {
               let url = client?.archiveURL(channel: channel.id, start: show.start, minutes: Archive.minutes(for: show), timeZone: account?.serverTimeZone)
         else { return }
         let item = PlayItem(kind: .archive(channelId: channel.id, start: show.start, end: show.end), title: show.title,
-                            subtitle: "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))",
+                            subtitle: ItemText.channelAndTime(channel.displayName, show.start),
                             url: url)
         let blocking = recorder.recordings.filter { r in
             r.status == .recording && tuners.archiveBlockers().contains { $0.owners.contains(.recording(r.id)) }
@@ -516,7 +516,7 @@ final class AppModel: ObservableObject {
                 target = episode
             }
             guard let base = jellyfin.session?.baseURL else { return }
-            let start = resume ? Double(target.userData?.playbackPositionTicks ?? 0) / 10_000_000 : 0
+            let start = resume ? target.positionSeconds : 0
             var subtitle: String?
             if target.type == "Episode" {
                 let code = [target.parentIndexNumber.map { "S\($0)" }, target.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
@@ -573,12 +573,7 @@ final class AppModel: ObservableObject {
 
     /// Episodes of loaded series by id, for Start's Continue Watching.
     var episodeIndex: [String: (Episode, Series)] {
-        var index: [String: (Episode, Series)] = [:]
-        for (id, info) in seriesInfos {
-            guard let show = series.first(where: { $0.id == id }) else { continue }
-            for episode in info.seasons.values.flatMap({ $0 }) { index[episode.id] = (episode, show) }
-        }
-        return index
+        SeriesInfo.episodeIndex(seriesInfos) { id in series.first { $0.id == id } }
     }
 
     // MARK: Resume positions

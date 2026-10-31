@@ -31,8 +31,8 @@ struct PlayItem: Equatable {
         case .live: return nil
         case .movie(let id): return ResumeStore.movieKey(id)
         case .episode(let id, _): return ResumeStore.episodeKey(id)
-        case .recording(let id): return "recording.\(id.uuidString)"
-        case .cloud(let id): return "cloud.\(id)"
+        case .recording(let id): return ResumeStore.recordingKey(id)
+        case .cloud(let id): return ResumeStore.cloudKey(id)
         case .jellyfin: return nil // resume positions live on the server
         case .archive: return nil  // archives expire within days
         }
