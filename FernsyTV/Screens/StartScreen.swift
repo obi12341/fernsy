@@ -107,6 +107,13 @@ struct StartScreen: View {
             .background { StartBackdrop(hero: hero, scroll: scroll) }
             .foregroundStyle(TVTheme.text)
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
+            // A page from a deep link (tvos-top-shelf design 3), in place of what was open.
+            .task(id: model.pageRequest?.id) {
+                guard let request = model.pageRequest else { return }
+                model.pageRequest = nil
+                path = []
+                info(request.target)
+            }
             .task(id: model.jellyfin.session?.userId) { if model.jellyfin.session != nil { await model.jellyfin.refreshHome() } }
             // Rows from the catalog once per change of it, not per redraw (design A).
             .task(id: "\(model.movies.count).\(model.series.count).\(model.jellyfin.films.count).\(model.jellyfin.latestFilms.count)") {
@@ -232,10 +239,12 @@ struct StartScreen: View {
         }
     }
 
-    private func info(_ entry: LibraryEntry) {
-        if case .jellyfin(let item) = entry.open, item.type == "Episode", let seriesId = item.seriesId {
+    private func info(_ entry: LibraryEntry) { info(entry.open) }
+
+    private func info(_ open: LibraryEntry.Target) {
+        if case .jellyfin(let item) = open, item.type == "Episode", let seriesId = item.seriesId {
             path.append(.jellyfin(model.jellyfin.series.first { $0.id == seriesId } ?? item))
-        } else if let target = DetailTarget.of(entry.open) {
+        } else if let target = DetailTarget.of(open) {
             path.append(target)
         }
     }
