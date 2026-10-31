@@ -103,7 +103,7 @@ struct StartView: View {
     private var personalInputs: String {
         let recordings = recorder.recordings.map { "\($0.id)\($0.status)" }.joined(separator: ",")
         return "\(app.movies.count).\(app.series.count).\(app.channels.count).\(app.resumeRevision).\(app.nowPlaying == nil)."
-            + "\(jellyfin.resume.map(\.id)).\(jellyfin.nextUp.map(\.id)).\(recordings).\(app.favorites.count).\(app.recentChannels)"
+            + "\(jellyfin.homeRevision).\(recordings).\(app.favorites.count).\(app.recentChannels)"
     }
 
     private func refreshPersonal() {
