@@ -28,15 +28,15 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     public let url: URL
     public let isLive: Bool
 
-    private let cond = NSCondition()
+    let cond = NSCondition()
     private var session: URLSession!
-    private var task: URLSessionDataTask?
+    var task: URLSessionDataTask?
     private var taskGeneration = 0
 
     // Buffered bytes: buffer[0] is at absolute offset `bufferBase`; the next byte
     // handed to FFmpeg is buffer[readIndex].
-    private var buffer = Data()
-    private var bufferBase: Int64 = 0
+    var buffer = Data()
+    var bufferBase: Int64 = 0
     private var readIndex = 0
 
     private var responseReceived = false
@@ -44,7 +44,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var failure: Error?
     private var cancelled = false
     /// The download is held (task suspended) because enough is buffered ahead.
-    private var suspended = false {
+    var suspended = false {
         didSet { if suspended != oldValue { heldSince = suspended ? Date() : nil } }
     }
     private var heldSince: Date?
@@ -76,11 +76,11 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var reconnectStartedAt = Date()
     private var connectionStart: Int64 = 0
     private var connectedAt = Date()
-    private var lastDataAt = Date()
+    var lastDataAt = Date()
     /// Offsets where reconnected data begins and the reader has not arrived yet.
     private var junctions: [Int64] = []
     private var watchdog: DispatchSourceTimer?
-    private let watchdogQueue = DispatchQueue(label: "player.http.watchdog")
+    let watchdogQueue = DispatchQueue(label: "player.http.watchdog")
     private let stallTimeout: TimeInterval = 4
     /// Reconnect when the player has less than this left and nothing arrives.
     private let lowPlaybackAhead: Double = 4
@@ -135,7 +135,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var recoveryPending = false
 
     // Bitrate measurement
-    private var bytesReceivedTotal: Int64 = 0
+    var bytesReceivedTotal: Int64 = 0
 
     /// A film's download is held above `highWater` buffered ahead and resumes below `lowWater`,
     /// or after half the request timeout up to `keepAliveCeiling`: the timeout also runs while
@@ -146,6 +146,29 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private var keepAliveCeiling: Int { highWater * 2 }
     private let keepBehind = 1 << 20
     private let readTimeout: TimeInterval
+
+    // Stored state of the extensions.
+    #if DEBUG
+    /// The next reconnect to the edge is answered as if with HTTP 403 (expired edge token).
+    var debugForbidEdge = false
+    /// Drops now and again 6 s after the next successful reconnect (an edge that fails again).
+    var debugFlaky = false
+    /// The current connection delivers at this rate (kbit/s) until the next reconnect: received
+    /// bytes wait in a queue and are handed on in small portions every 0.1 s, and the task is held
+    /// while the queue is full, so the server sees a slow reader too.
+    var debugTrickleKbit: Double = 0
+    var debugTrickleQueue = Data()
+    var debugTrickleHeld = false
+    var debugTrickleTimer: DispatchSourceTimer?
+    /// IPTV_TRICKLEMORE=<n|all>: that many later connections trickle too ("all": a slow line of
+    /// the user's own).
+    var debugTrickleMore: Int = {
+        guard let value = ProcessInfo.processInfo.environment["IPTV_TRICKLEMORE"] else { return 0 }
+        return Int(value) ?? .max
+    }()
+    /// The server ends the response early without an error (an idle connection closed by a proxy).
+    var debugCleanClose = false
+    #endif
 
     public init(url: URL, isLive: Bool) {
         self.url = url
@@ -244,102 +267,6 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         cond.unlock()
         session.invalidateAndCancel()
     }
-
-    #if DEBUG
-    /// Test hooks: kill the connection outright, or silently stop receiving (a stalled socket).
-    public func debugDropConnection() {
-        cond.lock(); defer { cond.unlock() }
-        task?.cancel()
-    }
-
-    public func debugStallConnection() {
-        cond.lock(); defer { cond.unlock() }
-        task?.suspend()
-    }
-
-    /// The next reconnect to the edge is answered as if with HTTP 403 (expired edge token).
-    private var debugForbidEdge = false
-    public func debugForbidNextEdge() {
-        cond.lock(); defer { cond.unlock() }
-        debugForbidEdge = true
-    }
-
-    /// Drops now and again 6 s after the next successful reconnect (an edge that fails again).
-    private var debugFlaky = false
-    public func debugFlakyEdge() {
-        cond.lock(); defer { cond.unlock() }
-        debugFlaky = true
-        task?.cancel()
-    }
-
-    /// The current connection delivers at this rate (kbit/s) until the next reconnect: received
-    /// bytes wait in a queue and are handed on in small portions every 0.1 s, and the task is held
-    /// while the queue is full, so the server sees a slow reader too.
-    private var debugTrickleKbit: Double = 0
-    private var debugTrickleQueue = Data()
-    private var debugTrickleHeld = false
-    private var debugTrickleTimer: DispatchSourceTimer?
-    /// IPTV_TESTCLOCK=1 logs the content clock every 2 s.
-    private static let debugClock = ProcessInfo.processInfo.environment["IPTV_TESTCLOCK"] == "1"
-    public func debugTrickle(kbit: Double) {
-        cond.lock(); defer { cond.unlock() }
-        debugTrickleKbit = kbit
-        let timer = DispatchSource.makeTimerSource(queue: watchdogQueue)
-        timer.schedule(deadline: .now() + 0.1, repeating: 0.1)
-        timer.setEventHandler { [weak self] in self?.debugTrickleTick() }
-        debugTrickleTimer?.cancel()
-        debugTrickleTimer = timer
-        timer.resume()
-    }
-
-    private func debugTrickleTick() {
-        cond.lock(); defer { cond.unlock() }
-        guard debugTrickleKbit > 0, !debugTrickleQueue.isEmpty else { return }
-        let n = min(debugTrickleQueue.count, Int(debugTrickleKbit * 1000 / 8 / 10))
-        buffer.append(debugTrickleQueue.prefix(n))
-        debugTrickleQueue.removeFirst(n)
-        bytesReceivedTotal += Int64(n)
-        lastDataAt = Date()
-        if debugTrickleHeld && debugTrickleQueue.count < 64 << 10 {
-            debugTrickleHeld = false
-            if !suspended { task?.resume() }
-        }
-        cond.broadcast()
-    }
-
-    /// IPTV_TRICKLEMORE=<n|all>: that many later connections trickle too ("all": a slow line of
-    /// the user's own).
-    private var debugTrickleMore: Int = {
-        guard let value = ProcessInfo.processInfo.environment["IPTV_TRICKLEMORE"] else { return 0 }
-        return Int(value) ?? .max
-    }()
-
-    /// Ends the throttling; what is still queued belongs to the old connection. Holds `cond`.
-    private func debugTrickleEnd() {
-        guard debugTrickleKbit > 0 else { return }
-        buffer.append(debugTrickleQueue)
-        debugTrickleQueue = Data()
-        debugTrickleHeld = false
-        if debugTrickleMore > 0 {
-            debugTrickleMore -= 1
-            return
-        }
-        debugTrickleKbit = 0
-        debugTrickleTimer?.cancel()
-        debugTrickleTimer = nil
-    }
-
-    /// The server ends the response early without an error (an idle connection closed by a proxy).
-    private var debugCleanClose = false
-    public func debugCloseConnection() {
-        cond.lock(); defer { cond.unlock() }
-        debugCleanClose = true
-        // A held (suspended) task only completes once it runs again.
-        if suspended { task?.resume(); suspended = false }
-        task?.cancel()
-        debugLog("[test] download closed at \(bufferBase + Int64(buffer.count)) of \(contentLength) bytes")
-    }
-    #endif
 
     // MARK: FFmpeg callbacks
 

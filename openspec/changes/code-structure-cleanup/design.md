@@ -184,3 +184,10 @@ A phase that causes a regression is reverted on its own.
   builds no app target ("Supported platforms for the buildables in the current scheme is
   empty"). Phase verification therefore builds the Mac app itself (`scripts/dev-run.sh`) and
   relies on the UI test scripts for tvOS and iOS.
+- Phase 2: the splits were done by a script that cuts marked regions into `Type+Part.swift`
+  extensions and moves stored properties back into the type; access was then opened only where
+  the compiler reported a cross-file use (private → internal, `private(set)` → internal set).
+  `git diff --color-moved --color-moved-ws=allow-indentation-change` shows no changed line
+  besides those access modifiers and the new `runDebugHooks()` call. The private property
+  `sync` had to become internal although no error named it: in another file it resolved to the
+  global `sync()` function instead.

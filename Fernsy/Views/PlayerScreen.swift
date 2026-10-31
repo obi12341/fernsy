@@ -6,17 +6,17 @@ import FernsyPlayer
 import SwiftUI
 
 struct PlayerScreen: View {
-    @EnvironmentObject private var app: AppModel
+    @EnvironmentObject var app: AppModel
     @EnvironmentObject private var recorder: Recorder
-    @StateObject private var engine = PlayerEngine()
+    @StateObject var engine = PlayerEngine()
 
     @State private var controlsVisible = true
     @State private var hideTask: Task<Void, Never>?
     /// Sliders being dragged right now: the controls stay up meanwhile (the slider tracks the
     /// mouse, so no hover or move events count as activity).
     @State private var activeDrags = 0
-    @State private var showInfo = false
-    @State private var pip: PictureInPicture?
+    @State var showInfo = false
+    @State var pip: PictureInPicture?
     @State private var pipPossible = false
     @State private var pipStage = PictureInPictureStage()
     @State private var epg: [EPGEntry] = []
@@ -28,18 +28,18 @@ struct PlayerScreen: View {
     @State private var jellyfinPlayback: JellyfinPlayback?
     /// The archive playback of a past show (catch-up), kept while it plays.
     @State private var archivePlayback: ArchivePlayback?
-    @State private var isFullScreen = false
+    @State var isFullScreen = false
 
     // Zapping: the OSD follows key presses immediately, tuning waits until they stop,
     // so skipping through channels does not open a connection for each one.
     @State private var osd: (channel: LiveChannel, number: Int)?
-    @State private var zapTarget: (channel: LiveChannel, number: Int)?
+    @State var zapTarget: (channel: LiveChannel, number: Int)?
     @State private var zapTask: Task<Void, Never>?
     @State private var osdHideTask: Task<Void, Never>?
     // The channel list over the picture (live TV, L).
-    @State private var showsChannelList = false
-    @State private var listCategory = allCategoryID
-    @State private var listHighlight: Int?
+    @State var showsChannelList = false
+    @State var listCategory = allCategoryID
+    @State var listHighlight: Int?
     @State private var listHideTask: Task<Void, Never>?
     private static let channelListWidth: CGFloat = 340
 
@@ -159,120 +159,7 @@ struct PlayerScreen: View {
             load(app.nowPlaying)
             showControls()
             #if DEBUG
-            if ProcessInfo.processInfo.environment["IPTV_SHOWINFO"] != nil { showInfo = true }
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTCHANNELLIST"] {
-                // IPTV_TESTCHANNELLIST=<s>[:<key>,…]: opens the channel list after s seconds, then
-                // feeds the keys (down, up, pagedown, return, esc, l, category:<id>) one per second
-                // through the screen's own key handling; no events reach the system.
-                let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
-                let start = Double(parts[0]) ?? 5
-                let keys = parts.count > 1 ? parts[1].split(separator: ",").map(String.init) : []
-                DispatchQueue.main.asyncAfter(deadline: .now() + start) { toggleChannelList() }
-                for (i, key) in keys.enumerated() {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + start + 1 + Double(i)) {
-                        AppLog.detail(.player, "[test] key \(key)")
-                        if key.hasPrefix("category:") {
-                            listCategory = String(key.dropFirst("category:".count))
-                            listHighlight = PlayerChannelList.channels(listCategory, app: app).first?.id
-                            restartChannelListTimer()
-                            return
-                        }
-                        let codes: [String: UInt16] = ["down": 125, "up": 126, "pagedown": 121, "return": 36, "esc": 53, "l": 37]
-                        guard let code = codes[key] else { return }
-                        if showsChannelList, handleChannelListKey(code) { return }
-                        // Closed: the same keys as without the list.
-                        switch key {
-                        case "down": zap(1)
-                        case "up": zap(-1)
-                        case "l": toggleChannelList()
-                        default: break
-                        }
-                    }
-                }
-            }
-            // IPTV_TESTZAP=1: three quick "next channel" presses 6 s after opening, to check that
-            // fast zapping lands on the right channel.
-            if ProcessInfo.processInfo.environment["IPTV_TESTZAP"] != nil {
-                for i in 0..<3 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 6 + Double(i) * 0.15) {
-                        AppLog.detail(.player, "key down #\(i + 1)")
-                        zap(1)
-                        AppLog.detail(.player, "target \(zapTarget.map { "\($0.channel.id) (#\($0.number))" } ?? "-")")
-                    }
-                }
-            }
-            if ProcessInfo.processInfo.environment["IPTV_TESTFS"] != nil {
-                // Enter, leave and re-enter full screen to exercise repeated toggling.
-                for (delay, label) in [(6.0, "enter"), (10.0, "leave"), (14.0, "re-enter")] {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { toggleFullScreen() }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay + 2.5) {
-                        AppLog.detail(.player, "after \(label): fullscreen=\(playerWindow?.styleMask.contains(.fullScreen) ?? false) iconState=\(isFullScreen)")
-                    }
-                }
-            }
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTPAUSE"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 2 {
-                // IPTV_TESTPAUSE=<at>:<seconds>: pause, then resume (timeshift).
-                DispatchQueue.main.asyncAfter(deadline: .now() + spec[0]) { debugLog("[test] pause"); engine.setPaused(true) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + spec[0] + spec[1]) { debugLog("[test] resume, \(String(format: "%.1f", engine.progress.behindLive)) s behind"); engine.setPaused(false) }
-            }
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTGOLIVE"].flatMap(Double.init) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + spec) { debugLog("[test] go live"); engine.goLive() }
-            }
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTDRAG"] {
-                TimelineTestDrag.run(spec: spec, window: { playerWindow }, knob: {
-                    let progress = engine.progress
-                    if engine.isTimeshift {
-                        let end = progress.liveEnd - PlayerEngine.liveLead
-                        return progress.followsLive ? 1 : (progress.position - progress.liveStart) / max(1, end - progress.liveStart)
-                    }
-                    return progress.position / max(1, progress.duration)
-                }, onStart: { showControls() }, onReleased: {
-                    let progress = engine.progress
-                    debugLog("[test] released: position \(String(format: "%.1f", progress.position)) of \(String(format: "%.1f", progress.liveStart))…\(String(format: "%.1f", progress.liveEnd)), live \(progress.followsLive)")
-                })
-            }
-            if let target = ProcessInfo.processInfo.environment["IPTV_TESTSEEK"].flatMap(Double.init) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 12) { engine.seek(to: target) }
-            }
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTPIP"]?.split(separator: ":"), let start = Double(spec[0]) {
-                // IPTV_TESTPIP=<s>[:back:<s>]: start Picture in Picture, optionally return to the
-                // player. Closing needs the PiP window's close button: ending PiP from code always
-                // counts as "back".
-                DispatchQueue.main.asyncAfter(deadline: .now() + start) {
-                    debugLog("[test] pip start, possible: \(pip?.canStart ?? false)")
-                    pip?.toggle()
-                }
-                if spec.count == 3, spec[1] == "back", let after = Double(spec[2]) {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + start + after) {
-                        debugLog("[test] pip back")
-                        pip?.restore()
-                    }
-                }
-            }
-            if let id = ProcessInfo.processInfo.environment["IPTV_TESTSUB"].flatMap(Int32.init) {
-                // IPTV_TESTSUB=<track id>: choose that subtitle track after 6 s.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
-                    let track = engine.media?.subtitleTracks.first { $0.id == id }
-                    debugLog("[test] subtitle \(id): \(track?.title ?? "not listed")")
-                    if let track { pick(subtitle: track) }
-                }
-            }
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTAUDIO"] {
-                // IPTV_TESTAUDIO=<at s>:<track id>,…: switch audio tracks at those times.
-                for step in spec.split(separator: ",") {
-                    let p = step.split(separator: ":").compactMap { Double($0) }
-                    guard p.count == 2 else { continue }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + p[0]) {
-                        let track = engine.media?.audioTracks.first { $0.id == Int32(p[1]) }
-                        debugLog("[test] audio \(Int(p[1])): \(track?.title ?? "not listed")")
-                        if let track { pick(audio: track) }
-                    }
-                }
-            }
-            if let path = ProcessInfo.processInfo.environment["IPTV_TESTCUES"], let srt = try? String(contentsOfFile: path, encoding: .utf8) {
-                // IPTV_TESTCUES=<srt file>: show these cues after 4 s (overlapping cues).
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { engine.showExternalSubtitles(SRTParser.parse(srt), trackId: 9_999) }
-            }
+            runDebugHooks()
             #endif
         }
         // Onscreen context for Siri: "Nimm das in Fernsy auf" refers to the channel shown here.
@@ -430,13 +317,13 @@ struct PlayerScreen: View {
 
     // MARK: Track choice
 
-    private func pick(audio track: MediaTrack) {
+    func pick(audio track: MediaTrack) {
         let subtitle = engine.media.flatMap { m in m.subtitleTracks.first { $0.id == m.selectedSubtitle } }
         engine.selectAudio(track)
         remember(audio: track, subtitle: subtitle)
     }
 
-    private func pick(subtitle track: MediaTrack?) {
+    func pick(subtitle track: MediaTrack?) {
         let audio = engine.media.flatMap { m in m.audioTracks.first { $0.id == m.selectedAudio } }
         engine.selectSubtitle(track)
         remember(audio: audio, subtitle: track)
@@ -515,11 +402,11 @@ struct PlayerScreen: View {
 
     // MARK: Controls visibility
 
-    private func showControls() {
+    func showControls() {
         showControls(autoHide: true)
     }
 
-    private func showControls(autoHide: Bool) {
+    func showControls(autoHide: Bool) {
         if !controlsVisible {
             withAnimation(.easeOut(duration: 0.15)) { controlsVisible = true }
         }
@@ -537,7 +424,7 @@ struct PlayerScreen: View {
     }
 
     /// The window hosting the video, independent of which window is key.
-    private var playerWindow: NSWindow? {
+    var playerWindow: NSWindow? {
         NSApp.windows.first { $0.contentView?.firstDescendant(of: VideoSurfaceView.self) != nil }
     }
 
@@ -579,7 +466,7 @@ struct PlayerScreen: View {
         pip = controller
     }
 
-    private func toggleFullScreen() {
+    func toggleFullScreen() {
         guard let window = playerWindow else { return }
         // SwiftUI treats single-instance `Window` scenes as auxiliary and keeps resetting the
         // collection behaviour; auxiliary windows cannot get their own full-screen space.
@@ -590,7 +477,7 @@ struct PlayerScreen: View {
 
     // MARK: Zapping
 
-    private func zap(_ offset: Int) {
+    func zap(_ offset: Int) {
         guard case .live(let currentId, let categoryId)? = app.nowPlaying?.kind else { return }
         let fromId = zapTarget?.channel.id ?? currentId
         guard let target = app.neighbor(of: fromId, categoryId: categoryId, offset: offset) else { return }
@@ -627,7 +514,7 @@ struct PlayerScreen: View {
 
     // MARK: Channel list
 
-    private func toggleChannelList() {
+    func toggleChannelList() {
         if showsChannelList { closeChannelList(); return }
         guard case .live(let id, let categoryId)? = app.nowPlaying?.kind else { return }
         listCategory = categoryId ?? allCategoryID
@@ -644,7 +531,7 @@ struct PlayerScreen: View {
     }
 
     /// Closes the list after 10 s without interaction with it.
-    private func restartChannelListTimer() {
+    func restartChannelListTimer() {
         listHideTask?.cancel()
         listHideTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(10))
@@ -655,7 +542,7 @@ struct PlayerScreen: View {
 
     /// Keys while the list is open: ↑/↓ and Page Up/Down move the highlight, Return tunes,
     /// L and Esc close it. Other keys keep their meaning.
-    private func handleChannelListKey(_ keyCode: UInt16) -> Bool {
+    func handleChannelListKey(_ keyCode: UInt16) -> Bool {
         switch keyCode {
         case 126: moveListHighlight(by: -1)
         case 125: moveListHighlight(by: 1)
@@ -864,588 +751,6 @@ struct PlayerScreen: View {
     }
 }
 
-// MARK: - Controls
-
-struct PlayerControls: View {
-    @EnvironmentObject private var app: AppModel
-    @ObservedObject var engine: PlayerEngine
-    @ObservedObject var progress: PlaybackProgress
-    let item: PlayItem
-    /// The live channel's programme (empty for films).
-    var entries: [EPGEntry] = []
-    @Binding var showInfo: Bool
-    let isFullScreen: Bool
-    /// Hidden while the channel banner shows the same information.
-    let showsTitle: Bool
-    let onZap: (Int) -> Void
-    let onFullScreen: () -> Void
-    var onChannelList: () -> Void = {}
-    let onActivity: () -> Void
-    /// Live: the end of the recording running on this channel; nil when none runs.
-    var recordingEnd: Date? = nil
-    /// Live: recording is possible here.
-    var canRecord = false
-    var onRecord: () -> Void = {}
-    /// Menu picks go through the screen, which remembers them for the series.
-    var onPickAudio: (MediaTrack) -> Void = { _ in }
-    var onPickSubtitle: (MediaTrack?) -> Void = { _ in }
-    /// A slider drag starts (true) or ends (false); reported before the activity.
-    var onDragging: (Bool) -> Void = { _ in }
-    var pipPossible = false
-    var onPictureInPicture: () -> Void = {}
-
-    private var channel: LiveChannel? {
-        if case .live(let id, _) = item.kind { return app.channel(id) }
-        return nil
-    }
-
-    private var current: EPGEntry? { entries.first { $0.start <= Date() && $0.end > Date() } }
-    private var next: EPGEntry? { entries.first { $0.start >= (current?.end ?? Date()) } }
-
-    var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                LinearGradient(colors: [.black.opacity(0.42), .clear], startPoint: .top, endPoint: .bottom).frame(height: 170)
-                Spacer(minLength: 0)
-                LinearGradient(colors: [.clear, .black.opacity(0.38)], startPoint: .top, endPoint: .bottom).frame(height: 260)
-            }
-            .allowsHitTesting(false)
-            VStack(spacing: 0) {
-                HStack(alignment: .top) {
-                    captionPill.opacity(showsTitle ? 1 : 0)
-                    Spacer()
-                    if let recordingEnd { recordingPill(until: recordingEnd) }
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 40)
-                .allowsHitTesting(false)
-                Spacer(minLength: 0)
-                panel
-            }
-        }
-    }
-
-    // MARK: Caption
-
-    private var captionPill: some View {
-        HStack(spacing: 12) {
-            if let channel {
-                LogoTile(url: channel.icon, name: channel.displayName, width: 48)
-            } else {
-                RoundedRectangle(cornerRadius: 7).fill(Theme.logoTile).frame(width: 48, height: 30)
-                    .overlay(Image(systemName: "play.fill").font(.caption).foregroundStyle(.white))
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                if let channel {
-                    TaggedName(name: channel.parsed, font: .callout, weight: .semibold)
-                } else {
-                    Text(verbatim: item.title).font(.callout.weight(.semibold)).lineLimit(1)
-                }
-                if let current {
-                    Text(verbatim: "\(current.title) · \(times(current))").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                } else if let subtitle = item.subtitle {
-                    Text(verbatim: subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-        }
-        .padding(.leading, 8).padding(.trailing, 16).padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.separator, lineWidth: 0.5))
-        .frame(maxWidth: 520, alignment: .leading)
-    }
-
-    private func recordingPill(until end: Date) -> some View {
-        HStack(spacing: 7) {
-            Circle().fill(.white).frame(width: 8, height: 8)
-            Text("Recording · until \(end.formatted(date: .omitted, time: .shortened))")
-        }
-        .font(.caption.weight(.bold))
-        .foregroundStyle(.white)
-        .padding(.horizontal, 11).frame(height: 26)
-        .background(Theme.record, in: Capsule())
-    }
-
-    // MARK: Panel
-
-    /// Timeshift: what can be played, from the oldest buffered second to the live edge.
-    private var liveRange: ClosedRange<Double>? {
-        guard engine.isTimeshift else { return nil }
-        let end = progress.liveEnd - PlayerEngine.liveLead
-        guard end - progress.liveStart > 10 else { return nil }
-        return progress.liveStart...end
-    }
-
-    private var panel: some View {
-        VStack(spacing: 12) {
-            if item.isLive, let current {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    label("NOW")
-                    Text(verbatim: current.title).fontWeight(.semibold).lineLimit(1)
-                    Text("\(times(current)) · \(max(1, Int(current.end.timeIntervalSinceNow / 60))) min left")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
-                    Spacer(minLength: 12)
-                    if let next {
-                        label("NEXT")
-                        Text(verbatim: "\(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                .font(.callout)
-            }
-            if let range = liveRange {
-                LiveTimeline(progress: progress, range: range, entries: entries,
-                             wallTime: { engine.wallTime(of: $0) },
-                             onSeek: { engine.seek(to: $0) }, onGoLive: { engine.goLive() },
-                             onDragging: onDragging, onActivity: onActivity)
-            }
-            if !item.isLive && progress.duration > 0 {
-                FilmTimeline(progress: progress, onSeek: { engine.seek(to: $0) }, onDragging: onDragging, onActivity: onActivity)
-                    .padding(.top, 4)
-            }
-            buttons
-        }
-        .padding(.horizontal, 22)
-        .padding(.top, 16)
-        .padding(.bottom, 14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.separator, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.28), radius: 25, y: 18)
-        .frame(maxWidth: 1100)
-        .padding(.horizontal, 40)
-        .padding(.bottom, 26)
-        .onHover { if $0 { onActivity() } }
-    }
-
-    private var buttons: some View {
-        HStack(spacing: 8) {
-            if item.isLive {
-                roundButton("chevron.up", help: "Previous channel (↑)") { onZap(-1) }
-                roundButton("chevron.down", help: "Next channel (↓)") { onZap(1) }
-                roundButton("list.bullet", help: "Channel List (L)") { onChannelList() }
-                Divider().frame(height: 20).padding(.horizontal, 4)
-            }
-            let seekable = !item.isLive || engine.isTimeshift
-            if !item.isLive {
-                textButton("−60", help: "1 min back (⇧←)") { engine.seek(by: -60) }
-            }
-            if seekable {
-                textButton("−10", help: "Back 10 s (←)") { engine.seek(by: -10) }
-            }
-            Button {
-                engine.togglePause()
-                onActivity()
-            } label: {
-                Image(systemName: engine.isPaused ? "play.fill" : "pause.fill")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 42, height: 42)
-                    .background(.fill.secondary, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .help("Play/Pause (Space)")
-            if seekable {
-                textButton("+10", help: "Forward 10 s (→)") { engine.seek(by: 10) }
-                    .disabled(item.isLive && progress.followsLive)
-                    .opacity(item.isLive && progress.followsLive ? 0.35 : 1)
-            }
-            if !item.isLive {
-                textButton("+60", help: "1 min forward (⇧→)") { engine.seek(by: 60) }
-            }
-            if liveRange != nil { liveState.padding(.leading, 6) }
-
-            Spacer()
-
-            if canRecord {
-                Button {
-                    onRecord()
-                    onActivity()
-                } label: {
-                    HStack(spacing: 7) {
-                        Circle().fill(recordingEnd != nil ? .white : Theme.record).frame(width: 9, height: 9)
-                        Text(recordingEnd != nil ? "Stop Recording" : "Record")
-                        if recordingEnd == nil { Text(verbatim: "R").foregroundStyle(.secondary) }
-                    }
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(recordingEnd != nil ? .white : .primary)
-                    .padding(.horizontal, 12).frame(height: 30)
-                    .background(recordingEnd != nil ? AnyShapeStyle(Theme.record) : AnyShapeStyle(.fill.tertiary), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .help(recordingEnd != nil ? "Stop recording (R)" : "Record the current show (R)")
-            }
-
-            HStack(spacing: 6) {
-                Button { engine.isMuted.toggle() } label: {
-                    Image(systemName: volumeIcon).frame(width: 22)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Mute (M)")
-                Slider(value: Binding(get: { Double(engine.volume) }, set: { engine.volume = Float($0); onActivity() }), in: 0...1) { editing in
-                    onDragging(editing)
-                    onActivity()
-                }
-                .frame(width: 84)
-                .controlSize(.mini)
-            }
-            .padding(.horizontal, 6)
-
-            tracksMenu
-            roundButton(showInfo ? "info.circle.fill" : "info", help: "Technical info (I)") { showInfo.toggle() }
-            if pipPossible {
-                roundButton("pip.enter", help: "Picture in Picture (P)") { onPictureInPicture() }
-            }
-            roundButton(isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                        help: isFullScreen ? "Exit full screen (F, Esc)" : "Full screen (F)") { onFullScreen() }
-        }
-    }
-
-    /// Red "LIVE" at the live edge; behind it the distance with a way back.
-    @ViewBuilder
-    private var liveState: some View {
-        if progress.followsLive {
-            StatusBadge(kind: .live)
-        } else {
-            Button {
-                engine.goLive()
-                onActivity()
-            } label: {
-                HStack(spacing: 8) {
-                    Text("−" + formatTime(progress.behindLive)).font(.callout.weight(.bold)).monospacedDigit()
-                    Text("TO LIVE ⇥")
-                        .font(.caption2.weight(.bold))
-                        .tracking(0.4)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8).frame(height: 20)
-                        .background(Theme.record, in: Capsule())
-                }
-                .padding(.leading, 11).padding(.trailing, 5).frame(height: 28)
-                .background(.fill.tertiary, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("Back to live")
-        }
-    }
-
-    /// Audio and subtitle tracks in one menu.
-    @ViewBuilder
-    private var tracksMenu: some View {
-        if let media = engine.media, media.audioTracks.count > 1 || !media.subtitleTracks.isEmpty {
-            Menu {
-                if media.audioTracks.count > 1 {
-                    Picker("Audio Track", selection: Binding(
-                        get: { media.selectedAudio },
-                        set: { id in if let track = media.audioTracks.first(where: { $0.id == id }) { onPickAudio(track) } }
-                    )) {
-                        ForEach(media.audioTracks) { track in Text(track.title).tag(Optional(track.id)) }
-                    }
-                    .pickerStyle(.inline)
-                }
-                if !media.subtitleTracks.isEmpty {
-                    Picker("Subtitles", selection: Binding(
-                        get: { media.selectedSubtitle },
-                        set: { id in onPickSubtitle(media.subtitleTracks.first { $0.id == id }) }
-                    )) {
-                        Text("Off").tag(Int32?.none)
-                        ForEach(media.subtitleTracks) { track in Text(track.title).tag(Optional(track.id)) }
-                    }
-                    .pickerStyle(.inline)
-                }
-            } label: {
-                Text("Audio & Subtitles")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 10).frame(height: 32)
-                    .background(media.selectedSubtitle != nil ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary), in: Capsule())
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help("Audio track and subtitles")
-        }
-    }
-
-    // MARK: Pieces
-
-    private func label(_ text: LocalizedStringKey) -> some View {
-        Text(text).font(.caption2.weight(.bold)).tracking(0.6).foregroundStyle(.tertiary)
-    }
-
-    private func times(_ entry: EPGEntry) -> String {
-        "\(entry.start.formatted(date: .omitted, time: .shortened))–\(entry.end.formatted(date: .omitted, time: .shortened))"
-    }
-
-    private var volumeIcon: String {
-        if engine.isMuted || engine.volume == 0 { return "speaker.slash.fill" }
-        if engine.volume < 0.34 { return "speaker.wave.1.fill" }
-        if engine.volume < 0.67 { return "speaker.wave.2.fill" }
-        return "speaker.wave.3.fill"
-    }
-
-    private func roundButton(_ symbol: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button {
-            action()
-            onActivity()
-        } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(width: 32, height: 32)
-                .background(.fill.tertiary, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
-
-    private func textButton(_ title: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button {
-            action()
-            onActivity()
-        } label: {
-            Text(verbatim: title)
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
-                .padding(.horizontal, 10).frame(height: 32)
-                .background(.fill.tertiary, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
-}
-
-/// TV-style channel banner: number, logo, name, what is on now and what follows.
-struct ChannelOSD: View {
-    @EnvironmentObject private var app: AppModel
-    let channel: LiveChannel
-    let number: Int
-    /// Still choosing (key presses continue); the channel is not tuned yet.
-    let isPending: Bool
-    @State private var now: EPGEntry?
-    @State private var next: EPGEntry?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 14) {
-                Text(verbatim: "\(number)")
-                    .font(.system(size: 26, weight: .light))
-                    .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.55))
-                    .frame(minWidth: 50, alignment: .leading)
-                LogoTile(url: channel.icon, name: channel.displayName, width: 66)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 8) {
-                        TaggedName(name: channel.parsed, font: .title3, weight: .bold)
-                        if isPending {
-                            ProgressView().controlSize(.small).tint(.white).opacity(0.7)
-                        }
-                    }
-                    if let now {
-                        Text(verbatim: "\(now.title) · \(now.start.formatted(date: .omitted, time: .shortened))–\(now.end.formatted(date: .omitted, time: .shortened))")
-                            .font(.callout)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .lineLimit(1)
-                    }
-                }
-            }
-            if let now {
-                ProgressBar(value: now.progress, tint: .white, height: 4)
-            }
-            HStack {
-                if let next {
-                    Text("Next \(next.start.formatted(date: .omitted, time: .shortened)) \(next.title)")
-                        .lineLimit(1)
-                }
-                Spacer()
-                HStack(spacing: 4) {
-                    keyCap("↑")
-                    keyCap("↓")
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.white.opacity(0.65))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-        .frame(width: 440, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.3), radius: 25, y: 18)
-        .environment(\.colorScheme, .dark)
-        .task(id: channel.id) {
-            now = nil
-            next = nil
-            // Short debounce: no EPG request for channels that are only skipped past.
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            let entries = (try? await app.client?.shortEPG(channel.id, limit: 3)) ?? []
-            now = entries.first { $0.start <= Date() && $0.end > Date() } ?? entries.first
-            next = entries.first { $0.start >= (now?.end ?? Date()) }
-        }
-    }
-
-    private func keyCap(_ key: String) -> some View {
-        Text(verbatim: key)
-            .padding(.horizontal, 5)
-            .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 4))
-    }
-}
-
-struct AudioStatusBadge: View {
-    let text: String
-    let waiting: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "speaker.slash.fill")
-            Text(text)
-            if waiting {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white)
-            }
-        }
-            .font(.callout.weight(.medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.15)))
-            .environment(\.colorScheme, .dark)
-            .help(waiting ? String(localized: "The channel is currently sending no audio. Sound will resume automatically.")
-                          : String(localized: "This channel has no audio track."))
-    }
-}
-
-struct StatsOverlay: View {
-    let stats: PlaybackStats
-    let status: PlayerEngine.Status
-    @ObservedObject var history: BufferHistory
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            grid
-            BufferChart(history: history, isTimeshift: stats.timeshiftAhead != nil)
-        }
-        // Size to the content instead of stretching (the divider would take the full width).
-        .fixedSize()
-        .font(.system(size: 11, design: .monospaced))
-        .foregroundStyle(.white)
-        .padding(12)
-        .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
-    }
-
-    /// The rows shared with the Apple TV (FernsyCore `StreamInfo`).
-    private var grid: some View {
-        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
-            ForEach(StreamInfo.rows(stats, averageMbps: history.averageMbps), id: \.label) { row in
-                if row.startsSection { Divider().overlay(.white.opacity(0.25)).gridCellColumns(2) }
-                GridRow {
-                    Text(verbatim: row.label).foregroundStyle(.white.opacity(0.6))
-                    Text(verbatim: row.value)
-                }
-            }
-        }
-    }
-}
-
-/// Buffer over the last two minutes: player and network share stacked, the reconnect
-/// threshold dashed, and reconnects, restarts and stalls marked.
-struct BufferChart: View {
-    @ObservedObject var history: BufferHistory
-    /// The second share is what the timeshift buffer holds ahead, not network bytes.
-    var isTimeshift = false
-    /// Timeshifted playback can have hours ahead; the chart is about the last seconds.
-    private static let cap = 60.0
-
-    private static let playerColor = Color(red: 0.35, green: 0.62, blue: 1.0)
-    private static let networkColor = Color(red: 0.55, green: 0.85, blue: 0.75)
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                Text("Buffer, last 2 min").foregroundStyle(.white.opacity(0.6))
-                Spacer()
-                legend(Self.playerColor, "Player")
-                legend(Self.networkColor, isTimeshift ? "Disk" : "Net")
-            }
-            chart.frame(width: 300, height: 90)
-            HStack(spacing: 10) {
-                legend(.orange, "Reconnect")
-                legend(.purple, "Restart")
-                legend(.red, "Rebuffer")
-                Spacer()
-            }
-            .font(.system(size: 9, design: .monospaced))
-        }
-        .frame(width: 300)
-    }
-
-    private var chart: some View {
-        let now = history.samples.last?.time ?? Date()
-        let samples = history.samples
-        let peak = min(Self.cap, samples.map { $0.player + $0.network }.max() ?? 0)
-        return Chart {
-            ForEach(samples) { sample in
-                let x = sample.time.timeIntervalSince(now)
-                AreaMark(x: .value("Time", x), y: .value("Seconds", sample.player), stacking: .standard)
-                    .foregroundStyle(by: .value("Share", "Player"))
-                AreaMark(x: .value("Time", x), y: .value("Seconds", min(sample.network, max(0, Self.cap - sample.player))), stacking: .standard)
-                    .foregroundStyle(by: .value("Share", "Net"))
-                ForEach(Array(sample.events.enumerated()), id: \.offset) { _, event in
-                    RuleMark(x: .value("Time", x))
-                        .foregroundStyle(Self.color(for: event))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5))
-                }
-            }
-            RuleMark(y: .value("Threshold", 4))
-                .foregroundStyle(.white.opacity(0.4))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-        }
-        .chartForegroundStyleScale(["Player": Self.playerColor.opacity(0.8), "Net": Self.networkColor.opacity(0.7)])
-        .chartLegend(.hidden)
-        .chartXScale(domain: -BufferHistory.window...0)
-        .chartYScale(domain: 0...max(10, (peak / 5).rounded(.up) * 5))
-        .chartXAxis {
-            AxisMarks(values: [-120, -90, -60, -30, 0]) { value in
-                AxisGridLine().foregroundStyle(.white.opacity(0.12))
-                AxisValueLabel {
-                    if let seconds = value.as(Double.self) {
-                        Text(seconds == 0 ? "now" : "\(Int(seconds)) s")
-                    }
-                }
-                .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
-                AxisGridLine().foregroundStyle(.white.opacity(0.12))
-                AxisValueLabel {
-                    if let seconds = value.as(Double.self) { Text("\(Int(seconds)) s") }
-                }
-                .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-        .font(.system(size: 9, design: .monospaced))
-    }
-
-    private static func color(for event: BufferHistory.Event) -> Color {
-        switch event {
-        case .reconnect: return .orange
-        case .restart: return .purple
-        case .rebuffer: return .red
-        }
-    }
-
-    private func legend(_ color: Color, _ label: LocalizedStringKey) -> some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
-            Text(label).foregroundStyle(.white.opacity(0.7))
-        }
-    }
-}
-
 private extension NSView {
     func firstDescendant<T: NSView>(of type: T.Type) -> T? {
         if let match = self as? T { return match }
@@ -1453,82 +758,5 @@ private extension NSView {
             if let match = child.firstDescendant(of: type) { return match }
         }
         return nil
-    }
-}
-
-/// After an episode: the next one with a countdown.
-private struct NextEpisodeOverlay: View {
-    @ObservedObject var playback: JellyfinPlayback
-    let bottomInset: CGFloat
-    let play: (JFItem) -> Void
-    @State private var remaining = Int(JellyfinPlayback.autoplayDelay)
-
-    var body: some View {
-        if let next = playback.nextEpisode, !playback.autoplayCancelled {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Next Up").font(.headline).foregroundStyle(.secondary)
-                Text(label(next)).font(.title2.weight(.semibold)).lineLimit(2)
-                HStack {
-                    Button("Play Now (\(remaining))") { play(next) }
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
-                    Button("Cancel") { playback.cancelAutoplay() }
-                        .keyboardShortcut(.cancelAction)
-                }
-            }
-            .padding(22)
-            .frame(maxWidth: 420, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .environment(\.colorScheme, .dark)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            .padding(.trailing, 32)
-            .padding(.bottom, bottomInset)
-            .animation(.easeOut(duration: 0.2), value: bottomInset)
-            .task(id: playback.autoplayAt) {
-                // The countdown belongs to the playback, so the assistant sees the same one.
-                guard let deadline = playback.autoplayAt else { return }
-                while !Task.isCancelled {
-                    remaining = max(0, Int(deadline.timeIntervalSinceNow.rounded(.up)))
-                    if remaining == 0 { play(next); return }
-                    try? await Task.sleep(for: .milliseconds(250))
-                }
-            }
-        }
-    }
-
-    private func label(_ item: JFItem) -> String {
-        let code = [item.parentIndexNumber.map { "S\($0)" }, item.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
-        return code.isEmpty ? item.name : "\(code) · \(item.name)"
-    }
-}
-
-/// Draws a bitmap subtitle (PGS, VobSub, DVB) over the picture, placed on the subtitle's canvas
-/// scaled to where the video is shown (letterboxing included).
-struct BitmapSubtitleView: View {
-    let cue: BitmapCue
-    let videoSize: CGSize
-
-    var body: some View {
-        GeometryReader { geo in
-            let video = fitted(videoSize, in: geo.size)
-            let canvas = cue.canvas.width > 0 && cue.canvas.height > 0 ? cue.canvas : videoSize
-            let scale = canvas.width > 0 ? video.width / canvas.width : 1
-            let scaleY = canvas.height > 0 ? video.height / canvas.height : scale
-            ZStack(alignment: .topLeading) {
-                ForEach(Array(cue.pieces.enumerated()), id: \.offset) { _, piece in
-                    Image(decorative: piece.image, scale: 1)
-                        .resizable()
-                        .frame(width: piece.rect.width * scale, height: piece.rect.height * scaleY)
-                        .offset(x: video.minX + piece.rect.minX * scale, y: video.minY + piece.rect.minY * scaleY)
-                }
-            }
-        }
-    }
-
-    private func fitted(_ content: CGSize, in container: CGSize) -> CGRect {
-        guard content.width > 0, content.height > 0 else { return CGRect(origin: .zero, size: container) }
-        let scale = min(container.width / content.width, container.height / content.height)
-        let size = CGSize(width: content.width * scale, height: content.height * scale)
-        return CGRect(x: (container.width - size.width) / 2, y: (container.height - size.height) / 2, width: size.width, height: size.height)
     }
 }

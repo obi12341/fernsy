@@ -26,24 +26,24 @@ Verification for each phase:
 
 ## 2. Split large files (moves only)
 
-- [ ] 2.1 `PlaybackSession.swift`:
+- [x] 2.1 `PlaybackSession.swift`:
   - Move `SourceBox` and the I/O trampolines to `ByteSource.swift`, made internal.
   - Add `PlaybackSession+Live.swift` (admission and rescue), `+Video.swift`, `+Audio.swift`
     (with `AudioLevelMeter`), `+Monitor.swift`, `+Subtitles.swift` (bitmap) and
     `+DebugFaults.swift`.
   - Give `LastPicture` and `PlayerError` their own files.
-- [ ] 2.2 `PlayerEngine.swift`: `PlaybackProgress`, `BufferHistory` and `ExternalPlayback` into their own files; the debug stall test into an extension. `HTTPByteSource.swift`: the `debug*` fault hooks into `HTTPByteSource+Debug.swift`
-- [ ] 2.3 Mac `PlayerScreen.swift`:
+- [x] 2.2 `PlayerEngine.swift`: `PlaybackProgress`, `BufferHistory` and `ExternalPlayback` into their own files; the debug stall test into an extension. `HTTPByteSource.swift`: the `debug*` fault hooks into `HTTPByteSource+Debug.swift`
+- [x] 2.3 Mac `PlayerScreen.swift`:
   - Give `PlayerControls`, `ChannelOSD`, the stats overlays (`AudioStatusBadge`,
     `StatsOverlay`, `BufferChart`), `NextEpisodeOverlay` and `BitmapSubtitleView` their own
     files.
   - Move the debug hooks from `onAppear` into a `PlayerScreen+Debug.swift` modifier.
-- [ ] 2.4 `AppModel.swift`: `debugBootstrap`, `PlayItem`, the catalog cache and refresh, visibility and favorites, series track memory and sync into `AppModel+*.swift` extensions or files
-- [ ] 2.5 `LoginView.swift` → `LoginView.swift` and `SettingsView.swift` (with its tabs); `MCPTools.swift`: `PlayerWindow` into `PlayerWindow.swift`
-- [ ] 2.6 Platform-only files leave the other target through the membership exceptions:
+- [x] 2.4 `AppModel.swift`: `debugBootstrap`, `PlayItem`, the catalog cache and refresh, visibility and favorites, series track memory and sync into `AppModel+*.swift` extensions or files
+- [x] 2.5 `LoginView.swift` → `LoginView.swift` and `SettingsView.swift` (with its tabs); `MCPTools.swift`: `PlayerWindow` into `PlayerWindow.swift`
+- [x] 2.6 Platform-only files leave the other target through the membership exceptions:
   - `DisplayModeController.swift` becomes tvOS-only, without its whole-file `#if`.
   - The iOS offline retry (TVModel.swift 255-288) moves to an iOS-only `TVModel+Offline.swift`.
-- [ ] 2.7 Verify (A), (B) and (C), and check `git diff --color-moved` for changed lines inside moved blocks; commit phase 2
+- [x] 2.7 Verify (A), (B) and (C), and check `git diff --color-moved` for changed lines inside moved blocks; commit phase 2
 
 ## 3. One copy of shared logic
 

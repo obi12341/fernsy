@@ -1,4 +1,3 @@
-#if os(tvOS)
 import AVKit
 import Combine
 import FernsyCore
@@ -160,4 +159,3 @@ final class DisplayModeController {
         AppLog.info(.player, "display mode: released")
     }
 }
-#endif
