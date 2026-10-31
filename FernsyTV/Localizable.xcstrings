@@ -623,6 +623,36 @@
         }
       }
     },
+    "For live TV, catch-up, movies, series and recordings. Switching the TV takes a few seconds of black picture, also when you change channels. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für Live-TV, Catch-up, Filme, Serien und Aufnahmen. Das Umschalten zeigt einige Sekunden Schwarzbild, auch beim Senderwechsel. Der Fernseher schaltet nur um, wenn „Inhalt anpassen“ in den Einstellungen des Apple TV unter „Video und Audio“ eingeschaltet ist."
+          }
+        }
+      }
+    },
+    "Match Frame Rate and Dynamic Range": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildfrequenz und Dynamikbereich anpassen"
+          }
+        }
+      }
+    },
+    "Switches the TV to the frame rate and HDR mode of what plays from this server. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaltet den Fernseher auf die Bildfrequenz und den HDR-Modus dessen um, was von diesem Server läuft. Der Fernseher schaltet nur um, wenn „Inhalt anpassen“ in den Einstellungen des Apple TV unter „Video und Audio“ eingeschaltet ist."
+          }
+        }
+      }
+    },
     "connected": {
       "localizations": {
         "de": {

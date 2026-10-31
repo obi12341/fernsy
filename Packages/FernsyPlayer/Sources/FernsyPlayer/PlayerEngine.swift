@@ -150,6 +150,10 @@ public final class PlayerEngine: ObservableObject {
     /// When the picture stopped for lack of data (after the start), for the log.
     private var stallStartedAt: Date?
     @Published public private(set) var videoSize: CGSize = .zero
+    /// What the picture is (frame rate, dynamic range), for the Apple TV's display mode; nil when stopped.
+    @Published public private(set) var displayFormat: DisplayFormat?
+    /// The Apple TV holds the first start of each item here while the TV switches its mode.
+    public let startHold = StartHold()
     @Published public private(set) var stats = PlaybackStats()
     @Published public private(set) var subtitleText: String?
     /// The bitmap subtitle (PGS, VobSub, DVB) to draw now.
@@ -455,6 +459,8 @@ public final class PlayerEngine: ObservableObject {
         progress.position = max(0, startAt) + (external?.timelineOffset ?? 0)
         progress.duration = external?.duration ?? 0
         hasStarted = false
+        displayFormat = nil
+        startHold.arm()
         bitmapCues = []
         subtitleBitmap = nil
         progress.buffered = 0
@@ -483,6 +489,7 @@ public final class PlayerEngine: ObservableObject {
             }
             session.beforeFirstVideo = { loadingCard.stop() }
             session.lastPicture = lastPicture
+            session.startHold = startHold
             self.session = session
             #if DEBUG
             // IPTV_TESTSLOWSTART=<s>: a slow provider – the new item starts that much later.
@@ -503,6 +510,7 @@ public final class PlayerEngine: ObservableObject {
         external = nil
         externalCues = nil
         generation += 1
+        displayFormat = nil
         status = .idle
         isAudioMissing = false
         media = nil
@@ -765,6 +773,8 @@ public final class PlayerEngine: ObservableObject {
             external?.onOpened?()
         case .videoSize(let size):
             videoSize = size
+        case .displayFormat(let format):
+            displayFormat = format
         case .started:
             logStallEnd()
             hasStarted = true

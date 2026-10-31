@@ -152,6 +152,10 @@ final class TVModel: ObservableObject {
 
     private var recorderChanges: AnyCancellable?
     private var jellyfinChanges: AnyCancellable?
+    #if os(tvOS)
+    /// Asks tvOS for the shown video's frame rate and dynamic range (tvos-match-content).
+    private var displayMode: DisplayModeController?
+    #endif
 
     private init() {
         #if DEBUG
@@ -205,6 +209,9 @@ final class TVModel: ObservableObject {
         if let downloads { Task { await downloads.resume() } }
         #endif
         startPathMonitor()
+        #if os(tvOS)
+        displayMode = DisplayModeController(model: self)
+        #endif
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_FRAMESTATS"] == "1" { FrameStats.shared.start() }
         #endif

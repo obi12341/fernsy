@@ -126,7 +126,8 @@ public final class FileByteSource: ByteSource {
 
     public var supportsRanges: Bool { true }
     public var finalURL: URL? { url }
-    public var mimeType: String? { "video/mp2t" }
+    /// Recordings are MPEG-TS; any other file (a test video) is probed.
+    public var mimeType: String? { url.pathExtension.lowercased() == "ts" ? "video/mp2t" : nil }
     public var netStats: HTTPByteSource.NetStats { HTTPByteSource.NetStats() }
     public var totalBytesReceived: Int64 { offset }
 

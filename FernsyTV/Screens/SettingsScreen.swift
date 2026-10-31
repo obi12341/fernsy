@@ -171,6 +171,7 @@ private struct ChoiceRow: View {
 private struct AccountScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var confirm = false
+    @AppStorage(DisplayModeController.iptvKey) private var matchDisplayMode = false
 
     var body: some View {
         SettingsPage(title: "IPTV Account") {
@@ -187,6 +188,8 @@ private struct AccountScreen: View {
                     .accessibilityValue(model.showsIPTVSeries ? "on" : "off")
                 Text("Sections that are switched off are not loaded or searched. Favorites and resume positions are kept.")
                     .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
+                MatchDisplayModeRow(id: "settings.iptvMatchDisplayMode", on: $matchDisplayMode,
+                                    note: Text("For live TV, catch-up, movies, series and recordings. Switching the TV takes a few seconds of black picture, also when you change channels. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio."))
             }
             Button { confirm = true } label: {
                 Text("Sign Out").font(.system(size: 26, weight: .semibold)).foregroundStyle(TVTheme.live)
@@ -200,6 +203,21 @@ private struct AccountScreen: View {
         } message: {
             Text("Favorites, hidden channels and recordings stay on this Apple TV for when you sign in again.")
         }
+    }
+}
+
+/// "Match Frame Rate and Dynamic Range" of an account (tvos-match-content).
+private struct MatchDisplayModeRow: View {
+    let id: String
+    @Binding var on: Bool
+    let note: Text
+
+    var body: some View {
+        ChoiceRow(title: Text("Match Frame Rate and Dynamic Range"), chosen: on) { on.toggle() }
+            .accessibilityIdentifier(id)
+            .accessibilityValue(on ? "on" : "off")
+            .padding(.top, 24)
+        note.font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
     }
 }
 
@@ -230,6 +248,7 @@ private struct AddAccountScreen: View {
 private struct JellyfinAccountScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var confirm = false
+    @AppStorage(DisplayModeController.jellyfinKey) private var matchDisplayMode = true
 
     var body: some View {
         SettingsPage(title: "Jellyfin Server") {
@@ -237,6 +256,8 @@ private struct JellyfinAccountScreen: View {
                 SettingsRow(title: Text("Server"), value: Text(verbatim: "\(session.serverName) · \(session.version)")).padding(.trailing, -40)
                 SettingsRow(title: Text("Address"), value: Text(verbatim: session.server)).padding(.trailing, -40)
                 SettingsRow(title: Text("User"), value: Text(verbatim: session.userName)).padding(.trailing, -40)
+                MatchDisplayModeRow(id: "settings.jellyfinMatchDisplayMode", on: $matchDisplayMode,
+                                    note: Text("Switches the TV to the frame rate and HDR mode of what plays from this server. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio."))
             }
             Button { confirm = true } label: {
                 Text("Sign Out").font(.system(size: 26, weight: .semibold)).foregroundStyle(TVTheme.live)

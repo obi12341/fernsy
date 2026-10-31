@@ -56,6 +56,8 @@ public final class PlaybackSession {
     public enum Event {
         case opened(MediaInfo)
         case videoSize(CGSize)
+        /// What the display layer shows, on the first frame and when it changes (tvos-match-content).
+        case displayFormat(DisplayFormat)
         case started
         case buffering(Bool)
         case position(Double, buffered: Double)
@@ -198,6 +200,8 @@ public final class PlaybackSession {
     public var beforeFirstVideo: (() -> Void)?
     /// Receives every video frame that goes to the renderer.
     public var lastPicture: LastPicture?
+    /// Holds the first start while the Apple TV switches its display mode.
+    public var startHold: StartHold?
     private var sentVideo = false
 
     public init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
@@ -1145,6 +1149,7 @@ public final class PlaybackSession {
         let streamTB = st.pointee.time_base
         let rate = st.pointee.avg_frame_rate.num > 0 ? st.pointee.avg_frame_rate : st.pointee.r_frame_rate
         let nominalDuration = rate.num > 0 ? Double(rate.den) / Double(rate.num) : 0.04
+        let frameRate = rate.num > 0 && rate.den > 0 ? Double(rate.num) / Double(rate.den) : 0
 
         guard let frame = av_frame_alloc(), let filtered = av_frame_alloc() else { return }
         var pixconv = ffs_pixconv_alloc()
@@ -1182,6 +1187,8 @@ public final class PlaybackSession {
                 formatDescription = fd
                 updateVideoStats(pixelBuffer: pixelBuffer, sar: f.pointee.sample_aspect_ratio,
                                  decoder: f.pointee.format == AV_PIX_FMT_VIDEOTOOLBOX.rawValue ? "VideoToolbox (Hardware)" : "Software")
+                // The deinterlacer outputs every field as a frame: 1080i25 shows 50 frames a second.
+                if let fd { emit(.displayFormat(DisplayFormat(frameRate: frameRate * (deint != nil ? 2 : 1), formatDescription: fd))) }
             }
             guard let formatDescription else { return }
 
@@ -1207,6 +1214,7 @@ public final class PlaybackSession {
                 formatDescription = fd
                 updateVideoStats(pixelBuffer: pixelBuffer, sar: st.pointee.codecpar.pointee.sample_aspect_ratio,
                                  decoder: String(localized: "VideoToolbox (Dolby Vision)", bundle: .module))
+                if let stream = dv?.formatDescription ?? fd { emit(.displayFormat(DisplayFormat(frameRate: frameRate, formatDescription: stream))) }
             }
             guard let formatDescription else { return }
             var timing = CMSampleTimingInfo(duration: CMTime(sec: duration), presentationTimeStamp: CMTime(sec: frame.time),
@@ -1682,7 +1690,9 @@ public final class PlaybackSession {
                 let audioSilent = elapsed > 2.5 && audioDemuxedUntil == -.infinity
                 let audioReady = !hasAudio || audioEnqueuedUntil >= start + 0.3 || audioDrained || audioSilent
                     || audioStartsLater || elapsed > 8
-                if videoReady && audioReady {
+                // The first start waits while the Apple TV switches its display mode (at most 8 s).
+                let held = stats.startupTime == 0 && startHold?.isHeld == true && elapsed < 8
+                if videoReady && audioReady && !held {
                     prerolling = false
                     buffering = false
                     if stats.startupTime == 0 { stats.startupTime = Date().timeIntervalSince(createdAt) }
