@@ -2222,26 +2222,6 @@
         }
       }
     },
-    "New Movies": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neue Filme"
-          }
-        }
-      }
-    },
-    "New Series": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neue Serien"
-          }
-        }
-      }
-    },
     "Newest": {
       "localizations": {
         "de": {

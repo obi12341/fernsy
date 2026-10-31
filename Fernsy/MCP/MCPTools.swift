@@ -271,10 +271,10 @@ final class MCPTools {
         result["iptv_films_in_progress"] = app.movies
             .filter { app.showAdult || (!$0.isAdult && !adultMovies.contains($0.categoryId ?? "")) }
             .compactMap { movie -> [String: Any]? in
-                let position = app.resumePosition("movie.\(movie.id)")
+                let position = app.resumePosition(ResumeStore.movieKey(movie.id))
                 guard position > 0 else { return nil }
                 var value: [String: Any] = ["item_id": "movie:\(movie.id)", "title": movie.name, "position_seconds": Int(position)]
-                if let fraction = app.resumeFraction("movie.\(movie.id)") {
+                if let fraction = app.resumeFraction(ResumeStore.movieKey(movie.id)) {
                     value["progress_percent"] = Int(fraction * 100)
                     value.merge(Self.runtime(duration: position / fraction, position: position)) { $1 }
                 }
@@ -512,8 +512,8 @@ final class MCPTools {
             if let plot = details?.plot, !plot.isEmpty { value["plot"] = plot }
             if let genre = details?.genre { value["genre"] = genre }
             if let date = details?.releaseDate { value["release_date"] = date }
-            let position = app.resumePosition("movie.\(id)")
-            let duration = details?.duration.flatMap(Self.seconds) ?? app.resumeFraction("movie.\(id)").map { position / $0 }
+            let position = app.resumePosition(ResumeStore.movieKey(id))
+            let duration = details?.duration.flatMap(Self.seconds) ?? app.resumeFraction(ResumeStore.movieKey(id)).map { position / $0 }
             value.merge(Self.runtime(duration: duration, position: position)) { $1 }
         case ("episode", 3):
             guard app.showsIPTVSeries, let seriesId = Int(parts[1]), let show = app.series.first(where: { $0.id == seriesId }),
@@ -526,7 +526,7 @@ final class MCPTools {
             value["episode"] = episode.number
             value["title"] = episode.title
             if let plot = episode.plot, !plot.isEmpty { value["plot"] = plot }
-            value.merge(Self.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition("episode.\(episode.id)"))) { $1 }
+            value.merge(Self.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition(ResumeStore.episodeKey(episode.id)))) { $1 }
         case ("jellyfin", 2):
             guard app.hasJellyfin else { throw ToolError("No Jellyfin account") }
             let item = try await app.jellyfin.call { try await $0.item(userId: $1, id: parts[1]) }

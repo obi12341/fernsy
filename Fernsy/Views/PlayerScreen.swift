@@ -190,6 +190,8 @@ struct PlayerScreen: View {
                     }
                 }
             }
+            // IPTV_TESTZAP=1: three quick "next channel" presses 6 s after opening, to check that
+            // fast zapping lands on the right channel.
             if ProcessInfo.processInfo.environment["IPTV_TESTZAP"] != nil {
                 for i in 0..<3 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 6 + Double(i) * 0.15) {

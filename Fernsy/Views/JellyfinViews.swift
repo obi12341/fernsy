@@ -6,7 +6,6 @@ import SwiftUI
 enum JFKind {
     case films, series
 
-    var itemType: String { self == .films ? "Movie" : "Series" }
     var collectionType: String { self == .films ? "movies" : "tvshows" }
 }
 

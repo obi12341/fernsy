@@ -16,7 +16,7 @@ public final class ResumeStore: @unchecked Sendable {
     }
 
     public static func movieKey(_ id: Int) -> String { "movie.\(id)" }
-    public static func episodeKey(_ id: Int) -> String { "episode.\(id)" }
+    public static func episodeKey(_ id: String) -> String { "episode.\(id)" }
     public static func recordingKey(_ id: UUID) -> String { "recording.\(id.uuidString)" }
 
     public func position(_ key: String) -> Double {

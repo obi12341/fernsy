@@ -619,7 +619,7 @@ struct SeriesPage: View {
     }
 
     private static func entry(_ episode: Episode, _ series: Series, _ model: TVModel) -> EpisodeEntry {
-        let key = "episode.\(episode.id)"
+        let key = ResumeStore.episodeKey(episode.id)
         let runtime = episode.durationSeconds.map { " · " + Runtime.text(seconds: Double($0)) } ?? ""
         return EpisodeEntry(id: episode.id, title: episode.title, number: "S\(episode.season) F\(episode.number)\(runtime)",
                             label: "S\(episode.season) F\(episode.number)", image: (episode.image ?? series.cover).flatMap(URL.init(string:)),

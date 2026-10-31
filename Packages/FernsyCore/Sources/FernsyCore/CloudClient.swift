@@ -184,14 +184,6 @@ public final class CloudClient: @unchecked Sendable {
         let _: Empty = try await send("DELETE", "v1/recordings/\(id)")
     }
 
-    // MARK: Development server
-
-    /// Dev server only: sets the dev user's subscription state, for UI tests and manual checks.
-    public func devSetAccount(state: String, endedDaysAgo: Int? = nil, quotaBytes: Int64? = nil) async throws {
-        struct Body: Encodable { var state: String; var endedDaysAgo: Int?; var quotaBytes: Int64? }
-        let _: Empty = try await send("POST", "v1/dev/account", body: Body(state: state, endedDaysAgo: endedDaysAgo, quotaBytes: quotaBytes))
-    }
-
     // MARK: Transport
 
     struct Empty: Decodable {}

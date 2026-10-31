@@ -75,8 +75,8 @@ struct PlayItem: Equatable {
     var resumeKey: String? {
         switch kind {
         case .live: return nil
-        case .movie(let id): return "movie.\(id)"
-        case .episode(let id, _): return "episode.\(id)"
+        case .movie(let id): return ResumeStore.movieKey(id)
+        case .episode(let id, _): return ResumeStore.episodeKey(id)
         case .recording(let id): return "recording.\(id.uuidString)"
         case .cloud(let id): return "cloud.\(id)"
         case .jellyfin: return nil // resume positions live on the server
@@ -1097,7 +1097,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Plays a Jellyfin film or episode; series start with their Next Up episode.
     /// Language rules for a playback: the series' remembered choice, else the settings.
     func trackPreferences(for item: PlayItem) -> TrackPreferences {
         guard let key = Self.seriesTrackKey(item), let data = seriesTracks[key],
@@ -1137,6 +1136,7 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Plays a Jellyfin film or episode; series start with their Next Up episode.
     func play(jellyfin item: JFItem, resume: Bool = true) {
         Task {
             var target = item

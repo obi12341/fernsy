@@ -50,7 +50,7 @@ enum VODItem: Equatable {
     var resumeKey: String? {
         switch self {
         case .movie(let movie): ResumeStore.movieKey(movie.id)
-        case .episode(let episode, _): "episode.\(episode.id)"
+        case .episode(let episode, _): ResumeStore.episodeKey(episode.id)
         case .cloud(let item): "cloud.\(item.id)"
         case .jellyfin, .archive: nil   // archives expire within days
         }
@@ -227,8 +227,8 @@ extension TVModel {
     /// The next episode to watch: the first not watched after the last watched or started one.
     func nextEpisode(of series: Series, in info: SeriesInfo) -> Episode? {
         let all = info.seasons.keys.sorted().flatMap { info.seasons[$0] ?? [] }
-        if let started = all.first(where: { resume.position("episode.\($0.id)") > 0 }) { return started }
-        let lastWatched = all.lastIndex { resume.isWatched("episode.\($0.id)") }
+        if let started = all.first(where: { resume.position(ResumeStore.episodeKey($0.id)) > 0 }) { return started }
+        let lastWatched = all.lastIndex { resume.isWatched(ResumeStore.episodeKey($0.id)) }
         return lastWatched.map { all.index(after: $0) < all.count ? all[all.index(after: $0)] : all[$0] } ?? all.first
     }
 

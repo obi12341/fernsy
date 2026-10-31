@@ -613,16 +613,6 @@
         }
       }
     },
-    "Coming Up": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Als Nächstes"
-          }
-        }
-      }
-    },
     "For live TV, catch-up, movies, series and recordings. Switching the TV takes a few seconds of black picture, also when you change channels. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio.": {
       "localizations": {
         "de": {
@@ -813,16 +803,6 @@
         }
       }
     },
-    "Fernsy on Apple TV uses one IPTV account. To use another one, sign out first. Jellyfin servers follow in a later version.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fernsy nutzt auf Apple TV einen IPTV-Zugang. Für einen anderen meldest du dich zuerst ab. Jellyfin-Server folgen in einer späteren Version."
-          }
-        }
-      }
-    },
     "Fernsy uses one IPTV account and one Jellyfin server at a time; sign out to use another one.": {
       "localizations": {
         "de": {
@@ -859,16 +839,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Filme und Serien"
-          }
-        }
-      }
-    },
-    "Movies · %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filme · %@"
           }
         }
       }
@@ -1139,16 +1109,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Programm wird geladen …"
-          }
-        }
-      }
-    },
-    "Loading …": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wird geladen …"
           }
         }
       }
@@ -1869,16 +1829,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Server"
-          }
-        }
-      }
-    },
-    "Server address": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Server-Adresse"
           }
         }
       }
