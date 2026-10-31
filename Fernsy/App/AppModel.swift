@@ -348,10 +348,7 @@ final class AppModel: ObservableObject {
     static var debugCredentials: XtreamCredentials? {
         #if DEBUG
         if let copied = XtreamCredentials.copied { return copied }
-        let env = ProcessInfo.processInfo.environment
-        // An empty IPTV_SERVER= starts without an account, as on Apple TV.
-        guard let server = env["IPTV_SERVER"], !server.isEmpty, let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
-        return XtreamCredentials(server: server, username: user, password: pass)
+        return DebugEnv.credentials
         #else
         return nil
         #endif

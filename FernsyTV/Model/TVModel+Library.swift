@@ -153,27 +153,9 @@ extension TVModel {
     /// so the simulator has a provider-sized catalog without a real provider (tvos-start-scrolling).
     private static func debugEnlarged(_ cache: LibraryCache) -> LibraryCache {
         guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGCATALOG"].flatMap(Int.init) else { return cache }
-        func enlarged(_ data: Data, id: String, date: String) -> Data {
-            guard let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !items.isEmpty else { return data }
-            var out = items
-            var copy = 1
-            while out.count < target {
-                for item in items where out.count < target {
-                    var item = item
-                    let base = (item[id] as? Int) ?? Int("\(item[id] ?? 0)") ?? 0
-                    item[id] = base + copy * 1_000_000
-                    item["name"] = "\(item["name"] ?? "") \(copy)"
-                    let stamp = (item[date] as? Int) ?? Int("\(item[date] ?? 0)") ?? 0
-                    item[date] = "\(max(0, stamp - copy * 60))"
-                    out.append(item)
-                }
-                copy += 1
-            }
-            return (try? JSONSerialization.data(withJSONObject: out)) ?? data
-        }
         var cache = cache
-        cache.movies = enlarged(cache.movies, id: "stream_id", date: "added")
-        cache.series = enlarged(cache.series, id: "series_id", date: "last_modified")
+        cache.movies = DebugEnv.enlarged(cache.movies, to: target, id: "stream_id", date: "added")
+        cache.series = DebugEnv.enlarged(cache.series, to: target, id: "series_id", date: "last_modified")
         return cache
     }
     #endif

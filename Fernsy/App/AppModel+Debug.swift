@@ -134,24 +134,20 @@ extension AppModel {
             favorites = Set(list.split(separator: ",").map(String.init))
             debugFavoritesInMemory = true
         }
-        if let spec = env["IPTV_TESTHIDE"] {
+        let hideSteps = DebugEnv.hideSteps
+        if !hideSteps.isEmpty {
             // IPTV_TESTHIDE=channel:102,category:3,wait:20,show:channel:102: hides (or with
             // "show:" shows) live channels and categories in order once the catalog is loaded,
             // "wait:<s>" pauses in between.
             Task {
                 while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                for item in spec.split(separator: ",") {
-                    var parts = item.split(separator: ":").map(String.init)
-                    let hidden = parts.first != "show"
-                    if !hidden { parts.removeFirst() }
-                    guard parts.count == 2 else { continue }
-                    switch parts[0] {
-                    case "wait": try? await Task.sleep(for: .seconds(Double(parts[1]) ?? 0))
-                    case "channel": if let id = Int(parts[1]) { setChannel(id, hidden: hidden) }
-                    case "category": setCategory(parts[1], hidden: hidden)
-                    default: continue
+                for step in hideSteps {
+                    switch step {
+                    case .wait(let seconds): try? await Task.sleep(for: .seconds(seconds))
+                    case .channel(let id, let hidden): setChannel(id, hidden: hidden)
+                    case .category(let id, let hidden): setCategory(id, hidden: hidden)
                     }
-                    debugLog("[test] test \(item): \(visibleChannelTotal) of \(channels.count) channels visible")
+                    debugLog("[test] test \(step): \(visibleChannelTotal) of \(channels.count) channels visible")
                 }
             }
         }
@@ -172,15 +168,8 @@ extension AppModel {
         }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
         if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
-        if let spec = env["IPTV_TESTRESUME"] {
-            // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run.
-            for item in spec.split(separator: ",") {
-                let p = item.split(separator: ":")
-                if p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) {
-                    resume.save(String(p[0]), position: position, duration: duration)
-                }
-            }
-        }
+        // IPTV_TESTRESUME: resume positions for this run.
+        for item in DebugEnv.resumePositions { resume.save(item.key, position: item.position, duration: item.duration) }
         if let appearance = env["IPTV_APPEARANCE"] {
             // IPTV_APPEARANCE=light|dark: one run in that appearance, without touching the system setting.
             NSApp.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
