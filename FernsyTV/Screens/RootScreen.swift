@@ -85,6 +85,8 @@ struct MainTabs: View {
         .onChange(of: model.showsIPTVMovies) { updateVODTabs() }
         .onChange(of: model.showsIPTVSeries) { updateVODTabs() }
         .onChange(of: selection) { updateVODTabs() }
+        // A deep link's page opens on Start (tvos-top-shelf design 3).
+        .onChange(of: model.pageRequest) { if model.pageRequest != nil { selection = .start } }
     }
 
     private func updateVODTabs() {
