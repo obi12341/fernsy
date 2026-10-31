@@ -732,7 +732,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/Info-TV.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Fernsy connects to your Jellyfin server or IPTV provider on your local network.";
@@ -849,7 +849,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/Info-iOS.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Fernsy connects to your Jellyfin server or IPTV provider on your local network.";
