@@ -24,9 +24,15 @@ struct FernsyTVApp: App {
     var body: some Scene {
         WindowGroup {
             RootScreen().environmentObject(model)
+                // The Top Shelf's tiles (tvos-top-shelf design 3); applied once the item has loaded.
+                .onOpenURL { model.handle(url: $0) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { model.appWillLeave() }
+            if phase == .background {
+                model.appWillLeave()
+                // The Home Screen shows the Top Shelf next: what was just watched belongs in it.
+                model.writeTopShelfNow()
+            }
         }
     }
 }

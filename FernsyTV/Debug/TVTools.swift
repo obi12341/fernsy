@@ -59,7 +59,8 @@ struct TVTools {
         tool("snapshot", "The picture shown now, as a JPEG.", [:]),
         tool("get_log", "The app log of this run: minimum level (detail, info, warning, error), optional query.",
              ["level": ["type": "string"], "query": ["type": "string"], "limit": ["type": "integer"]]),
-        tool("play_item", "Play a film (movie:<id>), an IPTV episode (episode:<series id>:<episode id>) or a Jellyfin item (jellyfin:<id>), from its resume position unless from_start.",
+        tool("top_shelf", "What the Top Shelf shows: the snapshot the app last wrote to the App Group container (Apple TV only), or empty.", [:]),
+        tool("play_item", "Play a film (movie:<id>), an IPTV episode (episode:<series id>:<episode id>) or a Jellyfin item (jellyfin:<id>) from its resume position unless from_start, a live channel (live:<id>) or a recording (recording:<uuid>); the ids of the Top Shelf's links.",
              ["item_id": ["type": "string"], "from_start": ["type": "boolean"]], required: ["item_id"]),
         tool("record", "Record a live channel: the show on now (channel_id), or a later show (channel_id and start, ISO 8601, of a show in its guide).",
              ["channel_id": ["type": "integer"], "start": ["type": "string"]], required: ["channel_id"]),
@@ -110,27 +111,20 @@ struct TVTools {
             let result = AppLog.shared.query(minimum: levels[args["level"] as? String ?? "info"] ?? .info,
                                              query: args["query"] as? String ?? "", limit: args["limit"] as? Int ?? 200)
             return ["entries": result.entries.map { $0.line }, "truncated": result.truncated]
+        case "top_shelf":
+            #if os(tvOS)
+            guard let container = TVModel.topShelfContainer,
+                  let data = try? Data(contentsOf: container.appendingPathComponent(TopShelfSnapshot.fileName)),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return ["sections": []] }
+            return json
+            #else
+            return ["sections": []]
+            #endif
         case "play_item":
-            guard let item = args["item_id"] as? String else { throw ToolError("Pass item_id") }
-            let parts = item.split(separator: ":").map(String.init)
-            let fromStart = args["from_start"] as? Bool == true
-            switch parts.first {
-            case "movie":
-                guard parts.count == 2, let id = Int(parts[1]), let movie = model.movies.first(where: { $0.id == id }) else { throw ToolError("No film \(item)") }
-                model.play(.movie(movie), fromStart: fromStart)
-            case "episode":
-                guard parts.count == 3, let seriesId = Int(parts[1]), let show = model.series.first(where: { $0.id == seriesId }),
-                      let info = await model.seriesDetails(show),
-                      let episode = info.seasons.values.flatMap({ $0 }).first(where: { $0.id == parts[2] }) else { throw ToolError("No episode \(item)") }
-                model.play(.episode(episode, show), fromStart: fromStart)
-            case "jellyfin":
-                guard parts.count == 2 else { throw ToolError("item_id must look like jellyfin:<id>") }
-                await model.jellyfin.loadDetail(parts[1])
-                guard let jfItem = model.jellyfin.details[parts[1]] else { throw ToolError("No Jellyfin item \(parts[1])") }
-                model.play(.jellyfin(jfItem), fromStart: fromStart)
-            default:
-                throw ToolError("item_id must start with movie:, episode: or jellyfin:")
+            guard let value = args["item_id"] as? String, let item = TopShelfLink.Item(id: value) else {
+                throw ToolError("item_id must look like movie:<id>, episode:<series id>:<episode id>, jellyfin:<id>, live:<id> or recording:<uuid>")
             }
+            do { try await model.play(item, fromStart: args["from_start"] as? Bool == true) } catch { throw ToolError(error.localizedDescription) }
             try? await Task.sleep(for: .seconds(2))
             return nowPlaying()
         case "record":
