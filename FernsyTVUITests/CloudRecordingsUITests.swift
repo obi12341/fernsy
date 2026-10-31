@@ -53,7 +53,7 @@ final class CloudRecordingsUITests: FernsyUITestCase {
         XCTAssertTrue(wait(10) { (Self.seconds(remaining.label) ?? before) <= before - 70 && state.value as? String == "playing" },
                       "seeking 90 s did not land (remaining \(remaining.label), before \(before))")
         shot("cloud-playing", app)
-        remote.press(.menu)
+        closePlayer(app)
     }
 
     /// Settings › Fernsy Cloud (7.1): with the dev user's active subscription the account shows.

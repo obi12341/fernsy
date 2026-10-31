@@ -4,7 +4,8 @@ import FernsyPlayer
 import SwiftUI
 
 /// Films, episodes and Jellyfin items full screen: Left/Right 10 s, Play/Pause, a click shows
-/// the timeline, Up the audio and subtitle choice, Back stops (positions are kept or reported).
+/// the timeline, Up the audio and subtitle choice, Back closes the panel, the countdown or the
+/// timeline first and stops only with none showing (positions are kept or reported).
 /// When an episode ends and a next one exists, a countdown starts it, as on the Mac.
 struct VODPlayerScreen: View {
     @EnvironmentObject private var model: TVModel
@@ -84,9 +85,7 @@ struct VODPlayerScreen: View {
             touch()
         })
         .onTapGesture { if !failed { showsOverlay.toggle(); touch() } }
-        .onExitCommand {
-            if tracks != nil { tracks = nil; focused = true } else { model.stop() }
-        }
+        .onExitCommand { back() }
         .task(id: lastInput) {
             guard (try? await Task.sleep(for: .seconds(6))) != nil else { return }
             showsOverlay = false
@@ -109,6 +108,26 @@ struct VODPlayerScreen: View {
     private func touch() {
         showsOverlay = true
         lastInput = Date()
+    }
+
+    /// Back closes the topmost layer: the track panel, the next-episode countdown, the timeline;
+    /// only with none showing it stops (tvos-back-closes-overlay). Hiding does not touch(), so
+    /// the timeline does not come back.
+    private func back() {
+        if tracks != nil {
+            AppLog.detail(.player, "remote back in the track panel")
+            tracks = nil
+            focused = true
+        } else if countdown != nil {
+            AppLog.detail(.player, "remote back in the countdown")
+            cancelNext()
+        } else if showsOverlay {
+            AppLog.detail(.player, "remote back in the overlay")
+            showsOverlay = false
+        } else {
+            AppLog.detail(.player, "remote back in hidden")
+            model.stop()
+        }
     }
 
     private func playNext() {
