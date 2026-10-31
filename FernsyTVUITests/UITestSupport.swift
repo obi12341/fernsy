@@ -175,6 +175,18 @@ extension XCTestCase {
         waitUntil(timeout) { element.exists && element.hasFocus }
     }
 
+    /// Back until the film, episode or recording player is closed: with the timeline showing,
+    /// the first press only hides it (tvos-back-closes-overlay). False if it stays open.
+    @discardableResult
+    func closePlayer(_ app: XCUIApplication) -> Bool {
+        let state = app.descendants(matching: .any)["player.state"]
+        for _ in 0..<3 where state.exists {
+            XCUIRemote.shared.press(.menu)
+            _ = waitUntil(2) { !state.exists }
+        }
+        return !state.exists
+    }
+
     /// Waits until the player (live, film or recording) has taken focus: it does so a moment after
     /// it appears, and a press before that goes nowhere. The player reports it as its surface's value.
     @discardableResult
