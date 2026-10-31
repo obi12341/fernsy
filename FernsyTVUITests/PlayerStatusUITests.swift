@@ -109,7 +109,8 @@ final class PlayerStatusUITests: FernsyUITestCase {
         XCTAssertTrue(app.staticTexts["Loading Stardust…"].exists, "no film title while loading:\n\(app.debugDescription)")
         shot("status-film-loading", app)
         expect("none", app)
-        remote.press(.menu)
+        // The timeline is up after loading: the first Back only hides it (tvos-back-closes-overlay).
+        closePlayer(app)
         XCTAssertTrue(wait(10) { !self.status(app).exists }, "the player did not close")
 
         let preview = app.descendants(matching: .any)["live.preview.status"]

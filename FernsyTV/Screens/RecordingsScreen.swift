@@ -352,8 +352,9 @@ struct RecordingPlayerScreen: View {
         })
         .onTapGesture { if !failed { showsOverlay.toggle(); touch() } }
         .onExitCommand {
-            AppLog.detail(.player, "remote back in the recording player")
-            model.stop()
+            // The timeline first, then stop (tvos-back-closes-overlay); hiding does not touch().
+            AppLog.detail(.player, "remote back in the recording player" + (showsOverlay ? " (overlay)" : ""))
+            if showsOverlay { showsOverlay = false } else { model.stop() }
         }
         .task(id: lastInput) {
             guard (try? await Task.sleep(for: .seconds(6))) != nil else { return }
@@ -387,6 +388,7 @@ private struct RecordingOverlay: View {
                 Text(Duration.seconds(progress.position).formatted(.time(pattern: .hourMinuteSecond)))
                 Spacer()
                 Text(verbatim: "−" + Duration.seconds(max(0, progress.duration - progress.position)).formatted(.time(pattern: .hourMinuteSecond)))
+                    .accessibilityIdentifier("recording.remaining")
             }
             .font(.system(size: 21).monospacedDigit()).opacity(0.7)
         }
