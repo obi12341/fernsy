@@ -55,7 +55,8 @@ public final class DVDecoder {
 
     public let config: Config
     private let session: VTDecompressionSession
-    private let formatDescription: CMVideoFormatDescription
+    /// The Dolby Vision stream's format, also what the Apple TV asks its display mode for.
+    let formatDescription: CMVideoFormatDescription
     private let timeBase: AVRational
     private let reorderDepth: Int
     /// Decoded frames not yet released, in presentation order.
