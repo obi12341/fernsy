@@ -143,17 +143,10 @@ struct StartScreen: View {
 
     /// What Continue Watching, Next Up and the recordings read: the player closing, positions
     /// from iCloud, Jellyfin's lists and the recorder's.
-    private var resumeInputs: String {
-        let playing = model.playingVOD != nil || model.playingRecording != nil
-        let jellyfin = model.jellyfin.homeRevision
-        let recordings = model.recorder.recordings.map { "\($0.id)\($0.status)" }.joined(separator: ",")
-        return "\(playing)|\(model.resumeRevision)|\(jellyfin)|\(recordings)"
-    }
+    private var resumeInputs: String { model.startResumeInputs }
 
     /// What On Now reads: favourites, recently watched, the channel list and hidden channels.
-    private var liveInputs: String {
-        "\(model.favorites.sorted())|\(model.recentChannels).\(model.channels.count).\(model.visibility.modifiedAt.timeIntervalSince1970)"
-    }
+    private var liveInputs: String { model.startLiveInputs }
 
     private func refreshResume() {
         rows.resume = model.continueWatching

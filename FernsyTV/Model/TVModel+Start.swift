@@ -12,16 +12,10 @@ extension TVModel {
         builder.series = series
         builder.movieCategories = movieCategories
         builder.seriesCategories = seriesCategories
-        builder.jellyfinFilms = jellyfin.films
-        builder.jellyfinLatestFilms = jellyfin.latestFilms
-        builder.jellyfinLatestSeries = jellyfin.latestSeries
-        builder.jellyfinResume = jellyfin.resume
-        builder.jellyfinNextUp = jellyfin.nextUp
-        let store = jellyfin
-        builder.images = .init(poster: { store.posterURL($0) }, thumb: { store.thumbURL($0) }, backdrop: { store.backdropURL($0) })
+        builder.addJellyfin(jellyfin)
         builder.resume = resume
         builder.episodeIndex = episodeIndex
-        builder.recordings = recorder.recordings.map(Self.startRecording)
+        builder.recordings = recorder.recordings.map(StartBuilder.recording)
         builder.channels = channels
         return builder
     }
@@ -55,9 +49,16 @@ extension TVModel {
     /// A recording of Start's rows, by its id.
     func startRecording(_ id: UUID) -> Recording? { recorder.recordings.first { $0.id == id } }
 
-    static func startRecording(_ recording: Recording) -> StartRecording {
-        StartRecording(id: recording.id, title: recording.title, channelId: recording.channelId, channelName: recording.channelName,
-                       start: recording.start, recordStart: recording.recordStart, recordEnd: recording.recordEnd,
-                       finished: recording.status == .done, failed: recording.status == .failed)
+    /// What Continue Watching, Next Up and the recordings read: the player closing, positions
+    /// from iCloud, Jellyfin's lists and positions, and the recorder's list.
+    var startResumeInputs: String {
+        let playing = playingVOD != nil || playingRecording != nil
+        let recordings = recorder.recordings.map { "\($0.id)\($0.status)" }.joined(separator: ",")
+        return "\(playing)|\(resumeRevision)|\(jellyfin.homeRevision)|\(recordings)"
+    }
+
+    /// What On Now reads: favourites, recently watched, the channel list and hidden channels.
+    var startLiveInputs: String {
+        "\(favorites.sorted())|\(recentChannels).\(channels.count).\(visibility.modifiedAt.timeIntervalSince1970)"
     }
 }

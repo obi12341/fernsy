@@ -123,15 +123,9 @@ struct StartView: View {
         }
     }
 
-    private var resumeInputs: String {
-        let playing = model.playingVOD != nil
-        let jellyfin = model.jellyfin.homeRevision
-        return "\(playing)|\(model.resumeRevision)|\(jellyfin)"
-    }
+    private var resumeInputs: String { model.startResumeInputs }
 
-    private var liveInputs: String {
-        "\(model.favorites.sorted())|\(model.recentChannels).\(model.channels.count).\(model.visibility.modifiedAt.timeIntervalSince1970)"
-    }
+    private var liveInputs: String { model.startLiveInputs }
 
     private func refreshResume() {
         rows.resume = model.continueWatching
