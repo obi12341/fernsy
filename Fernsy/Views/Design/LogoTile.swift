@@ -9,14 +9,18 @@ struct LogoTile: View {
     let url: String?
     let name: String
     var width: CGFloat = 52
+    /// Another shape than 13:8, such as a 16:9 card on Start.
+    var fixedHeight: CGFloat?
+    var cornerRadius: CGFloat?
 
     @State private var image: NSImage?
     @State private var tone: LogoTone?
 
-    private var height: CGFloat { (width * 8 / 13).rounded() }
+    private var height: CGFloat { fixedHeight ?? (width * 8 / 13).rounded() }
+    private var radius: CGFloat { cornerRadius ?? max(5, width * 0.13) }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: max(5, width * 0.13), style: .continuous)
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(tone == .darkOnClear ? Theme.logoTileLight : Theme.logoTile)
             .overlay {
                 if let image {
@@ -24,7 +28,7 @@ struct LogoTile: View {
                         .resizable()
                         .interpolation(.high)
                         .aspectRatio(contentMode: .fit)
-                        .padding(width * 0.12)
+                        .padding(min(width, height * 13 / 8) * 0.12)
                 } else {
                     Text(Self.initials(of: name))
                         .font(.system(size: width * 0.27, weight: .heavy))
@@ -35,7 +39,7 @@ struct LogoTile: View {
                 }
             }
             .overlay {
-                RoundedRectangle(cornerRadius: max(5, width * 0.13), style: .continuous)
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
             }
             .frame(width: width, height: height)
