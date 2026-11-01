@@ -176,6 +176,22 @@ private struct OverviewPage: View {
                     }
                 }
             }
+            // The series' next episodes, as on Start (jellyfin-overview-next-up).
+            if !store.nextUp.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    RowTitle(title: "Next Up")
+                    CardRow {
+                        ForEach(store.nextUp, id: \.id) { item in
+                            Button { model.play(.jellyfin(item)) } label: {
+                                WideCard(title: item.seriesName ?? item.name, detail: VODItem.jellyfin(item).subtitle ?? item.name,
+                                         image: store.thumbURL(item).flatMap(URL.init(string:)), progress: nil)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("jellyfin.next.\(item.id)")
+                        }
+                    }
+                }
+            }
             posterRow("Recently Added", note: "Movies and Series", id: "latest", store.latestFilms + store.latestSeries)
             posterRow("Your Favorites", note: nil, id: "favorites", overview.favorites)
             posterRow("Unwatched & Top Rated", note: nil, id: "top", overview.topRated)

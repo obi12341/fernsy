@@ -610,10 +610,33 @@ read in `FernsyPlayer` and work the same on both platforms.
 
 **Debug MCP.** With `IPTV_MCP=1` and `IPTV_MCPTOKEN=<token>` (tv-run sets the token `test`) a
 debug build listens on `http://127.0.0.1:52325/mcp` (the simulator shares the Mac's network):
-`play`, `stop_playback`, `seek`, `now_playing` (also the preview), `playback_diagnostics`,
+`play`, `stop_playback`, `seek`, `now_playing` (also the preview), `playback_diagnostics`, `top_shelf`
+(the Top Shelf snapshot the app last wrote),
 `snapshot`, `get_log`, `record`, `list_recordings`, `cancel_recording`, `play_item` (films
-`movie:<id>`, IPTV episodes `episode:<series id>:<episode id>`, Jellyfin `jellyfin:<id>`)
+`movie:<id>`, IPTV episodes `episode:<series id>:<episode id>`, Jellyfin `jellyfin:<id>`, channels
+`live:<id>`, recordings `recording:<uuid>`: the ids of the Top Shelf's `fernsy://` links, parsed by
+FernsyCore's `TopShelfLink` and played by `TVModel+Links.swift`)
 (`FernsyTV/Debug/TVTools.swift`). Release builds have no listener.
+
+**Top Shelf.** `FernsyTopShelf/` is the extension (product type `app-extension`, entry
+`_NSExtensionMain`; the older `tv-app-extension` type exits at once with code 3). The app writes
+`topshelf.json` and the tile images to `Library/Caches` of the App Group container whenever
+Start's rows change (`TVModel+TopShelf.swift`); the extension only reads them. Tiles open
+`fernsy://play?item=<id>` (debug builds: `fernsy-dev://`, from `FERNSY_URL_SCHEME`, declared in
+`Config/Info-TV.plist`). Test a link with `xcrun simctl openurl booted "fernsy-dev://play?item=live:101"`.
+`TopShelfHomeUITests` takes screenshots of the simulator's Home Screen with the shelf (Fernsy Dev
+must be in the top row).
+
+**App Group.** The app and its Top Shelf extension (`FernsyTopShelf/`, embedded in the app) share
+the App Group `group.<app bundle id>` (`group.de.mobilistics.fernsy`, Debug
+`group.de.mobilistics.fernsy.dev`): `Config/FernsyTV.entitlements` and
+`FernsyTopShelf/FernsyTopShelf.entitlements` (`FERNSY_APP_GROUP` per build configuration). Device
+builds for CloudKit Production must not pass `CODE_SIGN_ENTITLEMENTS` on the command line: it applies
+to every target and gives the extension the app's entitlements with the wrong App Group. Build
+without it and add `com.apple.developer.icloud-container-environment` = `Production` when
+re-signing the app alone (`codesign -f --entitlements …` on `FernsyTV.app`, not `--deep`). New
+targets or capabilities need an Apple account in Xcode › Settings › Accounts, else
+`-allowProvisioningUpdates` fails with "No Accounts".
 
 **UI tests.** `scripts/tv-uitest.sh` builds the app and "Fernsy TV UITests" and runs them on the
 simulator (about 12 minutes for all): sign-in, tab bar, Live TV (preview, single stream, hiding,

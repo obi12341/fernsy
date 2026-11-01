@@ -35,6 +35,19 @@ struct JellyfinOverviewView: View {
                             }
                     }
                 }
+                // The series' next episodes, as on Start (jellyfin-overview-next-up).
+                if !jellyfin.nextUp.isEmpty {
+                    PagingCarousel(title: Text("Next Up"), items: jellyfin.nextUp, itemWidth: 280, height: 210) { item in
+                        Button { app.play(jellyfin: item) } label: { JellyfinWideCard(item: item) }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                JellyfinItemMenu(item: item)
+                                if let series = jellyfin.seriesItem(for: item) {
+                                    NavigationLink("Open Series", value: series)
+                                }
+                            }
+                    }
+                }
                 posterRow(Text("Recently Added"), note: Text("Movies and Series"), jellyfin.latestFilms + jellyfin.latestSeries)
                 posterRow(Text("Your Favorites"), overview.favorites)
                 posterRow(Text("Unwatched & Top Rated"), overview.topRated)

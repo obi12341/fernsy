@@ -37,6 +37,22 @@ struct JellyfinOverviewPage: View {
                     }
                 }
             }
+            // The series' next episodes, as on Start (jellyfin-overview-next-up).
+            if !store.nextUp.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    RowTitle(title: "Next Up")
+                    CardRow {
+                        ForEach(store.nextUp, id: \.id) { item in
+                            Button { model.play(.jellyfin(item)) } label: {
+                                WideCard(title: item.seriesName ?? item.name, detail: VODItem.jellyfin(item).subtitle ?? item.name,
+                                         image: store.thumbURL(item).flatMap(URL.init(string:)), progress: nil, width: 360)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityIdentifier("jellyfin.next.\(item.id)")
+                        }
+                    }
+                }
+            }
             VStack(alignment: .leading, spacing: 0) {
                 RowTitle(title: "Recently Added", note: "Movies and Series")
                 CardRow {

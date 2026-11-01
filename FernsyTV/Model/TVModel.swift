@@ -155,7 +155,17 @@ final class TVModel: ObservableObject {
     #if os(tvOS)
     /// Asks tvOS for the shown video's frame rate and dynamic range (tvos-match-content).
     private var displayMode: DisplayModeController?
+    /// The Top Shelf snapshot (TVModel+TopShelf.swift): its pending write, whether inputs changed
+    /// since, and the last file written.
+    var topShelfWrite: Task<Void, Never>?
+    var topShelfDirty = false
+    var topShelfWritten: Data?
+    private var topShelfChanges: AnyCancellable?
     #endif
+    /// A deep link waiting for sign-in and the catalog (TVModel+Links.swift).
+    var linkTask: Task<Void, Never>?
+    /// A page to open on Start, from a deep link; Start shows it and clears it.
+    @Published var pageRequest: PageRequest?
 
     private init() {
         #if DEBUG
@@ -203,6 +213,8 @@ final class TVModel: ObservableObject {
         startPathMonitor()
         #if os(tvOS)
         displayMode = DisplayModeController(model: self)
+        // Start's inputs are the model's (and the recorder's and Jellyfin's) changes.
+        topShelfChanges = objectWillChange.sink { [weak self] _ in self?.topShelfInputsChanged() }
         #endif
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_FRAMESTATS"] == "1" { FrameStats.shared.start() }

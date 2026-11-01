@@ -1,0 +1,61 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Continue Watching" : {
+      "comment" : "Top Shelf row: films and episodes in progress",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiterschauen"
+          }
+        }
+      }
+    },
+    "Favorite Channels" : {
+      "comment" : "Top Shelf row: the favourite live channels",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lieblingssender"
+          }
+        }
+      }
+    },
+    "On Now" : {
+      "comment" : "Top Shelf row: live channels without favourites or history",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt live"
+          }
+        }
+      }
+    },
+    "Recently Watched" : {
+      "comment" : "Top Shelf row: the recently watched live channels",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuletzt gesehen"
+          }
+        }
+      }
+    },
+    "Your Recordings" : {
+      "comment" : "Top Shelf row: finished recordings",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Aufnahmen"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
