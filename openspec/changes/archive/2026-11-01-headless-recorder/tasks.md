@@ -54,6 +54,9 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## Workflow follow-up
 
+- Archived on 2026-11-01 with 5.2 and 6.3 open, by the user's choice: 5.2 is checked by running
+  the image workflow on `main` after the merge; 6.3 (Raspberry Pi 4) follows with the image from
+  ghcr.io.
 - With the release that ships the apps' server UI: a "Fernsy Server" part in README.md and on the
   website (project-readme: the README only names what the current release has).
 - Release-note trailers when the apps' server UI ships. Archive, merge into `main` and push with
