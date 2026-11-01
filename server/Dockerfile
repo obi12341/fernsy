@@ -21,10 +21,12 @@ RUN case "$TARGETARCH" in amd64) ARCH=x86_64 ;; arm64) ARCH=aarch64 ;; *) echo "
     && cp "$(swift build -c "$CONFIGURATION" --swift-sdk "$ARCH-swift-linux-musl" -Xswiftc -gnone -Xlinker --strip-all --show-bin-path)/FernsyServer" /fernsy-server
 
 FROM scratch
+# The release (without "v"), shown in the log, on the status page and in the apps.
+ARG VERSION=dev
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /fernsy-server /fernsy-server
-ENV FERNSY_DATA=/data FERNSY_PORT=8080
+ENV FERNSY_DATA=/data FERNSY_PORT=8080 FERNSY_VERSION=$VERSION
 VOLUME /data
 EXPOSE 8080
 ENTRYPOINT ["/fernsy-server"]

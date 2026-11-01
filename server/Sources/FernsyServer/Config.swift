@@ -12,7 +12,9 @@ struct Config {
     var control: ControlClient
     var version: String
 
-    static let version = "1.0.0"
+    /// The release the image was built for (`FERNSY_VERSION`, set by server/Dockerfile from the
+    /// release tag); "dev" for local builds.
+    static let version = ProcessInfo.processInfo.environment["FERNSY_VERSION"].flatMap { $0.isEmpty ? nil : $0 } ?? "dev"
 
     static func fromEnvironment(_ env: [String: String] = ProcessInfo.processInfo.environment) -> Config {
         Config(data: URL(fileURLWithPath: env["FERNSY_DATA"] ?? "/data"),

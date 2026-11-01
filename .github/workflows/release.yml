@@ -1,6 +1,7 @@
 # Builds Fernsy outside the user's Mac (see DEVELOPMENT.md › Release).
 #   tag vX.Y / vX.Y.Z on main → release "Fernsy X.Y" with the notarized DMG, and the App Store
-#                               build uploaded to App Store Connect (submitting stays manual)
+#                               build uploaded to App Store Connect (submitting stays manual),
+#                               and the Fernsy Server image on ghcr.io (server-image.yml)
 #   every night (main changed) → the notarized DMG on the rolling pre-release "Nightly"
 #   run manually               → channel "nightly" (default), "appstore-test" (archive and
 #                               export the App Store build without uploading) or "dmg-test"
@@ -493,6 +494,17 @@ jobs:
           (umask 077; echo "$NOTARY_KEY_P8" | base64 --decode > "$ASC_KEY")
           swift scripts/ci-dev-certificates.swift revoke-new out/dev-certificates.txt
           rm -f "$ASC_KEY"
+
+  # Fernsy Server's image for this release (headless-recorder), after the tests passed.
+  server-image:
+    needs: [prepare, tests]
+    if: always() && needs.prepare.outputs.channel == 'release' && (needs.tests.result == 'success' || needs.tests.result == 'skipped')
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/server-image.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
 
   publish:
     needs: [prepare, dmg, appstore]
