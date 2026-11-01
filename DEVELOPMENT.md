@@ -778,6 +778,12 @@ and sets `BUILD_ROOT=~/build`, which `test.sh`, `tv-uitest.sh`, `ios-uitest.sh` 
 use instead of `build/`; result bundles therefore stay in the VM (`~/build/tv/Logs`). Builds for
 the real Apple TV and iPad, and anything that needs the user's signing, stay on the host.
 
+Limits of the VM: video plays with software decoding at about 8–12 frames per second (Apple's
+Virtualization framework gives the VM no hardware video decoder; more cores do not help), so
+tests that wait for "playing" fail there and run on the host or in CI. The Mac app compiles but
+cannot be built completely from the shared folder (the FFmpeg frameworks' symlinks do not copy)
+and has no signing for iCloud; Mac runs stay on the host.
+
 Setup (once): Tart from its GitHub release (the Homebrew tap's formula fails on current
 Homebrew), then `tart clone ghcr.io/cirruslabs/macos-golden-gate-xcode:27.1 fernsy-dev` and
 `tart set fernsy-dev --cpu 8 --memory 32768 --disk-size 160`.
