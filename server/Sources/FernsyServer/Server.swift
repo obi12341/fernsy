@@ -22,6 +22,8 @@ actor Server {
     private var limitCheckedAt = Date.distantPast
     private var account: (state: CloudClient.Account?, checkedAt: Date) = (nil, .distantPast)
     private var error: String?
+    private var lastLoginCheck = Date.distantPast
+    private var loginDisplay: String?
 
     init(config: Config) {
         self.config = config
@@ -96,12 +98,13 @@ actor Server {
 
     // MARK: Serving
 
-    private func serve(_ secrets: PairingSecrets) async {
+    private func serve(_ paired: PairingSecrets) async {
+        var secrets = paired
         state = volume.loadState()
         if !FileManager.default.fileExists(atPath: volume.stateURL.path) { volume.saveState(state) }
         let cloud = CloudClient.live()
         if let key = secrets.cloudKey { cloud.use(key) }
-        let xtream = XtreamClient(credentials: secrets.login)
+        var xtream = XtreamClient(credentials: secrets.login)
         resumeRecordings(xtream)
         while true {
             let now = Date()
@@ -116,6 +119,18 @@ actor Server {
                     return
                 }
             }
+            if let login = state.pendingLogin, now.timeIntervalSince(lastLoginCheck) >= config.pollSeconds {
+                lastLoginCheck = now
+                if let taken = await check(login, now: now) {
+                    secrets.login = taken
+                    try? volume.saveSecrets(secrets)
+                    xtream = XtreamClient(credentials: taken)
+                    for (id, recorder) in recorders {
+                        if let channel = state.orders[id]?.channelId, let url = xtream.liveURL(channel) { recorder.use(url) }
+                    }
+                }
+            }
+            loginDisplay = ControlLogin.display(secrets.login)
             await plan(xtream: xtream, cloud: cloud, now: now)
             for (id, recorder) in recorders {
                 let progress = recorder.progress
@@ -145,6 +160,15 @@ actor Server {
                 case .state where item.deleted != true && state.states[item.id] == nil:
                     // An earlier pairing's states (the same apps paired again): finished orders stay finished.
                     state.states[item.id] = try? key.open(item, as: ControlOrderState.self)
+                case .login where item.deleted != true:
+                    if let login = try? key.open(item, as: ControlLogin.self),
+                       LoginUpdate.isNew(login, pairedAt: state.pairedAt, lastDecided: state.loginOutcome?.sentAt),
+                       login.sentAt != state.pendingLogin?.sentAt {
+                        Log.info("A new IPTV login arrived (\(ControlLogin.display(login.credentials))); checking it with the provider")
+                        state.pendingLogin = login
+                        state.pendingLoginSince = Date()
+                        lastLoginCheck = .distantPast
+                    }
                 case .removed where item.deleted != true:
                     if let removedAt = try? key.open(item, as: Date.self), removedAt > state.pairedAt { return .removed }
                 default:
@@ -161,6 +185,44 @@ actor Server {
         // Also keeps the recordings' progress (gaps) for a restart.
         volume.saveState(state)
         return .ok
+    }
+
+    /// Checks a login from an app with the provider (server-login-update); returns it when it is
+    /// to be used from now on.
+    private func check(_ login: ControlLogin, now: Date) async -> XtreamCredentials? {
+        let display = ControlLogin.display(login.credentials)
+        let result: LoginUpdate.Check
+        var info: AccountInfo?
+        do {
+            info = try await XtreamClient(credentials: login.credentials).account()
+            result = .accepted
+        } catch XtreamError.authFailed {
+            result = .refused
+        } catch {
+            result = .unreachable
+        }
+        guard let outcome = LoginUpdate.outcome(result, sentAt: login.sentAt, waitingSince: state.pendingLoginSince ?? now, now: now) else {
+            Log.warning("The provider is not reachable to check the new login; trying again")
+            return nil
+        }
+        state.pendingLogin = nil
+        state.pendingLoginSince = nil
+        state.loginOutcome = outcome
+        volume.saveState(state)
+        dirty.insert("status")
+        switch outcome.result {
+        case .accepted:
+            Log.info("Recording with the new IPTV login \(display) from now on")
+            if let max = info?.maxConnections { streamLimit = Swift.max(1, max) }
+            limitCheckedAt = now
+            if error == "IPTV login refused" { error = nil }
+            return login.credentials
+        case .refused:
+            Log.warning("The provider refused the new login \(display); keeping the previous one")
+        case .unreachable:
+            Log.warning("The provider could not check the new login \(display) for an hour; keeping the previous one")
+        }
+        return nil
     }
 
     private func refreshLimit(_ xtream: XtreamClient) async {
@@ -407,7 +469,8 @@ actor Server {
         let next = Planner.next(entries, limit: streamLimit ?? 1, now: now)
         let status = ControlServerStatus(lastContact: now, version: config.version, freeBytes: volume.freeBytes,
                                          running: recorders.keys.sorted(), nextId: next?.id, nextStart: next?.start,
-                                         streamLimit: streamLimit, error: error)
+                                         streamLimit: streamLimit, error: error, login: loginDisplay,
+                                         loginRefused: error == "IPTV login refused", loginUpdate: state.loginOutcome)
         board.update { snapshot in
             snapshot.status = status
             snapshot.orders = state.orders.map { id, order in

@@ -25,8 +25,21 @@ struct ServerSettingsScreen: View {
                 if let free = status.freeBytes {
                     SettingsRow(title: Text("Free Space"), value: Text(verbatim: CloudUploadQueue.bytes(free)))
                 }
-                if let error = status.error {
+                if let error = status.error, status.loginRefused != true {
                     Text(verbatim: error).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
+                }
+                if let login = status.login {
+                    SettingsRow(title: Text("Records With"), value: Text(verbatim: login))
+                        .accessibilityIdentifier("server.login")
+                }
+                if let note = ServerText.loginNote(status, checking: server.isCheckingLogin) {
+                    Text(verbatim: note).font(.system(size: 22))
+                        .foregroundStyle(ServerText.loginNoteIsWarning(status, checking: server.isCheckingLogin) ? TVTheme.warning : TVTheme.secondary)
+                }
+                if let credentials = model.credentials {
+                    Button { Task { try? await server.useLogin(credentials) } } label: { SettingsRow(title: Text("Use This Login")) }
+                        .disabled(server.isCheckingLogin)
+                        .accessibilityIdentifier("server.useLogin")
                 }
                 Button(role: .destructive) { confirmRemove = true } label: { SettingsRow(title: Text("Remove Server")) }
                     .accessibilityIdentifier("server.remove")

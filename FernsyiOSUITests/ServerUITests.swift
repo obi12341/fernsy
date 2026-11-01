@@ -30,6 +30,12 @@ final class ServerUITests: XCTestCase {
         add(shot)
     }
 
+    private func XTCAssertLabel(_ element: XCUIElement, contains text: String, _ app: XCUIApplication) {
+        XCTAssertTrue(element.waitForExistence(timeout: 30), "no \(element):\n\(app.debugDescription)")
+        XCTAssertTrue(element.label.contains(text) || (element.value as? String ?? "").contains(text),
+                      "\(element.label) does not name \(text)")
+    }
+
     /// The code the server shows now, from its status page.
     private func pairingCode(_ url: URL) throws -> String {
         let data = try Data(contentsOf: url)
@@ -68,6 +74,20 @@ final class ServerUITests: XCTestCase {
         let connection = app.descendants(matching: .any)["server.connection"]
         XCTAssertTrue(connection.waitForExistence(timeout: 90), "not paired:\n\(app.debugDescription)")
         shot("server-paired", app)
+
+        // The login the server records with, and sending this device's login (server-login-update).
+        let login = app.descendants(matching: .any)["server.login"]
+        XTCAssertLabel(login, contains: "demo @", app)
+        let useLogin = app.buttons["server.useLogin"]
+        XCTAssertTrue(useLogin.waitForExistence(timeout: 10), "no Use This Login:\n\(app.debugDescription)")
+        useLogin.tap()
+        // The server checks it within its poll interval; demo/demo is accepted, so no note stays.
+        let note = app.descendants(matching: .any)["server.loginNote"]
+        let settled = NSPredicate(format: "exists == false")
+        expectation(for: settled, evaluatedWith: note)
+        waitForExpectations(timeout: 60)
+        XCTAssertTrue(useLogin.isEnabled)
+        shot("server-login", app)
 
         // The guide: a show of channel 101 that starts later.
         app.tabBars.buttons["Live TV"].tap()

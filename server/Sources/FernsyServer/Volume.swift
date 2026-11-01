@@ -81,6 +81,11 @@ struct ServerState: Codable {
     /// Recordings in progress or waiting for upload, by order id.
     var recordings: [String: LocalRecording] = [:]
     var uploads: [String: CloudUploadJob] = [:]
+    /// A login from an app waiting for its check, since when, and the last decision
+    /// (server-login-update).
+    var pendingLogin: ControlLogin?
+    var pendingLoginSince: Date?
+    var loginOutcome: ControlLoginOutcome?
 }
 
 struct LocalRecording: Codable {

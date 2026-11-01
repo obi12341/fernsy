@@ -27,9 +27,28 @@ struct ServerSettingsView: View {
                     if let free = status.freeBytes {
                         LabeledContent("Free Space", value: CloudUploadQueue.bytes(free))
                     }
-                    if let error = status.error {
+                    if let error = status.error, status.loginRefused != true {
                         Text(verbatim: error).foregroundStyle(TVTheme.warning)
                     }
+                }
+                Section {
+                    if let login = status.login {
+                        LabeledContent("Records With", value: login).accessibilityIdentifier("server.login")
+                    }
+                    if let note = ServerText.loginNote(status, checking: server.isCheckingLogin) {
+                        Text(verbatim: note)
+                            .foregroundStyle(ServerText.loginNoteIsWarning(status, checking: server.isCheckingLogin) ? TVTheme.warning : TVTheme.secondary)
+                            .accessibilityIdentifier("server.loginNote")
+                    }
+                    if let credentials = model.credentials {
+                        Button("Use This Login") { Task { try? await server.useLogin(credentials) } }
+                            .disabled(server.isCheckingLogin)
+                            .accessibilityIdentifier("server.useLogin")
+                    }
+                } header: {
+                    Text("IPTV Login")
+                } footer: {
+                    Text("Sends the login this device signs in with, for example after a new password. The server checks it with the provider before it uses it.")
                 }
                 Section {
                     Button("Remove Server", role: .destructive) { confirmRemove = true }

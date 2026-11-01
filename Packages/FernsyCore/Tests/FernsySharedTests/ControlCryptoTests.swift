@@ -68,3 +68,29 @@ struct ControlCryptoTests {
         #expect(!PairingCode.isValid(tag: keyTag, for: Curve25519.KeyAgreement.PrivateKey().publicKey.rawRepresentation, key: codeKey))
     }
 }
+
+/// The login item and the status fields of server-login-update.
+struct ControlLoginTests {
+    @Test func loginItemsAndStatusRoundTrip() throws {
+        let key = ControlKey()
+        let login = ControlLogin(credentials: XtreamCredentials(server: "https://tv.example:8080/", username: "anna", password: "s3cret"))
+        let sealed = try key.seal(login, kind: .login, id: "login")
+        let item = ControlClient.Item(kind: "login", id: "login", change: 1, data: sealed, deleted: nil)
+        #expect(try key.open(item, as: ControlLogin.self) == login)
+        #expect(ControlLogin.display(login.credentials) == "anna @ tv.example")
+
+        let status = ControlServerStatus(lastContact: Date(), version: "1", login: "anna @ tv.example", loginRefused: false,
+                                         loginUpdate: ControlLoginOutcome(sentAt: login.sentAt, result: .refused))
+        let statusItem = ControlClient.Item(kind: "server", id: "status", change: 2, data: try key.seal(status, kind: .server, id: "status"), deleted: nil)
+        #expect(try key.open(statusItem, as: ControlServerStatus.self) == status)
+    }
+
+    @Test func statusFromAnOlderServerStillOpens() throws {
+        let key = ControlKey()
+        let old = #"{"lastContact":800000000,"version":"1.0.0","running":[]}"#
+        let item = ControlClient.Item(kind: "server", id: "status", change: 1,
+                                      data: try key.seal(Data(old.utf8), kind: "server", id: "status"), deleted: nil)
+        let status = try key.open(item, as: ControlServerStatus.self)
+        #expect(status.login == nil && status.loginUpdate == nil)
+    }
+}
