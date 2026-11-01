@@ -492,9 +492,9 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
 - **On in App Store builds** (fernsy-cloud-launch). Cloud UI shows with the build setting
   `FERNSY_CLOUD=YES` (Info.plist key `FernsyCloud` in the Mac, Apple TV, iOS and DMG plists),
   which `build-appstore.sh` sets for every App Store build (`FERNSY_CLOUD=NO` builds without), or,
-  in debug builds, with `IPTV_CLOUD`. The DMG stays without it: in-app purchases need the App
-  Store; `release.yml`'s manual `cloud` input builds a test DMG with it for a subscription bought
-  elsewhere.
+  in debug builds, with `IPTV_CLOUD`. `build-dmg.sh` sets it for the DMG too, which sells the
+  subscription on fernsy.app with Stripe; `FERNSY_CLOUD=NO` (or `release.yml`'s manual `cloud`
+  input off) builds a DMG without Fernsy Cloud.
 - **Debug switches.** `IPTV_CLOUD=<server URL>` picks the server (development:
   `https://fernsy-cloud-dev.mobilistics.workers.dev`), `IPTV_CLOUDTOKEN=<dev token>` uses the
   development server's dev user instead of a key-derived account and without a purchase.
