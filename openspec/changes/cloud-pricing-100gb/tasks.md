@@ -7,7 +7,7 @@
 
 ## 2. Prices
 
-- [ ] 2.1 Paddle sandbox and live: 3.49 € monthly price on Fernsy Cloud (quantity 1..1; the live price `pri_01m6c4cd7tfteh5ybbjqcda4gj` exists since website-legal-pages, and `fernsy-cloud` sells it since 2026-11-01, `/v1/offer` €3.49; sandbox price `pri_01m6cgcw4wawgg2kxrz7xchzcj` on `fernsy-cloud-dev` since 2026-11-01, `/v1/offer` €3.49; open: archiving both 2.99 € prices, which the user approves), `PADDLE_PRICE_ID` on both workers, 2.99 € prices archived after asking the user; `/v1/offer` answers €3.49
+- [x] 2.1 Paddle sandbox and live: 3.49 € monthly price on Fernsy Cloud (quantity 1..1; the live price `pri_01m6c4cd7tfteh5ybbjqcda4gj` exists since website-legal-pages, and `fernsy-cloud` sells it since 2026-11-01, `/v1/offer` €3.49; sandbox price `pri_01m6cgcw4wawgg2kxrz7xchzcj` on `fernsy-cloud-dev` since 2026-11-01, `/v1/offer` €3.49; both 2.99 € prices archived with the user's approval), `PADDLE_PRICE_ID` on both workers, 2.99 € prices archived after asking the user; `/v1/offer` answers €3.49
 - [x] 2.2 `Config/FernsyCloud.storekit` at 3.49; test fixtures that name the price follow
 - [ ] 2.3 App Store Connect price 3.49 € for `de.mobilistics.fernsy.cloud.monthly`, existing subscribers keep theirs (user)
 
