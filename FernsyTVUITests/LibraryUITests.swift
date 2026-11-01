@@ -125,14 +125,34 @@ final class DetailPagesUITests: FernsyUITestCase {
         let next = app.buttons["series.next"]
         XCTAssertTrue(next.waitForExistence(timeout: 15), "no Next Episode:\n\(app.debugDescription)")
         shot("series", app)
-        XCTAssertTrue(next.label.contains("S1 F3"), "the next episode is not S1 F3: \(next.label)")
+        XCTAssertTrue(next.label.contains("S1 F3") || next.label.contains("S1 E3"), "the next episode is not S1 F3: \(next.label)")
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'episode.' AND value == 'next'")).firstMatch.exists,
                       "no episode is marked Up Next")
     }
 
     /// A demo series whose S1 F2 is partly watched (IPTV_TESTRESUME) offers S1 F2 next.
     func testDemoSeriesOffersTheStartedEpisode() {
-        let app = launchDemo(["IPTV_TESTRESUME": "episode.00101:300:2760"])
+        let next = openDemoSeries(launchDemo(["IPTV_TESTRESUME": "episode.00101:300:2760"], arguments: Self.german))
+        XCTAssertTrue(next.label.contains("S1 F2"), "the next episode is not S1 F2: \(next.label)")
+    }
+
+    /// The rule all apps share (episode-label-next-episode): with S1 F1 and S1 F3 watched and F2
+    /// skipped, the next episode is S1 F4; in English the code reads "S1 E4".
+    func testDemoSeriesSkippedEpisode() {
+        let watched = ["IPTV_TESTWATCHED": "episode.00100,episode.00102"]
+        let app = launchDemo(watched, arguments: Self.german)
+        let german = openDemoSeries(app)
+        shot("series-next-de", app)
+        XCTAssertTrue(german.label.contains("S1 F4"), "the next episode is not S1 F4: \(german.label)")
+        app.terminate()
+        let english = openDemoSeries(launchDemo(watched, arguments: ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]))
+        XCTAssertTrue(english.label.contains("S1 E4"), "the English code is not S1 E4: \(english.label)")
+    }
+
+    private static let german = ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
+
+    /// Opens demo series 800 from the Series tab and returns its Next Episode button.
+    private func openDemoSeries(_ app: XCUIApplication) -> XCUIElement {
         let tab = app.tabBars.firstMatch.buttons["Series"]
         XCTAssertTrue(tab.waitForExistence(timeout: 30))
         for _ in 0..<6 where !tab.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
@@ -147,7 +167,7 @@ final class DetailPagesUITests: FernsyUITestCase {
         XCUIRemote.shared.press(.select)
         let next = app.buttons["series.next"]
         XCTAssertTrue(next.waitForExistence(timeout: 15), "no Next Episode")
-        XCTAssertTrue(next.label.contains("S1 F2"), "the next episode is not S1 F2: \(next.label)")
+        return next
     }
 }
 

@@ -195,6 +195,8 @@ final class TVModel: ObservableObject {
         #if DEBUG
         // IPTV_TESTRESUME: resume positions for this run, as on the Mac.
         for item in DebugEnv.resumePositions { resume.save(item.key, position: item.position, duration: item.duration) }
+        // IPTV_TESTWATCHED: watched items for this run, as on the Mac.
+        resume.markWatched(DebugEnv.watchedKeys)
         #endif
         // Screens observe the model: the recorder's list changes are the model's changes too.
         recorderChanges = recorder.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }

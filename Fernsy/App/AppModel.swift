@@ -518,10 +518,7 @@ final class AppModel: ObservableObject {
             guard let base = jellyfin.session?.baseURL else { return }
             let start = resume ? target.positionSeconds : 0
             var subtitle: String?
-            if target.type == "Episode" {
-                let code = [target.parentIndexNumber.map { "S\($0)" }, target.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
-                subtitle = code.isEmpty ? target.name : "\(code) · \(target.name)"
-            }
+            if target.type == "Episode" { subtitle = target.episodeLine }
             nowPlaying = PlayItem(kind: .jellyfin(itemId: target.id, startAt: start, seriesId: target.seriesId), title: target.seriesName ?? target.name,
                                   subtitle: subtitle, url: base)
         }
@@ -541,7 +538,7 @@ final class AppModel: ObservableObject {
     func play(_ episode: Episode, of show: Series) {
         guard let url = client?.episodeURL(episode) else { return }
         nowPlaying = PlayItem(kind: .episode(id: episode.id, seriesId: show.id), title: show.name,
-                              subtitle: "S\(episode.season) E\(episode.number) · \(episode.title)", url: url)
+                              subtitle: "\(episode.code) · \(episode.title)", url: url)
     }
 
     /// Channels the player zaps through, hidden ones included: the category the channel was

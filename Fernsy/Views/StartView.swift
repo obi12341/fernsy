@@ -326,7 +326,7 @@ private struct StartBanner: View {
             }
         case .movie(let movie):
             if let rating = movie.rating, rating > 0 { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
-        case .episode(let episode, _): list.append("S\(episode.season) E\(episode.number) · \(episode.title)")
+        case .episode(let episode, _): list.append("\(episode.code) · \(episode.title)")
         default: break
         }
         return list.joined(separator: " · ")

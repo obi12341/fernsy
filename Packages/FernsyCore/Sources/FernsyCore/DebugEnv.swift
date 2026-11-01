@@ -23,6 +23,11 @@ public enum DebugEnv {
         }
     }
 
+    /// IPTV_TESTWATCHED=<key>,…: items that count as watched for this run (in memory).
+    public static var watchedKeys: [String] {
+        (env["IPTV_TESTWATCHED"] ?? "").split(separator: ",").map(String.init)
+    }
+
     /// One step of IPTV_TESTHIDE=channel:102,category:3,wait:20,show:channel:102: hide (or with
     /// "show:" show) a channel or category, or pause.
     public enum HideStep: Equatable {

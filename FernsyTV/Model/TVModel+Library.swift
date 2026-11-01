@@ -40,9 +40,8 @@ enum VODItem: Equatable {
         case .cloud(let item):
             item.meta.map { ItemText.channelAndTime($0.channel, $0.recordStart) }
         case .movie: nil
-        case .episode(let episode, _): "S\(episode.season) F\(episode.number) · \(episode.title)"
-        case .jellyfin(let item):
-            item.type == "Episode" ? "S\(item.parentIndexNumber ?? 0) F\(item.indexNumber ?? 0) · \(item.name)" : nil
+        case .episode(let episode, _): "\(episode.code) · \(episode.title)"
+        case .jellyfin(let item): StartBuilder.episodeLine(item)
         }
     }
 
@@ -206,12 +205,10 @@ extension TVModel {
         if !Self.skipKeychain { UserDefaults.standard.set(Array(favorites), forKey: LiveRules.favoritesKey) }
     }
 
-    /// The next episode to watch: the first not watched after the last watched or started one.
+    /// The next episode to watch, by the rule all apps share (SeriesInfo.nextEpisode).
     func nextEpisode(of series: Series, in info: SeriesInfo) -> Episode? {
-        let all = info.seasons.keys.sorted().flatMap { info.seasons[$0] ?? [] }
-        if let started = all.first(where: { resume.position(ResumeStore.episodeKey($0.id)) > 0 }) { return started }
-        let lastWatched = all.lastIndex { resume.isWatched(ResumeStore.episodeKey($0.id)) }
-        return lastWatched.map { all.index(after: $0) < all.count ? all[all.index(after: $0)] : all[$0] } ?? all.first
+        info.nextEpisode(position: { resume.position(ResumeStore.episodeKey($0.id)) },
+                         watched: { resume.isWatched(ResumeStore.episodeKey($0.id)) })
     }
 
     // MARK: Start

@@ -42,8 +42,5 @@ struct NextEpisodeOverlay: View {
         }
     }
 
-    private func label(_ item: JFItem) -> String {
-        let code = [item.parentIndexNumber.map { "S\($0)" }, item.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
-        return code.isEmpty ? item.name : "\(code) · \(item.name)"
-    }
+    private func label(_ item: JFItem) -> String { item.episodeLine }
 }
