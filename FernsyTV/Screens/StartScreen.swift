@@ -52,7 +52,8 @@ struct StartScreen: View {
                                 ForEach(resume) { entry in
                                     Button { open(entry) } label: {
                                         WideCard(title: entry.title, detail: entry.detail, image: entry.image,
-                                                 source: Self.sourceName(entry.source), progress: entry.progress)
+                                                 source: Self.sourceName(entry.source), progress: entry.progress,
+                                                 logo: entry.source == .recording && entry.image != nil)
                                     }
                                     .buttonStyle(.borderless)
                                     .contextMenu { if DetailTarget.of(entry.open) != nil { Button("Details", systemImage: "info.circle") { info(entry) } } }
@@ -203,7 +204,8 @@ struct StartScreen: View {
                     ForEach(entries) { entry in
                         Button { open(entry) } label: {
                             WideCard(title: entry.title, detail: entry.detail, image: entry.image,
-                                     source: Self.sourceName(entry.source), progress: entry.progress)
+                                     source: Self.sourceName(entry.source), progress: entry.progress,
+                                     logo: entry.source == .recording && entry.image != nil)
                         }
                         .buttonStyle(.borderless)
                         .accessibilityIdentifier("start.\(id).\(entry.id)")
@@ -377,6 +379,8 @@ private struct Hero: View {
         case .recording: []
         }
         let urls = list.prefix(5).compactMap(URL.init(string:))
+        // A recording's image is its channel logo, no backdrop.
+        guard entry.source != .recording else { return urls }
         return urls.isEmpty ? entry.image.map { [$0] } ?? [] : urls
     }
 }

@@ -28,7 +28,8 @@ final class ImagePipeline: @unchecked Sendable {
 
     private func key(_ url: URL, _ maxPixel: Int) -> String {
         let digest = SHA256.hash(data: Data(url.absoluteString.utf8)).map { String(format: "%02x", $0) }.joined()
-        return "\(digest.prefix(32))-\(maxPixel)"
+        // "-a": cache files keep transparency since 2026-11-01 (JPEG before, logos got a white box).
+        return "\(digest.prefix(32))-\(maxPixel)-a"
     }
 
     func cached(_ url: URL, maxPixel: Int) -> UIImage? {
@@ -60,7 +61,9 @@ final class ImagePipeline: @unchecked Sendable {
             guard let (data, response) = try? await URLSession.shared.data(from: url),
                   (response as? HTTPURLResponse)?.statusCode ?? 200 < 400,
                   let image = Self.downsample(data, maxPixel: maxPixel) else { return nil }
-            if let jpeg = image.jpegData(compressionQuality: 0.85) { try? jpeg.write(to: file, options: .atomic) }
+            // Logos keep their transparency (PNG); pictures stay small (JPEG).
+            let alpha = image.cgImage.map { ![.none, .noneSkipFirst, .noneSkipLast].contains($0.alphaInfo) } ?? false
+            if let encoded = alpha ? image.pngData() : image.jpegData(compressionQuality: 0.85) { try? encoded.write(to: file, options: .atomic) }
             AppLog.detail(.app, "image loaded: \(url.lastPathComponent) at \(maxPixel) px")
             memory.setObject(image, forKey: name as NSString)
             return image
@@ -84,13 +87,15 @@ final class ImagePipeline: @unchecked Sendable {
 struct RemoteImage<Placeholder: View>: View {
     let url: URL?
     var maxPixel = 600
+    /// Whole inside the frame (a channel logo) instead of filling it.
+    var fit = false
     @ViewBuilder let placeholder: Placeholder
     @State private var image: UIImage?
 
     var body: some View {
         ZStack {
             if let image {
-                Image(uiImage: image).resizable().scaledToFill()
+                Image(uiImage: image).resizable().aspectRatio(contentMode: fit ? .fit : .fill)
             } else {
                 placeholder
             }

@@ -300,6 +300,8 @@ private struct StartBanner: View {
         case .recording: break
         }
         let urls = list.prefix(5).compactMap(URL.init(string:))
+        // A recording's image is its channel logo, no backdrop.
+        guard entry.source != .recording else { return urls }
         return urls.isEmpty ? entry.image.map { [$0] } ?? [] : urls
     }
 

@@ -211,7 +211,8 @@ public struct StartBuilder {
                 guard resume.position(key) > 0 else { continue }
                 entries.append(LibraryEntry(id: key, title: recording.title,
                                             detail: String(localized: "Recording · \(remaining(key))", bundle: .module),
-                                            source: .recording, image: nil, progress: watchedShare(recording),
+                                            source: .recording, image: channels.first { $0.id == recording.channelId }?.icon.flatMap(URL.init(string:)),
+                                            progress: watchedShare(recording),
                                             date: resume.lastPlayed(key) ?? .distantPast, open: .recording(recording.id)))
             }
         }
