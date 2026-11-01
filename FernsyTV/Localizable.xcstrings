@@ -493,6 +493,16 @@
         }
       }
     },
+    "Assistant Requests": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfragen an den Assistenten"
+          }
+        }
+      }
+    },
     "Audio": {
       "localizations": {
         "de": {
@@ -753,6 +763,16 @@
         }
       }
     },
+    "The assistant asks again before its next request.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent fragt vor seiner nächsten Anfrage wieder."
+          }
+        }
+      }
+    },
     "The assistant is part of Fernsy Cloud.": {
       "localizations": {
         "de": {
@@ -769,6 +789,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Was möchtest du sehen?"
+          }
+        }
+      }
+    },
+    "Withdraw Consent for the Assistant": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zustimmung für den Assistenten widerrufen"
           }
         }
       }
@@ -3279,26 +3309,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nur deine Geräte mit derselben Apple-ID können deine Cloud-Aufnahmen abspielen, weil der Schlüssel in deiner iCloud bleibt."
-          }
-        }
-      }
-    },
-    "Fernsy Cloud needs iCloud. Sign in to iCloud with the same Apple ID as on your Mac.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fernsy Cloud braucht iCloud. Melde dich in iCloud mit derselben Apple-ID an wie auf deinem Mac."
-          }
-        }
-      }
-    },
-    "Fernsy on your Mac records, and Fernsy Cloud brings the recordings here. Install Fernsy on a Mac with the same Apple ID to use it.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fernsy nimmt auf deinem Mac auf, und Fernsy Cloud bringt die Aufnahmen hierher. Installiere Fernsy auf einem Mac mit derselben Apple-ID, um es zu nutzen."
           }
         }
       }

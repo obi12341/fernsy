@@ -91,9 +91,9 @@ subscription; without it, it offers Fernsy Cloud.
 A consent screen before the first request per device, naming OpenRouter and the model's
 provider (Anthropic) and the data
 sent (request, conversation, the catalog parts a request needs, favourites, recently watched).
-Stored per device (UserDefaults, synced via iCloud key-value store like other settings), revocable
-in Settings. The worker logs only account id, time, token counts and outcome. The privacy pages
-(German, English) and the App Store privacy details get the same text.
+Stored per device (UserDefaults key `assistant.consent`, not synced: each device asks once),
+revocable in Settings. The worker logs only account id, time, token counts and outcome. The
+privacy pages (German, English) and the App Store privacy details get the same text.
 
 ### 9. Offer on every platform
 The Mac marker check before offering the subscription goes. The offer text names both parts:

@@ -21,11 +21,11 @@ test VM (`scripts/vm.sh`).
 ## 3. Apps
 
 - [x] 3.1 FernsyCore: the conversation loop (send, run tool calls, send results, until an answer) and the relay client with refusal reasons
-- [ ] 3.2 Consent screen before the first request, revocable in Settings; state per device
-- [ ] 3.3 Mac: assistant panel (text field with dictation, session conversation, actions); confirmation before cancelling a recording
-- [ ] 3.4 iPhone/iPad: assistant sheet (same as Mac)
-- [ ] 3.5 Apple TV: overlay with one dictated request, answer and action, from Start and the player's menu
-- [ ] 3.6 Settings › Fernsy Cloud on all apps: offer without the Mac check, offer text naming both parts, requests used this month
+- [x] 3.2 Consent screen before the first request, revocable in Settings; state per device
+- [x] 3.3 Mac: assistant panel (text field with dictation, session conversation, actions); confirmation before cancelling a recording
+- [x] 3.4 iPhone/iPad: assistant sheet (same as Mac)
+- [x] 3.5 Apple TV: overlay with one dictated request, answer and action, from Start and the player's menu
+- [x] 3.6 Settings › Fernsy Cloud on all apps: offer without the Mac check, offer text naming both parts, requests used this month
 
 ## 4. Docs and privacy
 
