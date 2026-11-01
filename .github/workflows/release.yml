@@ -326,11 +326,48 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/developer-id.p12" "$RUNNER_TEMP/notary-key.p8"
 
-  appstore:
+  # Every App Store archive on a fresh runner creates an Apple Development certificate through the
+  # API key. Their ids are noted before the archives and the new ones revoked after all of them
+  # (certs-cleanup), so runs do not fill the account's limit (appstore-tvos-ios design 4).
+  certs-snapshot:
     needs: [prepare, tests]
     if: >-
       !failure() && !cancelled() &&
       (needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'appstore-test')
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - name: Note the development certificates
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ASC_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          export ASC_KEY="$RUNNER_TEMP/asc-key.p8"
+          (umask 077; echo "$NOTARY_KEY_P8" | base64 --decode > "$ASC_KEY")
+          mkdir -p out
+          swift scripts/ci-dev-certificates.swift snapshot out/dev-certificates.txt
+          rm -f "$ASC_KEY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dev-certificates
+          path: out/dev-certificates.txt
+
+  # The Mac, Apple TV and iPhone/iPad apps, each on its own runner; a failed platform can be
+  # rerun alone, and a release waits for all three (appstore-tvos-ios design 2).
+  appstore:
+    needs: [prepare, tests, certs-snapshot]
+    if: >-
+      !failure() && !cancelled() &&
+      (needs.prepare.outputs.channel == 'release' || needs.prepare.outputs.channel == 'appstore-test')
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos, tvos, ios]
+    name: appstore (${{ matrix.platform }})
     runs-on: xcode-27
     timeout-minutes: 60
     steps:
@@ -398,6 +435,8 @@ jobs:
           BUILD_VERSION: ${{ needs.prepare.outputs.version }}
           BUILD_NUMBER: ${{ needs.prepare.outputs.build }}
           CHANNEL: ${{ needs.prepare.outputs.channel }}
+          PLATFORM: ${{ matrix.platform }}
+          CERT_CLEANUP: workflow
         run: |
           ASC_KEY="$RUNNER_TEMP/asc-key.p8"
           # umask only for the key file: a step-wide 077 made every built file owner-only, and
@@ -407,17 +446,49 @@ jobs:
           if [ "$CHANNEL" = "release" ]; then export UPLOAD=1; fi
           scripts/build-appstore.sh
           if [ "$CHANNEL" != "release" ]; then
-            PKG=$(ls build/appstore/export/*.pkg)
-            pkgutil --check-signature "$PKG"
+            EXPORT="build/appstore/$PLATFORM/export"
+            if [ "$PLATFORM" = "macos" ]; then
+              pkgutil --check-signature "$(ls "$EXPORT"/*.pkg)"
+            else
+              # tvOS and iOS export an .ipa: check the signed app inside it.
+              unzip -q "$(ls "$EXPORT"/*.ipa)" -d "$RUNNER_TEMP/ipa"
+              codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP"/ipa/Payload/*.app
+              codesign -d --entitlements - "$RUNNER_TEMP"/ipa/Payload/*.app
+            fi
           fi
 
       - name: Clean up the API key
         if: always()
         run: rm -f "$RUNNER_TEMP/asc-key.p8"
 
+  # Revokes the development certificates the archives created (see certs-snapshot), also when
+  # one of them failed.
+  certs-cleanup:
+    needs: [certs-snapshot, appstore]
+    if: always() && needs.certs-snapshot.result == 'success'
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dev-certificates
+          path: out
+      - name: Revoke the certificates created by this run
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ASC_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          export ASC_KEY="$RUNNER_TEMP/asc-key.p8"
+          (umask 077; echo "$NOTARY_KEY_P8" | base64 --decode > "$ASC_KEY")
+          swift scripts/ci-dev-certificates.swift revoke-new out/dev-certificates.txt
+          rm -f "$ASC_KEY"
+
   publish:
     needs: [prepare, dmg, appstore]
-    # A release needs the App Store upload too; a nightly has no App Store job.
+    # A release needs the App Store uploads too (all three platforms: a matrix job only succeeds
+    # when every platform does); a nightly has no App Store job.
     if: >-
       always() && needs.dmg.result == 'success' &&
       (needs.prepare.outputs.channel == 'nightly' ||
