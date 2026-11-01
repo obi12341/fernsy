@@ -758,6 +758,30 @@ Localizations (Xcode then shows a column for it in every catalog); only translat
 needed, no code. Wording of the German UI did not change when the source flipped from German
 to English (change `fernsy-core-package`).
 
+## Test VM
+
+UI tests, package tests and Fernsy Dev runs can run in a macOS VM instead of on the host, so
+simulators, test accounts and build data stay out of the host system. The VM `fernsy-dev` is a
+[Tart](https://tart.run) VM made from Cirrus Labs' image with macOS 27 and Xcode 27.1
+(`ghcr.io/cirruslabs/macos-golden-gate-xcode:27.1`, about 82 GB to download, 100 GB on disk;
+`~/.tart` is excluded from Time Machine). It has 8 cores and 32 GB of memory.
+
+```sh
+scripts/vm.sh scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/StartUITests"
+scripts/vm.sh scripts/ios-uitest.sh
+scripts/vm.sh scripts/test.sh
+scripts/vm.sh --window …     # start the VM with a window to watch the simulator
+```
+
+`vm.sh` starts the VM when it is not running, shares the project folder into it (`~/fernsy`)
+and sets `BUILD_ROOT=~/build`, which `test.sh`, `tv-uitest.sh`, `ios-uitest.sh` and `dev-run.sh`
+use instead of `build/`; result bundles therefore stay in the VM (`~/build/tv/Logs`). Builds for
+the real Apple TV and iPad, and anything that needs the user's signing, stay on the host.
+
+Setup (once): Tart from its GitHub release (the Homebrew tap's formula fails on current
+Homebrew), then `tart clone ghcr.io/cirruslabs/macos-golden-gate-xcode:27.1 fernsy-dev` and
+`tart set fernsy-dev --cpu 8 --memory 32768 --disk-size 160`.
+
 ## License
 
 Fernsy is source-available under the PolyForm Noncommercial License 1.0.0

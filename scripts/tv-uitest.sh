@@ -14,7 +14,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DD="$ROOT/build/tv"
+DD="${BUILD_ROOT:-$ROOT/build}/tv"   # BUILD_ROOT: build data elsewhere (scripts/vm.sh)
 DEVICE_NAME="${DEVICE_NAME:-Apple TV 4K (3rd generation)}"   # another simulator: DEVICE_NAME="…"
 BUILD=1
 SHARD=""
