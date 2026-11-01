@@ -9,6 +9,10 @@
 	<array>
 		<string>iCloud.$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	</array>
+	<!-- App Store validation: tvOS apps with CloudKit need the push entitlement (CloudKit's
+	     change notifications). Signing for the store turns it into "production". -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
 		<string>CloudKit</string>
