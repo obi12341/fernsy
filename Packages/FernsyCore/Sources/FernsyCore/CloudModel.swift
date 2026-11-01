@@ -136,6 +136,11 @@ public final class CloudModel {
     /// iPad, iPhone and Apple TV offer the subscription only when a Mac records (spec: Offer
     /// only with a Mac); subscribers always see their account.
     public var mayOffer: Bool { macPresence == .known }
+    /// What the subscription includes, for the offer on every device (cloud-assistant design 9).
+    public static var offerParts: [String] {
+        [String(localized: "The assistant on all your devices: ask for a channel, a show or a recording in your own words.", bundle: .module),
+         String(localized: "Recordings from Fernsy on your Mac in the cloud, end-to-end encrypted and played on iPhone, iPad and Apple TV.", bundle: .module)]
+    }
 
     /// Launch: subscription, key and, with both, the account and list.
     public func start() async {
