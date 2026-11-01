@@ -3,13 +3,13 @@
 ## 1. Stripe account (user, with my help)
 
 - [ ] 1.1 Stripe test and live API keys for the worker and the page (secret or restricted key, publishable) in `~/.config/fernsy/` (mode 600); Stripe Tax on with the OSS registration; customer portal (cancel at period end, payment method update, invoices); Smart Retries and Stripe's customer e-mails (receipts, failed payments, cancellation) on. The Stripe MCP (plugin `stripe`, sandbox `acct_1UX6aYEsDUkIy6j0`) sets up catalog and settings in test mode
-- [ ] 1.2 Test mode: product "Fernsy Cloud", price 3.49 € monthly tax-inclusive; webhook endpoint for `fernsy-cloud-dev`
+- [x] 1.2 Test mode: product "Fernsy Cloud", price 3.49 € monthly tax-inclusive; webhook endpoint for `fernsy-cloud-dev` (product `prod_VYDIKlaXjqTakI`, price `price_1UX6sEEsDUkIy6j0pSNBVVbY` with tax code `txcd_10103000`, portal `bpc_1UX6sOEsDUkIy6j0KWLUyzSf` with login page, endpoint `we_1UX6sUEsDUkIy6j02GfKsBMF` on API `2025-06-30.basil`; values in `~/.config/fernsy/stripe-test.json`)
 
 ## 2. Worker
 
-- [ ] 2.1 `stripe.js`: signature check, subscription mapping, API calls (customer, subscription, portal session, cancel at period end, price text) with a pinned API version; tests with recorded test-mode payloads and forged signatures
-- [ ] 2.2 Routes: `GET /v1/offer`, `POST /v1/checkout`, `POST /v1/checkout/verify`, `POST /v1/checkout/subscribe`, `POST /v1/stripe/notifications`, `POST /v1/subscription/portal`, `POST /v1/subscription/cancel` (rate-limited); provider `stripe`; refresh from Stripe when the period ended; Paddle code and tests removed
-- [ ] 2.3 `deploy.sh` and README: Stripe secrets, Paddle secrets dropped; dev deploy
+- [x] 2.1 `stripe.js`: signature check, subscription mapping, API calls (customer, subscription, portal session, cancel at period end, price text) with a pinned API version; tests with recorded test-mode payloads and forged signatures
+- [x] 2.2 Routes: `GET /v1/offer`, `POST /v1/checkout`, `POST /v1/checkout/verify`, `POST /v1/checkout/subscribe`, `POST /v1/stripe/notifications`, `POST /v1/subscription/portal`, `POST /v1/subscription/cancel` (rate-limited); provider `stripe`; refresh from Stripe when the period ended; Paddle code and tests removed
+- [x] 2.3 `deploy.sh` and README: Stripe secrets, Paddle secrets dropped; dev deploy
 
 ## 3. Website
 

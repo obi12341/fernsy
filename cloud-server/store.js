@@ -106,21 +106,35 @@ export async function takeBack(db, user, now) {
   return results.map((s) => s.original_transaction_id);
 }
 
-/// Paddle's word on a subscription (paddle-cloud-subscription design 3): linked to the account
-/// its checkout token named, applied only when newer than what is stored. Returns false for an
-/// older event.
-export async function linkPaddle(db, user, { originalTransactionId, productId, expiresAt, customerId }, occurredAt) {
+/// A website subscription's state from Stripe (stripe-cloud-subscription design 3): linked to the
+/// account the worker created it for, applied only when newer than what is stored. Returns false
+/// for an older event.
+export async function linkWeb(db, user, { originalTransactionId, productId, expiresAt, customerId }, occurredAt, provider) {
   const before = await subscription(db, originalTransactionId);
   if (before && before.last_event_at && occurredAt && Date.parse(before.last_event_at) > Date.parse(occurredAt)) return false;
   await db.prepare(
     `INSERT INTO subscriptions (original_transaction_id, token_account_id, user_id, product_id, expires_at, revoked_at, provider, customer_id, last_event_at)
-     VALUES (?, ?, ?, ?, ?, NULL, 'paddle', ?, ?)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)
      ON CONFLICT(original_transaction_id) DO UPDATE SET token_account_id = excluded.token_account_id, user_id = excluded.user_id,
        product_id = excluded.product_id, expires_at = excluded.expires_at, customer_id = COALESCE(excluded.customer_id, customer_id),
-       last_event_at = excluded.last_event_at, provider = 'paddle'`)
-    .bind(originalTransactionId, user.account_id, user.id, productId, expiresAt, customerId, occurredAt).run();
+       last_event_at = excluded.last_event_at, provider = excluded.provider`)
+    .bind(originalTransactionId, user.account_id, user.id, productId, expiresAt, provider, customerId, occurredAt).run();
   await db.prepare("UPDATE users SET ended_at = NULL WHERE id = ?").bind(user.id).run();
   return true;
+}
+
+/// Attempts on the cancellation page per key (an IP or an e-mail hash) since a time.
+export async function attemptsSince(db, key, since) {
+  const row = await db.prepare("SELECT COUNT(*) AS n FROM cancel_attempts WHERE key = ? AND at >= ?").bind(key, since).first();
+  return Number(row?.n ?? 0);
+}
+
+export async function recordAttempt(db, key, at) {
+  await db.prepare("INSERT INTO cancel_attempts (key, at) VALUES (?, ?)").bind(key, at).run();
+}
+
+export async function pruneAttempts(db, before) {
+  await db.prepare("DELETE FROM cancel_attempts WHERE at < ?").bind(before).run();
 }
 
 /// Apple's latest word on a known subscription (notifications, cron, account refresh).

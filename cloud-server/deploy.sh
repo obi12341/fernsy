@@ -18,8 +18,9 @@
 #   APPSTORE_KEY_ID, APPSTORE_ISSUER
 #   OPENROUTER_API_KEY           the in-app assistant's provider key (cloud-assistant)
 #   ASSISTANT_MODEL, ASSISTANT_MONTHLY, ASSISTANT_PER_MINUTE   assistant settings (plain text)
-#   PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET   Paddle (paddle-cloud-subscription; sandbox on dev, live on prod)
-#   PADDLE_CLIENT_TOKEN, PADDLE_PRICE_ID, PADDLE_ENV (sandbox|live), CHECKOUT_ORIGINS   (kept as secrets)
+#   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET   Stripe (stripe-cloud-subscription; test mode on dev, live on prod)
+#   STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_ID, STRIPE_ENV (test|live), CHECKOUT_ORIGINS   (kept as secrets)
+#   DROP_PADDLE=1                drops the secrets of the former Paddle purchase
 #   CHECKOUT_SECRET              signs the DMG's checkout tokens (generated on first deploy)
 # The token needs: Workers Scripts Write, D1 Write, Workers R2 Storage Write, and for
 # --new-s3-token Account API Tokens Write.
@@ -99,9 +100,9 @@ bindings = [
     {"type": "plain_text", "name": "BUCKET_NAME", "text": os.environ["NAME"]},
 ]
 for name in ["S3_KEY", "S3_SECRET", "DEV_TOKEN", "APPSTORE_KEY", "APPSTORE_KEY_ID", "APPSTORE_ISSUER", "OPENROUTER_API_KEY",
-             "PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "CHECKOUT_SECRET",
+             "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CHECKOUT_SECRET",
              # Kept like secrets so a deploy without them does not drop them.
-             "PADDLE_CLIENT_TOKEN", "PADDLE_PRICE_ID", "PADDLE_ENV", "CHECKOUT_ORIGINS"]:
+             "STRIPE_PUBLISHABLE_KEY", "STRIPE_PRICE_ID", "STRIPE_ENV", "CHECKOUT_ORIGINS"]:
     if os.environ.get(name):
         bindings.append({"type": "secret_text", "name": name, "text": os.environ[name]})
 for name in ["ASSISTANT_MODEL", "ASSISTANT_MONTHLY", "ASSISTANT_PER_MINUTE"]:
@@ -120,9 +121,15 @@ cf -X PUT "$API/workers/scripts/$NAME" \
     -F "store.js=@$DIR/store.js;type=application/javascript+module" \
     -F "assistant.js=@$DIR/assistant.js;type=application/javascript+module" \
     -F "assistant-tools.js=@$DIR/assistant-tools.js;type=application/javascript+module" \
-    -F "paddle.js=@$DIR/paddle.js;type=application/javascript+module" > /dev/null
+    -F "stripe.js=@$DIR/stripe.js;type=application/javascript+module" > /dev/null
 # Sessions are gone (cloud-account-from-icloud-key); drop the secret older deploys set.
 if has SESSION_KEY; then cf -X DELETE "$API/workers/scripts/$NAME/secrets/SESSION_KEY" > /dev/null; fi
+# Paddle refused the account (stripe-cloud-subscription); its settings go with DROP_PADDLE=1.
+if [ "${DROP_PADDLE:-}" = 1 ]; then
+    for secret in PADDLE_API_KEY PADDLE_WEBHOOK_SECRET PADDLE_CLIENT_TOKEN PADDLE_PRICE_ID PADDLE_ENV; do
+        if has "$secret"; then cf -X DELETE "$API/workers/scripts/$NAME/secrets/$secret" > /dev/null; fi
+    done
+fi
 cf -X PUT "$API/workers/scripts/$NAME/schedules" -H "Content-Type: application/json" -d '[{"cron":"17 3 * * *"}]' > /dev/null
 cf -X POST "$API/workers/scripts/$NAME/subdomain" -H "Content-Type: application/json" \
     -d '{"enabled":true,"previews_enabled":false}' > /dev/null

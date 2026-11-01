@@ -10,7 +10,7 @@ import {
 } from "./apple.js";
 import * as store from "./store.js";
 import { relay, DEFAULTS as ASSISTANT } from "./assistant.js";
-import * as paddle from "./paddle.js";
+import * as stripe from "./stripe.js";
 
 const MiB = 1048576;
 const MIN_PART = 5 * MiB;
@@ -151,27 +151,29 @@ async function refreshSubscription(deps, env, originalTransactionId, userId) {
 }
 
 async function refreshFromApple(deps, env, user) {
-  if (user.provider === "paddle") return refreshFromPaddle(deps, env, user);
+  if (user.provider === "stripe") return refreshFromStripe(deps, env, user);
   await refreshSubscription(deps, env, user.original_transaction_id, user.id);
   return store.userById(env.DB, user.id);
 }
 
-/// A Paddle subscription whose stored period ended asks Paddle once (lost or late webhooks,
-/// paddle-cloud-subscription design "Risks"); errors keep what is stored.
-async function refreshFromPaddle(deps, env, user) {
-  if (!env.PADDLE_API_KEY) return user;
+/// A Stripe subscription whose stored period ended asks Stripe once (lost or late webhooks);
+/// errors keep what is stored.
+async function refreshFromStripe(deps, env, user) {
+  if (!env.STRIPE_SECRET_KEY) return user;
   try {
-    const status = paddle.subscriptionStatus(await paddle.getSubscription(env, deps, user.original_transaction_id), deps.now());
-    if (status) await store.linkPaddle(env.DB, user, status, new Date(deps.now()).toISOString());
+    const status = stripe.subscriptionStatus(await stripe.getSubscription(env, deps, user.original_transaction_id), deps.now());
+    if (status) await store.linkWeb(env.DB, user, status, new Date(deps.now()).toISOString(), "stripe");
   } catch {
-    log({ route: "refresh", user: user.id, outcome: "paddle_error" });
+    log({ route: "refresh", user: user.id, outcome: "stripe_error" });
   }
   return store.userById(env.DB, user.id);
 }
 
-// MARK: Paddle (paddle-cloud-subscription)
+// MARK: Stripe (stripe-cloud-subscription)
 
-/// The checkout page on fernsy.app (and a local copy while testing) may call /v1/checkout/verify.
+const CANCEL_ATTEMPTS_PER_HOUR = 5;
+
+/// The pages on fernsy.app (and a local copy while testing) may call the checkout and cancel routes.
 function corsHeaders(env, request) {
   const origin = request.headers.get("Origin") || "";
   const allowed = ["https://www.fernsy.app", "https://fernsy.app", ...String(env.CHECKOUT_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean)];
@@ -180,42 +182,113 @@ function corsHeaders(env, request) {
     : {};
 }
 
-async function paddleNotification(request, env, deps) {
+async function stripeNotification(request, env, deps) {
   const raw = await request.text();
-  if (!(await paddle.verifySignature(request.headers.get("Paddle-Signature"), raw, env.PADDLE_WEBHOOK_SECRET, deps.now()))) {
-    log({ route: "paddle", outcome: "bad_signature" });
-    fail(401, "unauthorized", "bad signature");
+  if (!(await stripe.verifySignature(request.headers.get("Stripe-Signature"), raw, env.STRIPE_WEBHOOK_SECRET, deps.now()))) {
+    log({ route: "stripe", outcome: "bad_signature" });
+    fail(400, "bad_signature", "bad signature");
   }
   let event;
   try { event = JSON.parse(raw); } catch { fail(400, "bad_request", "body is not JSON"); }
-  if (!String(event.event_type || "").startsWith("subscription.")) return json(200, {});
-  const status = paddle.subscriptionStatus(event.data, deps.now());
-  if (!status) return json(200, {});
-  const accountId = await paddle.readCheckoutToken(env, status.checkoutToken, deps.now(), { ignoreExpiry: true });
-  const user = accountId ? await store.userByAccount(env.DB, accountId) : null;
-  if (!user) {
-    // Not started from an app of ours (or for an account deleted since): nothing to link.
-    log({ route: "paddle", outcome: accountId ? "unknown_account" : "no_token" });
+  const type = String(event.type || "");
+  if (type === "invoice.finalization_failed") {
+    // Stripe Tax could not place the buyer; the first payment cannot be taken (design 3).
+    log({ route: "stripe", event: type, outcome: event.data?.object?.automatic_tax?.status ?? "failed" });
     return json(200, {});
   }
-  const applied = await store.linkPaddle(env.DB, user, status, event.occurred_at ?? new Date(deps.now()).toISOString());
-  log({ route: "paddle", user: user.id, event: event.event_type, outcome: applied ? "updated" : "older" });
+  if (!type.startsWith("customer.subscription.")) return json(200, {});
+  const status = stripe.subscriptionStatus(event.data?.object, deps.now());
+  if (!status) return json(200, {});
+  const user = await store.userByAccount(env.DB, status.accountId);
+  if (!user) {
+    log({ route: "stripe", outcome: "unknown_account" });
+    return json(200, {});
+  }
+  const occurredAt = new Date((event.created ?? Math.floor(deps.now() / 1000)) * 1000).toISOString();
+  const applied = await store.linkWeb(env.DB, user, status, occurredAt, "stripe");
+  log({ route: "stripe", user: user.id, event: type, outcome: applied ? "updated" : "older" });
   return json(200, {});
 }
 
-async function checkoutVerify(request, env, deps) {
-  const cors = corsHeaders(env, request);
-  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-  if (!paddle.paddleConfigured(env)) return json(503, { error: "paddle_not_configured" }, cors);
+/// The checkout page's first call: may this account buy, and with which key and price.
+async function checkoutVerify(request, env, deps, cors) {
   const { token } = await body(request);
-  const accountId = await paddle.readCheckoutToken(env, token, deps.now());
-  const user = accountId ? await store.userByAccount(env.DB, accountId) : null;
-  if (!user) return json(400, { error: "bad_token", message: "the link from the app is invalid or expired" }, cors);
+  const user = await userFromToken(env, deps, token, cors);
   const { state } = store.accountState(user, deps.now(), Number(env.GRACE_DAYS ?? GRACE_DAYS));
   return json(200, {
-    environment: env.PADDLE_ENV === "live" ? "production" : "sandbox",
-    clientToken: env.PADDLE_CLIENT_TOKEN, priceId: env.PADDLE_PRICE_ID, alreadySubscribed: state === "active",
+    publishableKey: env.STRIPE_PUBLISHABLE_KEY, price: await stripe.priceText(env, deps), amount: Number(env.STRIPE_PRICE_AMOUNT ?? 349),
+    currency: "eur", alreadySubscribed: state === "active",
   }, cors);
+}
+
+async function userFromToken(env, deps, token, cors) {
+  const accountId = await stripe.readCheckoutToken(env, token, deps.now());
+  const user = accountId ? await store.userByAccount(env.DB, accountId) : null;
+  if (!user) throw new HTTPError(400, "bad_token", { message: "the link from the app is invalid or expired", headers: cors });
+  return user;
+}
+
+/// The checkout page's order (design 2): the worker creates the subscription for the token's
+/// account; the page confirms its first payment with Stripe.js.
+async function checkoutSubscribe(request, env, deps, cors) {
+  const b = await body(request);
+  const user = await userFromToken(env, deps, b.token, cors);
+  if (store.accountState(user, deps.now(), Number(env.GRACE_DAYS ?? GRACE_DAYS)).state === "active") {
+    return json(409, { error: "already_subscribed", message: "this account has an active subscription" }, cors);
+  }
+  const email = String(b.email ?? "").trim();
+  const country = String(b.country ?? "").trim().toUpperCase();
+  const postalCode = String(b.postalCode ?? "").trim();
+  if (b.consent !== true) return json(400, { error: "no_consent", message: "the start request is missing" }, cors);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(400, { error: "bad_email", message: "invalid e-mail address" }, cors);
+  if (!/^[A-Z]{2}$/.test(country)) return json(400, { error: "bad_address", message: "invalid country" }, cors);
+  try {
+    const result = await stripe.createSubscription(env, deps, {
+      accountId: user.account_id, email, country, postalCode, consentAt: new Date(deps.now()).toISOString(),
+    });
+    log({ route: "subscribe", user: user.id, outcome: "created" });
+    return json(200, { clientSecret: result.clientSecret }, cors);
+  } catch (e) {
+    if (e instanceof stripe.StripeError && e.status < 500) {
+      log({ route: "subscribe", user: user.id, outcome: e.code });
+      const address = /tax|location|address|postal/i.test(`${e.code} ${e.message}`);
+      return json(400, { error: address ? "bad_address" : "stripe_refused", message: e.message ?? e.code }, cors);
+    }
+    throw e;
+  }
+}
+
+/// Cancellation without signing in (cloud-server "Cancelling a website subscription without
+/// signing in"): by the e-mail address of the purchase, at most a few attempts per hour.
+async function subscriptionCancel(request, env, deps, cors) {
+  const { email: raw } = await body(request);
+  const email = String(raw ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(400, { error: "bad_email", message: "invalid e-mail address" }, cors);
+  const now = deps.now();
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const keys = [`ip:${ip}`, `email:${await sha256Hex(new TextEncoder().encode(email))}`];
+  for (const key of keys) {
+    if ((await store.attemptsSince(env.DB, key, now - 3600 * 1000)) >= CANCEL_ATTEMPTS_PER_HOUR) {
+      return json(429, { error: "too_many", message: "too many attempts, try again later" }, cors);
+    }
+  }
+  for (const key of keys) await store.recordAttempt(env.DB, key, now);
+  const until = await stripe.cancelByEmail(env, deps, email);
+  log({ route: "cancel", outcome: until ? "cancelled" : "not_found" });
+  return json(200, until ? { result: "cancelled", until } : { result: "not_found" }, cors);
+}
+
+/// The routes the pages on fernsy.app call, with CORS and without an app's credential.
+async function pageRoute(request, env, deps, handler) {
+  const cors = corsHeaders(env, request);
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (!stripe.stripeConfigured(env)) return json(503, { error: "checkout_not_configured", message: "website purchases are not set up" }, cors);
+  try {
+    return await handler(request, env, deps, cors);
+  } catch (e) {
+    if (e instanceof HTTPError) return json(e.status, { error: e.code, message: e.extra.message }, e.extra.headers ?? cors);
+    throw e;
+  }
 }
 
 async function accountJSON(env, user, now) {
@@ -237,19 +310,21 @@ async function route(request, env, deps) {
   const method = request.method;
   const now = deps.now();
 
-  if (method === "POST" && path === "/v1/paddle/notifications") {
-    if (!env.PADDLE_WEBHOOK_SECRET) fail(503, "paddle_not_configured", "Paddle is not configured");
-    return paddleNotification(request, env, deps);
+  if (method === "POST" && path === "/v1/stripe/notifications") {
+    if (!env.STRIPE_WEBHOOK_SECRET) fail(503, "checkout_not_configured", "website purchases are not set up");
+    return stripeNotification(request, env, deps);
   }
 
   if (method === "GET" && path === "/v1/offer") {
-    // The DMG's offer before any account exists: Paddle's price for the caller's country.
-    if (!paddle.paddleConfigured(env)) fail(503, "paddle_not_configured", "Paddle is not configured");
-    return json(200, { price: await paddle.pricePreview(env, deps, request.headers.get("CF-IPCountry")) });
+    // The DMG's offer before any account exists: the website price including VAT.
+    if (!stripe.stripeConfigured(env)) fail(503, "checkout_not_configured", "website purchases are not set up");
+    return json(200, { price: await stripe.priceText(env, deps) });
   }
 
-  if ((method === "POST" || method === "OPTIONS") && path === "/v1/checkout/verify") {
-    return checkoutVerify(request, env, deps);
+  if (method === "POST" || method === "OPTIONS") {
+    if (path === "/v1/checkout/verify") return pageRoute(request, env, deps, checkoutVerify);
+    if (path === "/v1/checkout/subscribe") return pageRoute(request, env, deps, checkoutSubscribe);
+    if (path === "/v1/subscription/cancel") return pageRoute(request, env, deps, subscriptionCancel);
   }
 
   if (method === "POST" && path === "/v1/apple/notifications") {
@@ -288,22 +363,22 @@ async function route(request, env, deps) {
   }
 
   if (method === "POST" && path === "/v1/checkout") {
-    // The DMG's purchase (paddle-cloud-subscription design 2): a token for fernsy.app/cloud.
+    // The DMG's purchase (stripe-cloud-subscription design 2): a token for fernsy.app/cloud.
     if (auth.dev) fail(400, "bad_request", "the dev user has its own subscription");
-    if (!paddle.paddleConfigured(env)) fail(503, "paddle_not_configured", "Paddle is not configured");
+    if (!stripe.stripeConfigured(env)) fail(503, "checkout_not_configured", "website purchases are not set up");
     if (store.accountState(user, now, Number(env.GRACE_DAYS ?? GRACE_DAYS)).state === "active") {
       fail(409, "already_subscribed", "this account has an active subscription");
     }
-    const token = await paddle.makeCheckoutToken(env, user.account_id, now);
-    const price = await paddle.pricePreview(env, deps, request.headers.get("CF-IPCountry"));
+    const token = await stripe.makeCheckoutToken(env, user.account_id, now);
+    const price = await stripe.priceText(env, deps);
     log({ route: "checkout", user: user.id, outcome: "token" });
     return reply(200, { token, price });
   }
 
   if (method === "POST" && path === "/v1/subscription/portal") {
-    if (user.provider !== "paddle" || !user.customer_id) fail(404, "not_paddle", "no Paddle subscription for this account");
-    const portal = await paddle.portalURL(env, deps, user.customer_id, user.original_transaction_id);
-    if (!portal) fail(502, "paddle_error", "Paddle gave no portal link");
+    if (user.provider !== "stripe" || !user.customer_id) fail(404, "not_web", "no website subscription for this account");
+    const portal = await stripe.portalURL(env, deps, user.customer_id);
+    if (!portal) fail(502, "stripe_error", "Stripe gave no portal link");
     return reply(200, { url: portal });
   }
 
@@ -471,6 +546,7 @@ export async function cleanup(env, deps, { abandonDays, graceDays } = {}) {
     result.deletedUsers++;
   }
   result.prunedAssistantRows = await store.pruneAssistantUsage(env.DB, now - 40 * store.DAY);
+  await store.pruneAttempts(env.DB, now - store.DAY);
   log({ route: "cleanup", outcome: "ok", ...result });
   return result;
 }
@@ -482,7 +558,7 @@ export async function handle(request, env, deps = { fetch: (...a) => fetch(...a)
   } catch (e) {
     if (e instanceof HTTPError) return json(e.status, { error: e.code, ...e.extra });
     if (e instanceof AppleNotConfigured) return json(503, { error: "apple_not_configured", message: "App Store Server API is not configured" });
-    if (e instanceof paddle.PaddleNotConfigured) return json(503, { error: "paddle_not_configured", message: "Paddle API key is missing" });
+    if (e instanceof stripe.StripeNotConfigured) return json(503, { error: "checkout_not_configured", message: "Stripe API key is missing" });
     log({ route: new URL(request.url).pathname.replace(/[0-9a-f-]{36}/g, ":id"), outcome: "error", error: String(e.message).slice(0, 80) });
     return json(500, { error: "internal", message: "internal error" });
   }
