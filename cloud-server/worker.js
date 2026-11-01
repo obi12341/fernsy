@@ -22,7 +22,7 @@ const UPLOAD_URL_SECONDS = 3600;
 const READ_URL_SECONDS = 6 * 3600;
 const GRACE_DAYS = 30;
 const ABANDON_DAYS = 7;
-const DEFAULT_QUOTA = 250 * 1000 ** 3;
+const DEFAULT_QUOTA = 100 * 1000 ** 3;  // 100 GB per subscription (cloud-pricing-100gb)
 const DEFAULT_PRODUCT = "de.mobilistics.fernsy.cloud.monthly";
 const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

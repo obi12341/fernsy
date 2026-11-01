@@ -104,7 +104,7 @@ The App Store Server API needs `APPSTORE_KEY` (the `.p8` contents), `APPSTORE_KE
 `APPSTORE_ISSUER` from App Store Connect. Without them `/v1/subscription` and the
 notifications answer `503 apple_not_configured`. A transaction's bundle id must be one of
 `BUNDLE_IDS`, by default `de.mobilistics.fernsy,de.mobilistics.fernsy.dev`.
-Other settings in the environment are `QUOTA_BYTES` (default 250 GB), `GRACE_DAYS` (30) and
+Other settings in the environment are `QUOTA_BYTES` (default 100 GB), `GRACE_DAYS` (30) and
 `PRODUCT_ID` (`de.mobilistics.fernsy.cloud.monthly`).
 
 ## Tests

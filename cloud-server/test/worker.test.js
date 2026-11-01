@@ -117,6 +117,24 @@ test("over quota is refused with needed and free bytes", async () => {
   assert.equal(res.body.freeBytes, 20 * MiB - 2 * PART - 100);
 });
 
+test("an account above a lowered quota keeps its recordings; uploads are refused with 0 free", async () => {
+  const t = setup({ quota: 20 * MiB });
+  const { start } = await upload(t, 3 * PART);
+  t.env.QUOTA_BYTES = String(10 * MiB);
+  assert.equal((await t.call("GET", `/v1/recordings/${start.body.id}/urls`)).status, 200);
+  const res = await t.call("POST", "/v1/recordings", { body: { dataBytes: PART, metaBytes: 100, partSize: PART } });
+  assert.equal(res.status, 413);
+  assert.equal(res.body.freeBytes, 0);
+  assert.equal((await t.call("DELETE", `/v1/recordings/${start.body.id}`)).status, 204);
+  assert.equal((await t.call("POST", "/v1/recordings", { body: { dataBytes: PART, metaBytes: 100, partSize: PART } })).status, 200);
+});
+
+test("the default quota is 100 GB", async () => {
+  const t = setup();
+  delete t.env.QUOTA_BYTES;
+  assert.equal((await t.call("GET", "/v1/account")).body.totalBytes, 100 * 1000 ** 3);
+});
+
 test("a part size below 5 MiB is refused", async () => {
   const t = setup();
   assert.equal((await t.call("POST", "/v1/recordings", { body: { dataBytes: 10, metaBytes: 1, partSize: MiB } })).status, 400);

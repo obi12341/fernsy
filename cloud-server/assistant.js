@@ -7,7 +7,7 @@ import tools from "./assistant-tools.js";
 
 export const DEFAULTS = {
   model: "anthropic/claude-haiku-5.5",
-  monthly: 300,           // requests (user turns) per calendar month, provisional until pricing
+  monthly: 300,           // requests (user turns) per calendar month (cloud-pricing-100gb)
   perMinute: 10,          // user turns per minute
   maxTokens: 800,         // per round
   maxRounds: 8,           // tool rounds per user turn; then the model must answer without tools
