@@ -546,6 +546,43 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
   Options › StoreKit Configuration.
 
+### Fernsy Server
+
+Fernsy Server (headless-recorder; user page `server/README.md`) is a Swift package in `server/`
+that records for one user in Docker and uploads to Fernsy Cloud. It depends only on
+`FernsyShared` (see Tests and FernsyCore) and builds on macOS and Linux.
+
+- **Control.** Orders, their states and the server's status travel through Fernsy Control
+  (`control-server/`, worker `fernsy-control`, dev `fernsy-control-dev`): no accounts, items
+  sealed with the control key (`FernsyShared/ControlCrypto.swift`, `ControlItems.swift`,
+  `ControlClient.swift`). `control-server/deploy.sh [--prod]` deploys it like Fernsy Cloud; its
+  tests run in `scripts/test.sh`.
+- **Pairing.** The server shows a ten-character code (status page and log); the app looks up the
+  server's key in the worker's mailbox (first four characters), checks it with the code and seals
+  control key, cloud key and IPTV login to it with HPKE.
+- **Server code.** `Planner` (pure: schedule, refuse, miss, start, stop, with `RecordingPlan`),
+  `StreamRecorder` (stream copy, reconnect, gaps), `Uploader` (as the Mac's queue), `Server` (the
+  loop), `StatusPage` (port 8080, `/` and `/status.json`). `swift test` in `server/`.
+- **Trying it without the apps.** Debug builds read `IPTV_CONTROL`, `IPTV_CLOUD`,
+  `IPTV_CLOUDTOKEN` and play the app's part:
+  ```
+  cd server && swift build
+  FERNSY_DATA=/tmp/srv FERNSY_PORT=18080 FERNSY_POLL=5 IPTV_CONTROL=https://fernsy-control-dev.mobilistics.workers.dev \
+    IPTV_CLOUD=https://fernsy-cloud-dev.mobilistics.workers.dev IPTV_CLOUDTOKEN=$(cat ~/.config/fernsy/dev-token) .build/debug/FernsyServer
+  FERNSY_DEV_APP=/tmp/dev-app.json IPTV_CONTROL=… .build/debug/FernsyServer app-pair <code>
+  … app-order 101 0 2 "Test"; app-list; app-cancel <id>; app-remove
+  ```
+  The stand-in's cloud key is random: delete its uploads from the dev cloud afterwards.
+- **Image.** `server/Dockerfile` cross-compiles with the Swift Static Linux SDK (checksum from
+  swift.org's releases API) into a `scratch` image (about 60 MB); `--build-arg
+  CONFIGURATION=debug` for the dev services. `.github/workflows/server-image.yml` builds both
+  architectures and pushes `ghcr.io/obi12341/fernsy-server` on release tags. CI's `linux` job
+  runs the server's tests.
+- **Pitfalls.** `FileManager.replaceItemAt` fails on Linux when the target does not exist yet
+  (secrets are written with `rename`); URLSession errors may name the stream URL with the
+  login, so the recorder logs only error codes; the worker's per-IP pairing limit must not count
+  the server's claimed polls.
+
 ### Apple TV
 
 The target "Fernsy TV" (tvOS 27, arm64, sources in `FernsyTV/`) is the Apple TV app. It links

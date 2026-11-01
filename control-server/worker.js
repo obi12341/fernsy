@@ -13,7 +13,7 @@ export const LIMITS = {
   itemBytes: 8192,           // decoded ciphertext per item
   perMinute: 120,            // requests per space and minute
   newSpacesPerHour: 10,      // per IP
-  pairingPerHour: 30,        // pairing requests per IP
+  pairingPerHour: 30,        // pairing requests per IP (the server's claimed polls do not count)
   pairingMinutes: 15,
   tombstoneDays: 30,
   idleSpaceDays: 90,
@@ -172,7 +172,9 @@ async function claim(request, row) {
 
 async function pairing(request, env, now, mailbox, rest) {
   const method = request.method;
-  await pairingLimit(request, env, now);
+  // The server's own polls carry its claim secret and do not count against the IP's limit.
+  const claimed = /^Claim /.test(request.headers.get("Authorization") || "");
+  if (!claimed) await pairingLimit(request, env, now);
   // The server opens a mailbox.
   if (method === "POST" && rest === "") {
     const b = await body(request);

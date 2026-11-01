@@ -1,0 +1,15 @@
+# Fernsy Server with Docker Compose: `docker compose up -d`, then open http://<host>:8080 and enter
+# the code in Fernsy (Settings › Fernsy Cloud › Server). See server/README.md.
+services:
+  fernsy-server:
+    image: ghcr.io/obi12341/fernsy-server:latest
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin          # your time zone; recordings start by the clock
+    ports:
+      - "8080:8080"              # status page; keep it inside your home network
+    volumes:
+      - fernsy-data:/data        # pairing, orders and recordings until they are uploaded
+
+volumes:
+  fernsy-data:

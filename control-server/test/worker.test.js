@@ -145,6 +145,12 @@ test("pairing: codes expire, are well-formed and limited per IP", async () => {
   assert.equal((await t.call("GET", "/v1/pairing/ABCI")).status, 400);   // I is not Crockford base32
   assert.equal((await t.call("POST", "/v1/pairing/WXYZ", { body: { ...body, publicKey: b64(random(31)) } })).status, 400);
 
+  // The server's polls with its claim do not count.
+  const claim = "c".repeat(43);
+  await t.call("POST", "/v1/pairing/QQQQ", { body: { ...body, claimHash: await sha256Hex(claim) }, ip: "203.0.113.9" });
+  for (let i = 0; i < LIMITS.pairingPerHour + 5; i++) {
+    assert.equal((await t.call("GET", "/v1/pairing/QQQQ/message", { auth: `Claim ${claim}`, ip: "203.0.113.9" })).status, 200);
+  }
   let last;
   for (let i = 0; i < LIMITS.pairingPerHour + 1; i++) last = await t.call("GET", "/v1/pairing/ZZZZ", { ip: "203.0.113.9" });
   assert.equal(last.status, 429);

@@ -24,12 +24,12 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## 3. Server
 
-- [ ] 3.1 `server/` package: config from the environment, data volume layout, logging without secrets
-- [ ] 3.2 Recorder: HTTP stream copy to `.ts`, reconnect with backoff, gaps; recording rules from `RecordingPlan` (padding, stream limit, overlaps, handover, missed)
-- [ ] 3.3 Control client: items with the control key (derive space, write secret, item key), polling with the change number
-- [ ] 3.4 Pairing: key pair, code, mailbox on the control worker, opening the sealed secrets, wipe on removal
-- [ ] 3.5 Upload with `CloudClient`/`CloudCrypto` and the Mac's details record; resumable; failure reasons
-- [ ] 3.6 Status page (paired, last contact, free space, running and next, errors)
+- [x] 3.1 `server/` package: config from the environment, data volume layout, logging without secrets
+- [x] 3.2 Recorder: HTTP stream copy to `.ts`, reconnect with backoff, gaps; recording rules from `RecordingPlan` (padding, stream limit, overlaps, handover, missed)
+- [x] 3.3 Control client: items with the control key (derive space, write secret, item key), polling with the change number
+- [x] 3.4 Pairing: key pair, code, mailbox on the control worker, opening the sealed secrets, wipe on removal
+- [x] 3.5 Upload with `CloudClient`/`CloudCrypto` and the Mac's details record; resumable; failure reasons
+- [x] 3.6 Status page (paired, last contact, free space, running and next, errors)
 
 ## 4. Apps
 
@@ -40,7 +40,7 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## 5. Image and CI
 
-- [ ] 5.1 `server/Dockerfile` (static binary, minimal runtime image), `compose.yaml` example
+- [x] 5.1 `server/Dockerfile` (static binary, minimal runtime image), `compose.yaml` example
 - [ ] 5.2 GitHub Actions: build and push linux/amd64 and linux/arm64 to `ghcr.io/obi12341/fernsy-server` on release tags; a test build on pushes to `server/`
 - [ ] 5.3 CloudKit schema: `ControlKey` in development, then production
 

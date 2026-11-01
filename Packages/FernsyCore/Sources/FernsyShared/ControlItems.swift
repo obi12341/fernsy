@@ -9,7 +9,8 @@ public enum ControlKind: String, Sendable {
     case state
     /// Server: one item with id `status`.
     case server
-    /// Apps: the server was removed (id `removed`); the server wipes its secrets.
+    /// Apps: the server was removed (id `removed`, the time as value); a server paired before
+    /// that time wipes its secrets, one paired later ignores it.
     case removed
 }
 

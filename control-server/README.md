@@ -31,7 +31,7 @@ look like `{"error": "<code>", "message": "…"}`.
 | `POST /v1/pairing/:mailbox` | server: `{publicKey, tag, claimHash}` (32-byte base64 key and HMAC, hex SHA-256 of a 32-byte claim secret) → `{expiresAt}` (15 min); `409 taken` |
 | `GET /v1/pairing/:mailbox` | app: → `{publicKey, tag, expiresAt}`; `404` unknown or expired |
 | `PUT /v1/pairing/:mailbox/message` | app: `{message, tag}` → 204, once; `409 taken` |
-| `GET /v1/pairing/:mailbox/message` | server, `Authorization: Claim <secret>`: → `{message: null}` until the app answered, then `{message, tag}` and the mailbox is gone |
+| `GET /v1/pairing/:mailbox/message` | server, `Authorization: Claim <secret>`: → `{message: null}` until the app answered, then `{message, tag}` and the mailbox is gone; these polls do not count against the IP limit |
 | `DELETE /v1/pairing/:mailbox` | server, with its claim → 204 |
 
 `kind` is lowercase letters and dashes (up to 20), `id` up to 64 of `A–Z a–z 0–9 _ -`, the
