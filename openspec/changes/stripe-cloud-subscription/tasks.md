@@ -2,7 +2,7 @@
 
 ## 1. Stripe account (user, with my help)
 
-- [ ] 1.1 Stripe test and live API keys (secret, publishable) in `~/.config/fernsy/` (mode 600); Stripe Tax on with the OSS registration; customer portal (cancel at period end, payment method update, invoices); cancellation e-mails on
+- [ ] 1.1 Stripe test and live API keys for the worker and the page (secret or restricted key, publishable) in `~/.config/fernsy/` (mode 600); Stripe Tax on with the OSS registration; customer portal (cancel at period end, payment method update, invoices); Smart Retries and Stripe's customer e-mails (receipts, failed payments, cancellation) on. The Stripe MCP (plugin `stripe`, sandbox `acct_1UX6aYEsDUkIy6j0`) sets up catalog and settings in test mode
 - [ ] 1.2 Test mode: product "Fernsy Cloud", price 3.49 € monthly tax-inclusive; webhook endpoint for `fernsy-cloud-dev`
 
 ## 2. Worker

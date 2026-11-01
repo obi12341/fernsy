@@ -34,9 +34,14 @@ publishable key, price text and whether the account may buy), shows our order su
 Payment Element plus the Address Element in billing mode (country and postal code for Stripe
 Tax), the start request and the button "Zahlungspflichtig abonnieren". On submit it calls
 `POST /v1/checkout/subscribe` with the token, e-mail and the start consent; the worker creates
-the customer and the subscription (`payment_behavior: default_incomplete`, `automatic_tax`,
-metadata with the account id and the consent time) and returns the client secret, which the page
-confirms with Stripe.js. The account is linked by the worker that created the subscription, not
+the customer and the subscription (`payment_behavior: default_incomplete`,
+`billing_mode[type]=flexible`, `automatic_tax[enabled]=true`,
+`payment_settings[save_default_payment_method]=on_subscription`, metadata with the account id and
+the consent time, `expand[]=latest_invoice.confirmation_secret`) and returns
+`latest_invoice.confirmation_secret.client_secret`, which the page confirms with
+`stripe.confirmPayment()`. Stripe's implementation planner (2026-11-01) recommends the same path
+for custom terms and button text: Payment Element, flat-rate price, pay up front, customer portal,
+Smart Retries with Stripe's e-mails, Stripe Tax with collection. The account is linked by the worker that created the subscription, not
 by data from the page.
 Rejected: Stripe Checkout (hosted): it labels the button "Abonnieren" for subscriptions, which
 German law does not clearly accept as "zahlungspflichtig bestellen", and offers no field for the
@@ -51,7 +56,11 @@ active until the period end while Stripe retries; `incomplete` → not active; `
 `unpaid`, `incomplete_expired` → ended at `ended_at`/`canceled_at`. The subscription id (`sub_…`)
 goes into `original_transaction_id`, the customer (`cus_…`) into `customer_id`, provider `stripe`.
 The account is refreshed from Stripe's API when the stored period has ended, as with Paddle.
-The Stripe API version is pinned in the requests.
+The Stripe API version is pinned in the requests (`2025-06-30.basil` or later, needed for the
+flexible billing mode; since basil the period end lives on the subscription items). The worker
+also handles `invoice.finalization_failed`: when `automatic_tax.status` is
+`requires_location_inputs` the first payment cannot be taken, and the page asks for a valid
+billing address.
 
 ### 4. Managing and cancelling
 `POST /v1/subscription/portal` creates a billing portal session for the account's customer;
