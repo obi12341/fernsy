@@ -240,6 +240,8 @@ async function checkoutSubscribe(request, env, deps, cors) {
   if (b.consent !== true) return json(400, { error: "no_consent", message: "the start request is missing" }, cors);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(400, { error: "bad_email", message: "invalid e-mail address" }, cors);
   if (!/^[A-Z]{2}$/.test(country)) return json(400, { error: "bad_address", message: "invalid country" }, cors);
+  // Only the US and Canada need the postal code for tax (states, provinces); in the EU the country is enough.
+  if ((country === "US" || country === "CA") && !postalCode) return json(400, { error: "bad_address", message: "postal code missing" }, cors);
   try {
     const result = await stripe.createSubscription(env, deps, {
       accountId: user.account_id, email, country, postalCode, consentAt: new Date(deps.now()).toISOString(),
