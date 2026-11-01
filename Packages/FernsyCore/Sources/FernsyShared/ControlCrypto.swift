@@ -134,6 +134,10 @@ public struct PairingSecrets: Codable, Equatable, Sendable {
     }
 }
 
+func sha256Hex(_ data: Data) -> String {
+    SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}
+
 /// PBKDF2-HMAC-SHA256: CommonCrypto on Apple platforms (no BoringSSL in the apps), swift-crypto's
 /// CryptoExtras on Linux.
 func pbkdf2SHA256(password: Data, salt: Data, rounds: Int, count: Int) throws -> SymmetricKey {
