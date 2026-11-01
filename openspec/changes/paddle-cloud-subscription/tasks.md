@@ -46,9 +46,11 @@ neutral note and without "Manage Subscription".
 
 Live, 2026-11-01: catalog created with the live API key (`~/.config/fernsy/paddle-live.json`):
 product, price €2.99 monthly with quantity 1..1, client token, notification destination for
-`fernsy-cloud.mobilistics.workers.dev`. Still open for 5.2: Paddle's onboarding (domain review of
-fernsy.app, identity), then the default payment link (refused until the domain is approved), the
-prod secrets and deploy.
+`fernsy-cloud.mobilistics.workers.dev`. Prod worker deployed the same day with the live values
+(`PADDLE_ENV=live`, `CHECKOUT_SECRET` generated, the new subscription columns added): `/v1/offer`
+answers €2.99 from Paddle's live API, unsigned notifications get 401. Still open for 5.2: Paddle's
+onboarding (domain review of fernsy.app, identity), then the default payment link (refused until
+the domain is approved), and `cloud.html` live on fernsy.app with the merge into `main`.
 
 ## Workflow follow-up
 
