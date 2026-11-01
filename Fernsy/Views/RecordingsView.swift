@@ -18,7 +18,8 @@ struct RecordingsView: View {
         let cloudOnly = showFinished ? cloudOnlyItems(local: all) : []
 
         Group {
-            if (showUpcoming ? running.count + scheduled.count : 0) + (showFinished ? finished.count : 0) + cloudOnly.count == 0 {
+            if (showUpcoming ? running.count + scheduled.count : 0) + (showFinished ? finished.count : 0) + cloudOnly.count == 0
+                && (!showUpcoming || app.cloud.server.orders.isEmpty) {
                 ContentUnavailableView {
                     Label("No Recordings", systemImage: "record.circle")
                 } description: {
@@ -32,6 +33,7 @@ struct RecordingsView: View {
                     if showUpcoming && !scheduled.isEmpty {
                         Section("Scheduled") { ForEach(scheduled) { RecordingRow(recording: $0) } }
                     }
+                    if showUpcoming { ServerOrdersSection() }
                     if showFinished && !finished.isEmpty {
                         Section("Recorded") { ForEach(finished) { RecordingRow(recording: $0) } }
                     }
@@ -52,6 +54,8 @@ struct RecordingsView: View {
         }
         .navigationTitle("Recordings")
         .task { if CloudFeature.isEnabled && app.cloud.hasAccount { await app.cloud.refresh() } }
+        .onAppear { app.cloud.server.startPolling() }
+        .onDisappear { app.cloud.server.stopPolling() }
         .toolbar {
             ToolbarItem {
                 Button {
