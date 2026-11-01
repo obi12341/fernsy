@@ -13,9 +13,9 @@ test VM (`scripts/vm.sh`).
 
 ## 2. Relay (cloud-server)
 
-- [ ] 2.1 `POST /v1/assistant`: account auth, subscription check, allowance per calendar month and rate per minute in D1, request size cap
-- [ ] 2.2 Forward to OpenRouter's chat completions API with the server's system prompt and tools (`functions`), cache control, `max_tokens` and tool-round cap; model id and limits as worker settings
-- [ ] 2.3 Logs and database hold only account id, time, token counts and outcome; tests for allowance, rate, ended subscription, client-sent tools ignored
+- [x] 2.1 `POST /v1/assistant`: account auth, subscription check, allowance per calendar month and rate per minute in D1, request size cap
+- [x] 2.2 Forward to OpenRouter's chat completions API with the server's system prompt and tools (`functions`), cache control, `max_tokens` and tool-round cap; model id and limits as worker settings
+- [x] 2.3 Logs and database hold only account id, time, token counts and outcome; tests for allowance, rate, ended subscription, client-sent tools ignored
 - [ ] 2.4 Deploy to the dev deployment; `deploy.sh` takes `OPENROUTER_API_KEY` like its other secrets (from the user's SOPS-encrypted LibreChat secret in gitops-admin, decrypted into the deploy only)
 
 ## 3. Apps

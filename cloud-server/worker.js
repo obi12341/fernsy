@@ -9,6 +9,7 @@ import {
   AppleNotConfigured, b64urlDecode, subscriptionStatus, appStoreConfigured, notificationTransactionId,
 } from "./apple.js";
 import * as store from "./store.js";
+import { relay, DEFAULTS as ASSISTANT } from "./assistant.js";
 
 const MiB = 1048576;
 const MIN_PART = 5 * MiB;
@@ -187,6 +188,20 @@ async function route(request, env, deps) {
   let user = auth.user;
   const reply = (status, b) => json(status, b);
 
+  if (method === "POST" && path === "/v1/assistant") {
+    // The in-app assistant (cloud-assistant): only while the subscription is active.
+    requireState(env, user, now, ["active"]);
+    const text = await request.text();
+    if (text.length > ASSISTANT.maxBody) fail(413, "too_large", "the conversation is too long");
+    let payload;
+    try { payload = JSON.parse(text); } catch { fail(400, "bad_request", "body is not JSON"); }
+    const db = {
+      countSince: (userId, since) => store.assistantTurnsSince(env.DB, userId, since),
+      record: (userId, at, turn, tokensIn, tokensOut) => store.recordAssistantRound(env.DB, userId, at, turn, tokensIn, tokensOut),
+    };
+    return reply(200, await relay({ env, deps, db, user, payload, fail, log }));
+  }
+
   if (method === "GET" && path === "/v1/account") {
     if (user.expires_at && Date.parse(user.expires_at) <= now && !user.revoked_at) user = await refreshFromApple(deps, env, user);
     return reply(200, await accountJSON(env, user, now));
@@ -340,7 +355,7 @@ async function route(request, env, deps) {
 
 export async function cleanup(env, deps, { abandonDays, graceDays } = {}) {
   const now = deps.now();
-  const result = { abortedUploads: 0, deletedUsers: 0, refreshed: 0 };
+  const result = { abortedUploads: 0, deletedUsers: 0, refreshed: 0, prunedAssistantRows: 0 };
   for (const rec of await store.abandonedUploads(env.DB, now - Number(abandonDays ?? ABANDON_DAYS) * store.DAY)) {
     await removeRecording(deps, env, rec);
     result.abortedUploads++;
@@ -355,6 +370,7 @@ export async function cleanup(env, deps, { abandonDays, graceDays } = {}) {
     for (const rec of await store.recordingsOf(env.DB, user.id)) await removeRecording(deps, env, rec);
     result.deletedUsers++;
   }
+  result.prunedAssistantRows = await store.pruneAssistantUsage(env.DB, now - 40 * store.DAY);
   log({ route: "cleanup", outcome: "ok", ...result });
   return result;
 }

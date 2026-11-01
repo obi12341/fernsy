@@ -16,6 +16,8 @@
 #   DEV_TOKEN                    dev only (generated on first dev deploy and printed once)
 #   APPSTORE_KEY                 App Store Server API key (.p8 contents)
 #   APPSTORE_KEY_ID, APPSTORE_ISSUER
+#   OPENROUTER_API_KEY           the in-app assistant's provider key (cloud-assistant)
+#   ASSISTANT_MODEL, ASSISTANT_MONTHLY, ASSISTANT_PER_MINUTE   assistant settings (plain text)
 # The token needs: Workers Scripts Write, D1 Write, Workers R2 Storage Write, and for
 # --new-s3-token Account API Tokens Write.
 set -euo pipefail
@@ -84,9 +86,12 @@ bindings = [
     {"type": "plain_text", "name": "ACCOUNT_ID", "text": os.environ["ACCOUNT"]},
     {"type": "plain_text", "name": "BUCKET_NAME", "text": os.environ["NAME"]},
 ]
-for name in ["S3_KEY", "S3_SECRET", "DEV_TOKEN", "APPSTORE_KEY", "APPSTORE_KEY_ID", "APPSTORE_ISSUER"]:
+for name in ["S3_KEY", "S3_SECRET", "DEV_TOKEN", "APPSTORE_KEY", "APPSTORE_KEY_ID", "APPSTORE_ISSUER", "OPENROUTER_API_KEY"]:
     if os.environ.get(name):
         bindings.append({"type": "secret_text", "name": name, "text": os.environ[name]})
+for name in ["ASSISTANT_MODEL", "ASSISTANT_MONTHLY", "ASSISTANT_PER_MINUTE"]:
+    if os.environ.get(name):
+        bindings.append({"type": "plain_text", "name": name, "text": os.environ[name]})
 print(json.dumps({"main_module": "worker.js", "compatibility_date": "2026-10-01",
                   "bindings": bindings, "keep_bindings": ["secret_text"]}))
 PY
@@ -97,7 +102,9 @@ cf -X PUT "$API/workers/scripts/$NAME" \
     -F "worker.js=@$DIR/worker.js;type=application/javascript+module" \
     -F "sigv4.js=@$DIR/sigv4.js;type=application/javascript+module" \
     -F "apple.js=@$DIR/apple.js;type=application/javascript+module" \
-    -F "store.js=@$DIR/store.js;type=application/javascript+module" > /dev/null
+    -F "store.js=@$DIR/store.js;type=application/javascript+module" \
+    -F "assistant.js=@$DIR/assistant.js;type=application/javascript+module" \
+    -F "assistant-tools.js=@$DIR/assistant-tools.js;type=application/javascript+module" > /dev/null
 # Sessions are gone (cloud-account-from-icloud-key); drop the secret older deploys set.
 if has SESSION_KEY; then cf -X DELETE "$API/workers/scripts/$NAME/secrets/SESSION_KEY" > /dev/null; fi
 cf -X PUT "$API/workers/scripts/$NAME/schedules" -H "Content-Type: application/json" -d '[{"cron":"17 3 * * *"}]' > /dev/null

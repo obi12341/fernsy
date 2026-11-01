@@ -3,13 +3,13 @@ import Testing
 @testable import FernsyCore
 
 /// The assistant's tools (cloud-assistant design 4): one source for the Mac's MCP server, the
-/// apps and the Fernsy Cloud worker, whose copy (`cloud-server/assistant-tools.json`) must match.
+/// apps and the Fernsy Cloud worker, whose copy (`cloud-server/assistant-tools.js`) must match.
 /// `scripts/assistant-tools.sh` rewrites that copy.
 struct AssistantToolsTests {
     static let workerCopy = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().deletingLastPathComponent()
-        .appendingPathComponent("cloud-server/assistant-tools.json")
+        .appendingPathComponent("cloud-server/assistant-tools.js")
 
     @Test func everyAssistantToolExists() {
         let names = Set(AssistantTools.definitions.compactMap { $0["name"] as? String })
@@ -32,11 +32,11 @@ struct AssistantToolsTests {
     }
 
     @Test func workerCopyMatches() throws {
-        let current = try AssistantTools.assistantJSON()
+        let current = try AssistantTools.workerModule()
         if ProcessInfo.processInfo.environment["FERNSY_WRITE_ASSISTANT_TOOLS"] == "1" {
             try current.write(to: Self.workerCopy)
         }
         let copy = try Data(contentsOf: Self.workerCopy)
-        #expect(copy == current, "cloud-server/assistant-tools.json is out of date: run scripts/assistant-tools.sh")
+        #expect(copy == current, "cloud-server/assistant-tools.js is out of date: run scripts/assistant-tools.sh")
     }
 }
