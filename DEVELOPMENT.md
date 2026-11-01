@@ -457,7 +457,9 @@ of `iCloud.<bundle id>`; Jellyfin sessions never sync.
   fails with "Cannot create new type CloudKey in production schema" (created 2026-10-30). The Mac
   marker is the record type `CloudMac` with the Date/Time field `seenAt` (record name
   `cloud.mac`, no index); without it the Mac logs "Mac marker not saved" and other devices say
-  that no Mac is known.
+  that no Mac is known. Fernsy Server's control key (headless-recorder) is the record type
+  `ControlKey` with the encrypted bytes field `key` (record name `control.key`, no index); without
+  it in Production pairing a server fails with "iCloud is not available" in the apps.
 - **Test runs.** Keychain-less runs (`FERNSY_NO_KEYCHAIN`, UI tests) sync nothing unless
   `IPTV_SYNC=1`, so tests never touch the developer's iCloud. Apple TV debug builds:
   `IPTV_TESTDEFAULTS=<key>=<value>,…` changes settings at launch as if made there. Both apps'
