@@ -3,7 +3,7 @@
 ## 1. Worker
 
 - [x] 1.1 `DEFAULT_QUOTA` 100 GB in `cloud-server/worker.js`; the allowance comment in `assistant.js` final; `cloud-server/README.md`; worker tests green (`node --test cloud-server/test/*.test.js`), with a test for an account above the quota (plays, deletes, upload refused with 0 free)
-- [ ] 1.2 Deploy `fernsy-cloud-dev` and `fernsy-cloud`; `/v1/account` reports 100 GB. Dev deployed 2026-11-01 (100 GB); the prod deploy needs the user (blocked for the agent)
+- [x] 1.2 Deploy `fernsy-cloud-dev` and `fernsy-cloud`; `/v1/account` reports 100 GB. Dev deployed 2026-11-01 (100 GB); prod deployed by the user the same day from this branch (`/v1/offer` €3.49)
 
 ## 2. Prices
 
