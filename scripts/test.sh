@@ -1,5 +1,6 @@
 #!/bin/bash
-# Runs the Fernsy Cloud worker tests (cloud-server/test, Node 24), the FernsyCore tests on
+# Runs the Fernsy Cloud and Fernsy Control worker tests (cloud-server/test, control-server/test,
+# Node 24), the FernsyCore tests on
 # macOS and builds the package for tvOS (see DEVELOPMENT.md › Tests and FernsyCore).
 #
 #   scripts/test.sh             # macOS tests + tvOS build
@@ -10,14 +11,16 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# The worker's tests use only Node's built-ins (node:test, node:sqlite, WebCrypto).
+# The workers' tests use only Node's built-ins (node:test, node:sqlite, WebCrypto).
 if command -v node > /dev/null; then
-    echo "▸ node --test cloud-server/test"
     mkdir -p "$ROOT/build"
-    node --test "$ROOT"/cloud-server/test/*.test.js > "$ROOT/build/cloud-server-tests.log" 2>&1 \
-        || { cat "$ROOT/build/cloud-server-tests.log"; exit 1; }
+    for worker in cloud-server control-server; do
+        echo "▸ node --test $worker/test"
+        node --test "$ROOT"/$worker/test/*.test.js > "$ROOT/build/$worker-tests.log" 2>&1 \
+            || { cat "$ROOT/build/$worker-tests.log"; exit 1; }
+    done
 else
-    echo "▸ skipping cloud-server tests: node is not installed"
+    echo "▸ skipping worker tests: node is not installed"
 fi
 
 cd "$ROOT/Packages/FernsyCore"

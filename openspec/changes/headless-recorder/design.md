@@ -80,9 +80,12 @@ not know about subscriptions:
   One writer per kind keeps app and server edits from conflicting.
 - **Polling.** The server polls every 30 seconds; the apps poll while a recordings list or the
   server settings are open and when they come to the foreground.
-- **Limits instead of a subscription.** Per space at most 500 items of 8 KB, 4 requests per second;
-  done and failed items are removed 30 days after their end, spaces without a request for 90 days
-  entirely. The subscription is checked where it costs: Fernsy Cloud refuses the server's uploads
+- **Limits instead of a subscription.** Per space at most 500 items of 8 KB and 120 requests a
+  minute, at most 10 new spaces per IP and hour; deleted items stay as tombstones for 30 days, so
+  a device that was away for less than that catches up (one away longer reads from change 0 and
+  drops what it no longer finds); spaces without a request for 90 days are
+  removed entirely. The worker cannot see when an order ended, so the server deletes done and
+  failed orders and their states 30 days after their end. The subscription is checked where it costs: Fernsy Cloud refuses the server's uploads
   without one (headless-recorder spec), so control itself stays free and could later serve a
   server that keeps recordings at home.
 Rejected: CloudKit (decision 0); the items as part of the Fernsy Cloud worker (ties control to the
@@ -94,17 +97,20 @@ push to the server (an open connection per server; 30 s polling is cheap and eno
 1. The server starts unpaired, creates an X25519 key pair and a pairing code of ten characters
    (Crockford base32, shown as `XXXX-XXXXXX`, about 50 bits). The first four characters are the
    mailbox id, the other six the secret; the worker only ever sees the mailbox id.
-2. The server posts its public key and a tag to `fernsy-control`, `POST /v1/pairing/<mailbox>`
-   (rate limited per IP; expires after 15 minutes). The tag is an HMAC of the public key under a key
+2. The server posts its public key, a tag and the hash of a random claim secret to
+   `fernsy-control`, `POST /v1/pairing/<mailbox>` (30 pairing requests per IP and hour; expires
+   after 15 minutes; a taken mailbox makes the server pick a new code). The tag is an HMAC of the public key under a key
    derived from the secret with PBKDF2-SHA256 (600,000 rounds, swift-crypto `_CryptoExtras`), so
    a worker that wanted to swap the key would have to guess the secret offline faster than the
    mailbox expires.
 3. The user enters the code in the app (Settings › Fernsy Cloud › Server). The app fetches the
    public key, checks the tag, and puts a sealed message into the mailbox: the control key, the
    cloud key and the chosen IPTV login, sealed to the server's key (HPKE-style: X25519 + HKDF +
-   AES-GCM).
-4. The server polls its mailbox, opens the message, stores the secrets in its volume (file mode
-   600) and deletes the mailbox. From then on it reads and writes the control space and uploads to
+   AES-GCM), with an HMAC under the same code-derived key, so that someone who guessed the mailbox
+   cannot hand the server their own account.
+4. The server polls its mailbox with its claim secret (only it can pick the message up), opens
+   the message, stores the secrets in its volume (file mode 600); picking it up closes the
+   mailbox. From then on it reads and writes the control space and uploads to
    Fernsy Cloud with the cloud key's access secret, like the Mac; it writes its `server` item and
    the app shows it as paired.
 5. Removing the server in the app writes a `removed` mark into the space and deletes the `server`
