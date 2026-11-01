@@ -192,7 +192,7 @@ public struct StartBuilder {
             for key in resume.started(prefix: "episode.") {
                 let id = String(key.dropFirst("episode.".count))
                 guard let (episode, show) = episodeIndex[id] else { continue }
-                entries.append(LibraryEntry(id: key, title: show.name, detail: "S\(episode.season) F\(episode.number) · \(remaining(key))", source: .iptv,
+                entries.append(LibraryEntry(id: key, title: show.name, detail: "\(episode.code) · \(remaining(key))", source: .iptv,
                                             image: (episode.image ?? show.cover).flatMap(URL.init(string:)), progress: resume.fraction(key),
                                             date: resume.lastPlayed(key) ?? .distantPast, open: .episode(episode, show)))
             }
@@ -268,9 +268,9 @@ public struct StartBuilder {
 
     // MARK: Helpers
 
-    /// "S2 F5 · Title" for a Jellyfin episode, nil otherwise (as the apps' players name it).
+    /// "S2 E5 · Title" (German "S2 F5") for a Jellyfin episode, nil otherwise (as the players name it).
     public static func episodeLine(_ item: JFItem) -> String? {
-        item.type == "Episode" ? "S\(item.parentIndexNumber ?? 0) F\(item.indexNumber ?? 0) · \(item.name)" : nil
+        item.type == "Episode" ? item.episodeLine : nil
     }
 
     public static func minutesLeft(_ seconds: Double) -> String {

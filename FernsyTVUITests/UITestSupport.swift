@@ -7,8 +7,9 @@ class FernsyUITestCase: XCTestCase {
         continueAfterFailure = false
     }
 
-    func launchDemo(_ extra: [String: String] = [:]) -> XCUIApplication {
+    func launchDemo(_ extra: [String: String] = [:], arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += arguments
         app.launchEnvironment = [
             "FERNSY_NO_KEYCHAIN": "1",
             "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",

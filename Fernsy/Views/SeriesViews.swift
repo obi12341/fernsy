@@ -72,7 +72,7 @@ struct SeriesDetailView: View {
                                 Button { app.play(next, of: series) } label: {
                                     HStack(spacing: 8) {
                                         Label("Next Episode", systemImage: "play.fill")
-                                        Text(verbatim: "S\(next.season) E\(next.number) · \(next.title)").lineLimit(1).opacity(0.8)
+                                        Text(verbatim: "\(next.code) · \(next.title)").lineLimit(1).opacity(0.8)
                                     }
                                     .padding(.horizontal, 8)
                                 }
@@ -116,11 +116,10 @@ struct SeriesDetailView: View {
         }
     }
 
-    /// The episode with a resume position, else the first one not watched (else the first).
+    /// The episode to continue with, by the rule all apps share (SeriesInfo.nextEpisode).
     private func nextEpisode(_ info: SeriesInfo) -> Episode? {
-        let all = info.seasons.keys.sorted().flatMap { (info.seasons[$0] ?? []).sorted { $0.number < $1.number } }
-        if let started = all.first(where: { app.resumePosition(ResumeStore.episodeKey($0.id)) > 0 }) { return started }
-        return all.first { !app.isWatched(ResumeStore.episodeKey($0.id)) } ?? all.first
+        info.nextEpisode(position: { app.resumePosition(ResumeStore.episodeKey($0.id)) },
+                         watched: { app.isWatched(ResumeStore.episodeKey($0.id)) })
     }
 
     @ViewBuilder

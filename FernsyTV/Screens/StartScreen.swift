@@ -362,7 +362,7 @@ private struct Hero: View {
                 if let genre = details.genre?.split(separator: ",").first { list.append(String(genre)) }
             }
             if let rating = movie.rating, rating > 0 { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
-        case .episode(let episode, _): list.append("S\(episode.season) F\(episode.number) · \(episode.title)")
+        case .episode(let episode, _): list.append("\(episode.code) · \(episode.title)")
         default: break
         }
         return list.joined(separator: " · ")

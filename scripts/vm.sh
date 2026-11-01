@@ -22,7 +22,8 @@ command -v tart >/dev/null || { echo "tart is missing (see DEVELOPMENT.md › Te
 if ! tart list --quiet --source local 2>/dev/null | grep -qx "$VM"; then
     echo "No VM '$VM' (see DEVELOPMENT.md › Test VM)" >&2; exit 1
 fi
-if ! tart ip "$VM" >/dev/null 2>&1; then
+running() { tart list --source local --format json | python3 -c "import json,sys; sys.exit(0 if any(v['Name'] == sys.argv[1] and v['State'] == 'running' for v in json.load(sys.stdin)) else 1)" "$VM"; }
+if ! running; then
     echo "▸ Starting $VM"
     nohup tart run "$VM" ${GRAPHICS[@]+"${GRAPHICS[@]}"} --dir=fernsy:"$ROOT" > "$ROOT/build/vm-run.log" 2>&1 &
     tart ip "$VM" --wait 180 >/dev/null

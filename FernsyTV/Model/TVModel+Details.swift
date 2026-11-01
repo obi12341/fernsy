@@ -67,17 +67,17 @@ enum LibraryDetail {
     static func entry(_ episode: Episode, _ series: Series, _ model: TVModel) -> EpisodeEntry {
         let key = ResumeStore.episodeKey(episode.id)
         let runtime = episode.durationSeconds.map { " · " + Runtime.text(seconds: Double($0)) } ?? ""
-        return EpisodeEntry(id: episode.id, title: episode.title, number: "S\(episode.season) F\(episode.number)\(runtime)",
-                            label: "S\(episode.season) F\(episode.number)", image: (episode.image ?? series.cover).flatMap(URL.init(string:)),
+        return EpisodeEntry(id: episode.id, title: episode.title, number: episode.code + runtime,
+                            label: episode.code, image: (episode.image ?? series.cover).flatMap(URL.init(string:)),
                             progress: model.resume.fraction(key), watched: model.resume.isWatched(key), item: .episode(episode, series))
     }
 
     @MainActor
     static func entry(_ item: JFItem) -> EpisodeEntry {
         let runtime = item.runTimeSeconds.map { " · " + Runtime.text(seconds: $0) } ?? ""
-        let label = "S\(item.parentIndexNumber ?? 0) F\(item.indexNumber ?? 0)"
+        let label = item.episodeCode ?? ""
         let share = item.userData?.playedPercentage.map { $0 / 100 }
-        return EpisodeEntry(id: item.id, title: item.name, number: label + runtime, label: label,
+        return EpisodeEntry(id: item.id, title: item.name, number: label.isEmpty ? String(runtime.dropFirst(3)) : label + runtime, label: label,
                             image: TVModel.shared.jellyfin.thumbURL(item).flatMap(URL.init(string:)),
                             progress: share.flatMap { $0 > 0 ? $0 : nil }, watched: item.userData?.played == true, item: .jellyfin(item))
     }

@@ -167,7 +167,7 @@ extension AppModel {
             }
         }
         if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
-        if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
+        markWatchedForTest(DebugEnv.watchedKeys)
         // IPTV_TESTRESUME: resume positions for this run.
         for item in DebugEnv.resumePositions { resume.save(item.key, position: item.position, duration: item.duration) }
         if let appearance = env["IPTV_APPEARANCE"] {
