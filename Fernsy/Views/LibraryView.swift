@@ -122,6 +122,13 @@ struct LibraryView: View {
                         .help("Hide categories and channels or show them again")
                 }
             }
+            if CloudFeature.isEnabled {
+                ToolbarItem {
+                    Button { openWindow(id: "assistant") } label: { Label("Assistant", systemImage: "sparkles") }
+                        .help("Ask Fernsy’s assistant")
+                        .accessibilityIdentifier("assistant.open")
+                }
+            }
             ToolbarItem {
                 Button {
                     if section.isJellyfin {

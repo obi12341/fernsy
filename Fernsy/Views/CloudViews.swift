@@ -143,6 +143,9 @@ struct CloudSettingsSection: View {
                 if account.totalBytes > 0 {
                     LabeledContent("Storage") { Text(verbatim: CloudModel.storageText(account)) }
                 }
+                if let usage = app.assistant.usageText {
+                    LabeledContent("Assistant Requests") { Text(verbatim: usage) }
+                }
                 if let note = cloud.deletionNote {
                     Text(verbatim: note).foregroundStyle(Theme.warning)
                 }
@@ -152,6 +155,12 @@ struct CloudSettingsSection: View {
             }
             if case .failed(let message) = cloud.phase {
                 Text(verbatim: message).foregroundStyle(Theme.warning)
+            }
+            if app.assistant.hasConsent {
+                LabeledContent("Assistant") {
+                    Button("Withdraw Consent") { app.assistant.withdrawConsent() }
+                        .help("The assistant asks again before its next request")
+                }
             }
             if cloud.hasAccount, cloud.account != nil {
                 HStack {
@@ -224,8 +233,10 @@ struct CloudEnableSheet: View {
         let cloud = app.cloud
         VStack(alignment: .leading, spacing: 16) {
             Label("Fernsy Cloud", systemImage: "icloud").font(.title2.bold())
-            Text("Your recordings in your own private storage, playable on iPad, iPhone and Apple TV – end-to-end encrypted, so nobody else can see them, not even mobilistics.")
+            CloudOfferParts()
+            Text("Your recordings in your own private storage – end-to-end encrypted, so nobody else can see them, not even mobilistics.")
                 .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(.secondary)
             if cloud.canMoveSubscription {
                 CloudMoveRow()
             } else {

@@ -189,6 +189,8 @@ final class AppModel: ObservableObject {
     var recordingActivity: NSObjectProtocol?
     /// The local MCP server (Settings › Assistenten); created after launch.
     private(set) lazy var mcp = MCPServer(app: self)
+    /// The in-app assistant (cloud-assistant, AppModel+Assistant.swift).
+    private(set) lazy var assistant = makeAssistant()
     #if DIRECT_DISTRIBUTION
     /// Sparkle updates of the DMG build ("Fernsy Direct" target only).
     private(set) var updater: Updater!
