@@ -851,6 +851,236 @@
           }
         }
       }
+    },
+    "Failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "Fernsy cannot reach the internet right now.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy erreicht das Internet gerade nicht."
+          }
+        }
+      }
+    },
+    "Fernsy Cloud has no active subscription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Cloud hat kein aktives Abo"
+          }
+        }
+      }
+    },
+    "Fernsy Cloud storage is full; the server keeps the file for 7 days": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "der Speicher in Fernsy Cloud ist voll; der Server behält die Datei 7 Tage"
+          }
+        }
+      }
+    },
+    "iCloud is not available, so Fernsy cannot share the server with your other devices. Try again later.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud ist nicht verfügbar, deshalb kann Fernsy den Server nicht mit deinen anderen Geräten teilen. Versuch es später noch mal."
+          }
+        }
+      }
+    },
+    "No server shows this code. Check it, or wait for the server’s next code.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Server zeigt diesen Code. Prüf ihn oder warte auf den nächsten Code des Servers."
+          }
+        }
+      }
+    },
+    "Not possible": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht möglich"
+          }
+        }
+      }
+    },
+    "Offline since %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline seit %@"
+          }
+        }
+      }
+    },
+    "Online": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Online"
+          }
+        }
+      }
+    },
+    "Recorded, in Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgenommen, in Fernsy Cloud"
+          }
+        }
+      }
+    },
+    "Recording on the server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird auf dem Server aufgenommen"
+          }
+        }
+      }
+    },
+    "Scheduled on the server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf dem Server geplant"
+          }
+        }
+      }
+    },
+    "Sent to the server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An den Server gesendet"
+          }
+        }
+      }
+    },
+    "The code has ten letters and digits, like 7K3Q-ABCDEF.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Code hat zehn Buchstaben und Ziffern, etwa 7K3Q-ABCDEF."
+          }
+        }
+      }
+    },
+    "the provider delivered nothing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "der Anbieter hat nichts geliefert"
+          }
+        }
+      }
+    },
+    "the provider refused the login": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "der Anbieter hat die Anmeldung abgelehnt"
+          }
+        }
+      }
+    },
+    "The server did not answer. Check that it is running and connected to the internet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat nicht geantwortet. Prüf, ob er läuft und mit dem Internet verbunden ist."
+          }
+        }
+      }
+    },
+    "the server’s disk is full": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "der Speicher des Servers ist voll"
+          }
+        }
+      }
+    },
+    "the server’s other recordings use all streams of the account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "die anderen Aufnahmen des Servers belegen alle Streams des Kontos"
+          }
+        }
+      }
+    },
+    "the show was over before the server could start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "die Sendung war vorbei, bevor der Server starten konnte"
+          }
+        }
+      }
+    },
+    "the upload failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "das Hochladen ist fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "This code does not match the server. Check it and try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Code passt nicht zum Server. Prüf ihn und versuch es noch mal."
+          }
+        }
+      }
+    },
+    "Uploading to Fernsy Cloud": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird in Fernsy Cloud geladen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
