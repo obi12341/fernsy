@@ -1,4 +1,11 @@
-## ADDED Requirements
+# assistant Specification
+
+## Purpose
+The assistant inside the Fernsy apps: requests in the user's words, answered briefly and carried
+out with Fernsy's own tools on Mac, iPhone/iPad and Apple TV, as part of the Fernsy Cloud
+subscription, with consent before data leaves the device.
+
+## Requirements
 
 ### Requirement: Assistant in every app
 With an active Fernsy Cloud subscription, the Mac, iPhone/iPad and Apple TV apps SHALL offer an
