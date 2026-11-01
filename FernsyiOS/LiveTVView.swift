@@ -202,10 +202,7 @@ struct ChannelRow: View {
         .task { await model.loadGuide(for: channel) }
     }
 
-    private func minutesLeft(_ show: EPGEntry) -> String {
-        let minutes = max(1, Int((show.end.timeIntervalSinceNow / 60).rounded(.up)))
-        return String(localized: "\(minutes) min left")
-    }
+    private func minutesLeft(_ show: EPGEntry) -> String { LibraryText.minutesLeft(show) }
 }
 
 /// The context menu of a channel: favourite and hide (no recording on iPhone and iPad).
@@ -267,10 +264,7 @@ private struct ChannelPane: View {
         .task(id: channel.id) { await model.loadGuide(for: channel) }
     }
 
-    static func span(_ show: EPGEntry) -> String {
-        let style = Date.FormatStyle.dateTime.hour().minute()
-        return "\(show.start.formatted(style))–\(show.end.formatted(style))"
-    }
+    static func span(_ show: EPGEntry) -> String { LibraryText.span(show) }
 }
 
 // MARK: Small parts

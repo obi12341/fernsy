@@ -338,10 +338,7 @@ private struct ChannelRowLabel: View {
         .animation(.easeOut(duration: 0.15), value: focused)
     }
 
-    private func minutesLeft(_ show: EPGEntry) -> String {
-        let minutes = max(1, Int((show.end.timeIntervalSinceNow / 60).rounded(.up)))
-        return String(localized: "\(minutes) min left")
-    }
+    private func minutesLeft(_ show: EPGEntry) -> String { LibraryText.minutesLeft(show) }
 }
 
 /// The red "REC" mark of a channel that is being recorded.
@@ -504,10 +501,7 @@ private struct PaneContent: View {
         }
     }
 
-    static func span(_ show: EPGEntry) -> String {
-        let style = Date.FormatStyle.dateTime.hour().minute()
-        return "\(show.start.formatted(style))–\(show.end.formatted(style))"
-    }
+    static func span(_ show: EPGEntry) -> String { LibraryText.span(show) }
 }
 
 /// The red "LIVE" badge on a live picture.

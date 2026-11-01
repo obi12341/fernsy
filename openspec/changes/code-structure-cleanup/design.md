@@ -200,3 +200,10 @@ A phase that causes a regression is reverted on its own.
 - Phase 3 verification per step: package tests, `scripts/test.sh`, builds of all three apps,
   the UI test classes that cover the moved code, and a Mac dev run of the affected path; the
   full Apple TV and iOS suites run once at the end (3.8) instead of after every step.
+- 3.6: shared by Apple TV and iOS now: `Runtime`, `DetailTarget`, the search hit, the film facts,
+  position and duration, the episode rows (`LibraryDetail`), the search (channels, show hits,
+  index, film and series hits) and Übersicht's inputs (`TVModel+Search.swift`), and short texts
+  (`LibraryText`). Left in the views: the film and series pages' loading, playing and favourite
+  toggling. They work on each view's own state; sharing them needs a shared view model, a design
+  change rather than a cleanup.
+

@@ -102,7 +102,6 @@
 		A1B2C3D4000000000000008F /* Exceptions for "FernsyTopShelf" folder in "FernsyTopShelf" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				FernsyTopShelf.entitlements,
 				Info.plist,
 			);
 			target = A1B2C3D40000000000000082 /* FernsyTopShelf */;
@@ -788,7 +787,6 @@
 		A1B2C3D4000000000000004C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				FERNSY_URL_SCHEME = fernsy-dev;
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = "TVAppIcon-Dev";
 				CODE_SIGN_ENTITLEMENTS = Config/FernsyTV.entitlements;
@@ -796,6 +794,7 @@
 				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = B8YT7FNB66;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FERNSY_URL_SCHEME = "fernsy-dev";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/Info-TV.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Fernsy Dev";
@@ -823,7 +822,6 @@
 		A1B2C3D4000000000000004D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				FERNSY_URL_SCHEME = fernsy;
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = TVAppIcon;
 				CODE_SIGN_ENTITLEMENTS = Config/FernsyTV.entitlements;
@@ -831,6 +829,7 @@
 				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = B8YT7FNB66;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FERNSY_URL_SCHEME = fernsy;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/Info-TV.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Fernsy;

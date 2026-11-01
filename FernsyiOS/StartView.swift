@@ -186,13 +186,7 @@ struct StartView: View {
         }
     }
 
-    static func sourceName(_ source: LibraryEntry.Source) -> String {
-        switch source {
-        case .iptv: "IPTV"
-        case .jellyfin: "Jellyfin"
-        case .recording: String(localized: "Recording")
-        }
-    }
+    static func sourceName(_ source: LibraryEntry.Source) -> String { LibraryText.sourceName(source) }
 
     /// A tap resumes; films and series without a position open their page.
     private func open(_ entry: LibraryEntry) {
@@ -278,14 +272,7 @@ private struct Hero: View {
         return list.first.flatMap(URL.init(string:)) ?? entry.image
     }
 
-    private var kind: String {
-        switch entry.open {
-        case .movie: String(localized: "MOVIE")
-        case .series, .episode: String(localized: "SERIES")
-        case .jellyfin(let item): item.type == "Episode" ? String(localized: "SERIES") : String(localized: "MOVIE")
-        case .recording: String(localized: "RECORDING")
-        }
-    }
+    private var kind: String { LibraryText.kind(entry.open) }
 }
 
 /// A live channel on Start: logo, the show on now with its progress and time left.

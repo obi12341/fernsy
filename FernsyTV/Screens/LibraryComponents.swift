@@ -2,22 +2,6 @@ import FernsyCore
 import FernsyPlayer
 import SwiftUI
 
-/// A page the library screens open: a film or series of either source.
-enum DetailTarget: Hashable {
-    case movie(Movie)
-    case series(Series)
-    case jellyfin(JFItem)
-
-    static func of(_ target: LibraryEntry.Target) -> DetailTarget? {
-        switch target {
-        case .movie(let movie): .movie(movie)
-        case .series(let series), .episode(_, let series): .series(series)
-        case .jellyfin(let item): item.type == "Episode" ? nil : .jellyfin(item)
-        case .recording: nil
-        }
-    }
-}
-
 /// The page for a target: film page or series page.
 struct DetailScreen: View {
     let target: DetailTarget
@@ -245,10 +229,3 @@ struct ActionButtonStyle: ButtonStyle {
     }
 }
 
-/// Minutes as the design writes them: "2 Std. 4 Min.", "48 Min.".
-enum Runtime {
-    static func text(seconds: Double) -> String {
-        let minutes = Int((seconds / 60).rounded())
-        return minutes >= 60 ? String(localized: "\(minutes / 60) hr \(minutes % 60) min") : String(localized: "\(minutes) min")
-    }
-}
