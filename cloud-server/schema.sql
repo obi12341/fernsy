@@ -15,9 +15,13 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   token_account_id TEXT,                    -- Apple's appAccountToken; null when the purchase has none
   user_id TEXT,                             -- the user it is linked to now
   product_id TEXT,
-  expires_at TEXT,                          -- subscription expiry from Apple
-  revoked_at TEXT                           -- refund or revocation from Apple
+  expires_at TEXT,                          -- subscription expiry (Apple), or the paid period's end (Paddle)
+  revoked_at TEXT,                          -- refund or revocation from Apple
+  provider TEXT NOT NULL DEFAULT 'apple',   -- 'apple' | 'paddle' (paddle-cloud-subscription)
+  customer_id TEXT,                         -- Paddle's customer id (ctm_…), for the customer portal
+  last_event_at TEXT                        -- Paddle: occurred_at of the newest event applied
 );
+-- Older databases get the last three columns from deploy.sh (ALTER TABLE, once).
 
 CREATE INDEX IF NOT EXISTS subscriptions_token ON subscriptions(token_account_id);
 CREATE INDEX IF NOT EXISTS subscriptions_user ON subscriptions(user_id);

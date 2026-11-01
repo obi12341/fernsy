@@ -18,6 +18,9 @@
 #   APPSTORE_KEY_ID, APPSTORE_ISSUER
 #   OPENROUTER_API_KEY           the in-app assistant's provider key (cloud-assistant)
 #   ASSISTANT_MODEL, ASSISTANT_MONTHLY, ASSISTANT_PER_MINUTE   assistant settings (plain text)
+#   PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET   Paddle (paddle-cloud-subscription; sandbox on dev, live on prod)
+#   PADDLE_CLIENT_TOKEN, PADDLE_PRICE_ID, PADDLE_ENV (sandbox|live), CHECKOUT_ORIGINS   (kept as secrets)
+#   CHECKOUT_SECRET              signs the DMG's checkout tokens (generated on first deploy)
 # The token needs: Workers Scripts Write, D1 Write, Workers R2 Storage Write, and for
 # --new-s3-token Account API Tokens Write.
 set -euo pipefail
@@ -57,6 +60,12 @@ if [ "$RESET_DB" = 1 ]; then
 fi
 python3 -c "import json,sys; print(json.dumps({'sql': open(sys.argv[1]).read()}))" "$DIR/schema.sql" \
     | cf -X POST "$API/d1/database/$DB_ID/query" -H "Content-Type: application/json" --data-binary @- > /dev/null
+# Columns added after a database was created (SQLite has no ADD COLUMN IF NOT EXISTS): each once,
+# a "duplicate column" answer means it is there already.
+for column in "provider TEXT NOT NULL DEFAULT 'apple'" "customer_id TEXT" "last_event_at TEXT"; do
+    curl -sS -H "$AUTH" -X POST "$API/d1/database/$DB_ID/query" -H "Content-Type: application/json" \
+        -d "{\"sql\":\"ALTER TABLE subscriptions ADD COLUMN $column\"}" > /dev/null
+done
 
 # Secrets that exist already (none on the first deploy).
 EXISTING="$(curl -sS -H "$AUTH" "$API/workers/scripts/$NAME/secrets" | json "' '.join(x['name'] for x in (d.get('result') or []))" || true)"
@@ -76,6 +85,9 @@ if [ "$TARGET" = dev ] && [ -z "${DEV_TOKEN:-}" ] && ! has DEV_TOKEN; then
     export DEV_TOKEN="$(openssl rand -hex 32)"
     NEW_DEV_TOKEN="$DEV_TOKEN"
 fi
+if ! has CHECKOUT_SECRET && [ -z "${CHECKOUT_SECRET:-}" ]; then
+    export CHECKOUT_SECRET="$(openssl rand -hex 32)"
+fi
 if ! has S3_KEY && [ -z "${S3_KEY:-}" ]; then echo "No S3 credentials: run with --new-s3-token or set S3_KEY/S3_SECRET." >&2; exit 1; fi
 
 METADATA="$(NAME="$NAME" DB_ID="$DB_ID" ACCOUNT="$CLOUDFLARE_ACCOUNT_ID" python3 - <<'PY'
@@ -86,7 +98,10 @@ bindings = [
     {"type": "plain_text", "name": "ACCOUNT_ID", "text": os.environ["ACCOUNT"]},
     {"type": "plain_text", "name": "BUCKET_NAME", "text": os.environ["NAME"]},
 ]
-for name in ["S3_KEY", "S3_SECRET", "DEV_TOKEN", "APPSTORE_KEY", "APPSTORE_KEY_ID", "APPSTORE_ISSUER", "OPENROUTER_API_KEY"]:
+for name in ["S3_KEY", "S3_SECRET", "DEV_TOKEN", "APPSTORE_KEY", "APPSTORE_KEY_ID", "APPSTORE_ISSUER", "OPENROUTER_API_KEY",
+             "PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "CHECKOUT_SECRET",
+             # Kept like secrets so a deploy without them does not drop them.
+             "PADDLE_CLIENT_TOKEN", "PADDLE_PRICE_ID", "PADDLE_ENV", "CHECKOUT_ORIGINS"]:
     if os.environ.get(name):
         bindings.append({"type": "secret_text", "name": name, "text": os.environ[name]})
 for name in ["ASSISTANT_MODEL", "ASSISTANT_MONTHLY", "ASSISTANT_PER_MINUTE"]:
@@ -104,7 +119,8 @@ cf -X PUT "$API/workers/scripts/$NAME" \
     -F "apple.js=@$DIR/apple.js;type=application/javascript+module" \
     -F "store.js=@$DIR/store.js;type=application/javascript+module" \
     -F "assistant.js=@$DIR/assistant.js;type=application/javascript+module" \
-    -F "assistant-tools.js=@$DIR/assistant-tools.js;type=application/javascript+module" > /dev/null
+    -F "assistant-tools.js=@$DIR/assistant-tools.js;type=application/javascript+module" \
+    -F "paddle.js=@$DIR/paddle.js;type=application/javascript+module" > /dev/null
 # Sessions are gone (cloud-account-from-icloud-key); drop the secret older deploys set.
 if has SESSION_KEY; then cf -X DELETE "$API/workers/scripts/$NAME/secrets/SESSION_KEY" > /dev/null; fi
 cf -X PUT "$API/workers/scripts/$NAME/schedules" -H "Content-Type: application/json" -d '[{"cron":"17 3 * * *"}]' > /dev/null

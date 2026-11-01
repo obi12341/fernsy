@@ -7,14 +7,14 @@ or "Fernsy Direct" in Debug with `IPTV_CLOUD`.
 ## 1. Paddle account
 
 - [ ] 1.1 Ask Paddle whether Fernsy Cloud fits its acceptable use policy (storage for one's own recordings and an assistant in an IPTV player that sells no content); record the answer in design.md – stop before the live tasks if it is no
-- [ ] 1.2 Sandbox catalog through the Paddle MCP: product "Fernsy Cloud" (tax category `saas`), one monthly price; notification destination for the dev worker; client-side token; verify with `products.list` and a simulated `subscription.created`
+- [x] 1.2 Sandbox catalog through the Paddle MCP: product "Fernsy Cloud" (tax category `saas`), one monthly price; notification destination for the dev worker; client-side token; verify with `products.list` and a simulated `subscription.created`
 
 ## 2. Worker
 
-- [ ] 2.1 `schema.sql`: `provider`, `customer_id`, `last_event_at` on `subscriptions`; `store.js` upserts for Paddle; existing tests stay green (`node --test cloud-server/test`)
-- [ ] 2.2 `paddle.js`: signature check, event mapping (created/updated/activated/canceled/past_due/paused), token verification; tests with recorded sandbox payloads and forged signatures
-- [ ] 2.3 Routes `POST /v1/checkout`, `POST /v1/checkout/verify`, `POST /v1/paddle/notifications`, `POST /v1/subscription/portal`; account JSON with `provider`; refresh from Paddle's API when older than a day; worker tests
-- [ ] 2.4 `deploy.sh`: `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_CLIENT_TOKEN`, `PADDLE_PRICE_ID`, `PADDLE_ENV`; dev deploy with sandbox values; README routes
+- [x] 2.1 `schema.sql`: `provider`, `customer_id`, `last_event_at` on `subscriptions`; `store.js` upserts for Paddle; existing tests stay green (`node --test cloud-server/test`)
+- [x] 2.2 `paddle.js`: signature check, event mapping (created/updated/activated/canceled/past_due/paused), token verification; tests with recorded sandbox payloads and forged signatures
+- [x] 2.3 Routes `POST /v1/checkout`, `POST /v1/checkout/verify`, `POST /v1/paddle/notifications`, `POST /v1/subscription/portal`; account JSON with `provider`; refresh from Paddle's API when older than a day; worker tests
+- [x] 2.4 `deploy.sh`: `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_CLIENT_TOKEN`, `PADDLE_PRICE_ID`, `PADDLE_ENV`; dev deploy with sandbox values; README routes
 
 ## 3. Website
 
