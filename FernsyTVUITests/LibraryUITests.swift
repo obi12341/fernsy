@@ -153,8 +153,9 @@ final class DetailPagesUITests: FernsyUITestCase {
 
     /// Opens demo series 800 from the Series tab and returns its Next Episode button.
     private func openDemoSeries(_ app: XCUIApplication) -> XCUIElement {
-        let tab = app.tabBars.firstMatch.buttons["Series"]
-        XCTAssertTrue(tab.waitForExistence(timeout: 30))
+        // The tab carries its name in the app's language ("Serien" in German).
+        let tab = app.tabBars.firstMatch.buttons.matching(NSPredicate(format: "label IN %@", ["Series", "Serien"])).firstMatch
+        XCTAssertTrue(tab.waitForExistence(timeout: 30), "no Series tab:\n\(app.debugDescription)")
         for _ in 0..<6 where !tab.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
         let show = app.buttons["series.800"]
         XCTAssertTrue(show.waitForExistence(timeout: 15), "no demo series 800")
