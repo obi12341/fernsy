@@ -30,6 +30,8 @@ Release texts and Sparkle's update notes are collected from commit trailers
   sentence per language in plain user words, next to `Co-Authored-By`. Both languages are
   required; several pairs are fine for several points.
 - Internal commits carry none: task marks, archives, CI, refactoring, specs, docs.
+- A note for something replaced before it shipped is withdrawn by a later commit with
+  `Release-Note-Drop: <sha>`.
 - Example:
 
   ```
