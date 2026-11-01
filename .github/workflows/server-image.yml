@@ -1,16 +1,22 @@
 # Fernsy Server image (headless-recorder design 7): builds linux/amd64 and linux/arm64 from
-# server/Dockerfile. On release tags it pushes ghcr.io/obi12341/fernsy-server:<version> and
-# :latest; on pushes and pull requests that touch the server or the shared package it only builds.
+# server/Dockerfile. Called by release.yml for a release (input `version`), it pushes
+# ghcr.io/obi12341/fernsy-server:<version> and :latest; on pushes and pull requests that touch the
+# server or the shared package it only builds. (A tag trigger here would be filtered by `paths`.)
 name: Server image
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
     paths: ['server/**', 'Packages/FernsyCore/**', '.github/workflows/server-image.yml']
   pull_request:
     paths: ['server/**', 'Packages/FernsyCore/**', '.github/workflows/server-image.yml']
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version without "v" (pushes the image)
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -18,7 +24,7 @@ permissions:
 
 jobs:
   image:
-    name: Build${{ startsWith(github.ref, 'refs/tags/v') && ' and push' || '' }}
+    name: Build${{ inputs.version && ' and push' || '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -27,23 +33,23 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       - name: Sign in to GitHub Container Registry
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: inputs.version
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build${{ startsWith(github.ref, 'refs/tags/v') && ' and push' || '' }}
+      - name: Build${{ inputs.version && ' and push' || '' }}
         env:
-          PUSH: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ inputs.version }}
         run: |
           TAGS=()
-          if [ "$PUSH" = true ]; then
-            TAGS=(--tag "ghcr.io/obi12341/fernsy-server:${VERSION#v}" --tag ghcr.io/obi12341/fernsy-server:latest --push)
+          if [ -n "$VERSION" ]; then
+            TAGS=(--tag "ghcr.io/obi12341/fernsy-server:$VERSION" --tag ghcr.io/obi12341/fernsy-server:latest --push)
           fi
           docker buildx build -f server/Dockerfile --platform linux/amd64,linux/arm64 \
+            --build-arg VERSION="${VERSION:-dev-${GITHUB_SHA::7}}" \
             --label org.opencontainers.image.source=https://github.com/obi12341/fernsy \
             --label org.opencontainers.image.licenses=PolyForm-Noncommercial-1.0.0 \
             "${TAGS[@]}" .
