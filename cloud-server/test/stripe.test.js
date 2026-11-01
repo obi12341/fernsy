@@ -56,7 +56,7 @@ function fakeStripe(now) {
       if (method === "POST" && b.cancel_at_period_end === "true") s.cancel_at_period_end = true;
       return Response.json(s);
     }
-    if (method === "POST" && p === "/v1/billing_portal/sessions") return Response.json({ url: "https://billing.stripe.com/p/session/test_x" });
+    if (method === "POST" && p === "/v1/billing_portal/sessions") { state.lastPortal = b; return Response.json({ url: "https://billing.stripe.com/p/session/test_x" }); }
     if (method === "GET" && p.startsWith("/v1/prices/")) return Response.json({ id: "price_test", unit_amount: 349, currency: "eur" });
     return Response.json({ error: { code: "not_faked" } }, { status: 500 });
   };
@@ -214,6 +214,10 @@ test("portal link for a Stripe subscriber; refresh from Stripe when the stored p
   const portal = await t.call("POST", "/v1/subscription/portal", { auth: key.auth });
   assert.equal(portal.status, 200);
   assert.match(portal.body.url, /billing\.stripe\.com/);
+  assert.equal(t.stripe.lastPortal.configuration, undefined);
+  t.env.STRIPE_PORTAL_CONFIG = "bpc_test";
+  await t.call("POST", "/v1/subscription/portal", { auth: key.auth });
+  assert.equal(t.stripe.lastPortal.configuration, "bpc_test");
 
   // The renewal webhook got lost: the account asks Stripe once the stored period is over.
   t.advance(31 * DAY);

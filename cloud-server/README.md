@@ -63,7 +63,7 @@ in the checkout token and keeps Stripe's subscription and customer ids in `subsc
 `GET /v1/account`, which names the `provider` (`apple`, `stripe` or null). API version
 `2025-06-30.basil` (pinned in `stripe.js` and on the webhook endpoints). Settings: `STRIPE_ENV`
 (`test` on dev, `live` on prod), `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`,
-`STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `CHECKOUT_SECRET` (generated), `CHECKOUT_ORIGINS`
+`STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `STRIPE_PORTAL_CONFIG` (the portal configuration, else the account's default), `CHECKOUT_SECRET` (generated), `CHECKOUT_ORIGINS`
 (extra origins for a local checkout page). The test values live in `~/.config/fernsy/stripe-test.json`
 and `stripe-test-*-key` (not in the repo).
 

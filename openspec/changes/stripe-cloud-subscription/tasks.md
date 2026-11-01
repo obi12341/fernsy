@@ -25,7 +25,14 @@
 ## 5. Verification and go-live
 
 - [x] 5.1 Test mode end to end: DMG subscribes with a Stripe test card through the local checkout page → active within a minute on the Mac and in the iOS simulator; portal; second purchase refused; `openspec validate --all --strict`
-- [ ] 5.2 Live: Stripe's go-ahead, live price and webhook, prod deploy, pricing page matches; DEVELOPMENT.md
+- [ ] 5.2 Live: Stripe's go-ahead, live price and webhook, prod deploy, pricing page matches; DEVELOPMENT.md. Done 2026-11-01 through the MCP in the live account
+  `acct_1UX6aEEWpaD5hstl`: product `prod_VYDveudH47ZSGT`, price `price_1UX7TREWpaD5hstlnXH8eMXl` (3.49 €,
+  inclusive), portal `bpc_1UX7TeEWpaD5hstlNSRhmW8I` (not the account's default, so the worker passes
+  `STRIPE_PORTAL_CONFIG`), webhook `we_1UX7TeEWpaD5hstl25x6lT8e` for `fernsy-cloud` (values in
+  `~/.config/fernsy/stripe-live.json`); tax settings were already active (head office Dortmund).
+  Open: the DE tax registration (refused to the agent as an account setting), payment methods
+  (the MCP cannot change them), the restricted live key, prod deploy, a live purchase with a 100 %
+  coupon
 
 Test mode end to end, 2026-11-01: the DMG (Debug, `IPTV_TESTCLOUDBUY`, `IPTV_CHECKOUTPAGE`) opened the
 local checkout page; without the start request the page refuses, with it Stripe's test card paid

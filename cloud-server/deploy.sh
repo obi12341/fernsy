@@ -19,7 +19,8 @@
 #   OPENROUTER_API_KEY           the in-app assistant's provider key (cloud-assistant)
 #   ASSISTANT_MODEL, ASSISTANT_MONTHLY, ASSISTANT_PER_MINUTE   assistant settings (plain text)
 #   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET   Stripe (stripe-cloud-subscription; test mode on dev, live on prod)
-#   STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_ID, STRIPE_ENV (test|live), CHECKOUT_ORIGINS   (kept as secrets)
+#   STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_ID, STRIPE_PORTAL_CONFIG (bpc_…, else the default portal),
+#   STRIPE_ENV (test|live), CHECKOUT_ORIGINS   (kept as secrets)
 #   DROP_PADDLE=1                drops the secrets of the former Paddle purchase
 #   CHECKOUT_SECRET              signs the DMG's checkout tokens (generated on first deploy)
 # The token needs: Workers Scripts Write, D1 Write, Workers R2 Storage Write, and for
@@ -102,7 +103,7 @@ bindings = [
 for name in ["S3_KEY", "S3_SECRET", "DEV_TOKEN", "APPSTORE_KEY", "APPSTORE_KEY_ID", "APPSTORE_ISSUER", "OPENROUTER_API_KEY",
              "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CHECKOUT_SECRET",
              # Kept like secrets so a deploy without them does not drop them.
-             "STRIPE_PUBLISHABLE_KEY", "STRIPE_PRICE_ID", "STRIPE_ENV", "CHECKOUT_ORIGINS"]:
+             "STRIPE_PUBLISHABLE_KEY", "STRIPE_PRICE_ID", "STRIPE_PORTAL_CONFIG", "STRIPE_ENV", "CHECKOUT_ORIGINS"]:
     if os.environ.get(name):
         bindings.append({"type": "secret_text", "name": name, "text": os.environ[name]})
 for name in ["ASSISTANT_MODEL", "ASSISTANT_MONTHLY", "ASSISTANT_PER_MINUTE"]:

@@ -157,7 +157,9 @@ export async function createSubscription(env, deps, { accountId, email, country,
 
 /// A short-lived link to the customer portal (design 4).
 export async function portalURL(env, deps, customerId) {
-  const session = await api(env, deps, "POST", "/billing_portal/sessions", { customer: customerId, return_url: "https://www.fernsy.app/" });
+  const session = await api(env, deps, "POST", "/billing_portal/sessions", {
+    customer: customerId, return_url: "https://www.fernsy.app/", configuration: env.STRIPE_PORTAL_CONFIG || undefined,
+  });
   return session.url ?? null;
 }
 
