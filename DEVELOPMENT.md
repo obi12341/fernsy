@@ -142,6 +142,13 @@ Without it, Sparkle stays off in debug builds, because they share its settings w
 installed app. `IPTV_TESTUPDATEHOLD=1` logs every 10 s whether an update would wait for
 recordings.
 
+Certificates: archiving on a fresh runner makes Xcode create an Apple Development certificate
+through the API key. `build-appstore.sh` revokes it at the end of the run in CI
+(`scripts/ci-dev-certificates.swift`, which also logs the team's development certificates), so
+runs do not fill the account's certificate limit. If an archive still fails with "Your account
+has reached the maximum number of certificates", revoke unused Apple Development certificates
+on developer.apple.com (not the Developer ID ones) and rerun the job.
+
 Do not push a release tag before the previous version is approved in the App Store. A tag
 uploads to App Store Connect.
 

@@ -31,6 +31,13 @@ if [ -n "${ASC_KEY:-}" ]; then
     AUTH=(-authenticationKeyPath "$ASC_KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER")
 fi
 
+if [ -n "${ASC_KEY:-}" ] && [ "${CI:-}" = "true" ]; then
+    # CI: the archive creates an Apple Development certificate on every fresh runner; revoke it
+    # at the end so runs do not fill the team's certificate limit (scripts/ci-dev-certificates.swift).
+    swift "$ROOT/scripts/ci-dev-certificates.swift" snapshot "$OUT/dev-certificates.txt"
+    trap 'swift "$ROOT/scripts/ci-dev-certificates.swift" revoke-new "$OUT/dev-certificates.txt" || true' EXIT
+fi
+
 echo "▸ Archive"
 xcodebuild archive -project Fernsy.xcodeproj -scheme Fernsy -configuration Release \
     -archivePath "$OUT/Fernsy.xcarchive" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} ${VERSIONS[@]+"${VERSIONS[@]}"} -quiet
