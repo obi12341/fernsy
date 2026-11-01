@@ -2,7 +2,7 @@
 
 ## 1. Stripe account (user, with my help)
 
-- [ ] 1.1 Stripe test and live API keys for the worker and the page (secret or restricted key, publishable) in `~/.config/fernsy/` (mode 600); Stripe Tax on with the OSS registration; customer portal (cancel at period end, payment method update, invoices); Smart Retries and Stripe's customer e-mails (receipts, failed payments, cancellation) on. The Stripe MCP (plugin `stripe`, sandbox `acct_1UX6aYEsDUkIy6j0`) sets up catalog and settings in test mode
+- [x] 1.1 Stripe test and live API keys for the worker and the page (secret or restricted key, publishable) in `~/.config/fernsy/` (mode 600); Stripe Tax on with the OSS registration; customer portal (cancel at period end, payment method update, invoices); Smart Retries and Stripe's customer e-mails (receipts, failed payments, cancellation) on. The Stripe MCP (plugin `stripe`, sandbox `acct_1UX6aYEsDUkIy6j0`) sets up catalog and settings in test mode
 - [x] 1.2 Test mode: product "Fernsy Cloud", price 3.49 € monthly tax-inclusive; webhook endpoint for `fernsy-cloud-dev` (product `prod_VYDIKlaXjqTakI`, price `price_1UX6sEEsDUkIy6j0pSNBVVbY` with tax code `txcd_10103000`, portal `bpc_1UX6sOEsDUkIy6j0KWLUyzSf` with login page, endpoint `we_1UX6sUEsDUkIy6j02GfKsBMF` on API `2025-06-30.basil`; values in `~/.config/fernsy/stripe-test.json`)
 
 ## 2. Worker
@@ -31,9 +31,13 @@
   `STRIPE_PORTAL_CONFIG`), webhook `we_1UX7TeEWpaD5hstl25x6lT8e` for `fernsy-cloud` (values in
   `~/.config/fernsy/stripe-live.json`); tax settings were already active (head office Dortmund). Payment method domains `www.fernsy.app` and `fernsy.app`
   registered live (Apple Pay and Google Pay active; no association file needed with Stripe).
-  Open: the DE tax registration (refused to the agent as an account setting), payment methods
-  (the MCP cannot change them), the restricted live key, prod deploy, a live purchase with a 100 %
-  coupon
+  The user then added the DE registration (small seller, live and sandbox), Stripe Tax Basic,
+  payment methods card, Apple Pay, Google Pay only (domains registered), customer and billing
+  e-mails, Smart Retries (cancel after the last retry, cancel at once on a dispute), public
+  details, and the restricted live key (customers, subscriptions, customer portal write;
+  invoices, payment intents, prices, products read; balance and charges refused). Prod worker
+  deployed by the user from `e588dec` (`/v1/offer` €3.49, unsigned webhook 400, Paddle secrets
+  dropped). Open: a live purchase with refund after the website is merged; rotating the sandbox key
 
 Test mode end to end, 2026-11-01: the DMG (Debug, `IPTV_TESTCLOUDBUY`, `IPTV_CHECKOUTPAGE`) opened the
 local checkout page; without the start request the page refuses, with it Stripe's test card paid
