@@ -31,7 +31,7 @@ its custom data. An account SHALL count as subscribed while either provider's su
 - **WHEN** a request names a valid transaction id of someone else's purchase made for another account
 - **THEN** the server does not link it to the requesting account
 
-#### Scenario: Paddle renewal and cancellation
+#### Scenario: Website subscription renewal and cancellation
 - **WHEN** Paddle notifies that an account's subscription renewed, and later that it was canceled at the end of the period
 - **THEN** the account stays active until the end of the paid period and then ends, with the usual grace period for its recordings
 
