@@ -35,8 +35,11 @@ or "Fernsy Direct" in Debug with `IPTV_CLOUD`.
 
 Sandbox purchase done 2026-11-01 through the checkout page in Chrome with Paddle's test card: the
 real webhook made the dev account active (`provider: paddle`, period end a month later) and a second
-checkout was refused. Still open for 5.1: the DMG app itself through it, the iOS simulator with the
-same key, and the portal cancel (needs a sandbox API key).
+checkout was refused. With the sandbox API key, `/v1/offer` gives €2.99 and the app's portal link
+opens Paddle's portal. Cancelling there schedules the end at the period end, and the account stays
+active until then. Cancelling at once through the API puts the account into grace (`endedAt` = the
+cancel time, deletion 30 days later). Still open for 5.1: the DMG app itself through it, and the
+iOS simulator with the same key.
 
 ## Workflow follow-up
 
