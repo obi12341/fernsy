@@ -81,10 +81,10 @@ public struct AppStoreCloudStore: CloudStore {
     }
 }
 
-/// The DMG's store (paddle-cloud-subscription design 5): StoreKit does not work outside the App
-/// Store, so the purchase happens on fernsy.app in Paddle's checkout and the worker learns about it
-/// from Paddle; the account is the only source of the subscription's state.
-public struct PaddleCloudStore: CloudStore {
+/// The DMG's store (stripe-cloud-subscription design 6): StoreKit does not work outside the App
+/// Store, so the purchase happens on fernsy.app with Stripe and the worker learns about it from
+/// Stripe; the account is the only source of the subscription's state.
+public struct WebCloudStore: CloudStore {
     let client: CloudClient
     /// The checkout page on fernsy.app; it comes from the DMG's code, so the App Store builds
     /// carry no link to another way to pay (design 6).
@@ -148,8 +148,8 @@ public final class CloudModel {
     public private(set) var isPurchasing = false
     /// The subscription belongs to another account (or to none): offer to move it (design E).
     public private(set) var canMoveSubscription = false
-    /// The DMG opened Paddle's checkout in the browser and waits for the subscription
-    /// (paddle-cloud-subscription design 5).
+    /// The DMG opened the checkout page in the browser and waits for the subscription
+    /// (stripe-cloud-subscription design 6).
     public private(set) var isAwaitingCheckout = false
     @ObservationIgnored private var checkoutWait: Task<Void, Never>?
     /// How often and how long the DMG asks after opening the checkout.
@@ -249,7 +249,7 @@ public final class CloudModel {
         defer { isPurchasing = false }
         guard let key = await accountKey(), let token = UUID(uuidString: key.accountId) else { return false }
         do {
-            if store is PaddleCloudStore {
+            if store is WebCloudStore {
                 if try await store.purchase(token: token) { await refreshSubscription() } else { awaitCheckout() }
                 return hasSubscription
             }
@@ -290,10 +290,10 @@ public final class CloudModel {
         }
     }
 
-    /// Where "Manage Subscription" goes: Paddle's portal for a Paddle subscription (an
-    /// authenticated link from the server), Apple's subscriptions page otherwise.
+    /// Where "Manage Subscription" goes: Stripe's customer portal for a website subscription (a
+    /// link from the server), Apple's subscriptions page otherwise.
     public func manageSubscriptionURL() async -> URL? {
-        if account?.isPaddle == true { return try? await client.portalURL() }
+        if account?.isWebPurchase == true { return try? await client.portalURL() }
         return URL(string: "https://apps.apple.com/account/subscriptions")
     }
 
@@ -385,7 +385,7 @@ public final class CloudModel {
         case .accountConflict?: String(localized: "Fernsy Cloud does not accept this device’s key. Please contact support.", bundle: .module)
         case .noSubscription?: String(localized: "Fernsy Cloud needs an active subscription.", bundle: .module)
         case .network?: String(localized: "Fernsy Cloud cannot be reached.", bundle: .module)
-        case .appleNotConfigured?, .paddleNotConfigured?: String(localized: "Fernsy Cloud is not ready yet.", bundle: .module)
+        case .appleNotConfigured?, .checkoutNotConfigured?: String(localized: "Fernsy Cloud is not ready yet.", bundle: .module)
         case .quota(let needed, let free)?:
             String(localized: "Not enough Fernsy Cloud storage: \(CloudUploadQueue.bytes(needed)) needed, \(CloudUploadQueue.bytes(free)) free.", bundle: .module)
         default:

@@ -19,8 +19,8 @@
 
 ## 4. Apps
 
-- [ ] 4.1 FernsyCore `WebCloudStore`, `Account.isWebPurchase`, failures renamed; `CloudModelTests`
-- [ ] 4.2 Mac DMG texts and German strings without Paddle; iOS/TV note on `isWebPurchase`; App Store app binaries contain no Stripe or checkout strings
+- [x] 4.1 FernsyCore `WebCloudStore`, `Account.isWebPurchase`, failures renamed; `CloudModelTests`
+- [x] 4.2 Mac DMG texts and German strings without Paddle; iOS/TV note on `isWebPurchase`; App Store app binaries contain no Stripe or checkout strings (the DMG's two hints are verbatim texts in `#if DIRECT_DISTRIBUTION`, not in the string catalog; checked in the built App Store Mac app)
 
 ## 5. Verification and go-live
 

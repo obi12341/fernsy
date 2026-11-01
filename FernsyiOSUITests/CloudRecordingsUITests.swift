@@ -287,13 +287,13 @@ final class CloudRecordingsUITests: XCTestCase {
         XCTAssertTrue(wait(10) { !self.element(app, "offline.note").exists }, "the offline note stays")
     }
 
-    /// A subscription bought in the DMG through Paddle (paddle-cloud-subscription 5.1): the App
+    /// A subscription bought in the DMG on fernsy.app (stripe-cloud-subscription 5.1): the App
     /// Store app shows it, with a neutral note instead of a link. Needs `TEST_RUNNER_IPTV_CLOUD`
-    /// and `TEST_RUNNER_FERNSY_PADDLE_KEY`, the key of a development account subscribed in
-    /// Paddle's sandbox; skipped without them.
-    func testPaddleSubscriptionIsManagedWhereBought() throws {
+    /// and `TEST_RUNNER_FERNSY_WEB_KEY`, the key of a development account subscribed in Stripe's
+    /// test mode; skipped without them.
+    func testWebSubscriptionIsManagedWhereBought() throws {
         let env = ProcessInfo.processInfo.environment
-        guard let server = env["IPTV_CLOUD"], let key = env["FERNSY_PADDLE_KEY"] else { throw XCTSkip("no Paddle sandbox account in the test environment") }
+        guard let server = env["IPTV_CLOUD"], let key = env["FERNSY_WEB_KEY"] else { throw XCTSkip("no website test account in the test environment") }
         let app = XCUIApplication()
         app.launchEnvironment = [
             "FERNSY_NO_KEYCHAIN": "1",
@@ -313,10 +313,10 @@ final class CloudRecordingsUITests: XCTestCase {
         XCTAssertTrue(cloud.waitForExistence(timeout: 10), "no Fernsy Cloud row:\n\(app.debugDescription)")
         cloud.tap()
         XCTAssertTrue(app.staticTexts["This subscription is managed where you bought it."].waitForExistence(timeout: 20),
-                      "no note for the Paddle subscription:\n\(app.debugDescription)")
+                      "no note for the website subscription:\n\(app.debugDescription)")
         XCTAssertFalse(app.buttons["Manage Subscription"].exists, "the App Store's management is offered")
         let storage = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "of 100 GB used")).firstMatch
         XCTAssertTrue(storage.exists, "the storage does not read as of 100 GB (cloud-pricing-100gb):\n\(app.debugDescription)")
-        shot("cloud-paddle", app)
+        shot("cloud-web", app)
     }
 }

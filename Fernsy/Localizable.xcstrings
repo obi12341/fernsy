@@ -5762,26 +5762,6 @@
         }
       }
     },
-    "Finish the payment in your browser. Fernsy notices it by itself.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schließ die Zahlung in deinem Browser ab. Fernsy bemerkt das von selbst."
-          }
-        }
-      }
-    },
-    "You pay on fernsy.app. Our reseller Paddle handles payment, invoice and sales tax.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Du zahlst auf fernsy.app. Unser Händler Paddle übernimmt Zahlung, Rechnung und Umsatzsteuer."
-          }
-        }
-      }
-    },
     "This subscription is managed where you bought it.": {
       "localizations": {
         "de": {

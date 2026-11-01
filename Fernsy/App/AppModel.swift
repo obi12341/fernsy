@@ -180,8 +180,8 @@ final class AppModel: ObservableObject {
     let tuners = TunerPool()
     let recorder = Recorder()
     /// Fernsy Cloud (add-recording-cloud): subscription, account, cloud recordings, uploads. The
-    /// DMG has no StoreKit purchases: it sells through Paddle's checkout on fernsy.app
-    /// (paddle-cloud-subscription).
+    /// DMG has no StoreKit purchases: it sells on fernsy.app with Stripe
+    /// (stripe-cloud-subscription).
     #if DIRECT_DISTRIBUTION
     let cloud: CloudModel = {
         let client = CloudClient.live()
@@ -194,7 +194,7 @@ final class AppModel: ObservableObject {
             return URL(string: Locale.current.language.languageCode?.identifier == "de"
                 ? "https://www.fernsy.app/cloud.html" : "https://www.fernsy.app/en/cloud.html")!
         }
-        return CloudModel(client: client, store: PaddleCloudStore(client: client, checkoutPage: page, open: { url in
+        return CloudModel(client: client, store: WebCloudStore(client: client, checkoutPage: page, open: { url in
             #if DEBUG
             // With a local page the link goes to the log, for a browser the test drives.
             if ProcessInfo.processInfo.environment["IPTV_CHECKOUTPAGE"] != nil {

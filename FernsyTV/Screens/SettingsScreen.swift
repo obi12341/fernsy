@@ -433,7 +433,7 @@ private struct CloudSettingsScreen: View {
                 }
                 // tvOS has no subscription sheet: name the place instead. A subscription bought outside
                 // the App Store is managed there, without a link (App Store guideline 3.1.3(b)).
-                if cloud.account?.isPaddle == true {
+                if cloud.account?.isWebPurchase == true {
                     Text("This subscription is managed where you bought it.")
                         .font(.system(size: 20)).foregroundStyle(TVTheme.secondary)
                 } else {
