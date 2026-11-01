@@ -108,13 +108,15 @@ extension XCTestCase {
         let tabs = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.map(\.label)
         // Focus inside a screen: Back reaches the tab bar.
         for _ in 0..<2 where !app.tabBars.firstMatch.buttons.allElementsBoundByIndex.contains(where: \.hasFocus) {
-            pressAndWaitForFocusMove(.menu, app)
+            XCUIRemote.shared.press(.menu); Thread.sleep(forTimeInterval: 0.6)
         }
-        // Waits for each focus move instead of a fixed pause (faster-ui-tests).
+        // Short pauses, not a wait for each focus move: the loop checks the focus after every
+        // press anyway, and a focus-move wait costs about a second (faster-ui-tests, as built).
         for _ in 0..<12 where !tab.hasFocus {
             let focused = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.firstIndex { $0.hasFocus } ?? 0
             let target = tabs.firstIndex(of: tab.label) ?? 0
-            pressAndWaitForFocusMove(target > focused ? .right : .left, app)
+            XCUIRemote.shared.press(target > focused ? .right : .left)
+            Thread.sleep(forTimeInterval: 0.35)
         }
         XCTAssertTrue(tab.hasFocus, "the \(name) tab has no focus")
         // The tab's screen follows the focus a moment later: wait until the tab is selected.

@@ -75,3 +75,9 @@ the host, the rest in the test VM) before the next.
 - Tests that check navigation itself start from the tab bar (`showTab`) even when launched with
   `IPTV_TAB`: on the Search tab the launch focus is in the field, and moving up leaves the
   content.
+- First CI comparison (runs 41275123402 → 41276631424, same runner type, all 70 green): total
+  1562 s → 1592 s. `DetailPagesUITests` 49.7 → 19.4 s (series tests 16.4 → 6.1 s and 33.0 →
+  13.1 s by link), `SearchUITests` 86.9 → 78.6 s. Unchanged classes vary by ±15–20 s between CI
+  runs, so single classes need two runs to judge. `showTab` waiting for each focus move is the
+  likely cause of `LiveAndGuideUITests` (7 calls) getting 19 s slower; it went back to short
+  pauses.
