@@ -480,8 +480,8 @@ uploads finished recordings, every app streams them. There is no sign-in: the ac
 access secret are derived from the cloud key in iCloud (`CloudAccountKey.accountId`,
 `accessSecret`, HKDF), the server keeps only a hash of the secret, and a purchase carries the
 account id as `appAccountToken`. Any device may create the key when subscribing; the Mac writes
-the marker `cloud.mac` at launch, and iPad, iPhone and Apple TV offer the subscription only when
-it exists. Server: `cloud-server/` (routes, secrets, deploy in its README). App code:
+the marker `cloud.mac` at launch; since cloud-assistant every device offers the subscription
+without it. Server: `cloud-server/` (routes, secrets, deploy in its README). App code:
 `FernsyCore/Cloud*.swift` (format `FCR1`, key, client, list, upload queue, `CloudModel`),
 `FernsyPlayer/CloudByteSource.swift` (decrypts while streaming), the Mac's
 `Recording/MacCloud.swift` and `Views/CloudViews.swift`, the Apple TV's `RecordingsScreen`
@@ -495,7 +495,7 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   development server's dev user instead of a key-derived account and without a purchase.
   `IPTV_CLOUDKEY=local` keeps the account key in the keychain only (no iCloud, simulators);
   `IPTV_CLOUDKEY=<base64 key JSON>` uses that key in memory. With either, `IPTV_CLOUDMAC=0`
-  answers "no Mac known" (default: known), so the no-Mac note shows instead of the offer.
+  answers "no Mac known" (default: known).
   `IPTV_TESTCLOUDDELETE=1` opens the Mac's "Delete all Fernsy Cloud data?" confirmation. The dev user's state: `POST /v1/dev/account
   {"state":"none|active|ended","endedDaysAgo":10,"quotaBytes":…}` with `Authorization: Dev …`.
 - **Mac run.** `scripts/dev-run.sh IPTV_CLOUD=… IPTV_CLOUDTOKEN=… IPTV_CLOUDKEY=local
@@ -522,6 +522,23 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `IPTV_TESTOFFLINE=requests` fails only the requests while the path says there is network.
   `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
   (catalog, guide, artwork, cloud details; downloads stay).
+- **Assistant (cloud-assistant).** `FernsyCore/AssistantModel.swift` holds what the apps show
+  (consent per device in `assistant.consent`, the session's entries, refusal texts, the month's
+  usage, the question before `cancel_recording`); the Mac's window `AssistantView` runs the tools
+  through `MCPTools` (`AppModel+Assistant.swift`), the Apple TV's `AssistantOverlay` and iOS's
+  `AssistantSheet` through `AssistantToolRunner`. Debug switches: `IPTV_ASSISTANT_STUB=1` answers
+  without the relay (a request with "ZDF" or "Nordlicht" plays `live:101`, anything else gets a
+  fixed answer) and counts as subscribed; `IPTV_ASSISTANT_CONSENT=1` agrees for the run, `=0`
+  forgets the stored consent. The UI tests `AssistantUITests` (Apple TV, iOS) use both with
+  `IPTV_CLOUD=http://127.0.0.1:9` (Fernsy Cloud shown, nothing reaches a server). The relay is
+  `POST /v1/assistant` on the Fernsy Cloud worker (`cloud-server/README.md`): it needs the
+  secret `OPENROUTER_API_KEY` (`deploy.sh` takes it from the environment) and takes the model
+  and limits from `ASSISTANT_MODEL`, `ASSISTANT_MONTHLY`, `ASSISTANT_PER_MINUTE`. To try the
+  real model, run a debug build with `IPTV_CLOUD=https://fernsy-cloud-dev.mobilistics.workers.dev`
+  and `IPTV_CLOUDTOKEN=<DEV_TOKEN>` (the dev user is subscribed); a tiny allowance for the end
+  of the month comes from deploying the dev worker with `ASSISTANT_MONTHLY=2`. The tools the
+  relay sends are generated from FernsyCore: after changing `AssistantTools`, run
+  `scripts/assistant-tools.sh` (the FernsyCore tests fail until the worker's copy matches).
 - **StoreKit.** `Config/FernsyCloud.storekit` has the subscription
   `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
   Options › StoreKit Configuration.

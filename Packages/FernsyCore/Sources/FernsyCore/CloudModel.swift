@@ -105,8 +105,6 @@ public final class CloudModel {
     public private(set) var isPurchasing = false
     /// The subscription belongs to another account (or to none): offer to move it (design E).
     public private(set) var canMoveSubscription = false
-    /// Whether Fernsy on a Mac is known in iCloud; nil before the first look (design F).
-    public private(set) var macPresence: CloudMacPresence?
 
     @ObservationIgnored public let client: CloudClient
     @ObservationIgnored public let keys: CloudKeyStore
@@ -133,9 +131,11 @@ public final class CloudModel {
     /// Cloud places beyond the offer show.
     public var canUseCloud: Bool { hasSubscription || (account?.canPlay ?? false) }
     public var canUpload: Bool { hasAccount && (account?.canUpload ?? false) }
-    /// iPad, iPhone and Apple TV offer the subscription only when a Mac records (spec: Offer
-    /// only with a Mac); subscribers always see their account.
-    public var mayOffer: Bool { macPresence == .known }
+    /// What the subscription includes, for the offer on every device (cloud-assistant design 9).
+    public static var offerParts: [String] {
+        [String(localized: "The assistant on all your devices: ask for a channel, a show or a recording in your own words.", bundle: .module),
+         String(localized: "Recordings from Fernsy on your Mac in the cloud, end-to-end encrypted and played on iPhone, iPad and Apple TV.", bundle: .module)]
+    }
 
     /// Launch: subscription, key and, with both, the account and list.
     public func start() async {
@@ -161,11 +161,6 @@ public final class CloudModel {
         let lookup = await keys.lookup()
         keyState = lookup
         if case .found(let key) = lookup { client.use(key) }
-    }
-
-    /// On iPad, iPhone and Apple TV before the offer.
-    public func refreshMacPresence() async {
-        macPresence = await keys.macPresence()
     }
 
     // MARK: Subscription

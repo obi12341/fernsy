@@ -200,3 +200,22 @@ export async function staleSubscriptions(db, now, limit = 50) {
      AND expires_at < ? AND expires_at > ? LIMIT ?`).bind(iso(now), iso(now - 35 * DAY), limit).all();
   return results;
 }
+
+// MARK: Assistant usage (cloud-assistant)
+
+/// User turns since `since` (epoch ms): the monthly allowance and the per-minute rate.
+export async function assistantTurnsSince(db, userId, since) {
+  const row = await db.prepare("SELECT COUNT(*) AS n FROM assistant_usage WHERE user_id = ? AND at >= ? AND turn = 1").bind(userId, since).first();
+  return Number(row?.n ?? 0);
+}
+
+export async function recordAssistantRound(db, userId, at, turn, tokensIn, tokensOut) {
+  await db.prepare("INSERT INTO assistant_usage (user_id, at, turn, tokens_in, tokens_out) VALUES (?, ?, ?, ?, ?)")
+    .bind(userId, at, turn, tokensIn, tokensOut).run();
+}
+
+/// Rows older than `before` go (daily cron): the allowance needs the current month only.
+export async function pruneAssistantUsage(db, before) {
+  const result = await db.prepare("DELETE FROM assistant_usage WHERE at < ?").bind(before).run();
+  return Number(result?.meta?.changes ?? 0);
+}

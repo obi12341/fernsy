@@ -210,9 +210,9 @@ private struct CloudRecordingRow: View {
     }
 }
 
-/// Settings › Fernsy Cloud on iPhone and iPad: the offer (only when a Mac with Fernsy is known
-/// in iCloud), otherwise a note; with a subscription the account, moving, managing and deleting.
-/// No sign-in (cloud-account-from-icloud-key).
+/// Settings › Fernsy Cloud on iPhone and iPad: the offer naming the assistant and the recordings;
+/// with a subscription the account, the assistant's requests this month, moving, managing and
+/// deleting; the assistant's consent. No sign-in (cloud-account-from-icloud-key, cloud-assistant).
 struct CloudSettingsView: View {
     @EnvironmentObject private var model: TVModel
     @State private var managing = false
@@ -226,21 +226,13 @@ struct CloudSettingsView: View {
             }
             if !cloud.canUseCloud {
                 Section {
-                    if cloud.mayOffer {
-                        if let offer = cloud.offer {
-                            Text(verbatim: "\(offer.name) · \(offer.price)").font(.headline)
-                        }
-                        Button("Subscribe") { Task { await cloud.purchase() } }
-                            .disabled(cloud.isPurchasing)
-                            .accessibilityIdentifier("cloud.subscribe")
-                    } else if cloud.macPresence == .unavailable {
-                        Text("Fernsy Cloud needs iCloud. Sign in to iCloud with the same Apple ID as on your Mac.")
-                            .foregroundStyle(TVTheme.secondary)
-                    } else if cloud.macPresence == .unknown {
-                        Text("Fernsy on your Mac records, and Fernsy Cloud brings the recordings here. Install Fernsy on a Mac with the same Apple ID to use it.")
-                            .foregroundStyle(TVTheme.secondary)
-                            .accessibilityIdentifier("cloud.needsMac")
+                    CloudOfferParts()
+                    if let offer = cloud.offer {
+                        Text(verbatim: "\(offer.name) · \(offer.price)").font(.headline)
                     }
+                    Button("Subscribe") { Task { await cloud.purchase() } }
+                        .disabled(cloud.isPurchasing)
+                        .accessibilityIdentifier("cloud.subscribe")
                     Button("Restore Purchases") { Task { await cloud.restore() } }
                         .disabled(cloud.isPurchasing)
                 }
@@ -249,6 +241,10 @@ struct CloudSettingsView: View {
                     Section {
                         LabeledContent("Subscription", value: CloudModel.stateText(account))
                         LabeledContent("Storage", value: CloudModel.storageText(account))
+                        if let usage = model.assistant.usageText {
+                            LabeledContent("Assistant Requests", value: usage)
+                                .accessibilityIdentifier("assistant.usage")
+                        }
                         if let note = cloud.deletionNote { Text(verbatim: note).foregroundStyle(TVTheme.warning) }
                     } footer: {
                         Text("Only your devices with the same Apple ID can play your cloud recordings, because the key stays in your iCloud.")
@@ -278,6 +274,14 @@ struct CloudSettingsView: View {
                     Text("Downloaded recordings stay on this device and play without a connection, also after the subscription ends.")
                 }
             }
+            if model.assistant.hasConsent {
+                Section {
+                    Button("Withdraw Consent for the Assistant") { model.assistant.withdrawConsent() }
+                        .accessibilityIdentifier("assistant.consent.withdraw")
+                } footer: {
+                    Text("The assistant asks again before its next request.")
+                }
+            }
             if case .failed(let message) = cloud.phase {
                 Section { Text(verbatim: message).foregroundStyle(TVTheme.warning) }
             }
@@ -292,7 +296,6 @@ struct CloudSettingsView: View {
             Text("All cloud recordings are removed on all devices. Recordings on your Mac stay. Your subscription continues until you cancel it under Manage Subscription.")
         }
         .task {
-            await cloud.refreshMacPresence()
             await cloud.refreshSubscription()
             await cloud.refresh()
         }

@@ -74,17 +74,22 @@ it off SHALL stop uploading and keep what is stored.
 
 ### Requirement: Subscription
 Fernsy Cloud SHALL require an auto-renewable in-app subscription that can be bought and
-restored in every app, the Apple TV included. Apple's purchase confirmation SHALL be the only
-dialog. Settings SHALL show its state (none, active with used and total storage, ending or
-ended with dates).
+restored in every app, the Apple TV included. It SHALL include the recordings cloud and the
+assistant (see `assistant`). Apple's purchase confirmation SHALL be the only dialog. Settings
+SHALL show its state (none, active with used and total storage and the assistant requests used
+this month, ending or ended with dates).
 
 #### Scenario: Restore
 - **WHEN** a user who subscribed on the iPad turns the switch on on the Mac and chooses "Restore purchases"
 - **THEN** the subscription counts as active and the switch is on, without a sign-in
 
 #### Scenario: Subscribing on the Apple TV
-- **WHEN** a user whose Mac runs Fernsy subscribes in the Apple TV's settings
-- **THEN** after Apple's purchase confirmation the Apple TV shows the subscription as active, and the Mac's switch can be turned on without buying again
+- **WHEN** a user subscribes in the Apple TV's settings
+- **THEN** after Apple's purchase confirmation the Apple TV shows the subscription as active and the assistant is available, and the Mac's switch can be turned on without buying again
+
+#### Scenario: Offer without a Mac
+- **WHEN** a user who never ran Fernsy on a Mac opens Settings › Fernsy Cloud on the iPhone
+- **THEN** the offer shows, naming the assistant on all devices and the recordings cloud with Fernsy on a Mac
 
 ### Requirement: Upload of earlier recordings
 While the cloud switch is on, every finished recording in the Recordings section that is not
@@ -181,23 +186,6 @@ Cloud. A device that has the key SHALL use the user's Fernsy Cloud account on it
 #### Scenario: User without subscription
 - **WHEN** a user who never subscribed uses the apps
 - **THEN** nothing asks for a sign-in, and only the offer is shown
-
-### Requirement: Offer only with a Mac
-iPad, iPhone and Apple TV SHALL offer the subscription only when Fernsy on a Mac is known in
-the user's iCloud. Without one, Settings › Fernsy Cloud SHALL explain that Fernsy on a Mac with
-the same Apple ID records, instead of offering to subscribe. The Mac SHALL always offer it.
-
-#### Scenario: Apple TV without a Mac
-- **WHEN** a user who never ran Fernsy on a Mac opens Settings › Fernsy Cloud on the Apple TV
-- **THEN** no subscribe button is shown, and a note says that Fernsy on a Mac with the same Apple ID is needed
-
-#### Scenario: Apple TV with a Mac
-- **WHEN** the user has run Fernsy on a Mac with the same Apple ID
-- **THEN** the Apple TV offers to subscribe and to restore
-
-#### Scenario: Existing subscriber
-- **WHEN** a subscriber with no Mac marker opens the settings on the iPad
-- **THEN** the subscription and the cloud recordings are shown as usual
 
 ### Requirement: Moving the subscription to a new key
 When the device's subscription belongs to a different Fernsy Cloud account than the device's

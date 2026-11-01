@@ -90,6 +90,10 @@ final class TVModel: ObservableObject {
     @Published var playingVOD: VODItem?
     /// Fernsy Cloud (add-recording-cloud): subscription, account and cloud recordings.
     let cloud = CloudModel()
+    /// The in-app assistant (cloud-assistant, TVModel+Assistant.swift).
+    private(set) lazy var assistant = makeAssistant()
+    /// The assistant's overlay (Apple TV) or sheet (iPad, iPhone) shows.
+    @Published var showsAssistant = false
     #if os(iOS)
     /// Downloaded cloud recordings (offline-recording-downloads), iPad and iPhone only.
     private(set) lazy var downloads: CloudDownloads? = CloudFeature.isEnabled ? CloudDownloads.live(client: cloud.client, keys: cloud.keys) : nil

@@ -8,10 +8,7 @@ import SwiftUI
 /// functions and rules as the app's own views (hidden channels, adult content, stream limit).
 @MainActor
 final class MCPTools {
-    struct ToolError: LocalizedError {
-        let errorDescription: String?
-        init(_ message: String) { errorDescription = message }
-    }
+    typealias ToolError = AssistantTools.ToolError
 
     private unowned let app: AppModel
     private var actions: FernsyActions { FernsyActions(app: app) }
@@ -36,90 +33,8 @@ final class MCPTools {
 
     // MARK: Definitions
 
-    static let definitions: [[String: Any]] = [
-        tool("find_channels", "Find live TV channels by name or category. Without arguments it lists the categories and the favourite channels.", [
-            "query": ["type": "string", "description": "Part of the channel name"],
-            "category": ["type": "string", "description": "Category name or id"],
-            "favorites_only": ["type": "boolean"],
-            "limit": ["type": "integer", "minimum": 1, "maximum": 200],
-        ], readOnly: true),
-        tool("whats_on", "The current and next show on the given channels (default: favourites, then recently watched).", [
-            "channel_ids": ["type": "array", "items": ["type": "integer"], "maxItems": channelLimit],
-        ], readOnly: true),
-        tool("get_program", "A channel's program guide for a time range (default: the next 24 hours).", [
-            "channel_id": ["type": "integer"],
-            "from": ["type": "string", "format": "date-time"],
-            "to": ["type": "string", "format": "date-time"],
-        ], required: ["channel_id"], readOnly: true),
-        tool("search_program", "Search show titles and descriptions in the guide of up to 50 channels (default: favourites and recently watched).", [
-            "query": ["type": "string"],
-            "channel_ids": ["type": "array", "items": ["type": "integer"], "maxItems": channelLimit],
-            "from": ["type": "string", "format": "date-time"],
-            "to": ["type": "string", "format": "date-time"],
-        ], required: ["query"], readOnly: true),
-        tool("recently_watched", "Recently watched live channels, IPTV films in progress, and Jellyfin Continue Watching and Next Up.", [:], readOnly: true),
-        tool("list_recordings", "Running, scheduled and finished recordings.", [
-            "status": ["type": "string", "enum": ["all", "scheduled", "recording", "done", "failed"]],
-        ], readOnly: true),
-        tool("schedule_recording", "Schedule a recording of a show from the guide, with the app's padding and stream-limit rules.", [
-            "show_id": ["type": "string", "description": "From get_program, whats_on or search_program"],
-            "channel_id": ["type": "integer", "description": "With start, instead of show_id"],
-            "start": ["type": "string", "format": "date-time"],
-        ], readOnly: false),
-        tool("cancel_recording", "Remove a scheduled recording. Running and finished recordings and their files are not touched.", [
-            "recording_id": ["type": "string"],
-        ], required: ["recording_id"], readOnly: false),
-        tool("play", "Play an item in Fernsy's player: live:<channel id> (switches channels), movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<Fernsy Cloud id>. Never ends a running recording.", [
-            "item_id": ["type": "string"],
-        ], required: ["item_id"], readOnly: false),
-        tool("now_playing", "What Fernsy's player plays right now, with position, duration, remaining time, end time and paused state; for live TV how far behind live and the current show.", [:], readOnly: true),
-        tool("item_info", "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series/season/episode; for Jellyfin items the audio and subtitle tracks, and for episodes the previous and next episode.", [
-            "item_id": ["type": "string", "description": "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<id>"],
-        ], required: ["item_id"], readOnly: true),
-        tool("list_episodes", "Seasons of a Jellyfin series, or the episodes of one season with item ids, runtime and watched state.", [
-            "series_id": ["type": "string", "description": "jellyfin:<series id>, or an episode's jellyfin:<item id>"],
-            "season": ["type": "integer", "description": "Season number (0 = specials); without it the seasons are listed"],
-        ], required: ["series_id"], readOnly: true),
-        tool("stop_playback", "Stop playback and close the player.", [:], readOnly: false),
-        tool("pause", "Pause what plays (live TV keeps receiving and continues behind live).", [:], readOnly: false),
-        tool("resume", "Resume paused playback.", [:], readOnly: false),
-        tool("seek", "Seek in what plays. Pass exactly one target. Live TV can only be rewound within its buffer (see now_playing's rewind fields).", [
-            "by_seconds": ["type": "number", "description": "Relative jump, negative = back"],
-            "to_position": ["type": "string", "description": "Seconds or h:mm:ss within a film, episode, Jellyfin item or recording"],
-            "to_time": ["type": "string", "format": "date-time", "description": "Clock time within the live buffer"],
-            "to_show_start": ["type": "boolean", "description": "Start of the current live show, as far as the buffer reaches"],
-            "to_live": ["type": "boolean", "description": "Back to the live edge"],
-        ], readOnly: false),
-        tool("snapshot", "The picture the player shows right now, as an image, with its position (live TV: clock time). Does not change playback.", [:], readOnly: true),
-        tool("frames", "A contact sheet: evenly spaced stills of a time range in one image, each labelled with its position (live TV: clock time), plus the list of times. Does not touch the player. For finding a scene: a coarse sheet first, then a finer one around the match, then seek. Works for Jellyfin items, recordings and the timeshift buffer of a playing or recording live channel; not for IPTV films and episodes.", [
-            "item_id": ["type": "string", "description": "jellyfin:<id>, recording:<id> or live:<channel id>; default: what plays"],
-            "from": ["type": "string", "description": "Seconds or h:mm:ss (live: ISO clock time); default: the start"],
-            "to": ["type": "string", "description": "Seconds or h:mm:ss (live: ISO clock time); default: the end"],
-            "count": ["type": "integer", "minimum": 4, "maximum": 48, "description": "Number of stills (default 24)"],
-        ], readOnly: true),
-        tool("get_subtitles", "The text subtitles of a Jellyfin item with start and end times, for finding a scene by what is said. Choose the track from item_info's subtitle_tracks (forced tracks only cover foreign-language parts).", [
-            "item_id": ["type": "string", "description": "jellyfin:<id>; default: the Jellyfin item that plays"],
-            "track": ["type": "integer", "description": "Subtitle track index from item_info's subtitle_tracks; default: the track that plays, or the only text track"],
-            "from": ["type": "string", "description": "Seconds or h:mm:ss"],
-            "to": ["type": "string", "description": "Seconds or h:mm:ss"],
-        ], readOnly: true),
-        tool("get_log", "Fernsy's event log (redacted: no credentials or tokens), oldest first. Use it to explain errors, stutter, reconnects or failed recordings.", [
-            "level": ["type": "string", "enum": ["error", "warning", "info", "detail"], "description": "Minimum level (default info)"],
-            "category": ["type": "string", "enum": LogCategory.allCases.map(\.rawValue)],
-            "minutes": ["type": "integer", "minimum": 1, "description": "Only the last N minutes of the current run (default 30)"],
-            "query": ["type": "string", "description": "Text the message must contain"],
-            "limit": ["type": "integer", "minimum": 1, "maximum": 1000, "description": "Newest N matching entries (default 200)"],
-            "run": ["type": "string", "enum": ["current", "previous"]],
-        ], readOnly: true),
-        tool("playback_diagnostics", "Why playback stutters or fails: what plays, the player's state and statistics (buffer, bitrate, dropped frames, decode failures, rebuffers, reconnects with the last reason, codec, decoder) and recent player/network/tuner/timeshift warnings.", [:], readOnly: true),
-    ]
-
-    private static func tool(_ name: String, _ description: String, _ properties: [String: Any], required: [String] = [], readOnly: Bool) -> [String: Any] {
-        var schema: [String: Any] = ["type": "object", "properties": properties, "additionalProperties": false]
-        if !required.isEmpty { schema["required"] = required }
-        return ["name": name, "description": description, "inputSchema": schema,
-                "annotations": ["readOnlyHint": readOnly, "destructiveHint": false, "openWorldHint": false]]
-    }
+    /// Shared with the in-app assistant (FernsyCore, cloud-assistant).
+    static var definitions: [[String: Any]] { AssistantTools.definitions }
 
     // MARK: Calls
 
@@ -194,9 +109,9 @@ final class MCPTools {
 
     private func showJSON(_ entry: EPGEntry, on channel: LiveChannel) -> [String: Any] {
         var value: [String: Any] = [
-            "show_id": "\(channel.id):\(Int(entry.start.timeIntervalSince1970))",
+            "show_id": AssistantTools.showID(channel: channel.id, start: entry.start),
             "channel_id": channel.id, "channel": channel.displayName, "title": entry.title,
-            "start": Self.iso(entry.start), "end": Self.iso(entry.end),
+            "start": AssistantTools.iso(entry.start), "end": AssistantTools.iso(entry.end),
         ]
         if !entry.description.isEmpty { value["description"] = String(entry.description.prefix(300)) }
         if let recording = app.recorder.recordings.first(where: { $0.matches(channelId: channel.id, entry: entry) && $0.status != .skipped }) {
@@ -229,28 +144,21 @@ final class MCPTools {
         }]
     }
 
-    private func range(_ args: [String: Any]) throws -> (from: Date, to: Date) {
-        let from = try (args["from"] as? String).map(Self.date) ?? Date()
-        let to = try (args["to"] as? String).map(Self.date) ?? from.addingTimeInterval(24 * 3600)
-        guard to > from else { throw ToolError("'to' must be after 'from'") }
-        return (from, to)
-    }
-
     private func program(_ args: [String: Any]) async throws -> [String: Any] {
         guard let id = args["channel_id"] as? Int else { throw ToolError("channel_id is required") }
         let channel = try visibleChannel(id)
-        let (from, to) = try range(args)
+        let (from, to) = try AssistantTools.range(args)
         await loadGuides([id])
         let shows = entries(id).filter { $0.end > from && $0.start < to }.sorted { $0.start < $1.start }
-        return ["channel": channelJSON(channel), "from": Self.iso(from), "to": Self.iso(to), "shows": shows.map { showJSON($0, on: channel) }]
+        return ["channel": channelJSON(channel), "from": AssistantTools.iso(from), "to": AssistantTools.iso(to), "shows": shows.map { showJSON($0, on: channel) }]
     }
 
     private func searchProgram(_ args: [String: Any]) async throws -> [String: Any] {
         let query = args["query"] as? String ?? ""
         guard !makeSearchKey(query.trimmingCharacters(in: .whitespaces)).isEmpty else { throw ToolError("query is required") }
         let channels = try scope(args)
-        let from = try (args["from"] as? String).map(Self.date) ?? Date()
-        let to = try (args["to"] as? String).map(Self.date) ?? .distantFuture
+        let from = try (args["from"] as? String).map(AssistantTools.date) ?? Date()
+        let to = try (args["to"] as? String).map(AssistantTools.date) ?? .distantFuture
         let hits = await actions.searchGuide(query, on: channels, from: from, to: to)
         return ["searched_channels": channels.map { ["id": $0.id, "name": $0.displayName] },
                 "shows": hits.prefix(100).map { showJSON($0.entry, on: $0.channel) }]
@@ -276,27 +184,14 @@ final class MCPTools {
                 var value: [String: Any] = ["item_id": "movie:\(movie.id)", "title": movie.name, "position_seconds": Int(position)]
                 if let fraction = app.resumeFraction(ResumeStore.movieKey(movie.id)) {
                     value["progress_percent"] = Int(fraction * 100)
-                    value.merge(Self.runtime(duration: position / fraction, position: position)) { $1 }
+                    value.merge(AssistantTools.runtime(duration: position / fraction, position: position)) { $1 }
                 }
                 return value
             }
         if app.hasJellyfin {
-            result["jellyfin"] = ["continue_watching": app.jellyfin.resume.map(jellyfinJSON), "next_up": app.jellyfin.nextUp.map(jellyfinJSON)]
+            result["jellyfin"] = ["continue_watching": app.jellyfin.resume.map(AssistantTools.jellyfinJSON), "next_up": app.jellyfin.nextUp.map(AssistantTools.jellyfinJSON)]
         }
         return result
-    }
-
-    private func jellyfinJSON(_ item: JFItem) -> [String: Any] {
-        var title = item.name
-        if item.type == "Episode", let series = item.seriesName {
-            let code = [item.parentIndexNumber.map { "S\($0)" }, item.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
-            title = "\(series) \(code) · \(item.name)"
-        }
-        var value: [String: Any] = ["item_id": "jellyfin:\(item.id)", "title": title, "type": item.type]
-        if let percent = item.userData?.playedPercentage { value["progress_percent"] = Int(percent) }
-        value.merge(Self.runtime(duration: item.runTimeSeconds,
-                                 position: item.userData?.playbackPositionTicks.map(JellyfinTicks.seconds))) { $1 }
-        return value
     }
 
     // MARK: Recordings
@@ -305,8 +200,8 @@ final class MCPTools {
         var value: [String: Any] = [
             "recording_id": recording.id.uuidString, "channel_id": recording.channelId, "channel": recording.channelName,
             "title": recording.title, "status": recording.status.rawValue,
-            "show_start": Self.iso(recording.start), "show_end": Self.iso(recording.end),
-            "record_start": Self.iso(recording.recordStart), "record_end": Self.iso(recording.recordEnd),
+            "show_start": AssistantTools.iso(recording.start), "show_end": AssistantTools.iso(recording.end),
+            "record_start": AssistantTools.iso(recording.recordStart), "record_end": AssistantTools.iso(recording.recordEnd),
         ]
         if let file = recording.fileName { value["file"] = file }
         if let error = recording.error { value["error"] = error }
@@ -322,20 +217,11 @@ final class MCPTools {
     }
 
     private func scheduleRecording(_ args: [String: Any]) async throws -> [String: Any] {
-        let channelId: Int, start: Date
-        if let showId = args["show_id"] as? String {
-            let parts = showId.split(separator: ":")
-            guard parts.count == 2, let id = Int(parts[0]), let epoch = Double(parts[1]) else { throw ToolError("show_id must look like <channel>:<start epoch>") }
-            (channelId, start) = (id, Date(timeIntervalSince1970: epoch))
-        } else if let id = args["channel_id"] as? Int, let text = args["start"] as? String {
-            (channelId, start) = (id, try Self.date(text))
-        } else {
-            throw ToolError("Pass show_id, or channel_id and start")
-        }
+        let (channelId, start) = try AssistantTools.show(args)
         let channel = try visibleChannel(channelId)
         await loadGuides([channelId])
         guard let entry = entries(channelId).first(where: { abs($0.start.timeIntervalSince(start)) < 60 }) else {
-            throw ToolError("No show on \(channel.displayName) starts at \(Self.iso(start)); check get_program.")
+            throw ToolError("No show on \(channel.displayName) starts at \(AssistantTools.iso(start)); check get_program.")
         }
         guard entry.end > Date() else { throw ToolError("„\(entry.title)“ has already ended.") }
         switch actions.schedule(entry, on: channel) {
@@ -435,7 +321,7 @@ final class MCPTools {
             case .failed(let message): "failed: \(message)"
             }
             if engine.status == .ended, let playback = app.jellyfinPlayback, let next = playback.nextEpisode {
-                var upcoming = neighbourJSON(next, prefix: "next").reduce(into: [String: Any]()) { $0[String($1.key.dropFirst(5))] = $1.value }
+                var upcoming = AssistantTools.neighbourJSON(next, prefix: "next").reduce(into: [String: Any]()) { $0[String($1.key.dropFirst(5))] = $1.value }
                 if let at = playback.autoplayAt { upcoming["starts_in_seconds"] = max(0, Int(at.timeIntervalSinceNow.rounded(.up))) }
                 else if playback.autoplayCancelled { upcoming["autoplay_cancelled"] = true }
                 value["next"] = upcoming
@@ -447,54 +333,25 @@ final class MCPTools {
                 if engine.isTimeshift {
                     let rewind = max(0, progress.position - progress.liveStart)
                     value["rewind_available_seconds"] = Int(rewind)
-                    value["rewind_available"] = Self.clock(rewind)
+                    value["rewind_available"] = AssistantTools.clock(rewind)
                     value["buffer_seconds"] = Int(max(0, progress.liveEnd - progress.liveStart))
                     value["buffer_limit_minutes"] = UserDefaults.standard.integer(forKey: AppModel.timeshiftMinutesKey)
                     if let wall = engine.wallTime(of: progress.position) ?? progress.wallClock {
                         let bufferStart = engine.wallTime(of: progress.liveStart) ?? wall.addingTimeInterval(-rewind)
-                        value["buffer_starts_at"] = Self.iso(bufferStart)
+                        value["buffer_starts_at"] = AssistantTools.iso(bufferStart)
                         if case .live(let id, _) = item.kind, let show = entries(id).first(where: { $0.start <= wall && $0.end > wall }) {
                             value["show_start_in_buffer"] = show.start >= bufferStart
                         }
                     }
                 }
             } else if progress.duration > 0 {
-                value.merge(Self.timing(position: progress.position, duration: progress.duration, running: engine.status == .playing)) { $1 }
+                value.merge(AssistantTools.timing(position: progress.position, duration: progress.duration, running: engine.status == .playing)) { $1 }
             } else {
                 value["position_seconds"] = Int(progress.position)
-                value["position"] = Self.clock(progress.position)
+                value["position"] = AssistantTools.clock(progress.position)
             }
         }
         return value
-    }
-
-    /// Position, duration and what is left, as seconds and h:mm:ss, plus the end time while it plays.
-    static func timing(position: Double, duration: Double, running: Bool) -> [String: Any] {
-        let remaining = max(0, duration - position)
-        var value: [String: Any] = [
-            "position_seconds": Int(position), "position": clock(position),
-            "duration_seconds": Int(duration), "duration": clock(duration),
-            "remaining_seconds": Int(remaining), "remaining": clock(remaining),
-        ]
-        if running { value["ends_at"] = iso(Date().addingTimeInterval(remaining)) }
-        return value
-    }
-
-    /// Runtime and, once started, what is left.
-    static func runtime(duration: Double?, position: Double?) -> [String: Any] {
-        guard let duration, duration > 0 else { return [:] }
-        var value: [String: Any] = ["runtime_seconds": Int(duration), "runtime": clock(duration)]
-        if let position, position > 0 {
-            value["position"] = clock(position)
-            value["remaining_seconds"] = Int(max(0, duration - position))
-            value["remaining"] = clock(max(0, duration - position))
-        }
-        return value
-    }
-
-    nonisolated static func clock(_ seconds: Double) -> String {
-        let total = Int(max(0, seconds))
-        return String(format: "%d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
     }
 
     private func itemInfo(_ args: [String: Any]) async throws -> [String: Any] {
@@ -513,8 +370,8 @@ final class MCPTools {
             if let genre = details?.genre { value["genre"] = genre }
             if let date = details?.releaseDate { value["release_date"] = date }
             let position = app.resumePosition(ResumeStore.movieKey(id))
-            let duration = details?.duration.flatMap(Self.seconds) ?? app.resumeFraction(ResumeStore.movieKey(id)).map { position / $0 }
-            value.merge(Self.runtime(duration: duration, position: position)) { $1 }
+            let duration = details?.duration.flatMap(AssistantTools.seconds) ?? app.resumeFraction(ResumeStore.movieKey(id)).map { position / $0 }
+            value.merge(AssistantTools.runtime(duration: duration, position: position)) { $1 }
         case ("episode", 3):
             guard app.showsIPTVSeries, let seriesId = Int(parts[1]), let show = app.series.first(where: { $0.id == seriesId }),
                   let client = app.client else { throw ToolError("No IPTV series with this id") }
@@ -526,11 +383,11 @@ final class MCPTools {
             value["episode"] = episode.number
             value["title"] = episode.title
             if let plot = episode.plot, !plot.isEmpty { value["plot"] = plot }
-            value.merge(Self.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition(ResumeStore.episodeKey(episode.id)))) { $1 }
+            value.merge(AssistantTools.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition(ResumeStore.episodeKey(episode.id)))) { $1 }
         case ("jellyfin", 2):
             guard app.hasJellyfin else { throw ToolError("No Jellyfin account") }
             let item = try await app.jellyfin.call { try await $0.item(userId: $1, id: parts[1]) }
-            value.merge(jellyfinJSON(item)) { $1 }
+            value.merge(AssistantTools.jellyfinJSON(item)) { $1 }
             value["title"] = item.name
             if let series = item.seriesName { value["series"] = series }
             if let season = item.parentIndexNumber { value["season"] = season }
@@ -538,17 +395,12 @@ final class MCPTools {
             if let year = item.productionYear { value["year"] = year }
             if let plot = item.overview, !plot.isEmpty { value["plot"] = plot }
             let streams = item.mediaSources?.first?.mediaStreams ?? []
-            value["audio_tracks"] = streams.filter { $0.type == "Audio" }.map(trackJSON)
-            value["subtitle_tracks"] = streams.filter { $0.type == "Subtitle" }.map(trackJSON)
+            value["audio_tracks"] = streams.filter { $0.type == "Audio" }.map(AssistantTools.trackJSON)
+            value["subtitle_tracks"] = streams.filter { $0.type == "Subtitle" }.map(AssistantTools.trackJSON)
             if item.type == "Episode", let seriesId = item.seriesId {
-                let episodes = try await seriesEpisodes(seriesId)
-                // Specials only neighbour specials; regular episodes skip season 0.
-                let isSpecial = item.parentIndexNumber == 0
-                let run = episodes.filter { ($0.parentIndexNumber == 0) == isSpecial }
-                if let index = run.firstIndex(where: { $0.id == item.id }) {
-                    if index > 0 { value.merge(neighbourJSON(run[index - 1], prefix: "previous")) { $1 } }
-                    if index + 1 < run.count { value.merge(neighbourJSON(run[index + 1], prefix: "next")) { $1 } }
-                }
+                let (previous, next) = AssistantTools.neighbours(of: item, in: try await seriesEpisodes(seriesId))
+                if let previous { value.merge(AssistantTools.neighbourJSON(previous, prefix: "previous")) { $1 } }
+                if let next { value.merge(AssistantTools.neighbourJSON(next, prefix: "next")) { $1 } }
             }
         case ("recording", 2):
             guard let id = UUID(uuidString: parts[1]), let recording = app.recorder.recordings.first(where: { $0.id == id }) else {
@@ -557,7 +409,7 @@ final class MCPTools {
             value.merge(recordingJSON(recording)) { $1 }
             value["type"] = "recording"
             if !recording.description.isEmpty { value["plot"] = recording.description }
-            value.merge(Self.runtime(duration: recording.recordEnd.timeIntervalSince(recording.recordStart),
+            value.merge(AssistantTools.runtime(duration: recording.recordEnd.timeIntervalSince(recording.recordStart),
                                      position: app.resumePosition(ResumeStore.recordingKey(id)))) { $1 }
         default:
             throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
@@ -567,29 +419,7 @@ final class MCPTools {
 
     /// A series' episodes ordered by season and episode number.
     private func seriesEpisodes(_ seriesId: String) async throws -> [JFItem] {
-        let episodes = try await app.jellyfin.call { try await $0.seriesEpisodes(userId: $1, seriesId: seriesId) }
-        return episodes.sorted { ($0.parentIndexNumber ?? 0, $0.indexNumber ?? 0) < ($1.parentIndexNumber ?? 0, $1.indexNumber ?? 0) }
-    }
-
-    /// An audio or subtitle track as item_info lists it (and get_subtitles names it).
-    private func trackJSON(_ stream: JFMediaStream) -> [String: Any] {
-        var value: [String: Any] = [
-            "index": stream.index ?? -1, "title": stream.displayTitle ?? stream.title ?? "",
-            "default": stream.isDefault == true, "external": stream.isExternal == true,
-        ]
-        if let language = stream.language { value["language"] = language }
-        if stream.type == "Subtitle" {
-            value["forced"] = stream.isForced == true || MediaNames.titleSaysForced(stream.title) || MediaNames.titleSaysForced(stream.displayTitle)
-            value["text"] = stream.isTextSubtitleStream == true
-        }
-        return value
-    }
-
-    private func neighbourJSON(_ item: JFItem, prefix: String) -> [String: Any] {
-        var value: [String: Any] = ["\(prefix)_item_id": "jellyfin:\(item.id)", "\(prefix)_title": item.name]
-        if let season = item.parentIndexNumber { value["\(prefix)_season"] = season }
-        if let episode = item.indexNumber { value["\(prefix)_episode"] = episode }
-        return value
+        AssistantTools.ordered(try await app.jellyfin.call { try await $0.seriesEpisodes(userId: $1, seriesId: seriesId) })
     }
 
     private func listEpisodes(_ args: [String: Any]) async throws -> [String: Any] {
@@ -608,26 +438,8 @@ final class MCPTools {
         default: throw ToolError("\(item.name) is not a series or an episode")
         }
         let episodes = try await seriesEpisodes(seriesId)
-        var value: [String: Any] = ["series_id": "jellyfin:\(seriesId)", "series": item.seriesName ?? item.name]
-        if let season = (args["season"] as? NSNumber)?.intValue {
-            let list = episodes.filter { $0.parentIndexNumber == season }
-            guard !list.isEmpty else { throw ToolError("No season \(season) in \(item.seriesName ?? item.name)") }
-            value["season"] = season
-            value["episodes"] = list.map { episode -> [String: Any] in
-                var entry = jellyfinJSON(episode)
-                entry["title"] = episode.name
-                if let number = episode.indexNumber { entry["episode"] = number }
-                entry["played"] = episode.userData?.played ?? false
-                return entry
-            }
-        } else {
-            let seasons = Dictionary(grouping: episodes) { $0.parentIndexNumber ?? 0 }
-            value["seasons"] = seasons.keys.sorted().map { number -> [String: Any] in
-                let list = seasons[number] ?? []
-                return ["season": number, "episodes": list.count, "played": list.filter { $0.userData?.played == true }.count]
-            }
-        }
-        return value
+        let value: [String: Any] = ["series_id": "jellyfin:\(seriesId)", "series": item.seriesName ?? item.name]
+        return value.merging(try AssistantTools.episodesJSON(episodes, season: (args["season"] as? NSNumber)?.intValue, seriesName: item.seriesName ?? item.name)) { $1 }
     }
 
     // MARK: Scene search
@@ -646,10 +458,10 @@ final class MCPTools {
         }
         guard let jpeg else { throw ToolError("The picture could not be converted.") }
         if live {
-            if let wall = engine.wallTime(of: progress.position) ?? progress.wallClock { value["time"] = Self.iso(wall) }
+            if let wall = engine.wallTime(of: progress.position) ?? progress.wallClock { value["time"] = AssistantTools.iso(wall) }
         } else {
             value["position_seconds"] = Int(progress.position)
-            value["position"] = Self.clock(progress.position)
+            value["position"] = AssistantTools.clock(progress.position)
         }
         value[Self.imageKey] = jpeg
         return value
@@ -700,11 +512,11 @@ final class MCPTools {
         let text = { (key: String) -> String? in (args[key] as? String) ?? (args[key] as? NSNumber)?.stringValue }
         var fromWall: Date?, toWall: Date?, fromPos: Double?, toPos: Double?
         if target.live != nil {
-            fromWall = try text("from").map(Self.date)
-            toWall = try text("to").map(Self.date)
+            fromWall = try text("from").map(AssistantTools.date)
+            toWall = try text("to").map(AssistantTools.date)
         } else {
-            fromPos = try text("from").map { try Self.position($0) }
-            toPos = try text("to").map { try Self.position($0) }
+            fromPos = try text("from").map { try AssistantTools.position($0) }
+            toPos = try text("to").map { try AssistantTools.position($0) }
         }
         let grabber = FrameGrabber(source: target.source, tileWidth: 320)
         // The whole sheet gets 60 s; what is there by then is returned.
@@ -725,28 +537,28 @@ final class MCPTools {
                     if let buffer = target.live, let source = target.source as? BufferByteSource {
                         guard let oldest = buffer.oldest, let newest = buffer.newest else { throw ToolError("The buffer is still empty.") }
                         let start = max(fromWall ?? oldest.wall, oldest.wall), end = min(toWall ?? newest.wall, newest.wall)
-                        guard end > start else { throw ToolError("That time range is not in the buffer (\(Self.iso(oldest.wall)) to \(Self.iso(newest.wall))).") }
-                        range = ["from": Self.iso(start), "to": Self.iso(end)]
+                        guard end > start else { throw ToolError("That time range is not in the buffer (\(AssistantTools.iso(oldest.wall)) to \(AssistantTools.iso(newest.wall))).") }
+                        range = ["from": AssistantTools.iso(start), "to": AssistantTools.iso(end)]
                         let step = end.timeIntervalSince(start) / Double(count)
                         for i in 0..<count where Date() < deadline {
                             let wall = start.addingTimeInterval(step * (Double(i) + 0.5))
                             guard let entry = buffer.entry(atOrBeforeWall: wall), seen.insert(entry.offset).inserted,
                                   let still = grabber.still(atByte: source.position(ofBufferOffset: entry.offset)) else { continue }
                             let time = buffer.wallTime(of: still.streamTime - ffs_mux_delay()) ?? entry.wall
-                            add(still, label: Self.clockTime(time), entry: ["time": Self.iso(time)])
+                            add(still, label: Self.clockTime(time), entry: ["time": AssistantTools.iso(time)])
                         }
                     } else {
                         let length = grabber.duration ?? 0
                         let start = max(0, fromPos ?? 0), end = min(toPos ?? length, length > 0 ? length : .infinity)
-                        guard end.isFinite, end > start else { throw ToolError("The time range is empty or beyond the end (length \(Self.clock(length))).") }
-                        range = ["from": Self.clock(start), "to": Self.clock(end), "length": Self.clock(length)]
+                        guard end.isFinite, end > start else { throw ToolError("The time range is empty or beyond the end (length \(AssistantTools.clock(length))).") }
+                        range = ["from": AssistantTools.clock(start), "to": AssistantTools.clock(end), "length": AssistantTools.clock(length)]
                         let step = (end - start) / Double(count)
                         for i in 0..<count where Date() < deadline {
                             let position = start + step * (Double(i) + 0.5)
                             guard let still = grabber.still(atStreamTime: position + grabber.startTime) else { continue }
                             let shown = max(0, still.streamTime - grabber.startTime)
                             guard seen.insert(Int64(shown * 1000)).inserted else { continue }
-                            add(still, label: Self.clock(shown), entry: ["position_seconds": Int(shown), "position": Self.clock(shown)])
+                            add(still, label: AssistantTools.clock(shown), entry: ["position_seconds": Int(shown), "position": AssistantTools.clock(shown)])
                         }
                     }
                     grabber.close()
@@ -775,11 +587,6 @@ final class MCPTools {
         return value
     }
 
-    private static func position(_ text: String) throws -> Double {
-        guard let value = Double(text) ?? seconds(text) else { throw ToolError("Positions are seconds or h:mm:ss: \(text)") }
-        return value
-    }
-
     nonisolated private static func clockTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -794,42 +601,20 @@ final class MCPTools {
         guard parts.count == 2, parts[0] == "jellyfin" else { throw ToolError("Subtitles are only available for Jellyfin items.") }
         guard app.hasJellyfin else { throw ToolError("No Jellyfin account") }
         let item = try await app.jellyfin.call { try await $0.item(userId: $1, id: parts[1]) }
-        guard let source = item.mediaSources?.first, let sourceId = source.id else { throw ToolError("\(item.name) has no media file") }
-        let subtitleStreams = (source.mediaStreams ?? []).filter { $0.type == "Subtitle" }
-        let text = subtitleStreams.filter { $0.isTextSubtitleStream == true && $0.index != nil }
-        guard !text.isEmpty else {
-            throw ToolError(subtitleStreams.isEmpty ? "\(item.name) has no subtitles." : "\(item.name) has only image subtitles (no text subtitles).")
-        }
-        let list = { () -> String in
-            let data = (try? JSONSerialization.data(withJSONObject: text.map(self.trackJSON), options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
-            return String(decoding: data, as: UTF8.self)
-        }
-        let chosen: JFMediaStream
-        if let wanted = (args["track"] as? NSNumber)?.intValue {
-            guard let match = text.first(where: { $0.index == wanted }) else {
-                throw ToolError("Track \(wanted) is not a text subtitle track of \(item.name). Text tracks: \(list())")
-            }
-            chosen = match
-        } else if let playing = app.jellyfinPlayback, playing.item.id == item.id, let index = playing.subtitleIndex,
-                  let match = text.first(where: { $0.index == index }) {
-            chosen = match
-        } else if text.count == 1 {
-            chosen = text[0]
-        } else {
-            throw ToolError("\(item.name) has \(text.count) text subtitle tracks; pass track with one of these indexes: \(list())")
-        }
+        let playing = app.jellyfinPlayback.flatMap { $0.item.id == item.id ? $0.subtitleIndex : nil }
+        let (sourceId, chosen) = try AssistantTools.subtitleTrack(of: item, wanted: (args["track"] as? NSNumber)?.intValue, playing: playing)
         let srt: String
         do {
             srt = try await app.jellyfin.call { client, _ in try await client.subtitleSRT(itemId: item.id, mediaSourceId: sourceId, index: chosen.index!) }
         } catch let error as URLError where error.code == .timedOut {
             throw ToolError("The Jellyfin server is still preparing these subtitles (it extracts them from the file on the first request). Try again in a minute.")
         }
-        let from = try (args["from"] as? String ?? (args["from"] as? NSNumber)?.stringValue).map { try Self.position($0) } ?? 0
-        let to = try (args["to"] as? String ?? (args["to"] as? NSNumber)?.stringValue).map { try Self.position($0) } ?? .infinity
+        let from = try AssistantTools.text(args["from"]).map(AssistantTools.position) ?? 0
+        let to = try AssistantTools.text(args["to"]).map(AssistantTools.position) ?? .infinity
         let cues = SRTParser.parse(srt).filter { $0.end >= from && $0.start <= to }
         return [
-            "item_id": itemId, "title": item.name, "track": trackJSON(chosen), "count": cues.count,
-            "cues": cues.map { ["start": Self.clock($0.start), "end": Self.clock($0.end),
+            "item_id": itemId, "title": item.name, "track": AssistantTools.trackJSON(chosen), "count": cues.count,
+            "cues": cues.map { ["start": AssistantTools.clock($0.start), "end": AssistantTools.clock($0.end),
                                 "start_seconds": ($0.start * 10).rounded() / 10, "end_seconds": ($0.end * 10).rounded() / 10, "text": $0.text] },
         ]
     }
@@ -859,23 +644,22 @@ final class MCPTools {
 
     private func seek(_ args: [String: Any]) async throws -> [String: Any] {
         let engine = try playingEngine()
-        let targets = ["by_seconds", "to_position", "to_time", "to_show_start", "to_live"].filter { args[$0] != nil && args[$0] as? Bool != false }
-        guard targets.count == 1 else { throw ToolError("Pass exactly one of by_seconds, to_position, to_time, to_show_start, to_live.") }
+        let target = try AssistantTools.seekTarget(args)
         let progress = engine.progress
         let isLive = app.nowPlaying?.isLive == true
         if isLive && !engine.isTimeshift { throw ToolError("This channel plays without timeshift and cannot be rewound.") }
         let requested: Double
-        switch targets[0] {
+        switch target {
         case "by_seconds":
             guard let delta = (args["by_seconds"] as? NSNumber)?.doubleValue else { throw ToolError("by_seconds must be a number") }
             requested = progress.position + delta
             engine.seek(by: delta)
         case "to_position":
             guard !isLive else { throw ToolError("Live TV has no position; use by_seconds, to_time or to_show_start.") }
-            let text = (args["to_position"] as? String) ?? (args["to_position"] as? NSNumber)?.stringValue ?? ""
-            guard let target = Double(text) ?? Self.seconds(text) else { throw ToolError("to_position must be seconds or h:mm:ss") }
-            requested = target
-            engine.seek(to: target)
+            let text = AssistantTools.text(args["to_position"]) ?? ""
+            guard let position = Double(text) ?? AssistantTools.seconds(text) else { throw ToolError("to_position must be seconds or h:mm:ss") }
+            requested = position
+            engine.seek(to: position)
         case "to_live":
             guard isLive else { throw ToolError("Only live TV has a live edge.") }
             engine.goLive()
@@ -886,9 +670,9 @@ final class MCPTools {
                 throw ToolError("to_time and to_show_start work for live TV with timeshift.")
             }
             let targetTime: Date
-            if targets[0] == "to_time" {
+            if target == "to_time" {
                 guard let text = args["to_time"] as? String else { throw ToolError("to_time must be an ISO 8601 time") }
-                targetTime = try Self.date(text)
+                targetTime = try AssistantTools.date(text)
             } else {
                 guard case .live(let id, _)? = app.nowPlaying?.kind,
                       let show = entries(id).first(where: { $0.start <= wall && $0.end > wall }) else { throw ToolError("No program data for the current show.") }
@@ -898,13 +682,13 @@ final class MCPTools {
             requested = progress.position + delta
             engine.seek(by: delta)
         }
-        AppLog.info(.mcp, "seek \(targets[0])")
+        AppLog.info(.mcp, "seek \(target)")
         let result = await settled()
         let reached = engine.progress.position
         guard abs(reached - requested) > 2 else { return result }
         let reason = isLive
             ? (requested < reached ? "The buffer only reaches back to \(result["buffer_starts_at"] as? String ?? "its start")." : "Seeking forward stops at the live edge.")
-            : (requested < reached ? "The start is at 0:00:00." : "The end is at \(Self.clock(engine.progress.duration)).")
+            : (requested < reached ? "The start is at 0:00:00." : "The end is at \(AssistantTools.clock(engine.progress.duration)).")
         return result.merging(["limited": true, "limit_reason": reason]) { $1 }
     }
 
@@ -913,7 +697,7 @@ final class MCPTools {
     private static let levels: [String: LogLevel] = ["error": .error, "warning": .warning, "info": .info, "detail": .detail]
 
     private static func entryJSON(_ entry: LogEntry) -> [String: Any] {
-        ["time": iso(entry.date), "level": levels.first { $0.value == entry.level }?.key ?? "info", "category": entry.category.rawValue, "message": entry.message]
+        ["time": AssistantTools.iso(entry.date), "level": levels.first { $0.value == entry.level }?.key ?? "info", "category": entry.category.rawValue, "message": entry.message]
     }
 
     private func getLog(_ args: [String: Any]) -> [String: Any] {
@@ -940,7 +724,7 @@ final class MCPTools {
                 "decoder": s.decoder, "dynamic_range": s.dynamicRange, "audio": s.audio, "container": s.container,
             ]
             if let reason = s.lastReconnectReason { stats["last_reconnect_reason"] = reason }
-            if let at = s.lastReconnectAt { stats["last_reconnect_at"] = Self.iso(at) }
+            if let at = s.lastReconnectAt { stats["last_reconnect_at"] = AssistantTools.iso(at) }
             if let method = s.playMethod { stats["play_method"] = method }
             value["stats"] = stats
         } else {
@@ -952,46 +736,10 @@ final class MCPTools {
         return value
     }
 
-    /// "01:52:10", "112 min" or "6730" (as providers deliver it) in seconds.
-    static func seconds(_ text: String) -> Double? {
-        let parts = text.split(separator: ":").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
-        if parts.count == 3 { return parts[0] * 3600 + parts[1] * 60 + parts[2] }
-        if parts.count == 2 { return parts[0] * 60 + parts[1] }
-        let digits = text.prefix { $0.isNumber }
-        guard let number = Double(digits), number > 0 else { return nil }
-        return text.contains("min") ? number * 60 : number
-    }
-
     private func stopPlayback() -> [String: Any] {
         guard actions.stopPlayback() else { return ["result": "nothing_playing"] }
         AppLog.info(.mcp, "stopped playback")
         return ["result": "stopped"]
     }
 
-    // MARK: Dates
-
-    // Only read after setup; `frames` formats its labels off the main actor.
-    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.timeZone = .current
-        return formatter
-    }()
-
-    nonisolated static func iso(_ date: Date) -> String { isoFormatter.string(from: date) }
-
-    static func date(_ text: String) throws -> Date {
-        if let date = isoFormatter.date(from: text) { return date }
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = fractional.date(from: text) { return date }
-        // Without an offset: the Mac's time zone.
-        let local = DateFormatter()
-        local.locale = Locale(identifier: "en_US_POSIX")
-        local.timeZone = .current
-        for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm"] {
-            local.dateFormat = format
-            if let date = local.date(from: text) { return date }
-        }
-        throw ToolError("Not an ISO 8601 date: \(text)")
-    }
 }

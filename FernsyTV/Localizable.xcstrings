@@ -373,6 +373,16 @@
         }
       }
     },
+    "Agree": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zustimmen"
+          }
+        }
+      }
+    },
     "All": {
       "localizations": {
         "de": {
@@ -443,6 +453,56 @@
         }
       }
     },
+    "Ask": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragen"
+          }
+        }
+      }
+    },
+    "Ask Fernsy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy fragen"
+          }
+        }
+      }
+    },
+    "Ask for a channel, a show, a movie or a recording – typed or dictated.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frag nach einem Sender, einer Sendung, einem Film oder einer Aufnahme – getippt oder diktiert."
+          }
+        }
+      }
+    },
+    "Assistant": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistent"
+          }
+        }
+      }
+    },
+    "Assistant Requests": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfragen an den Assistenten"
+          }
+        }
+      }
+    },
     "Audio": {
       "localizations": {
         "de": {
@@ -489,6 +549,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vorlauf %1$lld · Nachlauf %2$lld Min."
+          }
+        }
+      }
+    },
+    "Before the first request": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor der ersten Anfrage"
           }
         }
       }
@@ -623,6 +693,16 @@
         }
       }
     },
+    "Keep": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behalten"
+          }
+        }
+      }
+    },
     "Match Frame Rate and Dynamic Range": {
       "localizations": {
         "de": {
@@ -633,12 +713,92 @@
         }
       }
     },
+    "New Conversation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Gespräch"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt nicht"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
+        }
+      }
+    },
+    "Subscribe · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnieren · %@"
+          }
+        }
+      }
+    },
     "Switches the TV to the frame rate and HDR mode of what plays from this server. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Schaltet den Fernseher auf die Bildfrequenz und den HDR-Modus dessen um, was von diesem Server läuft. Der Fernseher schaltet nur um, wenn „Inhalt anpassen“ in den Einstellungen des Apple TV unter „Video und Audio“ eingeschaltet ist."
+          }
+        }
+      }
+    },
+    "The assistant asks again before its next request.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent fragt vor seiner nächsten Anfrage wieder."
+          }
+        }
+      }
+    },
+    "The assistant is part of Fernsy Cloud.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent gehört zu Fernsy Cloud."
+          }
+        }
+      }
+    },
+    "What would you like to watch?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was möchtest du sehen?"
+          }
+        }
+      }
+    },
+    "Withdraw Consent for the Assistant": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zustimmung für den Assistenten widerrufen"
           }
         }
       }
@@ -1679,6 +1839,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kein Favorit mehr"
+          }
+        }
+      }
+    },
+    "Remove the scheduled recording of “%@” (%@)?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geplante Aufnahme von „%1$@“ (%2$@) entfernen?"
           }
         }
       }
@@ -3139,26 +3309,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nur deine Geräte mit derselben Apple-ID können deine Cloud-Aufnahmen abspielen, weil der Schlüssel in deiner iCloud bleibt."
-          }
-        }
-      }
-    },
-    "Fernsy Cloud needs iCloud. Sign in to iCloud with the same Apple ID as on your Mac.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fernsy Cloud braucht iCloud. Melde dich in iCloud mit derselben Apple-ID an wie auf deinem Mac."
-          }
-        }
-      }
-    },
-    "Fernsy on your Mac records, and Fernsy Cloud brings the recordings here. Install Fernsy on a Mac with the same Apple ID to use it.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fernsy nimmt auf deinem Mac auf, und Fernsy Cloud bringt die Aufnahmen hierher. Installiere Fernsy auf einem Mac mit derselben Apple-ID, um es zu nutzen."
           }
         }
       }

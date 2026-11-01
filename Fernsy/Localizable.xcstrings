@@ -562,6 +562,16 @@
         }
       }
     },
+    "Agree": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zustimmen"
+          }
+        }
+      }
+    },
     "All": {
       "localizations": {
         "de": {
@@ -682,12 +692,82 @@
         }
       }
     },
+    "Ask": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragen"
+          }
+        }
+      }
+    },
+    "Ask Fernsy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy fragen"
+          }
+        }
+      }
+    },
+    "Ask Fernsy’s assistant": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Assistenten von Fernsy fragen"
+          }
+        }
+      }
+    },
+    "Ask for a channel, a show, a movie or a recording – typed or dictated.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frag nach einem Sender, einer Sendung, einem Film oder einer Aufnahme – getippt oder diktiert."
+          }
+        }
+      }
+    },
+    "Assistant": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistent"
+          }
+        }
+      }
+    },
+    "Assistant Requests": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfragen an den Assistenten"
+          }
+        }
+      }
+    },
     "Assistants": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Assistenten"
+          }
+        }
+      }
+    },
+    "Assistant…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistent …"
           }
         }
       }
@@ -778,6 +858,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zurück zu Live"
+          }
+        }
+      }
+    },
+    "Before the first request": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor der ersten Anfrage"
           }
         }
       }
@@ -1432,6 +1522,16 @@
         }
       }
     },
+    "Keep": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behalten"
+          }
+        }
+      }
+    },
     "Movies and series from your own server": {
       "localizations": {
         "de": {
@@ -1658,6 +1758,76 @@
           "stringUnit": {
             "state": "translated",
             "value": "„%@“ habe ich im Programm deiner Favoriten und zuletzt gesehenen Sender nicht gefunden."
+          }
+        }
+      }
+    },
+    "New Conversation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Gespräch"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt nicht"
+          }
+        }
+      }
+    },
+    "Remove the scheduled recording of “%@” (%@)?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geplante Aufnahme von „%1$@“ (%2$@) entfernen?"
+          }
+        }
+      }
+    },
+    "Start a new conversation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein neues Gespräch beginnen"
+          }
+        }
+      }
+    },
+    "The assistant asks again before its next request": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent fragt vor seiner nächsten Anfrage wieder"
+          }
+        }
+      }
+    },
+    "The assistant is part of Fernsy Cloud.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent gehört zu Fernsy Cloud."
+          }
+        }
+      }
+    },
+    "Withdraw Consent": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zustimmung widerrufen"
           }
         }
       }
@@ -5252,12 +5422,12 @@
         }
       }
     },
-    "Your recordings in your own private storage, playable on iPad, iPhone and Apple TV – end-to-end encrypted, so nobody else can see them, not even mobilistics.": {
+    "Your recordings in your own private storage – end-to-end encrypted, so nobody else can see them, not even mobilistics.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Aufnahmen in deinem eigenen privaten Speicher, abspielbar auf iPad, iPhone und Apple TV – Ende-zu-Ende-verschlüsselt, sodass niemand sonst sie sehen kann, auch nicht mobilistics."
+            "value": "Deine Aufnahmen in deinem eigenen privaten Speicher – Ende-zu-Ende-verschlüsselt, sodass niemand sonst sie sehen kann, auch nicht mobilistics."
           }
         }
       }

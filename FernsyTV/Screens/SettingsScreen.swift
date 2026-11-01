@@ -379,9 +379,10 @@ enum LanguageChoice {
     }
 }
 
-/// Settings › Fernsy Cloud (add-recording-cloud, cloud-account-from-icloud-key): the offer only
-/// when a Mac with Fernsy is known in iCloud, otherwise a note; with a subscription the account,
-/// moving and deleting. No sign-in. This device only plays; uploads come from the Mac.
+/// Settings › Fernsy Cloud (add-recording-cloud, cloud-account-from-icloud-key, cloud-assistant):
+/// the offer naming the assistant and the recordings; with a subscription the account, the
+/// assistant's requests this month, moving and deleting; the assistant's consent. No sign-in.
+/// This device only plays recordings; uploads come from the Mac.
 private struct CloudSettingsScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var confirmDeleteAll = false
@@ -392,25 +393,25 @@ private struct CloudSettingsScreen: View {
             Text("Your Mac’s recordings in your own private storage, played here – end-to-end encrypted, so nobody else can see them, not even mobilistics.")
                 .font(.system(size: 24)).foregroundStyle(TVTheme.secondary).padding(.bottom, 10)
             if !cloud.canUseCloud {
-                if cloud.mayOffer {
-                    if let offer = cloud.offer {
-                        Text(verbatim: "\(offer.name) · \(offer.price)").font(.system(size: 26, weight: .semibold))
-                    }
-                    Button { Task { await cloud.purchase() } } label: { SettingsRow(title: Text("Subscribe")) }
-                        .accessibilityIdentifier("cloud.subscribe")
-                } else if cloud.macPresence == .unavailable {
-                    Text("Fernsy Cloud needs iCloud. Sign in to iCloud with the same Apple ID as on your Mac.")
+                ForEach(CloudModel.offerParts, id: \.self) { part in
+                    Label { Text(verbatim: part) } icon: { Image(systemName: "checkmark") }
                         .font(.system(size: 22)).foregroundStyle(TVTheme.secondary)
-                } else if cloud.macPresence == .unknown {
-                    Text("Fernsy on your Mac records, and Fernsy Cloud brings the recordings here. Install Fernsy on a Mac with the same Apple ID to use it.")
-                        .font(.system(size: 22)).foregroundStyle(TVTheme.secondary)
-                        .accessibilityIdentifier("cloud.needsMac")
                 }
+                .accessibilityIdentifier("cloud.offerParts")
+                if let offer = cloud.offer {
+                    Text(verbatim: "\(offer.name) · \(offer.price)").font(.system(size: 26, weight: .semibold))
+                }
+                Button { Task { await cloud.purchase() } } label: { SettingsRow(title: Text("Subscribe")) }
+                    .accessibilityIdentifier("cloud.subscribe")
                 Button { Task { await cloud.restore() } } label: { SettingsRow(title: Text("Restore Purchases")) }
             } else {
                 if let account = cloud.account, cloud.hasAccount {
                     SettingsRow(title: Text("Subscription"), value: Text(verbatim: CloudModel.stateText(account)))
                     SettingsRow(title: Text("Storage"), value: Text(verbatim: CloudModel.storageText(account)))
+                    if let usage = model.assistant.usageText {
+                        SettingsRow(title: Text("Assistant Requests"), value: Text(verbatim: usage))
+                            .accessibilityIdentifier("assistant.usage")
+                    }
                     if let note = cloud.deletionNote {
                         Text(verbatim: note).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
                     }
@@ -429,6 +430,10 @@ private struct CloudSettingsScreen: View {
                 Text("To cancel the subscription, open Settings › Users and Accounts › your account › Subscriptions on this Apple TV.")
                     .font(.system(size: 20)).foregroundStyle(TVTheme.secondary)
             }
+            if model.assistant.hasConsent {
+                Button { model.assistant.withdrawConsent() } label: { SettingsRow(title: Text("Withdraw Consent for the Assistant")) }
+                    .accessibilityIdentifier("assistant.consent.withdraw")
+            }
             if case .failed(let message) = cloud.phase {
                 Text(verbatim: message).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
             }
@@ -439,7 +444,6 @@ private struct CloudSettingsScreen: View {
             Text("All cloud recordings are removed on all devices. Recordings on your Mac stay. Your subscription continues until you cancel it.")
         }
         .task {
-            await cloud.refreshMacPresence()
             await cloud.refreshSubscription()
             await cloud.refresh()
         }

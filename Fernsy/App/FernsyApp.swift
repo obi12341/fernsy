@@ -42,6 +42,7 @@ struct FernsyApp: App {
         .defaultSize(width: 1280, height: 820)
         .commands {
             LogCommands()
+            AssistantCommands()
             #if DIRECT_DISTRIBUTION
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesButton(updater: app.updater)
@@ -74,6 +75,15 @@ struct FernsyApp: App {
         }
         .defaultSize(width: 980, height: 560)
         .restorationBehavior(.disabled)
+
+        // The assistant (cloud-assistant); its menu item shows only with Fernsy Cloud.
+        Window("Assistant", id: "assistant") {
+            AssistantView()
+                .environmentObject(app)
+        }
+        .defaultSize(width: 460, height: 600)
+        .restorationBehavior(.disabled)
+        .commandsRemoved()
 
         Settings {
             SettingsView()

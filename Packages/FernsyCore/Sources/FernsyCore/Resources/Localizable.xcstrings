@@ -131,6 +131,16 @@
         }
       }
     },
+    "%lld of %lld this month": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld von %2$lld in diesem Monat"
+          }
+        }
+      }
+    },
     "%lld restarts": {
       "localizations": {
         "de": {
@@ -217,6 +227,116 @@
           "stringUnit": {
             "state": "translated",
             "value": "Puffer"
+          }
+        }
+      }
+    },
+    "Done.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erledigt."
+          }
+        }
+      }
+    },
+    "Recordings from Fernsy on your Mac in the cloud, end-to-end encrypted and played on iPhone, iPad and Apple TV.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahmen von Fernsy auf deinem Mac in der Cloud, Ende-zu-Ende-verschlüsselt und abspielbar auf iPhone, iPad und Apple TV."
+          }
+        }
+      }
+    },
+    "That was a lot of requests at once. Please wait a moment and ask again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das waren viele Anfragen auf einmal. Warte bitte einen Moment und frag dann noch mal."
+          }
+        }
+      }
+    },
+    "The assistant cannot be reached. Please check the connection.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent ist nicht erreichbar. Prüf bitte die Verbindung."
+          }
+        }
+      }
+    },
+    "The assistant is not available right now. Please try again later.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent ist gerade nicht verfügbar. Versuch es bitte später noch mal."
+          }
+        }
+      }
+    },
+    "The assistant needs an active Fernsy Cloud subscription.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent braucht ein aktives Fernsy-Cloud-Abo."
+          }
+        }
+      }
+    },
+    "The assistant on all your devices: ask for a channel, a show or a recording in your own words.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Assistent auf allen deinen Geräten: Frag in deinen Worten nach einem Sender, einer Sendung oder einer Aufnahme."
+          }
+        }
+      }
+    },
+    "This is too long for the assistant. Please start a new conversation or ask more briefly.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist zu lang für den Assistenten. Beginne bitte ein neues Gespräch oder frag kürzer."
+          }
+        }
+      }
+    },
+    "This month’s assistant requests are used up.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anfragen an den Assistenten für diesen Monat sind aufgebraucht."
+          }
+        }
+      }
+    },
+    "This month’s assistant requests are used up. They renew on %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anfragen an den Assistenten für diesen Monat sind aufgebraucht. Am %@ gibt es neue."
+          }
+        }
+      }
+    },
+    "To answer, Fernsy sends your request and the conversation to OpenRouter, which passes them to the model Claude by Anthropic. With them go the parts of your channels, guide, movies and series, favorites and recently watched items that a request needs. Fernsy Cloud only passes them on and keeps none of it. Nothing is sent before you agree, and you can withdraw your consent in Settings › Fernsy Cloud.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Damit der Assistent antworten kann, sendet Fernsy deine Anfrage und das bisherige Gespräch an OpenRouter, das sie an das Modell Claude von Anthropic weitergibt. Dazu kommen die Teile deiner Sender, des Programms, deiner Filme und Serien, Favoriten und zuletzt gesehenen Titel, die eine Anfrage braucht. Fernsy Cloud leitet sie nur weiter und speichert nichts davon. Vor deiner Zustimmung wird nichts gesendet, und du kannst sie in den Einstellungen unter Fernsy Cloud widerrufen."
           }
         }
       }

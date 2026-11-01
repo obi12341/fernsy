@@ -35,3 +35,15 @@ CREATE TABLE IF NOT EXISTS recordings (
 );
 
 CREATE INDEX IF NOT EXISTS recordings_user ON recordings(user_id, state);
+
+-- In-app assistant (cloud-assistant): one row per relayed round, for the monthly allowance (rows
+-- with turn = 1) and the token counts the pricing needs. No request or answer content.
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  user_id TEXT NOT NULL,
+  at INTEGER NOT NULL,                      -- epoch milliseconds
+  turn INTEGER NOT NULL,                    -- 1 when the round starts a user turn
+  tokens_in INTEGER NOT NULL,
+  tokens_out INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS assistant_usage_user ON assistant_usage(user_id, at);

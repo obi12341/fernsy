@@ -82,6 +82,7 @@
 				InfoPlist.xcstrings,
 				Player/DisplayModeController.swift,
 				Screens/AllCategoriesScreen.swift,
+				Screens/AssistantOverlay.swift,
 				Screens/ChannelListScreen.swift,
 				Screens/DetailScreens.swift,
 				Screens/GuideScreen.swift,

@@ -13,13 +13,15 @@ struct TVTextEntry<Label: View>: View {
     var content: TVTextContent = .plain
     /// Shown on tvOS' keyboard screen while the text is empty.
     var prompt: String = ""
+    /// The keyboard's Done (Return), not Back.
+    var onSubmit: (() -> Void)?
     @ViewBuilder let label: Label
     @State private var handle = TVTextEntryHandle()
 
     var body: some View {
         Button { handle.field?.becomeFirstResponder() } label: { label }
             .background {
-                HiddenTextField(text: $text, content: content, prompt: prompt, handle: handle)
+                HiddenTextField(text: $text, content: content, prompt: prompt, handle: handle, onSubmit: onSubmit)
                     .frame(width: 1, height: 1)
             }
             .accessibilityValue(content == .password ? String(repeating: "•", count: text.count) : text)
@@ -57,6 +59,7 @@ private struct HiddenTextField: UIViewRepresentable {
     let content: TVTextContent
     let prompt: String
     let handle: TVTextEntryHandle
+    let onSubmit: (() -> Void)?
 
     func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 
@@ -78,6 +81,7 @@ private struct HiddenTextField: UIViewRepresentable {
 
     func updateUIView(_ field: UnfocusableTextField, context: Context) {
         context.coordinator.text = $text
+        context.coordinator.onSubmit = onSubmit
         if field.text != text { field.text = text }
         field.placeholder = prompt
         field.isSecureTextEntry = content == .password
@@ -92,13 +96,17 @@ private struct HiddenTextField: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextFieldDelegate {
         var text: Binding<String>
+        var onSubmit: (() -> Void)?
         init(text: Binding<String>) { self.text = text }
 
         @objc func changed(_ field: UITextField) { text.wrappedValue = field.text ?? "" }
         // Menu on tvOS' keyboard ends editing as "cancelled" and puts the old text back into a
         // UITextField; a SwiftUI TextField keeps what was typed, so the field does too.
         func textFieldDidEndEditing(_ field: UITextField) { field.text = text.wrappedValue }
-        func textFieldShouldReturn(_ field: UITextField) -> Bool { field.resignFirstResponder() }
+        func textFieldShouldReturn(_ field: UITextField) -> Bool {
+            onSubmit?()
+            return field.resignFirstResponder()
+        }
     }
 }
 

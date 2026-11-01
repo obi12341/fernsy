@@ -72,31 +72,24 @@ final class CloudRecordingsUITests: FernsyUITestCase {
         shot("cloud-settings", app)
     }
 
-    /// Settings › Fernsy Cloud without a subscription (cloud-account-from-icloud-key 4.2): the
-    /// offer only when a Mac is known in iCloud (`IPTV_CLOUDMAC`), otherwise the note; never a sign-in.
-    func testOfferOnlyWithAMac() throws {
+    /// Settings › Fernsy Cloud without a subscription (cloud-assistant 3.6): the offer also when
+    /// no Mac is known in iCloud (`IPTV_CLOUDMAC=0`), naming the assistant and the recordings;
+    /// never a sign-in.
+    func testOfferWithoutAMac() throws {
         guard let cloud = Self.cloudEnv else { throw XCTSkip("no Fernsy Cloud development server in the test environment") }
-        for mac in ["0", "1"] {
-            // No dev token: no subscription and no key, as on a fresh Apple TV.
-            let app = launchDemo(["IPTV_CLOUD": cloud.env["IPTV_CLOUD"]!, "IPTV_CLOUDKEY": "local", "IPTV_CLOUDMAC": mac])
-            showTab("Settings", app)
-            let row = app.buttons["settings.cloud"]
-            XCTAssertTrue(row.waitForExistence(timeout: 30), "no Fernsy Cloud row:\n\(app.debugDescription)")
-            for _ in 0..<12 where !row.hasFocus {
-                remote.press(.down); Thread.sleep(forTimeInterval: 0.4)
-            }
-            remote.press(.select)
-            if mac == "0" {
-                XCTAssertTrue(app.staticTexts["cloud.needsMac"].waitForExistence(timeout: 20), "no Mac note:\n\(app.debugDescription)")
-                XCTAssertFalse(app.buttons["cloud.subscribe"].exists)
-                shot("cloud-needs-mac", app)
-            } else {
-                XCTAssertTrue(app.buttons["cloud.subscribe"].waitForExistence(timeout: 20), "no offer:\n\(app.debugDescription)")
-                XCTAssertFalse(app.staticTexts["cloud.needsMac"].exists)
-                shot("cloud-offer", app)
-            }
-            XCTAssertFalse(app.buttons["cloud.signIn"].exists)
-            app.terminate()
+        // No dev token: no subscription and no key, as on a fresh Apple TV without a Mac.
+        let app = launchDemo(["IPTV_CLOUD": cloud.env["IPTV_CLOUD"]!, "IPTV_CLOUDKEY": "local", "IPTV_CLOUDMAC": "0"])
+        showTab("Settings", app)
+        let row = app.buttons["settings.cloud"]
+        XCTAssertTrue(row.waitForExistence(timeout: 30), "no Fernsy Cloud row:\n\(app.debugDescription)")
+        for _ in 0..<12 where !row.hasFocus {
+            remote.press(.down); Thread.sleep(forTimeInterval: 0.4)
         }
+        remote.press(.select)
+        XCTAssertTrue(app.buttons["cloud.subscribe"].waitForExistence(timeout: 20), "no offer:\n\(app.debugDescription)")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'assistant'")).firstMatch.exists,
+                      "the offer does not name the assistant:\n\(app.debugDescription)")
+        XCTAssertFalse(app.buttons["cloud.signIn"].exists)
+        shot("cloud-offer", app)
     }
 }
