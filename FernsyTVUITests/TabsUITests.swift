@@ -15,7 +15,7 @@ final class TabsUITests: XCTestCase {
             "IPTV_USER": "demo",
             "IPTV_PASS": "demo",
         ]
-        app.launch()
+        app.launchForTest()
         let remote = XCUIRemote.shared
         let start = app.tabBars.firstMatch.buttons["Start"]
         XCTAssertTrue(start.waitForExistence(timeout: 30))

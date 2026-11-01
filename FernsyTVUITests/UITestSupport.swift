@@ -1,5 +1,20 @@
 import XCTest
 
+/// The app's debug MCP server for this test process: its own port, so tests on parallel
+/// simulators (`-parallel-testing-worker-count`) each talk to their own app (faster-ui-tests).
+enum URLForTest {
+    static let port = 52400 + Int(getpid() % 500)
+    static var mcp: URL { URL(string: "http://127.0.0.1:\(port)/mcp")! }
+}
+
+extension XCUIApplication {
+    /// Launches with this test process's debug MCP port.
+    func launchForTest() {
+        launchEnvironment["IPTV_MCPPORT"] = String(URLForTest.port)
+        launch()
+    }
+}
+
 /// Shared setup of the Apple TV UI tests: the app with the demo account and its debug MCP
 /// server, waiting helpers, screenshots, and on failure the app's log as an attachment.
 class FernsyUITestCase: XCTestCase {
@@ -18,7 +33,7 @@ class FernsyUITestCase: XCTestCase {
             "IPTV_MCP": "1",
             "IPTV_MCPTOKEN": "test",
         ].merging(extra) { $1 }
-        app.launch()
+        app.launchForTest()
         return app
     }
 
@@ -57,9 +72,9 @@ class FernsyUITestCase: XCTestCase {
         super.record(issue)
     }
 
-    /// Calls a tool of the app's debug MCP server (port 52325) and returns the raw answer.
+    /// Calls a tool of the app's debug MCP server (this test process's port) and returns the raw answer.
     func mcpCall(_ tool: String, _ arguments: String = "{}") -> String {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:52325/mcp")!)
+        var request = URLRequest(url: URLForTest.mcp)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer test", forHTTPHeaderField: "Authorization")
@@ -103,16 +118,18 @@ class FernsyUITestCase: XCTestCase {
 extension XCTestCase {
     /// The app opens on Start: moves to the tab named `name` (Live TV by default) and waits for it.
     func showTab(_ name: String = "Live TV", _ app: XCUIApplication, timeout: TimeInterval = 30) {
-        let tab = app.tabBars.firstMatch.buttons[name]
+        let tab = tabButton(name, app)
         XCTAssertTrue(tab.waitForExistence(timeout: timeout), "no \(name) tab:\n\(app.debugDescription)")
         let tabs = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.map(\.label)
         // Focus inside a screen: Back reaches the tab bar.
         for _ in 0..<2 where !app.tabBars.firstMatch.buttons.allElementsBoundByIndex.contains(where: \.hasFocus) {
             XCUIRemote.shared.press(.menu); Thread.sleep(forTimeInterval: 0.6)
         }
+        // Short pauses, not a wait for each focus move: the loop checks the focus after every
+        // press anyway, and a focus-move wait costs about a second (faster-ui-tests, as built).
         for _ in 0..<12 where !tab.hasFocus {
             let focused = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.firstIndex { $0.hasFocus } ?? 0
-            let target = tabs.firstIndex(of: name) ?? 0
+            let target = tabs.firstIndex(of: tab.label) ?? 0
             XCUIRemote.shared.press(target > focused ? .right : .left)
             Thread.sleep(forTimeInterval: 0.35)
         }
@@ -122,6 +139,36 @@ extension XCTestCase {
         let selected = Self.tabValues[name] ?? name
         XCTAssertTrue(waitUntil(10) { tabView.value as? String == selected },
                       "the \(name) tab was not selected (\(tabView.value as? String ?? "-"))")
+    }
+
+    /// A tab bar button by its English title, also when the app runs in German.
+    func tabButton(_ name: String, _ app: XCUIApplication) -> XCUIElement {
+        let titles = [name, Self.germanTabTitles[name]].compactMap { $0 }
+        return app.tabBars.firstMatch.buttons.matching(NSPredicate(format: "label IN %@", titles)).firstMatch
+    }
+
+    static var germanTabTitles: [String: String] {
+        ["Movies": "Filme", "Series": "Serien", "Recordings": "Aufnahmen", "Search": "Suche",
+         "Settings": "Einstellungen"]
+    }
+
+    /// Presses `moves` in turn (each waiting for the focus to move) until `element` has focus, at
+    /// most `limit` presses; fails naming what has focus instead (faster-ui-tests).
+    func focus(_ element: XCUIElement, in app: XCUIApplication, moves: [XCUIRemote.Button], limit: Int = 12,
+               file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element.waitForExistence(timeout: 15), "no \(element):\n\(app.debugDescription)", file: file, line: line)
+        var presses = 0
+        while !element.hasFocus && presses < limit {
+            pressAndWaitForFocusMove(moves[presses % moves.count], app)
+            presses += 1
+        }
+        XCTAssertTrue(element.hasFocus, "\(element.identifier) has no focus; focus is on \(focusKey(app))", file: file, line: line)
+    }
+
+    /// Waits until `element` exists and has `value` (e.g. `player.state` "playing"); false after `timeout`.
+    @discardableResult
+    func waitFor(_ element: XCUIElement, value: String, timeout: TimeInterval = 20) -> Bool {
+        waitUntil(timeout) { element.exists && element.value as? String == value }
     }
 
     /// The `tabs` element's value (the selected tab, RootScreen) for each tab title.

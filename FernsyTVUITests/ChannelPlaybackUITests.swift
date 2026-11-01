@@ -16,7 +16,7 @@ final class ChannelPlaybackUITests: XCTestCase {
             "IPTV_USER": "demo",
             "IPTV_PASS": "demo",
         ]
-        app.launch()
+        app.launchForTest()
         let remote = XCUIRemote.shared
 
         focusFirstLiveChannel(app)

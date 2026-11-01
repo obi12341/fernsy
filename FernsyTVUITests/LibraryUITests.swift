@@ -4,22 +4,16 @@ import XCTest
 /// posters twice, a film page resumes or starts over, a series page names the next episode.
 final class LibraryUITests: FernsyUITestCase {
     func testFilmGridSortsAndKeepsPosters() {
-        let app = launchDemo(["IPTV_FRESHIMAGES": "1"])
-        let films = app.tabBars.firstMatch.buttons["Movies"]
-        XCTAssertTrue(films.waitForExistence(timeout: 30))
-        for _ in 0..<6 where !films.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
-        XCTAssertTrue(films.hasFocus)
+        // On the Movies tab at launch; showTab only puts the focus on it (faster-ui-tests).
+        let app = launchDemo(["IPTV_FRESHIMAGES": "1", "IPTV_TAB": "films"])
+        showTab("Movies", app)
         let rating = app.buttons["grid.sort.rating"]
         XCTAssertTrue(rating.waitForExistence(timeout: 10))
         shot("films", app)
         // Down lands in the grid; Up from its first row reaches the sorting, then sideways to Rating.
         // Down from the tab bar reaches the header (category and sorting); Rating is to the right.
         pressAndWaitForFocusMove(.down, app)
-        for direction in [XCUIRemote.Button.right, .right, .right, .left, .left, .left, .left] where !rating.hasFocus {
-            XCUIRemote.shared.press(direction)
-            Thread.sleep(forTimeInterval: 0.3)
-        }
-        XCTAssertTrue(rating.hasFocus, "the Rating sort has no focus:\n\(app.debugDescription)")
+        focus(rating, in: app, moves: [.right, .right, .right, .left, .left, .left, .left], limit: 7)
         XCUIRemote.shared.press(.select)
         // The first poster then has the highest rating of the visible ones.
         let ratings = {
@@ -132,14 +126,14 @@ final class DetailPagesUITests: FernsyUITestCase {
 
     /// A demo series whose S1 F2 is partly watched (IPTV_TESTRESUME) offers S1 F2 next.
     func testDemoSeriesOffersTheStartedEpisode() {
-        let next = openDemoSeries(launchDemo(["IPTV_TESTRESUME": "episode.00101:300:2760"], arguments: Self.german))
+        let next = openDemoSeries(launchDemo(Self.series800.merging(["IPTV_TESTRESUME": "episode.00101:300:2760"]) { $1 }, arguments: Self.german))
         XCTAssertTrue(next.label.contains("S1 F2"), "the next episode is not S1 F2: \(next.label)")
     }
 
     /// The rule all apps share (episode-label-next-episode): with S1 F1 and S1 F3 watched and F2
     /// skipped, the next episode is S1 F4; in English the code reads "S1 E4".
     func testDemoSeriesSkippedEpisode() {
-        let watched = ["IPTV_TESTWATCHED": "episode.00100,episode.00102"]
+        let watched = Self.series800.merging(["IPTV_TESTWATCHED": "episode.00100,episode.00102"]) { $1 }
         let app = launchDemo(watched, arguments: Self.german)
         let german = openDemoSeries(app)
         shot("series-next-de", app)
@@ -151,23 +145,13 @@ final class DetailPagesUITests: FernsyUITestCase {
 
     private static let german = ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
 
-    /// Opens demo series 800 from the Series tab and returns its Next Episode button.
+    /// Demo series 800's page at launch, through its first episode's link (faster-ui-tests).
+    private static let series800 = ["IPTV_OPEN": "fernsy-dev://open?item=episode:800:00100"]
+
+    /// The Next Episode button of the series page the app opened at launch.
     private func openDemoSeries(_ app: XCUIApplication) -> XCUIElement {
-        // The tab carries its name in the app's language ("Serien" in German).
-        let tab = app.tabBars.firstMatch.buttons.matching(NSPredicate(format: "label IN %@", ["Series", "Serien"])).firstMatch
-        XCTAssertTrue(tab.waitForExistence(timeout: 30), "no Series tab:\n\(app.debugDescription)")
-        for _ in 0..<6 where !tab.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
-        let show = app.buttons["series.800"]
-        XCTAssertTrue(show.waitForExistence(timeout: 15), "no demo series 800")
-        for _ in 0..<12 where !show.hasFocus {
-            let focused = app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true")).firstMatch
-            XCUIRemote.shared.press(focused.identifier.hasPrefix("series.") ? (focused.frame.midX > show.frame.midX ? .left : .right) : .down)
-            Thread.sleep(forTimeInterval: 0.4)
-        }
-        XCTAssertTrue(show.hasFocus, "series 800 has no focus:\n\(app.debugDescription)")
-        XCUIRemote.shared.press(.select)
         let next = app.buttons["series.next"]
-        XCTAssertTrue(next.waitForExistence(timeout: 15), "no Next Episode")
+        XCTAssertTrue(next.waitForExistence(timeout: 30), "no Next Episode:\n\(app.debugDescription)")
         return next
     }
 }
