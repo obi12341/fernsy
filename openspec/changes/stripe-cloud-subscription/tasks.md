@@ -29,7 +29,8 @@
   `acct_1UX6aEEWpaD5hstl`: product `prod_VYDveudH47ZSGT`, price `price_1UX7TREWpaD5hstlnXH8eMXl` (3.49 €,
   inclusive), portal `bpc_1UX7TeEWpaD5hstlNSRhmW8I` (not the account's default, so the worker passes
   `STRIPE_PORTAL_CONFIG`), webhook `we_1UX7TeEWpaD5hstl25x6lT8e` for `fernsy-cloud` (values in
-  `~/.config/fernsy/stripe-live.json`); tax settings were already active (head office Dortmund).
+  `~/.config/fernsy/stripe-live.json`); tax settings were already active (head office Dortmund). Payment method domains `www.fernsy.app` and `fernsy.app`
+  registered live (Apple Pay and Google Pay active; no association file needed with Stripe).
   Open: the DE tax registration (refused to the agent as an account setting), payment methods
   (the MCP cannot change them), the restricted live key, prod deploy, a live purchase with a 100 %
   coupon
