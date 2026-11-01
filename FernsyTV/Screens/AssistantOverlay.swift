@@ -8,6 +8,8 @@ import SwiftUI
 struct AssistantOverlay: View {
     @EnvironmentObject private var model: TVModel
     @FocusState private var fieldFocused: Bool
+    /// "Agree" or "Subscribe": the first thing to press when the overlay asks before a request.
+    @FocusState private var actionFocused: Bool
 
     var body: some View {
         let assistant = model.assistant
@@ -29,6 +31,8 @@ struct AssistantOverlay: View {
             .foregroundStyle(TVTheme.text)
         }
         .focusSection()
+        .defaultFocus($actionFocused, true)
+        .onAppear { if !model.assistant.isAvailable || !model.assistant.hasConsent { actionFocused = true } }
         .onExitCommand { model.showsAssistant = false }
         // Closed while a tool asks: nothing is removed.
         .onDisappear { if !model.showsAssistant && assistant.question != nil { assistant.answerQuestion(false) } }
@@ -87,6 +91,7 @@ struct AssistantOverlay: View {
         HStack(spacing: 24) {
             Button("Agree") { model.assistant.agree() }
                 .buttonStyle(TVPillStyle())
+                .focused($actionFocused)
                 .accessibilityIdentifier("assistant.consent.agree")
             Button("Not Now") { model.showsAssistant = false }
                 .buttonStyle(TVPillStyle(prominent: false))
@@ -107,6 +112,7 @@ struct AssistantOverlay: View {
             }
             .buttonStyle(TVPillStyle())
             .disabled(model.cloud.isPurchasing)
+            .focused($actionFocused)
             .accessibilityIdentifier("assistant.subscribe")
             Button("Restore Purchases") { Task { await model.cloud.restore() } }
                 .buttonStyle(TVPillStyle(prominent: false))

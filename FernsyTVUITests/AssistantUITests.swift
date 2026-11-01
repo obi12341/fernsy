@@ -18,8 +18,10 @@ final class AssistantUITests: FernsyUITestCase {
     private func openFromStart(_ app: XCUIApplication) {
         let open = app.buttons["assistant.open"]
         XCTAssertTrue(open.waitForExistence(timeout: 30), "no assistant button on Start:\n\(app.debugDescription)")
-        for _ in 0..<4 where !open.hasFocus { pressAndWaitForFocusMove(.down, app) }
-        for _ in 0..<4 where !open.hasFocus { pressAndWaitForFocusMove(.up, app) }
+        // From the tab bar, Down may pass the pill and land on the large entry's Play; Start then
+        // scrolls and the lazy stack drops the pill, so go back up instead of further down.
+        if !open.hasFocus { pressAndWaitForFocusMove(.down, app) }
+        for _ in 0..<3 where !open.hasFocus { pressAndWaitForFocusMove(.up, app) }
         XCTAssertTrue(open.hasFocus, "the assistant button has no focus:\n\(app.debugDescription)")
         remote.press(.select)
     }
