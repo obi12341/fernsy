@@ -65,6 +65,9 @@ fi
 # CI passes the version from the tag and the build number from git, without editing the project.
 [ -n "${BUILD_VERSION:-}" ] && SIGNING+=("MARKETING_VERSION=$BUILD_VERSION")
 [ -n "${BUILD_NUMBER:-}" ] && SIGNING+=("CURRENT_PROJECT_VERSION=$BUILD_NUMBER")
+# FERNSY_CLOUD=YES shows Fernsy Cloud; purchases need the App Store, so only for a subscription
+# bought elsewhere with the same Apple ID (test DMGs).
+[ "${FERNSY_CLOUD:-}" = YES ] && SIGNING+=("FERNSY_CLOUD=YES")
 
 echo "▸ Release build ($([ "$SIGN_IDENTITY" = "-" ] && echo ad-hoc || echo "$SIGN_IDENTITY"))"
 xcodebuild -project Fernsy.xcodeproj -scheme "Fernsy Direct" -configuration Release \
