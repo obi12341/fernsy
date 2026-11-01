@@ -28,7 +28,8 @@ Written for software, short, and widely used for exactly this split: any non-com
 purpose (personal use, hobby projects, research, charities, schools, public institutions) is
 allowed, including changes and redistribution under the same terms; commercial use is not.
 The licensor (mobilistics GmbH) is not bound by it and keeps selling Fernsy. `LICENSE` holds the
-unchanged license text from polyformproject.org followed by the required notice line.
+unchanged license text from polyformproject.org (`1.0.0.txt`) and nothing else: the user did not
+want a "Required Notice" copyright line in it; README and DEVELOPMENT.md name mobilistics GmbH.
 
 Rejected alternatives:
 - **Keep GPLv3:** allows others to sell builds; the reason for this change.

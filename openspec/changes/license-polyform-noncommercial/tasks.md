@@ -5,7 +5,7 @@ the files, `openspec validate --all --strict` and the GitHub repository page aft
 
 ## 1. License texts
 
-- [x] 1.1 Replace `LICENSE` with the unchanged PolyForm Noncommercial License 1.0.0 text from https://polyformproject.org/licenses/noncommercial/1.0.0.txt, followed by `Required Notice: Copyright © 2026 mobilistics GmbH (https://www.fernsy.app)`
+- [x] 1.1 Replace `LICENSE` with the unchanged PolyForm Noncommercial License 1.0.0 text from https://polyformproject.org/licenses/noncommercial/1.0.0.txt, with no notice line added (decided with the user)
 - [x] 1.2 README's contributing section: "source-available" instead of "free software"; personal and non-commercial use, changes and sharing allowed, commercial use not; releases up to v1.6.0 remain under GPLv3; FFmpeg stays LGPL 2.1; the CLA sentence reworded for the new license (mobilistics sells Fernsy)
 - [x] 1.3 DEVELOPMENT.md "License": the same terms and the GPLv3 note for earlier releases; contributions paragraph without the GPL wording
 - [x] 1.4 `openspec/config.yaml` context: "under the PolyForm Noncommercial License 1.0.0" instead of "under GPLv3"

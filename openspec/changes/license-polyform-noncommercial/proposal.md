@@ -10,8 +10,8 @@ so 2.0.0 is the first version under the new terms.
 
 ## What Changes
 
-- **BREAKING (licensing):** `LICENSE` becomes the PolyForm Noncommercial License 1.0.0 with
-  the required notice "Copyright © 2026 mobilistics GmbH". Fernsy is no longer free/open-source
+- **BREAKING (licensing):** `LICENSE` becomes the PolyForm Noncommercial License 1.0.0, the
+  official text without an added notice line. Fernsy is no longer free/open-source
   software but source-available.
 - README's contributing section and DEVELOPMENT.md's "License" section describe the new
   license: personal and other non-commercial use, changes and sharing are allowed; commercial
