@@ -81,3 +81,10 @@ the host, the rest in the test VM) before the next.
   runs, so single classes need two runs to judge. `showTab` waiting for each focus move is the
   likely cause of `LiveAndGuideUITests` (7 calls) getting 19 s slower; it went back to short
   pauses.
+- A/B in the test VM (same machine, same app build, only the test code differs; old = baseline
+  `ba3ff2e`, new = `0c19f86`; three runs each; run-to-run spread under 1 s, against ±20 s per
+  class on CI): DetailPagesUITests 36.3 → 15.3 s (−58 %), SearchUITests without its playback
+  test 62.6 → 56.8 s (−9 %), LibraryUITests 19.9 → 20.0 s (navigation test, no gain), control
+  classes using `showTab`/`tabButton` (GuideFocus, PosterFocus, Settings, Tabs) unchanged within
+  0.4 s; the seven classes 233.7 → 207.9 s (−11 %). So the CI differences were noise, linking into
+  a screen is where the time goes, and the VM is the instrument for these measurements.

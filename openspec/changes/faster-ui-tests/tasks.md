@@ -7,7 +7,7 @@ classes on the host (no hardware video decoding in the VM).
 ## 1. Baseline
 
 - [x] 1.1 `scripts/uitest-times.sh <xcresult>`: duration per test and per class from a result bundle
-- [ ] 1.2 Baseline: a full Apple TV run (VM for non-playback, host for playback classes); numbers into design.md
+- [x] 1.2 Baseline: a full Apple TV run (VM for non-playback, host for playback classes); numbers into design.md (CI baseline run 41275123402: 70 tests, 1562 s)
 
 ## 2. App switches (debug builds)
 
