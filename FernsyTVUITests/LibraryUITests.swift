@@ -4,22 +4,16 @@ import XCTest
 /// posters twice, a film page resumes or starts over, a series page names the next episode.
 final class LibraryUITests: FernsyUITestCase {
     func testFilmGridSortsAndKeepsPosters() {
-        let app = launchDemo(["IPTV_FRESHIMAGES": "1"])
-        let films = app.tabBars.firstMatch.buttons["Movies"]
-        XCTAssertTrue(films.waitForExistence(timeout: 30))
-        for _ in 0..<6 where !films.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.4) }
-        XCTAssertTrue(films.hasFocus)
+        // On the Movies tab at launch; showTab only puts the focus on it (faster-ui-tests).
+        let app = launchDemo(["IPTV_FRESHIMAGES": "1", "IPTV_TAB": "films"])
+        showTab("Movies", app)
         let rating = app.buttons["grid.sort.rating"]
         XCTAssertTrue(rating.waitForExistence(timeout: 10))
         shot("films", app)
         // Down lands in the grid; Up from its first row reaches the sorting, then sideways to Rating.
         // Down from the tab bar reaches the header (category and sorting); Rating is to the right.
         pressAndWaitForFocusMove(.down, app)
-        for direction in [XCUIRemote.Button.right, .right, .right, .left, .left, .left, .left] where !rating.hasFocus {
-            XCUIRemote.shared.press(direction)
-            Thread.sleep(forTimeInterval: 0.3)
-        }
-        XCTAssertTrue(rating.hasFocus, "the Rating sort has no focus:\n\(app.debugDescription)")
+        focus(rating, in: app, moves: [.right, .right, .right, .left, .left, .left, .left], limit: 7)
         XCUIRemote.shared.press(.select)
         // The first poster then has the highest rating of the visible ones.
         let ratings = {
