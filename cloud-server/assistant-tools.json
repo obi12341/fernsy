@@ -1,0 +1,375 @@
+[
+  {
+    "function" : {
+      "description" : "Find live TV channels by name or category. Without arguments it lists the categories and the favourite channels.",
+      "name" : "find_channels",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "category" : {
+            "description" : "Category name or id",
+            "type" : "string"
+          },
+          "favorites_only" : {
+            "type" : "boolean"
+          },
+          "limit" : {
+            "maximum" : 200,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "query" : {
+            "description" : "Part of the channel name",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "The current and next show on the given channels (default: favourites, then recently watched).",
+      "name" : "whats_on",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "channel_ids" : {
+            "items" : {
+              "type" : "integer"
+            },
+            "maxItems" : 50,
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "A channel's program guide for a time range (default: the next 24 hours).",
+      "name" : "get_program",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "channel_id" : {
+            "type" : "integer"
+          },
+          "from" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "channel_id"
+        ],
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Search show titles and descriptions in the guide of up to 50 channels (default: favourites and recently watched).",
+      "name" : "search_program",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "channel_ids" : {
+            "items" : {
+              "type" : "integer"
+            },
+            "maxItems" : 50,
+            "type" : "array"
+          },
+          "from" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "query" : {
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "query"
+        ],
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Recently watched live channels, IPTV films in progress, and Jellyfin Continue Watching and Next Up.",
+      "name" : "recently_watched",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Running, scheduled and finished recordings.",
+      "name" : "list_recordings",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "status" : {
+            "enum" : [
+              "all",
+              "scheduled",
+              "recording",
+              "done",
+              "failed"
+            ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Schedule a recording of a show from the guide, with the app's padding and stream-limit rules.",
+      "name" : "schedule_recording",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "channel_id" : {
+            "description" : "With start, instead of show_id",
+            "type" : "integer"
+          },
+          "show_id" : {
+            "description" : "From get_program, whats_on or search_program",
+            "type" : "string"
+          },
+          "start" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Remove a scheduled recording. Running and finished recordings and their files are not touched.",
+      "name" : "cancel_recording",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "recording_id" : {
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "recording_id"
+        ],
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Play an item in Fernsy's player: live:<channel id> (switches channels), movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<Fernsy Cloud id>. Never ends a running recording.",
+      "name" : "play",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "item_id" : {
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "item_id"
+        ],
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "What Fernsy's player plays right now, with position, duration, remaining time, end time and paused state; for live TV how far behind live and the current show.",
+      "name" : "now_playing",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Details of a film, episode, Jellyfin item or recording: title, runtime, remaining time, plot, year, series\/season\/episode; for Jellyfin items the audio and subtitle tracks, and for episodes the previous and next episode.",
+      "name" : "item_info",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "item_id" : {
+            "description" : "movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<id>",
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "item_id"
+        ],
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Seasons of a Jellyfin series, or the episodes of one season with item ids, runtime and watched state.",
+      "name" : "list_episodes",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "season" : {
+            "description" : "Season number (0 = specials); without it the seasons are listed",
+            "type" : "integer"
+          },
+          "series_id" : {
+            "description" : "jellyfin:<series id>, or an episode's jellyfin:<item id>",
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "series_id"
+        ],
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Stop playback and close the player.",
+      "name" : "stop_playback",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Pause what plays (live TV keeps receiving and continues behind live).",
+      "name" : "pause",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Resume paused playback.",
+      "name" : "resume",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "Seek in what plays. Pass exactly one target. Live TV can only be rewound within its buffer (see now_playing's rewind fields).",
+      "name" : "seek",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "by_seconds" : {
+            "description" : "Relative jump, negative = back",
+            "type" : "number"
+          },
+          "to_live" : {
+            "description" : "Back to the live edge",
+            "type" : "boolean"
+          },
+          "to_position" : {
+            "description" : "Seconds or h:mm:ss within a film, episode, Jellyfin item or recording",
+            "type" : "string"
+          },
+          "to_show_start" : {
+            "description" : "Start of the current live show, as far as the buffer reaches",
+            "type" : "boolean"
+          },
+          "to_time" : {
+            "description" : "Clock time within the live buffer",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  },
+  {
+    "function" : {
+      "description" : "The text subtitles of a Jellyfin item with start and end times, for finding a scene by what is said. Choose the track from item_info's subtitle_tracks (forced tracks only cover foreign-language parts).",
+      "name" : "get_subtitles",
+      "parameters" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "from" : {
+            "description" : "Seconds or h:mm:ss",
+            "type" : "string"
+          },
+          "item_id" : {
+            "description" : "jellyfin:<id>; default: the Jellyfin item that plays",
+            "type" : "string"
+          },
+          "to" : {
+            "description" : "Seconds or h:mm:ss",
+            "type" : "string"
+          },
+          "track" : {
+            "description" : "Subtitle track index from item_info's subtitle_tracks; default: the track that plays, or the only text track",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "type" : "function"
+  }
+]

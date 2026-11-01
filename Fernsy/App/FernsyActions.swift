@@ -10,7 +10,7 @@ struct FernsyActions {
     let app: AppModel
 
     /// Upper bound for one search or listing over channels.
-    nonisolated static let channelLimit = 50
+    nonisolated static let channelLimit = AssistantTools.channelLimit
 
     // MARK: Channels
 

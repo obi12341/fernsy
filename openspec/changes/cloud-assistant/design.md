@@ -38,13 +38,18 @@ so a modified client cannot turn the relay into a general chatbot.
 Rejected: tools defined in the request (lets any client send any tools); the server running tools
 (the guide, library and playback live in the app, and the server must not hold readable catalogs).
 
-### 2. Model
-Claude Haiku 5.5 (`claude-haiku-5-5`) through Anthropic's Messages API with tool use: fast enough
-for a remote-control interaction and the cheapest current Claude model. Prompt caching on the
-system prompt and tool definitions, which are the same for every request and the largest part of
-it. The model id is a worker setting, so it can change without an app update.
-Rejected: a larger model by default (cost per request within 2.99 €); several providers (one is
-enough to start; the relay keeps the choice server-side).
+### 2. Provider and model: OpenRouter
+The relay calls OpenRouter's OpenAI-compatible chat completions API (tools as `functions`,
+`tool_calls` in answers) with one key, stored as the worker secret `OPENROUTER_API_KEY`
+(decided with the user, 2026-11-01; the key comes from the user's existing OpenRouter account).
+Default model: Claude Haiku (`anthropic/claude-haiku-5.5` on OpenRouter), fast enough for a
+remote-control interaction and among the cheapest capable models. The model id is a worker
+setting, so it can change without an app update; OpenRouter's cache control for Anthropic models
+keeps the system prompt and tool definitions, the largest part of each request, cached. A spending
+limit can be set on the key in OpenRouter.
+Rejected: Anthropic's Messages API directly (a second account and key, no switching models
+without code); several providers in the relay (OpenRouter already routes to them); a larger model
+by default (cost per request within 2.99 €).
 
 ### 3. Abuse protection on the server
 - Subscription check per request (cached for minutes, as the storage endpoints do).
@@ -83,7 +88,8 @@ from a button on Start and in the player's menu). The assistant entry shows only
 subscription; without it, it offers Fernsy Cloud.
 
 ### 8. Consent and privacy
-A consent screen before the first request per device, naming Anthropic as provider and the data
+A consent screen before the first request per device, naming OpenRouter and the model's
+provider (Anthropic) and the data
 sent (request, conversation, the catalog parts a request needs, favourites, recently watched).
 Stored per device (UserDefaults, synced via iCloud key-value store like other settings), revocable
 in Settings. The worker logs only account id, time, token counts and outcome. The privacy pages

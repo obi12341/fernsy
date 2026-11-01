@@ -7,16 +7,16 @@ test VM (`scripts/vm.sh`).
 
 ## 1. Shared tools
 
-- [ ] 1.1 `AssistantTools` in FernsyCore: the MCP tools' names, descriptions and schemas, used by the Mac's MCP server unchanged in behaviour
-- [ ] 1.2 `scripts/assistant-tools.sh` exports them as JSON for the worker; a test checks the worker's copy matches
+- [x] 1.1 `AssistantTools` in FernsyCore: the MCP tools' names, descriptions and schemas, used by the Mac's MCP server unchanged in behaviour
+- [x] 1.2 `scripts/assistant-tools.sh` exports them as JSON for the worker (OpenAI `functions` form); a test checks the worker's copy matches
 - [ ] 1.3 Tool execution on Apple TV and iOS against `TVModel` (iOS without recording tools); unit tests for argument errors
 
 ## 2. Relay (cloud-server)
 
 - [ ] 2.1 `POST /v1/assistant`: account auth, subscription check, allowance per calendar month and rate per minute in D1, request size cap
-- [ ] 2.2 Forward to the Messages API with the server's system prompt and tools, prompt caching, `max_tokens` and tool-round cap; model id and limits as worker settings
+- [ ] 2.2 Forward to OpenRouter's chat completions API with the server's system prompt and tools (`functions`), cache control, `max_tokens` and tool-round cap; model id and limits as worker settings
 - [ ] 2.3 Logs and database hold only account id, time, token counts and outcome; tests for allowance, rate, ended subscription, client-sent tools ignored
-- [ ] 2.4 Deploy to the dev deployment
+- [ ] 2.4 Deploy to the dev deployment; `deploy.sh` takes `OPENROUTER_API_KEY` like its other secrets (from the user's SOPS-encrypted LibreChat secret in gitops-admin, decrypted into the deploy only)
 
 ## 3. Apps
 

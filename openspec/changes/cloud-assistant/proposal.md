@@ -46,6 +46,7 @@ not only for people who record on a Mac.
 
 ## Impact
 
+- Provider: OpenRouter (one key, models switchable in the worker), default model Claude Haiku.
 - FernsyCore: tool definitions shared by all apps (from the Mac's MCP tools), the assistant
   conversation loop, the relay client.
 - Mac, Apple TV, iOS: tool execution against each app's model, the assistant UI, the consent
