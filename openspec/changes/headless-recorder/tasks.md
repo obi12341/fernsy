@@ -46,7 +46,7 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## 6. Docs and verification
 
-- [ ] 6.1 DEVELOPMENT.md and a short user page (README section or website): running the server, pairing, removing, privacy (what the volume holds)
+- [x] 6.1 DEVELOPMENT.md › Fernsy Server and the user page `server/README.md`: running the server, pairing, removing, privacy (what the volume holds)
 - [ ] 6.2 End to end on the test VM: pair from the Mac, schedule on the iPad, the server records a demo channel, the recording plays on the Apple TV from Fernsy Cloud
 - [ ] 6.3 arm64 on a Raspberry Pi 4: start, pair, one recording
 - [ ] 6.4 `openspec validate --all --strict`
@@ -54,5 +54,7 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## Workflow follow-up
 
+- With the release that ships the apps' server UI: a "Fernsy Server" part in README.md and on the
+  website (project-readme: the README only names what the current release has).
 - Release-note trailers when the apps' server UI ships. Archive, merge into `main` and push with
   the user's consent.

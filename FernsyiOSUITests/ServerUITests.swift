@@ -14,10 +14,12 @@ final class ServerUITests: XCTestCase {
         let env = ProcessInfo.processInfo.environment
         guard let status = env["FERNSY_SERVER_STATUS"].flatMap(URL.init(string:)), let control = env["IPTV_CONTROL"],
               let cloud = env["IPTV_CLOUD"], let token = env["IPTV_CLOUDTOKEN"] else { return nil }
-        // A fresh control key per run, in memory: the test pairs a new space every time.
+        // A fresh control key per run, in memory: the test pairs a new space every time. Given keys
+        // (`IPTV_CONTROLKEY`, `IPTV_CLOUDKEY`, base64 key JSON) let an end-to-end run go on
+        // with the same space and cloud key from the command line and on the Apple TV.
         let raw = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
-        let key = Data(#"{"raw":"\#(raw.base64EncodedString())"}"#.utf8).base64EncodedString()
-        return (["IPTV_CONTROL": control, "IPTV_CLOUD": cloud, "IPTV_CLOUDTOKEN": token, "IPTV_CLOUDKEY": "local",
+        let key = env["IPTV_CONTROLKEY"] ?? Data(#"{"raw":"\#(raw.base64EncodedString())"}"#.utf8).base64EncodedString()
+        return (["IPTV_CONTROL": control, "IPTV_CLOUD": cloud, "IPTV_CLOUDTOKEN": token, "IPTV_CLOUDKEY": env["IPTV_CLOUDKEY"] ?? "local",
                  "IPTV_CONTROLKEY": key], status)
     }
 
@@ -76,6 +78,13 @@ final class ServerUITests: XCTestCase {
             Int(cell.identifier.split(separator: ".").last ?? "") ?? 0 > later
         }
         let show = try XCTUnwrap(future, "no later show of channel 101")
+        // The next show may start just past the right edge: scroll the guide along its row.
+        let window = app.windows.firstMatch
+        for _ in 0..<4 where !window.frame.contains(CGPoint(x: show.frame.minX + 30, y: show.frame.midY)) {
+            let y = show.frame.midY / window.frame.height
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: y))
+                .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: y)))
+        }
         show.tap()
         let record = app.buttons["server.record"]
         XCTAssertTrue(record.waitForExistence(timeout: 10), "no Record on Fernsy Server:\n\(app.debugDescription)")
