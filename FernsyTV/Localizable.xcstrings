@@ -1683,6 +1683,16 @@
         }
       }
     },
+    "Remove the scheduled recording of “%@” (%@)?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geplante Aufnahme von „%1$@“ (%2$@) entfernen?"
+          }
+        }
+      }
+    },
     "Restart": {
       "localizations": {
         "de": {

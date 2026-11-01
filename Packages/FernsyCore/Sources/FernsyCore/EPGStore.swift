@@ -158,6 +158,44 @@ public final class EPGStore {
         !Self.isFresh(guide(channelId))
     }
 
+    // MARK: Assistants
+
+    /// Loads several channels' programmes (cache first), waiting at most `timeout` seconds;
+    /// slower channels keep what they have (the quick now/next answer, or nothing).
+    public func load(_ ids: [Int], client: XtreamClient?, timeout: TimeInterval) async {
+        guard let client else { return }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await withTaskGroup(of: Void.self) { loads in
+                    for id in ids { loads.addTask { @MainActor in await self.load(id, client: client) } }
+                }
+            }
+            group.addTask { try? await Task.sleep(for: .seconds(timeout)) }
+            await group.next()
+            group.cancelAll()
+        }
+    }
+
+    /// The show on now and the next one (from the loaded programme).
+    public func nowAndNext(_ channelId: Int, at now: Date = Date()) -> (now: EPGEntry?, next: EPGEntry?) {
+        let list = (guide(channelId).entries ?? []).filter { $0.end > now }.sorted { $0.start < $1.start }
+        return (list.first { $0.start <= now }, list.first { $0.start > now })
+    }
+
+    /// Loaded shows on `channels` whose title or description contains `query`, sorted by start.
+    public func search(_ query: String, on channels: [LiveChannel], from: Date, to: Date) -> [(entry: EPGEntry, channel: LiveChannel)] {
+        let needle = makeSearchKey(query.trimmingCharacters(in: .whitespaces))
+        guard !needle.isEmpty else { return [] }
+        var hits: [(entry: EPGEntry, channel: LiveChannel)] = []
+        for channel in channels {
+            for entry in guide(channel.id).entries ?? [] where entry.end > from && entry.start < to
+                && (makeSearchKey(entry.title).contains(needle) || makeSearchKey(entry.description).contains(needle)) {
+                hits.append((entry, channel))
+            }
+        }
+        return hits.sorted { $0.entry.start < $1.entry.start }
+    }
+
     /// How often a visible row asks `needsRefresh` (`IPTV_EPGRECHECK=<s>` in debug builds).
     public static var recheckInterval: TimeInterval {
         #if DEBUG

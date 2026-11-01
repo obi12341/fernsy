@@ -32,41 +32,21 @@ struct FernsyActions {
     /// Loads the guides (cache first), waiting at most `timeout` seconds; slower channels keep
     /// what they have (the quick now/next answer, or nothing).
     func loadGuides(_ ids: [Int], timeout: TimeInterval = 20) async {
-        guard let client = app.client else { return }
-        let epg = app.epg
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                await withTaskGroup(of: Void.self) { loads in
-                    for id in ids { loads.addTask { @MainActor in await epg.load(id, client: client) } }
-                }
-            }
-            group.addTask { try? await Task.sleep(for: .seconds(timeout)) }
-            await group.next()
-            group.cancelAll()
-        }
+        await app.epg.load(ids, client: app.client, timeout: timeout)
     }
 
     func entries(_ channelId: Int) -> [EPGEntry] { app.epg.guide(channelId).entries ?? [] }
 
     /// The show on now and the next one (from the loaded guide).
     func nowAndNext(_ channelId: Int, at now: Date = Date()) -> (now: EPGEntry?, next: EPGEntry?) {
-        let list = entries(channelId).filter { $0.end > now }.sorted { $0.start < $1.start }
-        return (list.first { $0.start <= now }, list.first { $0.start > now })
+        app.epg.nowAndNext(channelId, at: now)
     }
 
     /// Shows whose title or description contains `query`, sorted by start.
     func searchGuide(_ query: String, on channels: [LiveChannel], from: Date = Date(), to: Date = .distantFuture) async -> [(entry: EPGEntry, channel: LiveChannel)] {
-        let needle = makeSearchKey(query.trimmingCharacters(in: .whitespaces))
-        guard !needle.isEmpty else { return [] }
+        guard !makeSearchKey(query.trimmingCharacters(in: .whitespaces)).isEmpty else { return [] }
         await loadGuides(channels.map(\.id), timeout: 30)
-        var hits: [(entry: EPGEntry, channel: LiveChannel)] = []
-        for channel in channels {
-            for entry in entries(channel.id) where entry.end > from && entry.start < to
-                && (makeSearchKey(entry.title).contains(needle) || makeSearchKey(entry.description).contains(needle)) {
-                hits.append((entry, channel))
-            }
-        }
-        return hits.sorted { $0.entry.start < $1.entry.start }
+        return app.epg.search(query, on: channels, from: from, to: to)
     }
 
     // MARK: Recordings

@@ -9,7 +9,7 @@ test VM (`scripts/vm.sh`).
 
 - [x] 1.1 `AssistantTools` in FernsyCore: the MCP tools' names, descriptions and schemas, used by the Mac's MCP server unchanged in behaviour
 - [x] 1.2 `scripts/assistant-tools.sh` exports them as JSON for the worker (OpenAI `functions` form); a test checks the worker's copy matches
-- [ ] 1.3 Tool execution on Apple TV and iOS against `TVModel` (iOS without recording tools); unit tests for argument errors
+- [x] 1.3 Tool execution on Apple TV and iOS against `TVModel` (iOS without recording tools); unit tests for argument errors
 
 ## 2. Relay (cloud-server)
 
