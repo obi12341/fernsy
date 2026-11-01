@@ -32,7 +32,9 @@ final class AutoSignInUITests: FernsyUITestCase {
         // The launch screen with its steps, checked off in turn, at least 1.5 s.
         let screen = app.descendants(matching: .any)["icloud.signingIn"]
         XCTAssertTrue(screen.waitForExistence(timeout: 10), "no launch screen:\n\(app.debugDescription)")
-        XCTAssertEqual(app.descendants(matching: .any)["icloud.step.found"].value as? String, "running", "no running iCloud step")
+        // Usually still running; on a slow CI runner the first look can come after it finished.
+        let found = app.descendants(matching: .any)["icloud.step.found"].value as? String
+        XCTAssertTrue(found == "running" || found == "done", "no started iCloud step: \(found ?? "none")")
         shot("auto-signin-looking", app)
         let channels = app.descendants(matching: .any)["icloud.step.channels"]
         // On a slow CI runner one look at the screen takes seconds and can miss the moment all
