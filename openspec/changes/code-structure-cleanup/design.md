@@ -200,13 +200,19 @@ A phase that causes a regression is reverted on its own.
 - Phase 3 verification per step: package tests, `scripts/test.sh`, builds of all three apps,
   the UI test classes that cover the moved code, and a Mac dev run of the affected path; the
   full Apple TV and iOS suites run once at the end (3.8) instead of after every step.
+- 3.4: the stream of a Fernsy Cloud recording comes from `CloudModel.streamSource` (next to
+  `PlaybackStart`, in the same file), not from `PlaybackStart` itself: it needs the model's
+  client and download URLs, and the Mac and the Apple TV both have a `CloudModel`. The Mac's
+  start went into `AppModel+Playback.swift`.
+- 3.5: the shared builder setup is an extension of `StartBuilder` in FernsyPlayer
+  (`StartBuilder+Player.swift`), not in FernsyCore as planned: it reads `JellyfinStore` and the
+  recorder's `Recording`, both in FernsyPlayer. `StartBuilder` itself stays in FernsyCore.
 - 3.6: shared by Apple TV and iOS now: `Runtime`, `DetailTarget`, the search hit, the film facts,
   position and duration, the episode rows (`LibraryDetail`), the search (channels, show hits,
   index, film and series hits) and Übersicht's inputs (`TVModel+Search.swift`), and short texts
   (`LibraryText`). Left in the views: the film and series pages' loading, playing and favourite
   toggling. They work on each view's own state; sharing them needs a shared view model, a design
   change rather than a cleanup.
-
 - 3.7: two messages in the shared recordings code named the Apple TV or tvOS on iOS too: the
   free-space refusal and the missing-file notice. Both are per platform now (`#if os(tvOS)`); iOS
   says "this device" and "the system". iOS keeps recordings in Caches as well, so the system can

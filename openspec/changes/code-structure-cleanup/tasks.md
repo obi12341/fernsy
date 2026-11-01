@@ -60,12 +60,15 @@ Verification for each phase:
 - [x] 3.5 StartBuilder setup and the Start refresh inputs (resume, live, catalog) once: shared builder setup in FernsyCore for Mac and TV, and the inputs in `TVModel` for Apple TV and iOS. iOS then also follows recordings, as the TV does
 - [x] 3.6 The non-UI helpers iOS copied from the TV screens become shared `TVModel` or `LibraryEntry` functions, used by both: detail facts, position and duration texts, entries, Jellyfin search, channel list
 - [x] 3.7 Platform-neutral wording for messages in code shared with iOS ("Not enough free space on the Apple TV" → per-platform text); German strings updated
-- [ ] 3.8 Verify (A), (B) and (C) after each of 3.1–3.7 (one commit each); a final full run of all three
+- [x] 3.8 Verify (A), (B) and (C) after each of 3.1–3.7 (one commit each); a final full run of all three
+  - Final run: package tests (167 + 17), `scripts/test.sh`, all three app builds and the Mac run
+    passed. The full Apple TV run had no failure after 45 of 68 tests when the user had it
+    merged ahead of the iPad run, since CI runs every test again before a nightly or release.
 
 ## 4. Wrap-up
 
-- [ ] 4.1 Note in design.md what was moved or merged differently from the plan, with the reason
-- [ ] 4.2 `openspec validate --all --strict` passes
+- [x] 4.1 Note in design.md what was moved or merged differently from the plan, with the reason
+- [x] 4.2 `openspec validate --all --strict` passes
 
 ## Workflow follow-up
 
@@ -78,4 +81,5 @@ Verification for each phase:
     the first started, else the one after the last watched. Check the specs and decide which
     one is right.
 - Archive on `change/code-structure-cleanup`, merge into `main` and push with the user's
-  consent (no release-note trailers: nothing users notice).
+  consent. Release-note trailers only on 3.7 (iOS no longer names the Apple TV in two
+  recording notices); the rest changes nothing users notice.
