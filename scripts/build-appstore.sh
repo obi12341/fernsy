@@ -30,7 +30,9 @@ cd "$ROOT"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-VERSIONS=()
+# Fernsy Cloud (recordings cloud and assistant) is on in App Store builds since its launch
+# (fernsy-cloud-launch); FERNSY_CLOUD=NO builds without it.
+VERSIONS=("FERNSY_CLOUD=${FERNSY_CLOUD:-YES}")
 [ -n "${BUILD_VERSION:-}" ] && VERSIONS+=("MARKETING_VERSION=$BUILD_VERSION")
 [ -n "${BUILD_NUMBER:-}" ] && VERSIONS+=("CURRENT_PROJECT_VERSION=$BUILD_NUMBER")
 AUTH=()
@@ -58,6 +60,10 @@ for lib in avutil swresample swscale avcodec avformat avfilter; do
 done
 if ls "$FW"/*.dylib >/dev/null 2>&1; then echo "✗ loose dylibs in the archive: $(ls "$FW"/*.dylib)" >&2; exit 1; fi
 echo "✓ FFmpeg frameworks embedded"
+PLIST="$APP/Info.plist"; [ -f "$PLIST" ] || PLIST="$APP/Contents/Info.plist"
+CLOUD="$(/usr/libexec/PlistBuddy -c 'Print FernsyCloud' "$PLIST" 2>/dev/null || true)"
+[ "$CLOUD" = "${FERNSY_CLOUD:-YES}" ] || { echo "✗ FernsyCloud is '$CLOUD', expected '${FERNSY_CLOUD:-YES}'" >&2; exit 1; }
+echo "✓ Fernsy Cloud: $CLOUD"
 if [ "$PLATFORM" = "tvos" ]; then
     [ -d "$APP/PlugIns/FernsyTopShelf.appex" ] || { echo "✗ FernsyTopShelf.appex missing in the archive" >&2; exit 1; }
     echo "✓ Top Shelf extension embedded"

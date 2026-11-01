@@ -6,6 +6,9 @@
 	     (Config/Info.plist): Xtream servers, their stream redirects and Jellyfin in the home
 	     network are plain HTTP.
 	     Do not add NSAllowsArbitraryLoadsForMedia: it makes ATS ignore NSAllowsArbitraryLoads. -->
+	<!-- Fernsy Cloud shows only with FERNSY_CLOUD = YES (add-recording-cloud design H). -->
+	<key>FernsyCloud</key>
+	<string>$(FERNSY_CLOUD)</string>
 	<!-- Only standard HTTPS/TLS from the system: exempt from export documentation. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
