@@ -23,6 +23,11 @@ or `docker compose up -d` with [compose.yaml](compose.yaml).
    code and choose the IPTV login the server records with.
 3. Done: when scheduling a show, choose the server. The status page lists what it records.
 
+When your IPTV password changes (or you move to another account), sign in with the new login on
+one of your devices and choose "Use This Login" in the server's settings there. The server checks
+it with your provider and only then records with it; a login the provider refuses is reported and
+the previous one stays. The settings show which login the server records with.
+
 To remove it, remove the server in the app: it deletes its keys, login and unfinished recordings
 and shows a new code. Deleting the volume does the same on the server's side.
 
@@ -55,7 +60,7 @@ and shows a new code. Deleting the volume does the same on the server's side.
 `swift build` / `swift test` in `server/` (macOS or Linux). Debug builds read `IPTV_CONTROL`,
 `IPTV_CLOUD` and `IPTV_CLOUDTOKEN` for the dev services and play the app's part from the command
 line (`FernsyServer app-pair <code>`, `app-order <channel> <minutes from now> <minutes>`,
-`app-list`, `app-cancel <id>`, `app-remove`; the control key in `FERNSY_DEV_APP`). See
+`app-login <user> <password> [server]`, `app-list`, `app-cancel <id>`, `app-remove`; the control key in `FERNSY_DEV_APP`). See
 DEVELOPMENT.md › Fernsy Server.
 
 Image: `docker buildx build -f server/Dockerfile --platform linux/amd64,linux/arm64 .` from the

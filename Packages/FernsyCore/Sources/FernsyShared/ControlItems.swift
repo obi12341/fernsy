@@ -9,6 +9,8 @@ public enum ControlKind: String, Sendable {
     case state
     /// Server: one item with id `status`.
     case server
+    /// Apps: the IPTV login the server should record with (id `login`, server-login-update).
+    case login
     /// Apps: the server was removed (id `removed`, the time as value); a server paired before
     /// that time wipes its secrets, one paired later ignores it.
     case removed
@@ -88,6 +90,43 @@ public struct ControlOrderState: Codable, Equatable, Sendable {
     public var isFinished: Bool { [.done, .failed, .refused].contains(phase) }
 }
 
+/// A login an app hands the server (server-login-update); the newest one sent wins.
+public struct ControlLogin: Codable, Equatable, Sendable {
+    public var credentials: XtreamCredentials
+    public var sentAt: Date
+
+    public init(credentials: XtreamCredentials, sentAt: Date = Date()) {
+        self.credentials = credentials
+        self.sentAt = sentAt
+    }
+
+    /// "user @ host": how the apps name a login, never with its password.
+    public static func display(_ credentials: XtreamCredentials) -> String {
+        "\(credentials.username) @ \(credentials.baseURL?.host ?? credentials.server)"
+    }
+}
+
+/// What became of the last login an app sent.
+public struct ControlLoginOutcome: Codable, Equatable, Sendable {
+    public enum Result: String, Codable, Sendable {
+        /// Checked with the provider and in use.
+        case accepted
+        /// The provider refused it; the previous login stays.
+        case refused
+        /// The provider could not be reached for an hour; the previous login stays.
+        case unreachable
+    }
+
+    /// The `sentAt` of the login item this is about.
+    public var sentAt: Date
+    public var result: Result
+
+    public init(sentAt: Date, result: Result) {
+        self.sentAt = sentAt
+        self.result = result
+    }
+}
+
 /// The server's report, written on every poll.
 public struct ControlServerStatus: Codable, Equatable, Sendable {
     public var lastContact: Date
@@ -102,9 +141,16 @@ public struct ControlServerStatus: Codable, Equatable, Sendable {
     public var streamLimit: Int?
     /// Something the user should fix (login refused, disk full), in English for the log.
     public var error: String?
+    /// The login it records with, as `ControlLogin.display` (nil from servers before
+    /// server-login-update).
+    public var login: String?
+    /// The provider refuses the login it records with.
+    public var loginRefused: Bool?
+    public var loginUpdate: ControlLoginOutcome?
 
     public init(lastContact: Date, version: String, freeBytes: Int64? = nil, running: [String] = [],
-                nextId: String? = nil, nextStart: Date? = nil, streamLimit: Int? = nil, error: String? = nil) {
+                nextId: String? = nil, nextStart: Date? = nil, streamLimit: Int? = nil, error: String? = nil,
+                login: String? = nil, loginRefused: Bool? = nil, loginUpdate: ControlLoginOutcome? = nil) {
         self.lastContact = lastContact
         self.version = version
         self.freeBytes = freeBytes
@@ -113,6 +159,9 @@ public struct ControlServerStatus: Codable, Equatable, Sendable {
         self.nextStart = nextStart
         self.streamLimit = streamLimit
         self.error = error
+        self.login = login
+        self.loginRefused = loginRefused
+        self.loginUpdate = loginUpdate
     }
 
     /// The apps show the server as offline after 10 minutes without a report (spec).

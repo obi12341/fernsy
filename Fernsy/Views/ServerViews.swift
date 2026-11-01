@@ -26,10 +26,24 @@ struct ServerSettingsSection: View {
                 if let free = status.freeBytes {
                     LabeledContent("Free Space") { Text(verbatim: CloudUploadQueue.bytes(free)) }
                 }
-                if let error = status.error {
+                if let error = status.error, status.loginRefused != true {
                     Text(verbatim: error).foregroundStyle(Theme.warning)
                 }
+                if let login = status.login {
+                    LabeledContent("Records With") { Text(verbatim: login) }
+                        .accessibilityIdentifier("server.login")
+                }
+                if let note = ServerText.loginNote(status, checking: server.isCheckingLogin) {
+                    Text(verbatim: note)
+                        .foregroundStyle(ServerText.loginNoteIsWarning(status, checking: server.isCheckingLogin) ? Theme.warning : .secondary)
+                }
                 HStack {
+                    if let credentials = app.credentials {
+                        Button("Use This Login") { Task { try? await server.useLogin(credentials) } }
+                            .disabled(server.isCheckingLogin)
+                            .help("Sends the login this Mac signs in with, for example after a new password. The server checks it with the provider before it uses it.")
+                            .accessibilityIdentifier("server.useLogin")
+                    }
                     Spacer()
                     Button("Remove Server…", role: .destructive) { confirmRemove = true }
                         .accessibilityIdentifier("server.remove")

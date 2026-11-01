@@ -146,4 +146,23 @@ struct ServerModelTests {
         let items = try await control.items(try #require(await keys.key()), since: 0).items
         #expect(items.first { $0.kind == "removed" }?.deleted == true)
     }
+
+    @Test func sendingALoginWaitsForTheServersAnswer() async throws {
+        let control = FakeControl()
+        let (model, keys) = model(control)
+        let key = try await keys.createIfMissing()
+        let login = XtreamCredentials(server: "https://tv.example", username: "anna", password: "new")
+        try await model.useLogin(login)
+        #expect(model.isCheckingLogin)
+        let sent = try #require(model.sentLoginAt)
+        let item = try #require(try await control.items(key, since: 0).items.first { $0.kind == "login" })
+        #expect(try key.open(item, as: ControlLogin.self).credentials == login)
+        // The server answers in its status.
+        _ = try await control.put(ControlServerStatus(lastContact: Date(), version: "test", login: "anna @ tv.example",
+                                                      loginUpdate: ControlLoginOutcome(sentAt: sent, result: .refused)),
+                                  kind: .server, id: "status", key: key)
+        await model.refresh()
+        #expect(!model.isCheckingLogin)
+        #expect(model.status?.loginUpdate?.result == .refused)
+    }
 }

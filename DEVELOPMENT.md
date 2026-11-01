@@ -562,6 +562,12 @@ that records for one user in Docker and uploads to Fernsy Cloud. It depends only
 - **Pairing.** The server shows a ten-character code (status page and log); the app looks up the
   server's key in the worker's mailbox (first four characters), checks it with the code and seals
   control key, cloud key and IPTV login to it with HPKE.
+- **Changing the login** (server-login-update). An app writes the item `login/login`
+  (`ControlLogin`: credentials and send time); the server takes one newer than its pairing and
+  its last decision only after `player_api` accepts it (`LoginUpdate`), keeps the old login when
+  refused, retries an unreachable provider for an hour, and reports the login (`user @ host`)
+  and the outcome in its status. Running recordings switch on their next reconnect. Try it with
+  `FernsyServer app-login demo wrong` (refused) and `app-login demo demo` (accepted).
 - **Server code.** `Planner` (pure: schedule, refuse, miss, start, stop, with `RecordingPlan`),
   `StreamRecorder` (stream copy, reconnect, gaps), `Uploader` (as the Mac's queue), `Server` (the
   loop), `StatusPage` (port 8080, `/` and `/status.json`). `swift test` in `server/`.
@@ -572,7 +578,7 @@ that records for one user in Docker and uploads to Fernsy Cloud. It depends only
   FERNSY_DATA=/tmp/srv FERNSY_PORT=18080 FERNSY_POLL=5 IPTV_CONTROL=https://fernsy-control-dev.mobilistics.workers.dev \
     IPTV_CLOUD=https://fernsy-cloud-dev.mobilistics.workers.dev IPTV_CLOUDTOKEN=$(cat ~/.config/fernsy/dev-token) .build/debug/FernsyServer
   FERNSY_DEV_APP=/tmp/dev-app.json IPTV_CONTROL=… .build/debug/FernsyServer app-pair <code>
-  … app-order 101 0 2 "Test"; app-list; app-cancel <id>; app-remove
+  … app-order 101 0 2 "Test"; app-login demo demo; app-list; app-cancel <id>; app-remove
   ```
   The stand-in's cloud key is random: delete its uploads from the dev cloud afterwards.
 - **Image.** `server/Dockerfile` cross-compiles with the Swift Static Linux SDK (checksum from

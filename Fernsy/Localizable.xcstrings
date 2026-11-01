@@ -5721,6 +5721,36 @@
           }
         }
       }
+    },
+    "Records With": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nimmt auf mit"
+          }
+        }
+      }
+    },
+    "Use This Login": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Anmeldung verwenden"
+          }
+        }
+      }
+    },
+    "Sends the login this Mac signs in with, for example after a new password. The server checks it with the provider before it uses it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schickt die Anmeldung dieses Macs, etwa nach einem neuen Passwort. Der Server prüft sie beim Anbieter, bevor er sie verwendet."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -13,6 +13,7 @@ import Foundation
 ///
 ///   FernsyServer app-pair <code>
 ///   FernsyServer app-order <channel id> <minutes from now> <minutes long> [title]
+///   FernsyServer app-login <user> <password> [server]
 ///   FernsyServer app-list | app-cancel <order id> | app-remove
 enum DevApp {
     static func run(_ arguments: [String]) async throws {
@@ -55,6 +56,11 @@ enum DevApp {
         case "app-cancel":
             guard arguments.count > 1 else { throw usage }
             try await control.delete(kind: .order, id: arguments[1], key: try key())
+        case "app-login":
+            guard arguments.count >= 3 else { throw usage }
+            let login = XtreamCredentials(server: arguments.count > 3 ? arguments[3] : env["IPTV_SERVER"] ?? "https://fernsy-demo.mobilistics.workers.dev",
+                                          username: arguments[1], password: arguments[2])
+            try await control.put(ControlLogin(credentials: login), kind: .login, id: "login", key: try key())
         case "app-remove":
             try await control.put(Date(), kind: .removed, id: "removed", key: try key())
         default:

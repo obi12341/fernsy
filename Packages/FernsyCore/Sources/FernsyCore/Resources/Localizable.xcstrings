@@ -1081,6 +1081,46 @@
           }
         }
       }
+    },
+    "The server is checking the new login …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server prüft die neue Anmeldung …"
+          }
+        }
+      }
+    },
+    "The provider refuses the login the server records with. Send the login this device uses.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Anbieter lehnt die Anmeldung ab, mit der der Server aufnimmt. Schick ihm die Anmeldung dieses Geräts."
+          }
+        }
+      }
+    },
+    "The provider refused the new login; the server keeps recording with the previous one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Anbieter hat die neue Anmeldung abgelehnt; der Server nimmt weiter mit der bisherigen auf."
+          }
+        }
+      }
+    },
+    "The provider could not check the new login; the server keeps recording with the previous one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Anbieter konnte die neue Anmeldung nicht prüfen; der Server nimmt weiter mit der bisherigen auf."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -51,4 +51,23 @@ public enum ServerText {
         case .network: String(localized: "Fernsy cannot reach the internet right now.", bundle: .module)
         }
     }
+
+    /// The login line and what became of a sent login (server-login-update); nil when there is
+    /// nothing to say.
+    public static func loginNote(_ status: ControlServerStatus, checking: Bool) -> String? {
+        if checking { return String(localized: "The server is checking the new login …", bundle: .module) }
+        if status.loginRefused == true {
+            return String(localized: "The provider refuses the login the server records with. Send the login this device uses.", bundle: .module)
+        }
+        switch status.loginUpdate?.result {
+        case .refused: return String(localized: "The provider refused the new login; the server keeps recording with the previous one.", bundle: .module)
+        case .unreachable: return String(localized: "The provider could not check the new login; the server keeps recording with the previous one.", bundle: .module)
+        case .accepted, nil: return nil
+        }
+    }
+
+    /// Whether the note is a problem (shown as a warning).
+    public static func loginNoteIsWarning(_ status: ControlServerStatus, checking: Bool) -> Bool {
+        !checking && (status.loginRefused == true || status.loginUpdate.map { $0.result != .accepted } == true)
+    }
 }

@@ -18,7 +18,7 @@ final class StreamRecorder: NSObject, URLSessionDataDelegate, @unchecked Sendabl
     static let stallSeconds: TimeInterval = 20
     static let minimumGap: TimeInterval = 2
 
-    private let url: URL
+    private var url: URL
     private let file: URL
     private let lock = NSLock()
     private var session: URLSession!
@@ -85,6 +85,9 @@ final class StreamRecorder: NSObject, URLSessionDataDelegate, @unchecked Sendabl
     }
 
     var progress: (bytes: Int64, gaps: [RecordingGap]) { lock.withLock { (bytes, gaps) } }
+
+    /// A new login: the running connection stays, the next one uses this address.
+    func use(_ url: URL) { lock.withLock { self.url = url } }
 
     private func connect() {
         lock.withLock {

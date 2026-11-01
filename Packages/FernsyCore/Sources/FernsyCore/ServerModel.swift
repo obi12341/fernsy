@@ -124,6 +124,7 @@ public final class ServerModel {
             status = deleted ? nil : try? key.open(item, as: ControlServerStatus.self)
             if deleted { isRemoving = false }
         case .removed: removedAt = deleted ? nil : try? key.open(item, as: Date.self)
+        case .login: break
         case nil: break
         }
     }
@@ -198,6 +199,26 @@ public final class ServerModel {
         try await api.put(Date(), kind: .removed, id: "removed", key: key)
         isRemoving = true
         AppLog.info(.recordings, "Fernsy Server: removed")
+    }
+
+    /// Hands the server this login (server-login-update): it checks it with the provider and
+    /// reports the outcome in its status (`loginUpdate`).
+    public func useLogin(_ credentials: XtreamCredentials) async throws {
+        guard let key = await keys.key() else { throw ControlKeyStore.Locked() }
+        let login = ControlLogin(credentials: credentials)
+        try await api.put(login, kind: .login, id: "login", key: key)
+        sentLoginAt = login.sentAt
+        AppLog.info(.recordings, "Fernsy Server: new login sent (\(ControlLogin.display(credentials)))")
+    }
+
+    /// When this device last sent a login; until the server answers it shows as waiting.
+    public private(set) var sentLoginAt: Date?
+
+    /// The server has not decided on the login this device sent yet.
+    public var isCheckingLogin: Bool {
+        guard let sent = sentLoginAt else { return false }
+        guard let decided = status?.loginUpdate?.sentAt else { return true }
+        return decided < sent.addingTimeInterval(-0.001)
     }
 
     // MARK: Orders
