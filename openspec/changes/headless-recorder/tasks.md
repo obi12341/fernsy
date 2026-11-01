@@ -42,7 +42,7 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 - [x] 5.1 `server/Dockerfile` (static binary, minimal runtime image), `compose.yaml` example
 - [ ] 5.2 GitHub Actions: build and push linux/amd64 and linux/arm64 to `ghcr.io/obi12341/fernsy-server` on release tags; a test build on pushes to `server/`
-- [ ] 5.3 CloudKit schema in `iCloud.de.mobilistics.fernsy`: record type `ControlKey` (encrypted bytes `key`) created by hand in Development, then "Deploy Schema Changes" to Production (CloudKit Console, by the user; Fernsy Dev created it in the `.dev` container on 2026-11-01)
+- [x] 5.3 CloudKit schema in `iCloud.de.mobilistics.fernsy`: record type `ControlKey` (encrypted bytes `key`) created by hand in Development, then "Deploy Schema Changes" to Production (CloudKit Console, by the user, deployed 2026-11-01; Fernsy Dev created it in the `.dev` container)
 
 ## 6. Docs and verification
 
