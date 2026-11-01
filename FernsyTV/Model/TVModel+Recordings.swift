@@ -73,7 +73,11 @@ extension TVModel: RecorderHost {
     }
 
     private static var noSpaceMessage: String {
+        #if os(tvOS)
         String(localized: "Not enough free space on the Apple TV (at least 2 GB needed).")
+        #else
+        String(localized: "Not enough free space on this device (at least 2 GB needed).")
+        #endif
     }
 
     var dropsMissingRecordings: Bool { true }
@@ -118,7 +122,11 @@ extension TVModel: RecorderHost {
     /// Plays a recording (also one still being written), from where the user stopped.
     func play(_ recording: Recording) {
         guard let url = recorder.fileURL(recording), FileManager.default.fileExists(atPath: url.path) else {
+            #if os(tvOS)
             notice = String(localized: "The file of this recording is gone; tvOS may have removed it to free space.")
+            #else
+            notice = String(localized: "The file of this recording is gone; the system may have removed it to free space.")
+            #endif
             return
         }
         stop()

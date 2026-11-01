@@ -207,3 +207,7 @@ A phase that causes a regression is reverted on its own.
   toggling. They work on each view's own state; sharing them needs a shared view model, a design
   change rather than a cleanup.
 
+- 3.7: two messages in the shared recordings code named the Apple TV or tvOS on iOS too: the
+  free-space refusal and the missing-file notice. Both are per platform now (`#if os(tvOS)`); iOS
+  says "this device" and "the system". iOS keeps recordings in Caches as well, so the system can
+  clear them there too.

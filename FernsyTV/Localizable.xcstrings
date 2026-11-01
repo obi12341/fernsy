@@ -1303,6 +1303,16 @@
         }
       }
     },
+    "Not enough free space on this device (at least 2 GB needed).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu wenig freier Speicher auf diesem Gerät (mindestens 2 GB nötig)."
+          }
+        }
+      }
+    },
     "not reachable": {
       "localizations": {
         "de": {
@@ -2139,6 +2149,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Adresse deines Jellyfin-Servers, zum Beispiel http://192.168.1.20:8096, und dein Benutzer. Sie werden im Schlüsselbund gesichert."
+          }
+        }
+      }
+    },
+    "The file of this recording is gone; the system may have removed it to free space.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei dieser Aufnahme fehlt; das System hat sie vermutlich gelöscht, um Speicher frei zu machen."
           }
         }
       }
