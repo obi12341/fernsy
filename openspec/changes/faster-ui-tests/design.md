@@ -71,7 +71,7 @@ the host, the rest in the test VM) before the next.
   the whole tree). Waiting for each focus move (`pressAndWaitForFocusMove`, `focus(_:in:moves:)`)
   is right for a few moves where a lost press breaks the test; for long runs along one row
   (the search letter row, 30 keys) quick presses with a short pause and one check at the end
-  are faster. `testFindAndPlay` went from 20 s to 49 s with per-move waits and back to 33 s.
+  are faster: `testFindAndPlay` took 49 s with per-move waits and 33 s with quick presses (VM).
 - Tests that check navigation itself start from the tab bar (`showTab`) even when launched with
   `IPTV_TAB`: on the Search tab the launch focus is in the field, and moving up leaves the
   content.
