@@ -126,14 +126,15 @@ Questions or problems? See [Support](https://www.fernsy.app/en/support.html).
 
 ## Contributing
 
-Fernsy is free software by mobilistics GmbH under the
-[GNU General Public License v3](LICENSE) or later. The bundled FFmpeg libraries are licensed
-separately under the LGPL 2.1 or later.
+Fernsy's source is available from mobilistics GmbH under the
+[PolyForm Noncommercial License 1.0.0](LICENSE): you may use, change and share it for personal
+and other non-commercial purposes, but not commercially, for example by selling your own build.
+Releases up to v1.6.0 remain under the GNU General Public License v3. The bundled FFmpeg
+libraries are licensed separately under the LGPL 2.1 or later.
 
 Bug reports and ideas are welcome as [issues](https://github.com/obi12341/fernsy/issues).
-Fernsy is also sold through the Mac App Store, whose terms are not compatible with the GPL for
-third-party code, so pull requests can only be accepted together with a contributor license
-agreement that allows this.
+mobilistics GmbH sells Fernsy, among others through the Mac App Store, so pull requests can
+only be accepted together with a contributor license agreement that allows this.
 
 To build it yourself (Xcode 27 with its Metal toolchain, Apple silicon):
 

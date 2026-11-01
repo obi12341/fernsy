@@ -62,8 +62,8 @@ Verification for each phase:
 - [x] 3.7 Platform-neutral wording for messages in code shared with iOS ("Not enough free space on the Apple TV" → per-platform text); German strings updated
 - [x] 3.8 Verify (A), (B) and (C) after each of 3.1–3.7 (one commit each); a final full run of all three
   - Final run: package tests (167 + 17), `scripts/test.sh`, all three app builds and the Mac run
-    passed. The full Apple TV run had no failure after 45 of 68 tests when the user had it
-    merged ahead of the iPad run, since CI runs every test again before a nightly or release.
+    passed. The merge went ahead at the user's request while the UI suites still ran; both
+    finished afterwards without a failure (all Apple TV and iPad UI tests passed).
 
 ## 4. Wrap-up
 

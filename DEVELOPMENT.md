@@ -746,15 +746,15 @@ to English (change `fernsy-core-package`).
 
 ## License
 
-Copyright © 2026 mobilistics GmbH
-
-Fernsy is free software: you can redistribute it and/or modify it under the terms of the
-GNU General Public License as published by the Free Software Foundation, version 3 of the
-License or (at your option) any later version. See [LICENSE](LICENSE).
+Fernsy is source-available under the PolyForm Noncommercial License 1.0.0
+([LICENSE](LICENSE)): use, changes and sharing are allowed for personal and other
+non-commercial purposes, commercial use is not. Releases up to v1.6.0 were published under the
+GNU General Public License v3 and remain under it; 2.0.0 is the first release under the new
+license (change `license-polyform-noncommercial`).
 
 The bundled FFmpeg libraries are licensed separately under the LGPL 2.1 or later
 (see `scripts/build-ffmpeg.sh`).
 
-Contributions: mobilistics GmbH distributes Fernsy through the Mac App Store, whose terms
-are not compatible with the GPL for third-party code. Pull requests can therefore only be
-accepted together with a contributor license agreement that allows this.
+Contributions: mobilistics GmbH sells Fernsy, among others through the Mac App Store. Pull
+requests can therefore only be accepted together with a contributor license agreement that
+allows this.
