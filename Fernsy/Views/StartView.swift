@@ -300,6 +300,8 @@ private struct StartBanner: View {
         case .recording: break
         }
         let urls = list.prefix(5).compactMap(URL.init(string:))
+        // A recording's image is its channel logo, no backdrop.
+        guard entry.source != .recording else { return urls }
         return urls.isEmpty ? entry.image.map { [$0] } ?? [] : urls
     }
 
@@ -334,6 +336,7 @@ private struct StartBanner: View {
 // MARK: - Cards
 
 /// A wide card: still, title, detail and progress (Continue Watching, Next Up, recordings).
+/// A recording's image is its channel's logo, shown whole on a logo tile instead of filling the card.
 private struct StartWideCard: View {
     let entry: LibraryEntry
     @State private var hovering = false
@@ -342,7 +345,13 @@ private struct StartWideCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Color.clear
                 .frame(width: 280, height: 158)
-                .overlay { RemoteImage(url: entry.image?.absoluteString, maxPixel: 600) { Rectangle().fill(.quaternary) } }
+                .overlay {
+                    if entry.source == .recording, let logo = entry.image {
+                        LogoTile(url: logo.absoluteString, name: entry.detail, width: 280, fixedHeight: 158, cornerRadius: 10)
+                    } else {
+                        RemoteImage(url: entry.image?.absoluteString, maxPixel: 600) { Rectangle().fill(.quaternary) }
+                    }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(alignment: .bottom) {
                     if let progress = entry.progress, progress > 0 { ProgressBar(value: progress, height: 4).padding(10) }

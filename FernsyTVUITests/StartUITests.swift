@@ -35,6 +35,19 @@ final class StartUITests: FernsyUITestCase {
         XCTAssertTrue(best.exists, "no Best Rated row")
     }
 
+    /// A recording's card shows its channel's logo whole on a plate, not filling the card.
+    func testRecordingsRowShowsLogos() {
+        let app = launchDemo(["IPTV_TESTRECORD": "101:0:10:0:0", "IPTV_FRESHRECORDINGS": "1"])
+        let card = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'start.recordings.'")).firstMatch
+        XCTAssertTrue(app.buttons["start.hero.resume"].waitForExistence(timeout: 30), "Start did not load")
+        Thread.sleep(forTimeInterval: 25)
+        _ = focus("start.live.", app)
+        for _ in 0..<10 where !card.exists || !card.isHittable { remote.press(.down); Thread.sleep(forTimeInterval: 0.6) }
+        XCTAssertTrue(card.exists, "no Your Recordings row:\n\(app.debugDescription)")
+        _ = focus("start.recordings.", app)
+        shot("start-recordings", app)
+    }
+
     func testALiveCardPlaysItsChannel() {
         let app = launchDemo()
         _ = focus("start.live.", app)

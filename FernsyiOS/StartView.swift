@@ -175,7 +175,8 @@ struct StartView: View {
                     ForEach(entries) { entry in
                         Button { open(entry) } label: {
                             WideCard(title: entry.title, detail: entry.detail, image: entry.image,
-                                     source: Self.sourceName(entry.source), progress: entry.progress)
+                                     source: Self.sourceName(entry.source), progress: entry.progress,
+                                     logo: entry.source == .recording && entry.image != nil)
                         }
                         .buttonStyle(.plain)
                         .contextMenu { if DetailTarget.of(entry.open) != nil { Button("Details", systemImage: "info.circle") { info(entry) } } }
@@ -269,7 +270,8 @@ private struct Hero: View {
         case .jellyfin(let item): model.jellyfin.backdropURLs(item)
         case .recording: []
         }
-        return list.first.flatMap(URL.init(string:)) ?? entry.image
+        // A recording's image is its channel logo, no backdrop.
+        return list.first.flatMap(URL.init(string:)) ?? (entry.source == .recording ? nil : entry.image)
     }
 
     private var kind: String { LibraryText.kind(entry.open) }

@@ -84,14 +84,22 @@ struct WideCard: View {
     var topRight: AnyView?
     var topLeft: AnyView?
     var width: CGFloat = 400
+    /// The image is a channel logo (a recording): whole on a plate, as in the channel list.
+    var logo = false
     @Environment(\.isFocused) private var focused
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             ZStack(alignment: .topLeading) {
-                RemoteImage(url: image, maxPixel: Int(width * 2)) { ArtPlaceholder(seed: title) }
-                    .frame(width: width, height: width * 9 / 16)
-                    .clipped()
+                if logo {
+                    Color(hex: 0x2C2B33)
+                        .overlay { RemoteImage(url: image, maxPixel: Int(width * 2), fit: true) { EmptyView() }.padding(width * 0.12) }
+                        .frame(width: width, height: width * 9 / 16)
+                } else {
+                    RemoteImage(url: image, maxPixel: Int(width * 2)) { ArtPlaceholder(seed: title) }
+                        .frame(width: width, height: width * 9 / 16)
+                        .clipped()
+                }
                 if let source { Tag(text: Text(verbatim: source), background: Color(hex: 0x0F0E12, opacity: 0.6)).padding(14) }
                 if let topLeft { topLeft.padding(14) }
                 if let topRight { topRight.frame(maxWidth: .infinity, alignment: .topTrailing).padding(14) }

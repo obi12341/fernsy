@@ -67,12 +67,21 @@ struct WideCard: View {
     var watched = false
     var upNext = false
     var width: CGFloat = 240
+    /// The image is a channel logo (a recording): whole on a plate, as in the channel list.
+    var logo = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Color.clear
                 .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay { RemoteImage(url: image, maxPixel: 600) { ArtPlaceholder(seed: title) } }
+                .overlay {
+                    if logo {
+                        Color(hex: 0x2C2B33)
+                            .overlay { RemoteImage(url: image, maxPixel: 600, fit: true) { EmptyView() }.padding(width * 0.12) }
+                    } else {
+                        RemoteImage(url: image, maxPixel: 600) { ArtPlaceholder(seed: title) }
+                    }
+                }
                 .clipShape(.rect(cornerRadius: 10))
                 .overlay(alignment: .topLeading) {
                     if upNext { Tag(text: Text("Up Next"), background: .white, foreground: TVTheme.focusedText).padding(6) }
