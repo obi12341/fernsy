@@ -1,5 +1,20 @@
 import XCTest
 
+/// The app's debug MCP server for this test process: its own port, so tests on parallel
+/// simulators (`-parallel-testing-worker-count`) each talk to their own app (faster-ui-tests).
+enum URLForTest {
+    static let port = 52400 + Int(getpid() % 500)
+    static var mcp: URL { URL(string: "http://127.0.0.1:\(port)/mcp")! }
+}
+
+extension XCUIApplication {
+    /// Launches with this test process's debug MCP port.
+    func launchForTest() {
+        launchEnvironment["IPTV_MCPPORT"] = String(URLForTest.port)
+        launch()
+    }
+}
+
 /// Shared setup of the Apple TV UI tests: the app with the demo account and its debug MCP
 /// server, waiting helpers, screenshots, and on failure the app's log as an attachment.
 class FernsyUITestCase: XCTestCase {
@@ -18,7 +33,7 @@ class FernsyUITestCase: XCTestCase {
             "IPTV_MCP": "1",
             "IPTV_MCPTOKEN": "test",
         ].merging(extra) { $1 }
-        app.launch()
+        app.launchForTest()
         return app
     }
 
@@ -57,9 +72,9 @@ class FernsyUITestCase: XCTestCase {
         super.record(issue)
     }
 
-    /// Calls a tool of the app's debug MCP server (port 52325) and returns the raw answer.
+    /// Calls a tool of the app's debug MCP server (this test process's port) and returns the raw answer.
     func mcpCall(_ tool: String, _ arguments: String = "{}") -> String {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:52325/mcp")!)
+        var request = URLRequest(url: URLForTest.mcp)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer test", forHTTPHeaderField: "Authorization")
@@ -148,6 +163,12 @@ extension XCTestCase {
             presses += 1
         }
         XCTAssertTrue(element.hasFocus, "\(element.identifier) has no focus; focus is on \(focusKey(app))", file: file, line: line)
+    }
+
+    /// Waits until `element` exists and has `value` (e.g. `player.state` "playing"); false after `timeout`.
+    @discardableResult
+    func waitFor(_ element: XCUIElement, value: String, timeout: TimeInterval = 20) -> Bool {
+        waitUntil(timeout) { element.exists && element.value as? String == value }
     }
 
     /// The `tabs` element's value (the selected tab, RootScreen) for each tab title.

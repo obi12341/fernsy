@@ -776,6 +776,11 @@ scripts/vm.sh scripts/test.sh
 scripts/vm.sh --window …     # start the VM with a window to watch the simulator
 ```
 
+Locally, `scripts/tv-uitest.sh --parallel 3` runs the Apple TV UI tests on three simulator
+clones at once: in the test VM 219 s → 109 s for the same classes. Each test process gives the
+app its own debug MCP port (`IPTV_MCPPORT`, set by `launchForTest()` in the UI tests), so parallel
+apps do not answer each other's tests. CI keeps its three shards.
+
 `vm.sh` starts the VM when it is not running, shares the project folder into it (`~/fernsy`)
 and sets `BUILD_ROOT=~/build`, which `test.sh`, `tv-uitest.sh`, `ios-uitest.sh` and `dev-run.sh`
 use instead of `build/`; result bundles therefore stay in the VM (`~/build/tv/Logs`). Builds for

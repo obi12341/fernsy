@@ -15,7 +15,7 @@ final class GuideUITests: XCTestCase {
             "IPTV_PASS": "demo",
             "IPTV_FRESHRECORDINGS": "1",
         ]
-        app.launch()
+        app.launchForTest()
         let remote = XCUIRemote.shared
         showLiveView("live.view.guide", app)
 

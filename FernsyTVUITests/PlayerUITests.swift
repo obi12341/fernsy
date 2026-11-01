@@ -17,7 +17,7 @@ final class PlayerUITests: XCTestCase {
             "IPTV_MCP": "1",
             "IPTV_MCPTOKEN": "test",
         ]
-        app.launch()
+        app.launchForTest()
         let remote = XCUIRemote.shared
         let first = focusFirstLiveChannel(app)
         let firstId = first.identifier
@@ -67,7 +67,7 @@ final class PlayerUITests: XCTestCase {
     }
 
     private func attachLog() {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:52325/mcp")!)
+        var request = URLRequest(url: URLForTest.mcp)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer test", forHTTPHeaderField: "Authorization")

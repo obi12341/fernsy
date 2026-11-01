@@ -56,7 +56,7 @@ final class SettingsUITests: FernsyUITestCase {
 
     /// Calls a tool of the app's debug MCP server and returns its structured result.
     private func mcp(_ tool: String, _ arguments: String) throws -> [String: Any] {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:52325/mcp")!)
+        var request = URLRequest(url: URLForTest.mcp)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer test", forHTTPHeaderField: "Authorization")

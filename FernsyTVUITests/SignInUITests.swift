@@ -11,7 +11,7 @@ final class SignInUITests: XCTestCase {
         let app = XCUIApplication()
         // No account: an empty IPTV_SERVER and no keychain.
         app.launchEnvironment = ["FERNSY_NO_KEYCHAIN": "1", "IPTV_SERVER": ""]
-        app.launch()
+        app.launchForTest()
         let remote = XCUIRemote.shared
 
         let card = app.buttons["welcome.iptv"]

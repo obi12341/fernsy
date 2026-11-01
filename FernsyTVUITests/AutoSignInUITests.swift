@@ -9,7 +9,7 @@ final class AutoSignInUITests: FernsyUITestCase {
         let app = XCUIApplication()
         app.launchEnvironment = ["FERNSY_NO_KEYCHAIN": "1", "IPTV_SERVER": "", "IPTV_TESTICLOUDLOGIN": login, "IPTV_TESTICLOUDDELAY": "\(delay)",
                                  "IPTV_MCP": "1", "IPTV_MCPTOKEN": "test"]
-        app.launch()
+        app.launchForTest()
         return app
     }
 

@@ -17,15 +17,15 @@ classes on the host (no hardware video decoding in the VM).
 
 ## 3. Test helpers
 
-- [ ] 3.1 `FernsyUITestCase`: `tab(_:_:)` (English and German labels), `focus(_:in:moves:)` waiting for focus changes, `waitFor(_:value:timeout:)`; failure messages name the focused element
-- [ ] 3.2 Convert the classes that only need a screen to `IPTV_OPEN`/`IPTV_TAB` and the helpers (first `DetailPagesUITests`, `SearchUITests`, `LibraryUITests`; measure; then the rest), keeping navigation tests on the remote
-- [ ] 3.3 Remove fixed sleeps except where time is the subject; each converted class passes three times in a row
+- [x] 3.1 `FernsyUITestCase`: `tab(_:_:)` (English and German labels), `focus(_:in:moves:)` waiting for focus changes, `waitFor(_:value:timeout:)`; failure messages name the focused element
+- [x] 3.2 Convert the classes that only need a screen to `IPTV_OPEN`/`IPTV_TAB` and the helpers (first `DetailPagesUITests`, `SearchUITests`, `LibraryUITests`; measure; then the rest), keeping navigation tests on the remote (the rest checked: they test navigation, real playback with `IPTV_AUTOPLAY` already, or simulated network faults; see design "As built")
+- [x] 3.3 Fixed sleeps: removed where a link replaces the navigation; kept as short pauses in navigation loops, which measured faster than waiting for each focus move (design "As built"); each converted class passed three times in a row
 
 ## 4. Measure and decide
 
-- [ ] 4.1 After-run with the same script; per-class numbers next to the baseline in design.md
-- [ ] 4.2 Decide on parallel workers (`--parallel <n>` in the scripts) from the numbers; implement only if it pays
-- [ ] 4.3 `openspec validate --all --strict`
+- [x] 4.1 After-run with the same script; per-class numbers next to the baseline in design.md
+- [x] 4.2 Decide on parallel workers (`--parallel <n>` in the scripts) from the numbers; implement only if it pays
+- [x] 4.3 `openspec validate --all --strict`
 
 ## Workflow follow-up
 

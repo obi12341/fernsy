@@ -88,3 +88,9 @@ the host, the rest in the test VM) before the next.
   classes using `showTab`/`tabButton` (GuideFocus, PosterFocus, Settings, Tabs) unchanged within
   0.4 s; the seven classes 233.7 → 207.9 s (−11 %). So the CI differences were noise, linking into
   a screen is where the time goes, and the VM is the instrument for these measurements.
+- Parallel simulators (decision 5, measured in the test VM, the seven classes): sequential 219 s,
+  two workers 124 s, three workers 109 s. Three workers first failed one test: every app clone
+  opened its debug MCP server on the fixed port 52325, so a test read another clone's log. The
+  port is now per test process (`IPTV_MCPPORT` from `launchForTest()`); three workers then passed
+  twice in a row. `tv-uitest.sh --parallel <n>`, off by default; CI keeps its shards (runners
+  have fewer cores). The iOS tests still use the fixed port 52326 and run sequentially.
