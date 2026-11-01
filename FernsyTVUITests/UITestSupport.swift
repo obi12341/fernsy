@@ -103,18 +103,18 @@ class FernsyUITestCase: XCTestCase {
 extension XCTestCase {
     /// The app opens on Start: moves to the tab named `name` (Live TV by default) and waits for it.
     func showTab(_ name: String = "Live TV", _ app: XCUIApplication, timeout: TimeInterval = 30) {
-        let tab = app.tabBars.firstMatch.buttons[name]
+        let tab = tabButton(name, app)
         XCTAssertTrue(tab.waitForExistence(timeout: timeout), "no \(name) tab:\n\(app.debugDescription)")
         let tabs = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.map(\.label)
         // Focus inside a screen: Back reaches the tab bar.
         for _ in 0..<2 where !app.tabBars.firstMatch.buttons.allElementsBoundByIndex.contains(where: \.hasFocus) {
-            XCUIRemote.shared.press(.menu); Thread.sleep(forTimeInterval: 0.6)
+            pressAndWaitForFocusMove(.menu, app)
         }
+        // Waits for each focus move instead of a fixed pause (faster-ui-tests).
         for _ in 0..<12 where !tab.hasFocus {
             let focused = app.tabBars.firstMatch.buttons.allElementsBoundByIndex.firstIndex { $0.hasFocus } ?? 0
-            let target = tabs.firstIndex(of: name) ?? 0
-            XCUIRemote.shared.press(target > focused ? .right : .left)
-            Thread.sleep(forTimeInterval: 0.35)
+            let target = tabs.firstIndex(of: tab.label) ?? 0
+            pressAndWaitForFocusMove(target > focused ? .right : .left, app)
         }
         XCTAssertTrue(tab.hasFocus, "the \(name) tab has no focus")
         // The tab's screen follows the focus a moment later: wait until the tab is selected.
@@ -122,6 +122,30 @@ extension XCTestCase {
         let selected = Self.tabValues[name] ?? name
         XCTAssertTrue(waitUntil(10) { tabView.value as? String == selected },
                       "the \(name) tab was not selected (\(tabView.value as? String ?? "-"))")
+    }
+
+    /// A tab bar button by its English title, also when the app runs in German.
+    func tabButton(_ name: String, _ app: XCUIApplication) -> XCUIElement {
+        let titles = [name, Self.germanTabTitles[name]].compactMap { $0 }
+        return app.tabBars.firstMatch.buttons.matching(NSPredicate(format: "label IN %@", titles)).firstMatch
+    }
+
+    static var germanTabTitles: [String: String] {
+        ["Movies": "Filme", "Series": "Serien", "Recordings": "Aufnahmen", "Search": "Suche",
+         "Settings": "Einstellungen"]
+    }
+
+    /// Presses `moves` in turn (each waiting for the focus to move) until `element` has focus, at
+    /// most `limit` presses; fails naming what has focus instead (faster-ui-tests).
+    func focus(_ element: XCUIElement, in app: XCUIApplication, moves: [XCUIRemote.Button], limit: Int = 12,
+               file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element.waitForExistence(timeout: 15), "no \(element):\n\(app.debugDescription)", file: file, line: line)
+        var presses = 0
+        while !element.hasFocus && presses < limit {
+            pressAndWaitForFocusMove(moves[presses % moves.count], app)
+            presses += 1
+        }
+        XCTAssertTrue(element.hasFocus, "\(element.identifier) has no focus; focus is on \(focusKey(app))", file: file, line: line)
     }
 
     /// The `tabs` element's value (the selected tab, RootScreen) for each tab title.

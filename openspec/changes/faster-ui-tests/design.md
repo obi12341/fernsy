@@ -64,3 +64,14 @@ measurement whether it is worth it (simulator clones cost memory and start time)
 
 Class by class; each converted class must pass three times in a row locally (playback classes on
 the host, the rest in the test VM) before the next.
+
+## As built
+
+- Focus queries are expensive in XCUITest (about a second each: the `hasFocus` predicate walks
+  the whole tree). Waiting for each focus move (`pressAndWaitForFocusMove`, `focus(_:in:moves:)`)
+  is right for a few moves where a lost press breaks the test; for long runs along one row
+  (the search letter row, 30 keys) quick presses with a short pause and one check at the end
+  are faster. `testFindAndPlay` went from 20 s to 49 s with per-move waits and back to 33 s.
+- Tests that check navigation itself start from the tab bar (`showTab`) even when launched with
+  `IPTV_TAB`: on the Search tab the launch focus is in the field, and moving up leaves the
+  content.

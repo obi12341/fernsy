@@ -6,14 +6,14 @@ classes on the host (no hardware video decoding in the VM).
 
 ## 1. Baseline
 
-- [ ] 1.1 `scripts/uitest-times.sh <xcresult>`: duration per test and per class from a result bundle
+- [x] 1.1 `scripts/uitest-times.sh <xcresult>`: duration per test and per class from a result bundle
 - [ ] 1.2 Baseline: a full Apple TV run (VM for non-playback, host for playback classes); numbers into design.md
 
 ## 2. App switches (debug builds)
 
-- [ ] 2.1 `IPTV_OPEN=<fernsy:// link>`: passed to `TVModel.handle(url:)` at launch
-- [ ] 2.2 `IPTV_TAB=<tab>`: selects the Apple TV tab at launch
-- [ ] 2.3 DEVELOPMENT.md: both switches
+- [x] 2.1 `IPTV_OPEN=<fernsy:// link>`: passed to `TVModel.handle(url:)` at launch
+- [x] 2.2 `IPTV_TAB=<tab>`: selects the Apple TV tab at launch
+- [x] 2.3 DEVELOPMENT.md: both switches
 
 ## 3. Test helpers
 

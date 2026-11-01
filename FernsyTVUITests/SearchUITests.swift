@@ -3,27 +3,27 @@ import XCTest
 /// Search (tvos-library 4.1): the letter row writes the query; typed text finds live shows and
 /// films; a running show plays its channel; shows of hidden channels are not found.
 final class SearchUITests: FernsyUITestCase {
-    private func openSearch(_ app: XCUIApplication) {
-        let tab = app.tabBars.firstMatch.buttons["Search"]
-        XCTAssertTrue(tab.waitForExistence(timeout: 30))
-        for _ in 0..<12 where !tab.hasFocus { XCUIRemote.shared.press(.right); Thread.sleep(forTimeInterval: 0.3) }
-        XCTAssertTrue(tab.hasFocus, "the search tab has no focus")
-        XCTAssertTrue(app.buttons["key.a"].waitForExistence(timeout: 10), "no letter row")
+    /// The app on its Search tab (IPTV_TAB, faster-ui-tests), with the letter row shown.
+    private func launchSearch(_ extra: [String: String] = [:]) -> XCUIApplication {
+        let app = launchDemo(extra.merging(["IPTV_TAB": "search"]) { $1 })
+        XCTAssertTrue(app.buttons["key.a"].waitForExistence(timeout: 30), "no letter row:\n\(app.debugDescription)")
+        return app
     }
 
     private func type(_ text: String, _ app: XCUIApplication) {
-        let field = app.buttons["search.field"]
-        for _ in 0..<4 where !field.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.4) }
-        XCTAssertTrue(field.hasFocus, "the search field has no focus:\n\(app.debugDescription)")
+        focus(app.buttons["search.field"], in: app, moves: [.down], limit: 4)
         typeOnKeyboard(text, app)
     }
 
     func testFindAndPlay() {
-        let app = launchDemo()
-        openSearch(app)
+        let app = launchSearch()
         // The letter row: "a" then delete.
-        XCUIRemote.shared.press(.down)
         let a = app.buttons["key.a"]
+        // The letter row is what this test checks: from the tab bar down into it, as a user does.
+        showTab("Search", app)
+        pressAndWaitForFocusMove(.down, app)
+        // Many presses along one row: quick presses beat waiting for each focus move here (a focus
+        // query costs about a second), and the row's end stops the focus anyway.
         for _ in 0..<30 where !a.hasFocus { XCUIRemote.shared.press(.left); Thread.sleep(forTimeInterval: 0.15) }
         XCTAssertTrue(a.hasFocus, "key a has no focus")
         XCUIRemote.shared.press(.select)
@@ -39,18 +39,14 @@ final class SearchUITests: FernsyUITestCase {
     }
 
     func testFilmsAreFound() {
-        let app = launchDemo()
-        openSearch(app)
-        XCUIRemote.shared.press(.down)
+        let app = launchSearch()
         type("star", app)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'search.vod.' AND label CONTAINS 'Stardust'")).firstMatch
             .waitForExistence(timeout: 15), "the film Stardust was not found:\n\(app.debugDescription)")
     }
 
     func testRunningShowPlaysItsChannel() {
-        let app = launchDemo()
-        openSearch(app)
-        XCUIRemote.shared.press(.down)
+        let app = launchSearch()
         type("the", app)
         let now = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'search.live.' AND label CONTAINS 'on now'")).firstMatch
         XCTAssertTrue(now.waitForExistence(timeout: 20), "no running show found")
@@ -65,9 +61,7 @@ final class SearchUITests: FernsyUITestCase {
     }
 
     func testHiddenChannelsAreNotFound() {
-        let app = launchDemo(["IPTV_TESTHIDE": "category:1"])
-        openSearch(app)
-        XCUIRemote.shared.press(.down)
+        let app = launchSearch(["IPTV_TESTHIDE": "category:1"])
         type("world report", app)
         // Kept: real time, it checks that no hidden show turns up.
         Thread.sleep(forTimeInterval: 4)

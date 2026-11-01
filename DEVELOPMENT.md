@@ -604,7 +604,10 @@ Debug builds behave like the Mac dev build: `IPTV_SERVER`, `IPTV_USER`, `IPTV_PA
 without the keychain (`FERNSY_NO_KEYCHAIN=1` keeps it out entirely); they start muted
 (`IPTV_SOUND=1` for sound); streams only from the demo worker, `127.0.0.1` or `localhost` unless
 `IPTV_ALLOWREAL=1`; `IPTV_AUTOPLAY=live:<id>` plays a channel once the catalog is loaded. An
-empty `IPTV_SERVER=` starts without an account (welcome screen). Apple TV only:
+empty `IPTV_SERVER=` starts without an account (welcome screen). To start a UI test where it
+tests: `IPTV_OPEN=<fernsy:// link>` opens or plays an item at launch as a Top Shelf tile does
+(`fernsy-dev://open?item=episode:800:00100` opens series 800, `…play?item=live:101`; ids as in `play_item`), and
+`IPTV_TAB=start|live|films|series|jellyfin|recordings|search|settings` opens that tab. Apple TV only:
 `IPTV_MAXCONN=<n>` sets the stream limit (single-stream tests), `IPTV_TESTRECORD=<channel>:<starts
 in s>:<seconds>[:<before min>:<after min>],…` plans recordings as on the Mac,
 `IPTV_FRESHRECORDINGS=1` starts without earlier recordings, `IPTV_FRESHIMAGES=1` without cached
