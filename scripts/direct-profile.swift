@@ -90,13 +90,18 @@ func all(_ path: String) -> [[String: Any]] {
     return result
 }
 
-var profile = all("/v1/profiles?limit=200")
-    .first { attributes($0)["name"] as? String == profileName && attributes($0)["profileState"] as? String == "ACTIVE" }
-if let current = profile, let content = (attributes(current)["profileContent"] as? String).flatMap({ Data(base64Encoded: $0) }),
-   !hasContainer(content), let id = current["id"] as? String {
-    FileHandle.standardError.write(Data("direct-profile: \(profileName) lacks \(container), replacing it\n".utf8))
+/// Keeps one active profile with the container and deletes every other profile of that name:
+/// creating a profile fails with 409 while any profile has the name, also an invalid one.
+let named = all("/v1/profiles?limit=200").filter { attributes($0)["name"] as? String == profileName }
+var profile = named.first { item in
+    attributes(item)["profileState"] as? String == "ACTIVE"
+        && (attributes(item)["profileContent"] as? String).flatMap({ Data(base64Encoded: $0) }).map(hasContainer) == true
+}
+for item in named where item["id"] as? String != profile?["id"] as? String {
+    guard let id = item["id"] as? String else { continue }
+    let state = attributes(item)["profileState"] as? String ?? "?"
+    FileHandle.standardError.write(Data("direct-profile: deleting \(profileName) \(id) (\(state), unusable or a duplicate)\n".utf8))
     _ = api("DELETE", "/v1/profiles/\(id)")
-    profile = nil
 }
 if profile == nil {
     let bundles = all("/v1/bundleIds?limit=200&fields[bundleIds]=identifier,platform,name")
