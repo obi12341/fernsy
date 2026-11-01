@@ -109,6 +109,8 @@ public final class CloudModel {
     @ObservationIgnored public let client: CloudClient
     @ObservationIgnored public let keys: CloudKeyStore
     @ObservationIgnored public let library: CloudLibrary
+    /// A paired Fernsy Server (headless-recorder), controlled through Fernsy Control.
+    @ObservationIgnored public let server: ServerModel
     /// Downloads on iPad and iPhone (offline-recording-downloads); nil on the Mac and Apple TV.
     @ObservationIgnored public var downloads: CloudDownloads?
     @ObservationIgnored private let store: CloudStore
@@ -119,6 +121,7 @@ public final class CloudModel {
         self.keys = keys
         self.store = store
         self.library = CloudLibrary(source: client, keys: keys)
+        self.server = ServerModel.live(cloudKeys: keys)
     }
 
     public var hasKey: Bool { if case .found = keyState { true } else { false } }
