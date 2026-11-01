@@ -4,6 +4,10 @@
 #   Release-Note-de: Aufnahmen lassen sich während einer Aufnahme wieder öffnen.
 #   Release-Note-en: Recordings open again while a recording runs.
 #
+# A later commit can withdraw an earlier commit's notes (a feature replaced before it shipped):
+#
+#   Release-Note-Drop: 18fcaae
+#
 #   scripts/release-notes.sh release|nightly <sha> <out-dir>
 #
 # The range is the previous v* tag..sha for a release, the last v* tag..sha for a nightly.
@@ -22,10 +26,17 @@ fi
 RANGE="${BASE:+$BASE..}$SHA"
 mkdir -p "$OUT"
 
+# Commits whose notes a later commit dropped, as full hashes.
+DROPPED=$(git log --format='%(trailers:key=Release-Note-Drop,valueonly,separator=%x0A)' "$RANGE" |
+    sed -e 's/[[:space:]]//g' -e '/^$/d' | while read -r short; do git rev-parse --verify --quiet "$short^{commit}" || true; done)
+
 for LANG_CODE in de en; do
     FILE="$OUT/notes-$LANG_CODE.txt"
     rm -f "$OUT/notes-$LANG_CODE.fallback"
-    git log --reverse --format="%(trailers:key=Release-Note-$LANG_CODE,valueonly,unfold,separator=%x0A)" "$RANGE" |
+    # One "@@<hash>" line per commit, then its notes; the notes of dropped commits are left out.
+    git log --reverse --format="@@%H%n%(trailers:key=Release-Note-$LANG_CODE,valueonly,unfold,separator=%x0A)" "$RANGE" |
+        awk -v dropped="$DROPPED" 'BEGIN { n = split(dropped, d, "\n"); for (i = 1; i <= n; i++) skip[d[i]] = 1 }
+            /^@@/ { commit = substr($0, 3); next } !skip[commit] { print }' |
         sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' | awk '!seen[$0]++' > "$FILE"
     if [ ! -s "$FILE" ]; then
         if [ "$CHANNEL" = "release" ]; then
