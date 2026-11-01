@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fernsy – Subscribe to Fernsy Cloud</title>
-<meta name="description" content="Subscribe to Fernsy Cloud for Fernsy on the Mac: recordings end-to-end encrypted in the cloud, and the Fernsy assistant.">
 <meta name="theme-color" content="#111015">
 <meta name="robots" content="noindex">
 <link rel="icon" href="../assets/icon.png">
@@ -24,58 +23,118 @@
 </div></header>
 
 <main class="text">
-  <h1>Subscribe to Fernsy Cloud</h1>
-  <p>Your recordings end-to-end encrypted in your private storage, playable on iPhone, iPad and Apple TV – and the Fernsy assistant on all your devices. Payment, invoice and sales tax are handled by our reseller Paddle.</p>
-  <p>Cancel any month. Our <a href="terms.html">terms of service</a> and the <a href="refunds.html">refund and cancellation policy</a> apply; prices are on the <a href="pricing.html">pricing page</a>.</p>
-  <noscript><p>Paying on this page needs JavaScript.</p></noscript>
-  <p data-state="nolink" hidden>You subscribe to Fernsy Cloud in Fernsy on your Mac: Settings › Recordings › Fernsy Cloud › “Subscribe”. Fernsy then opens this page with your account. You need no account with us – your key is in your iCloud.</p>
+<h1>Subscribe to Fernsy Cloud</h1>
+  <p>Your recordings end-to-end encrypted in your private storage, playable on iPhone, iPad and Apple TV – and the Fernsy assistant on all your devices. The seller is mobilistics GmbH; Stripe processes the payment.</p>
+  <noscript><p>This page needs JavaScript for the payment.</p></noscript>
+  <p data-state="nolink" hidden>You subscribe to Fernsy Cloud in Fernsy on your Mac: Settings › Recordings › Fernsy Cloud › "Subscribe". Fernsy then opens this page with your account. You don't need an account with us – your key is kept in your iCloud.</p>
   <p data-state="loading" hidden>One moment …</p>
-  <p data-state="invalid" hidden>This link has expired or is invalid. Please choose “Subscribe” again in Fernsy on your Mac.</p>
+  <p data-state="invalid" hidden>This link has expired or is invalid. Please open "Subscribe" again in Fernsy on your Mac.</p>
   <p data-state="subscribed" hidden>Fernsy Cloud is already active for your account. There is nothing else to do.</p>
-  <div data-state="ready" hidden><p>If the payment window did not open:</p><p><button class="button primary" id="subscribe" type="button">Subscribe now</button></p></div>
-  <p data-state="done" hidden>Thank you! Your subscription is active. Switch back to Fernsy – within a few seconds it shows Fernsy Cloud as active. Invoices and cancellation are in Paddle’s e-mail.</p>
+  <div data-state="ready" hidden>
+    <div class="order">
+      <div class="line"><span>Fernsy Cloud</span><span id="price">€3.49 per month incl. VAT</span></div>
+      <p>100 GB of storage for your recordings and 300 assistant requests per month. The subscription renews every month and can be cancelled at any time, effective at the end of the paid month.</p>
+    </div>
+    <form class="pay" id="pay">
+      <label>Email address (for the invoice and cancellation)<input id="email" type="email" autocomplete="email" required></label>
+      <div class="row2">
+        <label>Country<select id="country" autocomplete="country"><option value="AT" data-code="AT">AT</option><option value="BE" data-code="BE">BE</option><option value="BG" data-code="BG">BG</option><option value="CH" data-code="CH">CH</option><option value="CY" data-code="CY">CY</option><option value="CZ" data-code="CZ">CZ</option><option value="DE" selected data-code="DE">DE</option><option value="DK" data-code="DK">DK</option><option value="EE" data-code="EE">EE</option><option value="ES" data-code="ES">ES</option><option value="FI" data-code="FI">FI</option><option value="FR" data-code="FR">FR</option><option value="GB" data-code="GB">GB</option><option value="GR" data-code="GR">GR</option><option value="HR" data-code="HR">HR</option><option value="HU" data-code="HU">HU</option><option value="IE" data-code="IE">IE</option><option value="IS" data-code="IS">IS</option><option value="IT" data-code="IT">IT</option><option value="LI" data-code="LI">LI</option><option value="LT" data-code="LT">LT</option><option value="LU" data-code="LU">LU</option><option value="LV" data-code="LV">LV</option><option value="MT" data-code="MT">MT</option><option value="NL" data-code="NL">NL</option><option value="NO" data-code="NO">NO</option><option value="PL" data-code="PL">PL</option><option value="PT" data-code="PT">PT</option><option value="RO" data-code="RO">RO</option><option value="SE" data-code="SE">SE</option><option value="SI" data-code="SI">SI</option><option value="SK" data-code="SK">SK</option><option value="US" data-code="US">US</option><option value="CA" data-code="CA">CA</option><option value="AU" data-code="AU">AU</option><option value="NZ" data-code="NZ">NZ</option></select></label>
+        <label>Postal code<input id="postal" type="text" autocomplete="postal-code" required></label>
+      </div>
+      <div id="payment"></div>
+      <label class="consent"><input id="consent" type="checkbox"><span>I expressly request that mobilistics GmbH starts Fernsy Cloud before the withdrawal period ends. I understand that if I withdraw, I pay a proportionate amount for the time until then.</span></label>
+      <p class="small">Our <a href="terms.html">terms of service</a> apply. Information on your <a href="withdrawal.html">right of withdrawal</a>, <a href="refunds.html">refunds</a> and <a href="privacy.html">privacy</a>.</p>
+      <button class="button primary" id="subscribe" type="submit">Subscribe and pay</button>
+      <p class="error" id="error" role="alert"></p>
+    </form>
+  </div>
+  <p data-state="done" hidden>Thank you! Your payment went through. Switch back to Fernsy – after a few seconds it shows Fernsy Cloud as active. The invoice comes by email; manage or cancel the subscription in Fernsy under "Manage Subscription…" or on <a href="cancel.html">Cancel contracts here</a>.</p>
 </main>
 
 <footer><div class="wrap">
   <span>© 2026 mobilistics GmbH</span>
-  <nav><a href="./">Home</a><a href="support.html">Support</a><a href="pricing.html">Pricing</a><a href="terms.html">Terms</a><a href="refunds.html">Refunds</a><a href="privacy.html">Privacy</a><a href="imprint.html">Imprint</a><a href="https://github.com/obi12341/fernsy">GitHub</a></nav>
+  <nav><a href="./">Home</a><a href="support.html">Support</a><a href="pricing.html">Pricing</a><a href="terms.html">Terms</a><a href="refunds.html">Refunds</a><a href="withdrawal.html">Withdrawal</a><a href="cancel.html">Cancel contracts here</a><a href="privacy.html">Privacy</a><a href="imprint.html">Imprint</a><a href="https://github.com/obi12341/fernsy">GitHub</a></nav>
 </div></footer>
-<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
 <script>
-// Fernsy Cloud checkout (paddle-cloud-subscription design 2): the DMG opens this page with a
-// signed token. The worker checks it and names Paddle's environment, client token and price;
-// Paddle.js opens the overlay with the token as custom data, so the webhook knows the account.
+// Fernsy Cloud checkout (stripe-cloud-subscription design 2): the DMG opens this page with a
+// signed token. The worker checks it and names Stripe's publishable key and the price; on submit
+// it creates the subscription for the token's account, and Stripe.js confirms the first payment.
 (function () {
-  var t = new URLSearchParams(location.search).get("t");
+  var L = document.documentElement.lang === "de" ? {
+    perMonth: " pro Monat inkl. MwSt.", missingConsent: "Bitte bestätige, dass Fernsy Cloud sofort beginnen soll.",
+    failed: "Das hat nicht geklappt: ", address: "Bitte prüfe Land und Postleitzahl.", taken: "Fernsy Cloud ist für dein Konto schon aktiv."
+  } : {
+    perMonth: " per month incl. VAT", missingConsent: "Please confirm that Fernsy Cloud should start right away.",
+    failed: "That did not work: ", address: "Please check country and postal code.", taken: "Fernsy Cloud is already active for your account."
+  };
+  var params = new URLSearchParams(location.search);
+  var t = params.get("t");
   var show = function (id) {
     document.querySelectorAll("[data-state]").forEach(function (el) { el.hidden = el.getAttribute("data-state") !== id; });
   };
+  if (params.get("redirect_status") === "succeeded") { show("done"); return; }
   if (!t) { show("nolink"); return; }
   var env;
   try { env = JSON.parse(atob(t.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))).e; } catch (e) { show("invalid"); return; }
   var worker = env === "live" ? "https://fernsy-cloud.mobilistics.workers.dev" : "https://fernsy-cloud-dev.mobilistics.workers.dev";
+  var post = function (path, body) {
+    return fetch(worker + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { j.status = r.status; return j; }); });
+  };
   show("loading");
-  fetch(worker + "/v1/checkout/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: t }) })
-    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-    .then(function (info) {
-      if (info.alreadySubscribed) { show("subscribed"); return; }
-      if (info.environment === "sandbox") Paddle.Environment.set("sandbox");
-      Paddle.Initialize({
-        token: info.clientToken,
-        eventCallback: function (event) { if (event.name === "checkout.completed") show("done"); }
+  post("/v1/checkout/verify", { token: t }).then(function (info) {
+    if (info.status !== 200) { show("invalid"); return; }
+    if (info.alreadySubscribed) { show("subscribed"); return; }
+    var lang = document.documentElement.lang;
+    document.getElementById("price").textContent =
+      new Intl.NumberFormat(lang, { style: "currency", currency: info.currency.toUpperCase() }).format(info.amount / 100) + L.perMonth;
+    var stripe = Stripe(info.publishableKey, { locale: lang });
+    var elements = stripe.elements({ mode: "subscription", amount: info.amount, currency: info.currency, locale: lang,
+      appearance: { theme: "night", variables: { colorPrimary: "#6C65F0", colorBackground: "#1C1B21", borderRadius: "10px" } } });
+    elements.create("payment", { fields: { billingDetails: { email: "never", address: { country: "never", postalCode: "never" } } } })
+      .mount("#payment");
+    var form = document.getElementById("pay"), button = document.getElementById("subscribe"), error = document.getElementById("error");
+    show("ready");
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      error.textContent = "";
+      if (!document.getElementById("consent").checked) { error.textContent = L.missingConsent; return; }
+      var email = document.getElementById("email").value.trim();
+      var country = document.getElementById("country").value;
+      var postalCode = document.getElementById("postal").value.trim();
+      button.disabled = true;
+      elements.submit().then(function (r) {
+        if (r.error) throw r.error;
+        return post("/v1/checkout/subscribe", { token: t, email: email, country: country, postalCode: postalCode, consent: true });
+      }).then(function (order) {
+        if (order.status === 409) { show("subscribed"); return null; }
+        if (order.status !== 200) throw { message: order.error === "bad_address" ? L.address : (order.message || order.error) };
+        var back = location.origin + location.pathname;
+        return stripe.confirmPayment({ elements: elements, clientSecret: order.clientSecret, redirect: "if_required",
+          confirmParams: { return_url: back, payment_method_data: { billing_details: { email: email, address: { country: country, postal_code: postalCode } } } } });
+      }).then(function (result) {
+        if (!result) return;
+        if (result.error) throw result.error;
+        show("done");
+      }).catch(function (e) {
+        error.textContent = L.failed + (e && e.message ? e.message : "");
+        button.disabled = false;
       });
-      var open = function () {
-        Paddle.Checkout.open({
-          items: [{ priceId: info.priceId, quantity: 1 }],
-          customData: { fernsy_checkout: t },
-          settings: { displayMode: "overlay", theme: "dark", locale: document.documentElement.lang, allowLogout: false }
-        });
-      };
-      document.getElementById("subscribe").addEventListener("click", open);
-      show("ready");
-      open();
-    })
-    .catch(function () { show("invalid"); });
+    });
+  }).catch(function () { show("invalid"); });
+})();
+</script>
+<script>
+// Country names in the page's language.
+(function () {
+  try {
+    var names = new Intl.DisplayNames([document.documentElement.lang], { type: "region" });
+    var select = document.getElementById("country");
+    Array.prototype.forEach.call(select.options, function (o) { o.textContent = names.of(o.value); });
+    var options = Array.prototype.slice.call(select.options).sort(function (a, b) { return a.textContent.localeCompare(b.textContent); });
+    options.forEach(function (o) { select.appendChild(o); });
+  } catch (e) { /* codes stay */ }
 })();
 </script>
 </body>

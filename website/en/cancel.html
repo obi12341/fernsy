@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fernsy – Cancel Contracts Here</title>
+<meta name="theme-color" content="#111015">
+<link rel="icon" href="../assets/icon.png">
+<link rel="alternate" hreflang="de" href="../kuendigen.html">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="../assets/icon.png" alt="">Fernsy</a>
+  <nav class="top">
+    <a href="./">Home</a>
+    <a href="support.html">Support</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="imprint.html">Imprint</a>
+    <a href="../kuendigen.html" hreflang="de" lang="de">Deutsch</a>
+  </nav>
+</div></header>
+
+<main class="text">
+<h1>Cancel contracts here</h1>
+  <p>Cancel a Fernsy Cloud subscription you started on fernsy.app – without signing in. This is an ordinary cancellation at the earliest possible date: it takes effect at the end of the paid month, and you can keep using Fernsy Cloud until then.</p>
+  <form class="pay" id="cancel">
+    <label>Email address you paid with<input id="email" type="email" autocomplete="email" required></label>
+    <button class="button primary" id="cancel-button" type="submit">Cancel now</button>
+  </form>
+  <p id="result" role="status"></p>
+  <p>Subscriptions you started in Fernsy from the App Store are cancelled in your Apple Account's subscription settings. Questions? Write to <a href="mailto:info@mobilistics.de">info@mobilistics.de</a>.</p>
+</main>
+
+<footer><div class="wrap">
+  <span>© 2026 mobilistics GmbH</span>
+  <nav><a href="./">Home</a><a href="support.html">Support</a><a href="pricing.html">Pricing</a><a href="terms.html">Terms</a><a href="refunds.html">Refunds</a><a href="withdrawal.html">Withdrawal</a><a href="cancel.html">Cancel contracts here</a><a href="privacy.html">Privacy</a><a href="imprint.html">Imprint</a><a href="https://github.com/obi12341/fernsy">GitHub</a></nav>
+</div></footer>
+<script>
+// Cancellation without signing in (stripe-cloud-subscription design 4).
+(function () {
+  var de = document.documentElement.lang === "de";
+  var worker = new URLSearchParams(location.search).get("env") === "test"
+    ? "https://fernsy-cloud-dev.mobilistics.workers.dev" : "https://fernsy-cloud.mobilistics.workers.dev";
+  var form = document.getElementById("cancel"), button = document.getElementById("cancel-button"), out = document.getElementById("result");
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var email = document.getElementById("email").value.trim();
+    button.disabled = true;
+    out.className = ""; out.textContent = "";
+    var at = new Date();
+    fetch(worker + "/v1/subscription/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email }) })
+      .then(function (r) { return r.json().then(function (j) { j.status = r.status; return j; }); })
+      .then(function (r) {
+        var fmt = function (d, time) { return d.toLocaleString(de ? "de-DE" : "en-GB", time ? { dateStyle: "long", timeStyle: "short" } : { dateStyle: "long" }); };
+        if (r.status === 200 && r.result === "cancelled") {
+          form.hidden = true;
+          out.textContent = de
+            ? "Deine Kündigung für " + email + " ist am " + fmt(at, true) + " eingegangen. Dein Fernsy-Cloud-Abo endet am " + fmt(new Date(r.until)) + ". Bis dahin kannst du es weiter nutzen. Speichere oder drucke diese Seite als Bestätigung."
+            : "Your cancellation for " + email + " was received on " + fmt(at, true) + ". Your Fernsy Cloud subscription ends on " + fmt(new Date(r.until)) + ". You can keep using it until then. Save or print this page as confirmation.";
+        } else if (r.status === 200) {
+          out.textContent = de
+            ? "Für " + email + " haben wir kein laufendes Abo von fernsy.app gefunden. Prüfe die Adresse aus der Zahlungsbestätigung. Abos aus dem App Store kündigst du in den Abo-Einstellungen deines Apple-Accounts."
+            : "We found no running fernsy.app subscription for " + email + ". Check the address from the payment receipt. Subscriptions from the App Store are cancelled in your Apple Account's subscription settings.";
+          out.className = "error";
+        } else {
+          out.textContent = (de ? "Das hat nicht geklappt: " : "That did not work: ") + (r.message || r.error);
+          out.className = "error";
+        }
+        button.disabled = false;
+      })
+      .catch(function () {
+        out.textContent = de ? "Keine Verbindung. Bitte versuch es noch einmal oder schreib an info@mobilistics.de." : "No connection. Please try again or write to info@mobilistics.de.";
+        out.className = "error";
+        button.disabled = false;
+      });
+  });
+})();
+</script>
+</body>
+</html>

@@ -14,8 +14,8 @@
 ## 3. Website
 
 - [ ] 3.1 `cloud.html` / `en/cloud.html`: order summary, Payment and Address Element, start request, "Zahlungspflichtig abonnieren" / "Subscribe and pay", links to terms, refunds, withdrawal
-- [ ] 3.2 Withdrawal pages (`widerruf.html`, `en/withdrawal.html`) with the model form; cancellation pages (`kuendigen.html`, `en/cancel.html`); footers
-- [ ] 3.3 Terms, pricing, refunds and privacy pages: mobilistics as seller, Stripe as processor, Stripe.js on the checkout page
+- [x] 3.2 Withdrawal pages (`widerruf.html`, `en/withdrawal.html`) with the model form; cancellation pages (`kuendigen.html`, `en/cancel.html`); footers
+- [x] 3.3 Terms, pricing, refunds and privacy pages: mobilistics as seller, Stripe as processor, Stripe.js on the checkout page
 
 ## 4. Apps
 
