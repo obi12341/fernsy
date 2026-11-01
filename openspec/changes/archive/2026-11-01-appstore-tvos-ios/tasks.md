@@ -24,8 +24,8 @@ CI runs: `appstore-test` on the branch and the next release tag.
 
 ## 4. Verify
 
-- [ ] 4.1 The user confirms App Store Connect lists macOS, tvOS and iOS on the Fernsy record (or adds them)
-- [ ] 4.2 `release.yml` run with `-f channel=appstore-test` on the branch: three exported packages, `pkgutil`/`codesign` checks pass, the clean-up job revokes only the run's certificates (log)
+- [x] 4.1 The user confirms App Store Connect lists macOS, tvOS and iOS on the Fernsy record (or adds them) (confirmed by the user, 2026-11-01)
+- [x] 4.2 `release.yml` run with `-f channel=appstore-test` on the branch: three exported packages, `pkgutil`/`codesign` checks pass, the clean-up job revokes only the run's certificates (log) (run 41262887181: three packages, 3 certificates revoked, the 6 earlier ones kept)
 - [x] 4.3 `openspec validate --all --strict` passes
 
 ## Workflow follow-up

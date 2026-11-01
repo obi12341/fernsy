@@ -1,13 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: App Store upload from a release tag
-A release tag SHALL also build the App Store archives of the Mac app, the Apple TV app (with its
-Top Shelf extension) and the iPhone/iPad app with Apple's cloud signing through the App Store
-Connect API key, with the tag's version and the same build number, and upload all three to App
-Store Connect; submitting for review stays manual. The GitHub release SHALL be published only
-when the DMG and all three uploads succeeded. Run manually as an App Store test, the workflow
-SHALL archive and export all three without uploading. A release created by hand in GitHub SHALL
-keep its text and only get the DMGs attached.
+A release tag SHALL also archive the Mac, Apple TV (with Top Shelf) and iPhone/iPad apps with
+Apple's cloud signing through the API key, with the tag's version and one build number, and
+upload all three to App Store Connect; submitting stays manual. The GitHub release SHALL appear
+only when the DMG and all three uploads succeeded; a hand-made release keeps its text. A manual
+App Store test SHALL export all three without uploading.
 
 #### Scenario: Releasing 1.2
 - **WHEN** the tag `v1.2` is pushed on main
