@@ -14,7 +14,7 @@ the files, `openspec validate --all --strict` and the GitHub repository page aft
 
 - [x] 2.1 No text outside FFmpeg, archived changes and the GPLv3 note still says Fernsy is under the GPL (`grep -rIi 'GPL\|General Public'` without build folders, `Vendor`, `CFFShim`, `openspec/changes/archive`)
 - [x] 2.2 `openspec validate --all --strict` passes
-- [ ] 2.3 After the push to `main`, GitHub's repository page shows the new license and the README renders the section correctly
+- [x] 2.3 After the push to `main`, GitHub's repository page shows the new license and the README renders the section correctly (GitHub: "Other", as expected; the README links the license)
 
 ## Workflow follow-up
 
