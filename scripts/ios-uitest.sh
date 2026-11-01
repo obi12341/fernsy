@@ -11,7 +11,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DD="$ROOT/build/ios"
+DD="${BUILD_ROOT:-$ROOT/build}/ios"   # BUILD_ROOT: build data elsewhere (scripts/vm.sh)
 DEVICE_NAME="${DEVICE_NAME:-iPhone 18 Pro}"
 BUILD=1
 if [ "${1:-}" = "--no-build" ]; then BUILD=0; shift; fi

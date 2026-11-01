@@ -12,7 +12,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$ROOT/build/dd/Build/Products/Debug/Fernsy.app"
+DDIR="${BUILD_ROOT:-$ROOT/build}/dd"   # BUILD_ROOT: build data elsewhere (scripts/vm.sh)
+APP="$DDIR/Build/Products/Debug/Fernsy.app"
 LOG="$ROOT/build/dev-run.log"
 BUILD=1
 EXTRA=()
@@ -31,7 +32,7 @@ fi
 
 if [ "$BUILD" = 1 ]; then
     taskpolicy -b xcodebuild -project "$ROOT/Fernsy.xcodeproj" -scheme Fernsy -configuration Debug \
-        -destination "platform=macOS,arch=arm64" -derivedDataPath "$ROOT/build/dd" \
+        -destination "platform=macOS,arch=arm64" -derivedDataPath "$DDIR" \
         -allowProvisioningUpdates -allowProvisioningDeviceRegistration build -quiet
 fi
 

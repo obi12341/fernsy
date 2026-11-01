@@ -21,7 +21,7 @@ else
 fi
 
 cd "$ROOT/Packages/FernsyCore"
-DD="$ROOT/build/core"
+DD="${BUILD_ROOT:-$ROOT/build}/core"   # BUILD_ROOT: build data elsewhere (scripts/vm.sh)
 
 run() {
     echo "▸ $*"
