@@ -20,7 +20,7 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 - [x] 2.1 `control-server/`: worker, D1 schema (spaces, items, pairing), items endpoints with write secret, change numbers and tombstones, limits and expiry, pairing mailbox with per-IP limits; tests like `cloud-server/test`
 - [x] 2.2 Deploy script and dev deployment (`fernsy-control-dev`)
-- [ ] 2.3 `FernsyShared`: control key derivations, item sealing, pairing code and tag (PBKDF2 via swift-crypto `_CryptoExtras`), sealing to the server's key; tests with fixed vectors on macOS and Linux
+- [x] 2.3 `FernsyShared`: control key derivations, item sealing, pairing code and tag (PBKDF2: CommonCrypto / CryptoExtras), HPKE sealing to the server's key; tests with fixed vectors on macOS and Linux
 
 ## 3. Server
 

@@ -21,8 +21,10 @@ let appleTargets: [Target] = [
 ]
 #endif
 
-/// CryptoKit's API on Linux.
+/// CryptoKit's API on Linux; CryptoExtras for PBKDF2 there (CommonCrypto on Apple platforms, so the
+/// apps do not link BoringSSL).
 let linuxCrypto: Target.Dependency = .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))
+let linuxCryptoExtras: Target.Dependency = .product(name: "CryptoExtras", package: "swift-crypto", condition: .when(platforms: [.linux]))
 
 let package = Package(
     name: "FernsyCore",
@@ -37,7 +39,7 @@ let package = Package(
     targets: [
         .target(
             name: "FernsyShared",
-            dependencies: [linuxCrypto],
+            dependencies: [linuxCrypto, linuxCryptoExtras],
             exclude: sharedResources == nil ? ["Resources"] : [],
             resources: sharedResources
         ),

@@ -100,13 +100,14 @@ push to the server (an open connection per server; 30 s polling is cheap and eno
 2. The server posts its public key, a tag and the hash of a random claim secret to
    `fernsy-control`, `POST /v1/pairing/<mailbox>` (30 pairing requests per IP and hour; expires
    after 15 minutes; a taken mailbox makes the server pick a new code). The tag is an HMAC of the public key under a key
-   derived from the secret with PBKDF2-SHA256 (600,000 rounds, swift-crypto `_CryptoExtras`), so
+   derived from the secret with PBKDF2-SHA256 (600,000 rounds; CommonCrypto on Apple platforms,
+   swift-crypto `CryptoExtras` on Linux, so the apps link no BoringSSL), so
    a worker that wanted to swap the key would have to guess the secret offline faster than the
    mailbox expires.
 3. The user enters the code in the app (Settings › Fernsy Cloud › Server). The app fetches the
    public key, checks the tag, and puts a sealed message into the mailbox: the control key, the
-   cloud key and the chosen IPTV login, sealed to the server's key (HPKE-style: X25519 + HKDF +
-   AES-GCM), with an HMAC under the same code-derived key, so that someone who guessed the mailbox
+   cloud key and the chosen IPTV login, sealed to the server's key with HPKE (RFC 9180,
+   X25519 / HKDF-SHA256 / ChaCha20-Poly1305, in CryptoKit and swift-crypto), with an HMAC under the same code-derived key, so that someone who guessed the mailbox
    cannot hand the server their own account.
 4. The server polls its mailbox with its claim secret (only it can pick the message up), opens
    the message, stores the secrets in its volume (file mode 600); picking it up closes the
