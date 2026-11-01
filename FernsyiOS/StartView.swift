@@ -90,6 +90,13 @@ struct StartView: View {
         .navigationDestination(for: DetailTarget.self) { DetailPage(target: $0) }
         .navigationDestination(isPresented: $showsSettings) { SettingsView() }
         .toolbar {
+            if CloudFeature.isEnabled {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { model.showsAssistant = true } label: { Image(systemName: "sparkles") }
+                        .accessibilityLabel(Text("Assistant"))
+                        .accessibilityIdentifier("assistant.open")
+                }
+            }
             // On iPhone Settings has no tab (five tabs at most): the gear opens it from Start.
             if sizeClass == .compact {
                 ToolbarItem(placement: .topBarTrailing) {

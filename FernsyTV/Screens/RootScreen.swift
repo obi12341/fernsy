@@ -82,6 +82,13 @@ struct MainTabs: View {
         .accessibilityIdentifier("tabs")
         // The selected tab for the UI tests, which wait for it instead of a fixed time (tvos-uitest-shards).
         .accessibilityValue(String(describing: selection))
+        // The assistant over the tabs, which give up focus meanwhile; over live TV the player
+        // shows it, a film or recording closes it (cloud-assistant).
+        .disabled(model.showsAssistant)
+        .overlay { if model.showsAssistant && model.playing == nil { AssistantOverlay() } }
+        .onChange(of: model.playingVOD != nil || model.playingRecording != nil) { _, playing in
+            if playing { model.showsAssistant = false }
+        }
         .onChange(of: model.showsIPTVMovies) { updateVODTabs() }
         .onChange(of: model.showsIPTVSeries) { updateVODTabs() }
         .onChange(of: selection) { updateVODTabs() }

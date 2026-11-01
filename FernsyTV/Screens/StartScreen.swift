@@ -25,6 +25,11 @@ struct StartScreen: View {
             let tonight = rows.tonight
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 50) {
+                    if CloudFeature.isEnabled {
+                        Button { model.showsAssistant = true } label: { Label("Ask Fernsy", systemImage: "sparkles") }
+                            .buttonStyle(TVPillStyle(prominent: false))
+                            .accessibilityIdentifier("assistant.open")
+                    }
                     if let hero {
                         Hero(entry: hero, spotlight: resume.isEmpty, scroll: scroll) { open(hero) } info: { info(hero) }
                     }

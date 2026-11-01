@@ -5,7 +5,7 @@ import SwiftUI
 /// The full-screen player (design screens `player` and `zap`). Without the overlay, a click or
 /// swipe shows it; Left/Right go 10 s back or forward, Down opens the channel strip, Play/Pause
 /// pauses, Back closes. With the overlay, a click goes back to live when behind it, Up reaches
-/// the tabs Info, Subtitles, Audio and Channels.
+/// the tabs Info, Subtitles, Audio, Channels and, with Fernsy Cloud, Assistant.
 struct PlayerScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var mode: Mode = .hidden
@@ -23,7 +23,7 @@ struct PlayerScreen: View {
     }
 
     enum Tab: Int, CaseIterable {
-        case info, subtitles, audio, channels
+        case info, subtitles, audio, channels, assistant
 
         var title: LocalizedStringKey {
             switch self {
@@ -31,7 +31,18 @@ struct PlayerScreen: View {
             case .subtitles: "Subtitles"
             case .audio: "Audio"
             case .channels: "Channels"
+            case .assistant: "Assistant"
             }
+        }
+
+        /// The tabs shown: the assistant only with Fernsy Cloud (cloud-assistant).
+        static var shown: [Tab] { CloudFeature.isEnabled ? allCases : allCases.filter { $0 != .assistant } }
+
+        /// The shown tab `step` places away, stopping at the ends.
+        func moved(by step: Int) -> Tab {
+            let tabs = Tab.shown
+            let index = (tabs.firstIndex(of: self) ?? 0) + step
+            return tabs[min(tabs.count - 1, max(0, index))]
         }
     }
 
@@ -41,13 +52,15 @@ struct PlayerScreen: View {
         ZStack {
             player
             status
+            if model.showsAssistant { AssistantOverlay() }
         }
+        .onChange(of: model.showsAssistant) { _, shown in if !shown { focused = true } }
     }
 
     @ViewBuilder private var status: some View {
         if let channel = model.playing {
             PlayerStatusLayer(engine: model.engine, title: channel.displayName, channel: channel,
-                              canTakeFocus: mode == .hidden || mode == .info,
+                              canTakeFocus: (mode == .hidden || mode == .info) && !model.showsAssistant,
                               retry: { model.retryPlayback() },
                               next: { mode = .hidden; Task { await model.zapToNext() } },
                               close: { model.stop() })
@@ -91,7 +104,7 @@ struct PlayerScreen: View {
         // not report the focus of this container to them, so its value does.
         .accessibilityIdentifier("player.surface")
         .accessibilityValue(focused ? "focused" : "unfocused")
-        .focusable(mode != .strip && !isTracks && !(failed && (mode == .hidden || mode == .info)))
+        .focusable(mode != .strip && !isTracks && !(failed && (mode == .hidden || mode == .info)) && !model.showsAssistant)
         .focused($focused)
         .onAppear { focused = true }
         .onReceive(model.engine.$status) { status in
@@ -138,6 +151,7 @@ struct PlayerScreen: View {
             case .info: mode = .info
             case .subtitles, .audio: mode = .tracks(tab)
             case .channels: mode = .strip
+            case .assistant: mode = .hidden; model.showsAssistant = true
             }
         default: break
         }
@@ -152,8 +166,8 @@ struct PlayerScreen: View {
         case (.hidden, .down), (.info, .down): mode = .strip
         case (.hidden, .up): mode = .info
         case (.info, .up): mode = .tabs(.info)
-        case (.tabs(let tab), .left): mode = .tabs(Tab(rawValue: max(0, tab.rawValue - 1)) ?? tab)
-        case (.tabs(let tab), .right): mode = .tabs(Tab(rawValue: min(Tab.allCases.count - 1, tab.rawValue + 1)) ?? tab)
+        case (.tabs(let tab), .left): mode = .tabs(tab.moved(by: -1))
+        case (.tabs(let tab), .right): mode = .tabs(tab.moved(by: 1))
         case (.tabs, .down): mode = .info
         default: break
         }
@@ -274,7 +288,7 @@ private struct TabPills: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ForEach(PlayerScreen.Tab.allCases, id: \.self) { tab in
+            ForEach(PlayerScreen.Tab.shown, id: \.self) { tab in
                 let on = tab == highlighted
                 Text(tab.title)
                     .font(.system(size: 23, weight: .semibold))

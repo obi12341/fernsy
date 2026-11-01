@@ -1,6 +1,30 @@
 import FernsyCore
 import FernsyPlayer
 import Foundation
+import UIKit
+
+extension TVModel {
+    /// The assistant with this model's tools; it asks before a tool removes something. The Apple
+    /// TV takes one request at a time, iPad and iPhone keep the session's conversation.
+    func makeAssistant() -> AssistantModel {
+        let runner = AssistantToolRunner(model: self)
+        #if os(tvOS)
+        let assistant = AssistantModel(cloud: cloud, platform: "Apple TV", keepHistory: false) { try await runner.call($0, $1) }
+        #else
+        let platform = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+        let assistant = AssistantModel(cloud: cloud, platform: platform) { [weak self] name, args in
+            // The player covers everything: the sheet goes first, or it could not show.
+            if name == "play", self?.showsAssistant == true {
+                self?.showsAssistant = false
+                try? await Task.sleep(for: .milliseconds(600))
+            }
+            return try await runner.call(name, args)
+        }
+        #endif
+        runner.confirm = { [weak assistant] question in await assistant?.confirm(question) ?? false }
+        return assistant
+    }
+}
 
 /// The in-app assistant's tools on Apple TV, iPad and iPhone (cloud-assistant design 4): the
 /// names, arguments and results of the Mac's MCP tools (`AssistantTools`), run against TVModel

@@ -24,6 +24,8 @@ struct RootView: View {
         .background(TVTheme.background.ignoresSafeArea())
         .foregroundStyle(TVTheme.text)
         .tint(TVTheme.accentLight)
+        // The assistant (cloud-assistant); it closes before the player opens.
+        .sheet(isPresented: $model.showsAssistant) { AssistantSheet() }
         .fullScreenCover(isPresented: presentation.binding(model: model), onDismiss: {
             // Back to portrait once the player is gone: asked while it still dismisses (its
             // onDisappear), the turn is refused and the iPhone stays in landscape.
