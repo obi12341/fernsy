@@ -75,4 +75,48 @@ final class AssistantUITests: FernsyUITestCase {
         XCTAssertTrue(waitUntil(5) { !field.exists }, "Back did not close the assistant")
         XCTAssertTrue(app.buttons["assistant.open"].exists, "Back left Start")
     }
+
+    /// The real model through the dev relay (cloud-assistant 5.2): opt-in, it costs model calls.
+    /// `TEST_RUNNER_FERNSY_ASSISTANT_LIVE=<DEV_TOKEN> scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/AssistantUITests/testRealModel"`
+    /// (token in ~/.config/fernsy/dev-token). A request by channel name plays it, a request to
+    /// record schedules the show, an off-topic request is declined without an action.
+    func testRealModel() throws {
+        let token = ProcessInfo.processInfo.environment["FERNSY_ASSISTANT_LIVE"] ?? ""
+        try XCTSkipIf(token.isEmpty, "opt-in: TEST_RUNNER_FERNSY_ASSISTANT_LIVE=<dev token>")
+        let app = launchDemo(["IPTV_CLOUD": "https://fernsy-cloud-dev.mobilistics.workers.dev", "IPTV_CLOUDTOKEN": token,
+                              "IPTV_ASSISTANT_CONSENT": "1", "IPTV_FRESHRECORDINGS": "1"],
+                             arguments: ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"])
+        func ask(_ text: String) -> String {
+            let field = app.buttons["assistant.field"]
+            XCTAssertTrue(field.waitForExistence(timeout: 10) && waitForFocus(field), "no text field:\n\(app.debugDescription)")
+            typeOnKeyboard(text, app)
+            pressAndWaitForFocusMove(.right, app)
+            remote.press(.select)
+            let answer = app.descendants(matching: .any)["assistant.answer"]
+            XCTAssertTrue(waitUntil(60) { answer.exists && !answer.label.isEmpty }, "no answer to \(text):\n\(app.debugDescription)")
+            return answer.label
+        }
+
+        openFromStart(app)
+        let playing = ask("Spiel Northern Light 1")
+        let state = app.descendants(matching: .any)["player.state"]
+        XCTAssertTrue(waitUntil(30) { state.value as? String == "playing" }, "the channel does not play; answer: \(playing)")
+        XCTAssertTrue(mcpCall("now_playing").contains("live:101"), "not Northern Light 1: \(mcpCall("now_playing"))")
+        shot("assistant-real-play", app)
+        remote.press(.menu)
+        _ = mcpCall("stop_playback")
+
+        XCTAssertTrue(waitUntil(15) { app.buttons["assistant.open"].exists }, "not back on Start")
+        openFromStart(app)
+        let scheduled = ask("Nimm die nächste Sendung auf World View 24 auf")
+        // The raw JSON-RPC answer: the result's JSON appears escaped and compact, so match loosely.
+        XCTAssertTrue(waitUntil(15) { self.mcpCall("list_recordings").range(of: #"channel_id\\?"\s*:\s*103\b"#, options: .regularExpression) != nil },
+                      "nothing scheduled on World View 24; answer: \(scheduled)\n\(mcpCall("list_recordings"))")
+        shot("assistant-real-record", app)
+
+        let declined = ask("Schreib mir ein Gedicht über Katzen")
+        XCTAssertTrue(declined.contains("Fernsy"), "not declined: \(declined)")
+        XCTAssertFalse(state.exists && state.value as? String == "playing", "an off-topic request started playback")
+    }
 }
+

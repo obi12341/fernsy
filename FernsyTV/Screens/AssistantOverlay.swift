@@ -70,6 +70,8 @@ struct AssistantOverlay: View {
         }
         .defaultFocus($fieldFocused, true)
         .onAppear { fieldFocused = true }
+        // After an answer the next request starts in the field, not on Ask.
+        .onChange(of: assistant.isWaiting) { _, waiting in if !waiting { fieldFocused = true } }
         if let asked = assistant.entries.first(where: { $0.kind == .request }) {
             Text(verbatim: asked.text).font(.system(size: 24)).foregroundStyle(TVTheme.secondary)
         }

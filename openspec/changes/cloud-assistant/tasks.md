@@ -16,7 +16,7 @@ test VM (`scripts/vm.sh`).
 - [x] 2.1 `POST /v1/assistant`: account auth, subscription check, allowance per calendar month and rate per minute in D1, request size cap
 - [x] 2.2 Forward to OpenRouter's chat completions API with the server's system prompt and tools (`functions`), cache control, `max_tokens` and tool-round cap; model id and limits as worker settings
 - [x] 2.3 Logs and database hold only account id, time, token counts and outcome; tests for allowance, rate, ended subscription, client-sent tools ignored
-- [ ] 2.4 Deploy to the dev deployment; `deploy.sh` takes `OPENROUTER_API_KEY` like its other secrets (from the user's SOPS-encrypted LibreChat secret in gitops-admin, decrypted into the deploy only)
+- [x] 2.4 Deploy to the dev deployment; `deploy.sh` takes `OPENROUTER_API_KEY` like its other secrets (from the user's SOPS-encrypted LibreChat secret in gitops-admin, decrypted into the deploy only)
 
 ## 3. Apps
 
@@ -35,7 +35,7 @@ test VM (`scripts/vm.sh`).
 ## 5. Verify
 
 - [x] 5.1 Worker tests and `scripts/test.sh`
-- [ ] 5.2 Mac dev run (host): "spiel ZDF"-style requests on the demo channels play, a recording gets scheduled, an off-topic request is declined, the allowance end shows (`IPTV_` switch or a dev worker setting for a tiny allowance)
+- [x] 5.2 Mac dev run (host): "spiel ZDF"-style requests on the demo channels play, a recording gets scheduled, an off-topic request is declined, the allowance end shows (`IPTV_` switch or a dev worker setting for a tiny allowance) — run as the opt-in Apple TV UI test `AssistantUITests.testRealModel` against the dev worker with the real model (the Mac window cannot be driven without input injection; the Mac shares the relay and its MCP tools were checked live), allowance end with a dev deploy of `ASSISTANT_MONTHLY=2`
 - [x] 5.3 UI tests: iOS sheet and Apple TV overlay with a stub relay (no model calls in CI)
 - [x] 5.4 `openspec validate --all --strict`
 

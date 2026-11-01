@@ -121,3 +121,19 @@ endpoint off in the worker's settings; the apps show the assistant as unavailabl
 - Final allowance and price (pricing work after this change).
 - Whether the Apple TV entry also goes on the remote's Play/Pause long press (UX test on the
   device).
+
+## As built
+
+- OpenRouter model id `anthropic/claude-haiku-5.5` (checked against OpenRouter's model list at
+  deploy: $0.10 per million input and $0.50 per million output tokens, the numbers for pricing).
+- The system prompt names find_channels for playing a channel by name: without it the model
+  searched show titles (search_program) for "Spiel Northern Light 1".
+- Apple TV overlay: "Agree" and "Subscribe" take the focus when the overlay asks first (nothing
+  had it), and after an answer the focus returns to the text field for the next request.
+- Verified with the real model on the dev worker (opt-in UI test `testRealModel`): a channel by
+  name plays, "record the next show on World View 24" schedules it, a poem is declined in one
+  sentence; with `ASSISTANT_MONTHLY=2` the worker refuses with `429 allowance_used` and the
+  renewal date without calling the model.
+- The dev worker's `DEV_TOKEN` was replaced on 2026-11-01 (the old one was lost); the new one is
+  in `~/.config/fernsy/dev-token` on the user's Mac, not in the repo.
+
