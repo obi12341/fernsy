@@ -3542,6 +3542,246 @@
           }
         }
       }
+    },
+    "Fernsy Server records your shows around the clock on a computer at home – a NAS, a home server or a Raspberry Pi – and puts them into Fernsy Cloud. Then iPhone and iPad can schedule recordings too.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt deine Sendungen rund um die Uhr auf einem Rechner zu Hause auf – einem NAS, einem Heimserver oder einem Raspberry Pi – und legt sie in Fernsy Cloud. Dann können auch iPhone und iPad Aufnahmen planen."
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung"
+          }
+        }
+      }
+    },
+    "Next Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Aufnahme"
+          }
+        }
+      }
+    },
+    "Free Space": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freier Speicher"
+          }
+        }
+      }
+    },
+    "Remove Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server entfernen"
+          }
+        }
+      }
+    },
+    "The server deletes the keys, the login and recordings it has not uploaded yet, and shows a new code.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server löscht die Schlüssel, die Anmeldung und Aufnahmen, die er noch nicht hochgeladen hat, und zeigt einen neuen Code."
+          }
+        }
+      }
+    },
+    "Waiting for the server to confirm the removal …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte, bis der Server das Entfernen bestätigt …"
+          }
+        }
+      }
+    },
+    "Code from the server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code vom Server"
+          }
+        }
+      }
+    },
+    "Pair": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koppeln"
+          }
+        }
+      }
+    },
+    "Sign in to an IPTV account first: the server records with it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melde dich zuerst bei einem IPTV-Konto an: Damit nimmt der Server auf."
+          }
+        }
+      }
+    },
+    "The server shows its code on its status page and in its log. It gets your IPTV login and the key for Fernsy Cloud, encrypted for this server only.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server zeigt seinen Code auf seiner Statusseite und in seinem Log. Er bekommt deine IPTV-Anmeldung und den Schlüssel für Fernsy Cloud, verschlüsselt nur für diesen Server."
+          }
+        }
+      }
+    },
+    "Fernsy Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server"
+          }
+        }
+      }
+    },
+    "Remove Fernsy Server?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server entfernen?"
+          }
+        }
+      }
+    },
+    "Cancel Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme abbrechen"
+          }
+        }
+      }
+    },
+    "Record on Fernsy Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Fernsy Server aufnehmen"
+          }
+        }
+      }
+    },
+    "The server has not reported for a while; it records once it is back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat sich länger nicht gemeldet; er nimmt auf, sobald er wieder da ist."
+          }
+        }
+      }
+    },
+    "Paired": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gekoppelt"
+          }
+        }
+      }
+    },
+    "Not Set Up": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht eingerichtet"
+          }
+        }
+      }
+    },
+    "Fernsy Server records your shows around the clock on a computer at home – a NAS, a home server or a Raspberry Pi – and puts them into Fernsy Cloud, also while this Apple TV sleeps.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt deine Sendungen rund um die Uhr auf einem Rechner zu Hause auf – einem NAS, einem Heimserver oder einem Raspberry Pi – und legt sie in Fernsy Cloud, auch während dieses Apple TV schläft."
+          }
+        }
+      }
+    },
+    "Pairing …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gekoppelt …"
+          }
+        }
+      }
+    },
+    "Remove from Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vom Server entfernen"
+          }
+        }
+      }
+    },
+    "Recording on Fernsy Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme auf Fernsy Server"
+          }
+        }
+      }
+    },
+    "Fernsy Server is recording “%@”. Your account allows only %lld stream(s) at a time, so watching %@ now can interrupt that recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt gerade „%1$@“ auf. Dein Zugang erlaubt nur %2$lld Stream(s) gleichzeitig, deshalb kann es diese Aufnahme unterbrechen, wenn du jetzt %3$@ schaust."
+          }
+        }
+      }
+    },
+    "Watch Anyway": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trotzdem ansehen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The Fernsy Cloud client (add-recording-cloud 3.3) against a stubbed server, and once against
 /// the development server when `IPTV_CLOUD` and `IPTV_CLOUDTOKEN` are set.

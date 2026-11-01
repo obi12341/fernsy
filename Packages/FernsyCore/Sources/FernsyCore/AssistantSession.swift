@@ -141,3 +141,41 @@ public final class AssistantSession {
 }
 
 extension CloudClient: AssistantTransport {}
+
+extension CloudClient {
+    // MARK: Assistant (cloud-assistant)
+
+    /// One round of an assistant conversation through the relay. Its refusals have their own
+    /// meaning (allowance, rate), so it does not go through `send`.
+    public func assistant(messages: [AssistantMessage], context: AssistantContext) async throws -> AssistantReply {
+        struct Body: Encodable { var messages: [AssistantMessage]; var context: AssistantContext }
+        struct Refusal: Decodable { var error: String; var renewsAt: Date? }
+        var request = URLRequest(url: baseURL.appendingPathComponent("v1/assistant"))
+        request.httpMethod = "POST"
+        // The model can take a while for a long answer.
+        request.timeoutInterval = 60
+        request.httpBody = try JSONEncoder().encode(Body(messages: messages, context: context))
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do { try authorize(&request) } catch { throw AssistantFailure.noSubscription }
+        let data: Data, response: URLResponse
+        do {
+            (data, response) = try await urlSession.data(for: request)
+        } catch {
+            throw AssistantFailure.network(error.localizedDescription)
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            let refusal = try? JSONDecoder.cloud.decode(Refusal.self, from: data)
+            AppLog.detail(.app, "Fernsy Cloud: assistant → \(status) \(refusal?.error ?? "")")
+            switch (status, refusal?.error ?? "") {
+            case (402, _), (401, _): throw AssistantFailure.noSubscription
+            case (429, "allowance_used"): throw AssistantFailure.allowanceUsed(renewsAt: refusal?.renewsAt)
+            case (429, _): throw AssistantFailure.rateLimited
+            case (413, _): throw AssistantFailure.tooLong
+            case (503, _), (502, _): throw AssistantFailure.unavailable
+            default: throw AssistantFailure.server(status: status, code: refusal?.error ?? "")
+            }
+        }
+        return try JSONDecoder.cloud.decode(AssistantReply.self, from: data)
+    }
+}

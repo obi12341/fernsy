@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FernsyCore
+@testable import FernsyShared
 
 /// Gaps in recordings (recordings spec, design H of slow-live-stream-reconnect): wall time
 /// against the content the recording received, sampled once a second.

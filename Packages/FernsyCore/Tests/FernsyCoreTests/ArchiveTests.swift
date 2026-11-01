@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The provider's archive (catch-up 1.1): archive days, the server's time zone, the timeshift URL
 /// and which past shows can be played.

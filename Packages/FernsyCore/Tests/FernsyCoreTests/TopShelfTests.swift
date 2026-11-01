@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The Apple TV's Top Shelf (tvos-top-shelf 2.3, 3.1): the deep links' ids and URLs, and the
 /// snapshot the app writes for the extension.

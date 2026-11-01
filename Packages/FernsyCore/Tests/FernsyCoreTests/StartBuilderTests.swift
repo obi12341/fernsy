@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Start's rows (mac-start-pages 1.1): the rules both apps share, each row's selection and order,
 /// rows without enough entries left out.

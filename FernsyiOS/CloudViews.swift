@@ -60,6 +60,7 @@ struct CloudRecordingsView: View {
                     }
                 }
             }
+            if !isOffline { ServerOrdersSection() }
             if !rows.isEmpty {
                 Section {
                     ForEach(rows) { item in
@@ -79,6 +80,8 @@ struct CloudRecordingsView: View {
             await model.downloads?.loadItems()
             if !isOffline { await cloud.refresh() }
         }
+        .onAppear { cloud.server.startPolling() }
+        .onDisappear { cloud.server.stopPolling() }
         .accessibilityIdentifier("cloud.recordings")
         .confirmationDialog("Delete from Fernsy Cloud?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
                             titleVisibility: .visible, presenting: deleting) { item in
@@ -249,6 +252,12 @@ struct CloudSettingsView: View {
                     } footer: {
                         Text("Only your devices with the same Apple ID can play your cloud recordings, because the key stays in your iCloud.")
                     }
+                }
+                Section {
+                    NavigationLink { ServerSettingsView() } label: {
+                        LabeledContent("Fernsy Server", value: cloud.server.isPaired ? String(localized: "Paired") : String(localized: "Not Set Up"))
+                    }
+                    .accessibilityIdentifier("cloud.server")
                 }
                 if cloud.canMoveSubscription {
                     Section {

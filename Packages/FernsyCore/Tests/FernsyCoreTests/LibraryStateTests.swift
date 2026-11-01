@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Resume positions, watched marks, "Neu" and the search order, shared by the Mac and the Apple
 /// TV app (catalog, search specs).

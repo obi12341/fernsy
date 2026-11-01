@@ -90,6 +90,7 @@ struct GuideScreen: View {
             } else {
                 Button("Record") { model.notice = model.schedule(item.show, on: item.channel) }
             }
+            ServerDialogButtons(show: item.show, channel: item.channel)
         } message: { item in
             Text("\(item.channel.displayName) · \(TimeSpan.of(item.show)). Records only while Fernsy is open.")
         }

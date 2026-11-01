@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Item helpers shared by the apps (code-structure-cleanup 3.3).
 struct ItemTextTests {

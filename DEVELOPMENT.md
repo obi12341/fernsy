@@ -457,7 +457,9 @@ of `iCloud.<bundle id>`; Jellyfin sessions never sync.
   fails with "Cannot create new type CloudKey in production schema" (created 2026-10-30). The Mac
   marker is the record type `CloudMac` with the Date/Time field `seenAt` (record name
   `cloud.mac`, no index); without it the Mac logs "Mac marker not saved" and other devices say
-  that no Mac is known.
+  that no Mac is known. Fernsy Server's control key (headless-recorder) is the record type
+  `ControlKey` with the encrypted bytes field `key` (record name `control.key`, no index); without
+  it in Production pairing a server fails with "iCloud is not available" in the apps.
 - **Test runs.** Keychain-less runs (`FERNSY_NO_KEYCHAIN`, UI tests) sync nothing unless
   `IPTV_SYNC=1`, so tests never touch the developer's iCloud. Apple TV debug builds:
   `IPTV_TESTDEFAULTS=<key>=<value>,…` changes settings at launch as if made there. Both apps'
@@ -545,6 +547,43 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
 - **StoreKit.** `Config/FernsyCloud.storekit` has the subscription
   `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
   Options › StoreKit Configuration.
+
+### Fernsy Server
+
+Fernsy Server (headless-recorder; user page `server/README.md`) is a Swift package in `server/`
+that records for one user in Docker and uploads to Fernsy Cloud. It depends only on
+`FernsyShared` (see Tests and FernsyCore) and builds on macOS and Linux.
+
+- **Control.** Orders, their states and the server's status travel through Fernsy Control
+  (`control-server/`, worker `fernsy-control`, dev `fernsy-control-dev`): no accounts, items
+  sealed with the control key (`FernsyShared/ControlCrypto.swift`, `ControlItems.swift`,
+  `ControlClient.swift`). `control-server/deploy.sh [--prod]` deploys it like Fernsy Cloud; its
+  tests run in `scripts/test.sh`.
+- **Pairing.** The server shows a ten-character code (status page and log); the app looks up the
+  server's key in the worker's mailbox (first four characters), checks it with the code and seals
+  control key, cloud key and IPTV login to it with HPKE.
+- **Server code.** `Planner` (pure: schedule, refuse, miss, start, stop, with `RecordingPlan`),
+  `StreamRecorder` (stream copy, reconnect, gaps), `Uploader` (as the Mac's queue), `Server` (the
+  loop), `StatusPage` (port 8080, `/` and `/status.json`). `swift test` in `server/`.
+- **Trying it without the apps.** Debug builds read `IPTV_CONTROL`, `IPTV_CLOUD`,
+  `IPTV_CLOUDTOKEN` and play the app's part:
+  ```
+  cd server && swift build
+  FERNSY_DATA=/tmp/srv FERNSY_PORT=18080 FERNSY_POLL=5 IPTV_CONTROL=https://fernsy-control-dev.mobilistics.workers.dev \
+    IPTV_CLOUD=https://fernsy-cloud-dev.mobilistics.workers.dev IPTV_CLOUDTOKEN=$(cat ~/.config/fernsy/dev-token) .build/debug/FernsyServer
+  FERNSY_DEV_APP=/tmp/dev-app.json IPTV_CONTROL=… .build/debug/FernsyServer app-pair <code>
+  … app-order 101 0 2 "Test"; app-list; app-cancel <id>; app-remove
+  ```
+  The stand-in's cloud key is random: delete its uploads from the dev cloud afterwards.
+- **Image.** `server/Dockerfile` cross-compiles with the Swift Static Linux SDK (checksum from
+  swift.org's releases API) into a `scratch` image (about 60 MB); `--build-arg
+  CONFIGURATION=debug` for the dev services. `.github/workflows/server-image.yml` builds both
+  architectures and pushes `ghcr.io/obi12341/fernsy-server` on release tags. CI's `linux` job
+  runs the server's tests.
+- **Pitfalls.** `FileManager.replaceItemAt` fails on Linux when the target does not exist yet
+  (secrets are written with `rename`); URLSession errors may name the stream URL with the
+  login, so the recorder logs only error codes; the worker's per-IP pairing limit must not count
+  the server's claimed polls.
 
 ### Apple TV
 
@@ -752,10 +791,23 @@ FFmpeg; code that needs AppKit or SwiftUI views stays in the app. Public
 API is `public`; package strings use `String(localized: …, bundle: .module)` and live in the
 package's own `Resources/Localizable.xcstrings`.
 
+The part that Fernsy Server (headless-recorder) shares is its own target, `FernsyShared`, in the
+same package: Xtream client and models, channel names, recording plan and gap tracker, cloud
+crypto and client, the app log and `TestOffline`. It needs only Foundation and builds on Linux
+(CryptoKit through swift-crypto's `Crypto`, `FoundationNetworking` for URLSession; no string
+catalogs there, `LinuxShims.swift` returns the English keys). FernsyCore re-exports it
+(`@_exported import FernsyShared`), so app code imports only FernsyCore. Keep Apple-only APIs out
+of FernsyShared; anything that needs them (CloudKit, StoreKit, Observation, the assistant call on
+`CloudClient`) stays in FernsyCore. Members FernsyCore needs but apps must not see are `package`.
+On Linux the manifest has only FernsyShared and `FernsySharedTests` (Xtream fixtures, crypto,
+plan, gaps, names, log); run them there with
+`docker run --rm -v "$PWD/Packages/FernsyCore:/src:ro" swift:6.4.2-noble bash -c 'cp -r /src /w && cd /w && swift test'`.
+CI's `linux` job runs them on amd64 and arm64.
+
 `scripts/test.sh` runs the tests (Swift Testing) on macOS and builds the package for the tvOS
 simulator; `scripts/test.sh --tvos-sim` also runs them on a tvOS simulator, which needs the tvOS
 runtime (`xcodebuild -downloadPlatform tvOS`, several GB). The tests need no network and no
-account: network answers come from `Tests/FernsyCoreTests/Fixtures` – Xtream answers recorded
+account: network answers come from `Tests/*/Fixtures` – Xtream answers (`FernsySharedTests`) recorded
 once from the demo server (public demo account, lists cut to five entries), Jellyfin answers
 recorded from a throwaway local Docker Jellyfin (two generated clips; ids, tokens, addresses and
 online metadata replaced). Never record fixtures from a real provider or the user's Jellyfin.

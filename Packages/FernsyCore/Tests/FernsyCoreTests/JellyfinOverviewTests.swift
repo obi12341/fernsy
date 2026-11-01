@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The Jellyfin overview's rows (tvos-jellyfin-overview 1.3): each row's filter and order, empty
 /// rows left out, the spotlight without repeats.

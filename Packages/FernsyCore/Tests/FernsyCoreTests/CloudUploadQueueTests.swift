@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The Mac's upload queue (add-recording-cloud 5.4): a whole upload, continuing after a quit
 /// with the parts already stored, cancelling, and refusing an upload over the quota.

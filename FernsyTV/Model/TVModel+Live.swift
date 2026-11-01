@@ -165,6 +165,15 @@ extension TVModel {
                 timeout: 60, timeoutAnswer: false)
             guard stop else { return }
             for recording in held { recorder.stop(recording.id) }
+        } else if let order = cloud.server.blockingOrder(for: channel.id, local: Set(recorder.recordings.filter { $0.status == .recording }.map(\.channelId)),
+                                                         limit: maxConnections) {
+            // The server's recording cannot be stopped from here: watching may cut into it.
+            let watch = await ask(
+                title: String(localized: "Recording on Fernsy Server"),
+                message: String(localized: "Fernsy Server is recording “\(order.order.title)”. Your account allows only \(maxConnections) stream(s) at a time, so watching \(channel.displayName) now can interrupt that recording."),
+                confirm: String(localized: "Watch Anyway"), cancel: String(localized: "Cancel"),
+                timeout: 60, timeoutAnswer: false)
+            guard watch else { return }
         }
         play(channel)
     }

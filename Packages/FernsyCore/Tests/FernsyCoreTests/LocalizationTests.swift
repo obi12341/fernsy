@@ -1,16 +1,21 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// English is the source language, German a translation (localization spec).
 struct LocalizationTests {
-    /// The package's strings resolve from its own catalog, in both languages.
-    @Test func packageStringsAreTranslated() throws {
-        let english = String(localized: "Invalid server address", bundle: .fernsyCore, locale: Locale(identifier: "en"))
-        #expect(english == "Invalid server address")
-        let path = try #require(Bundle.fernsyCore.path(forResource: "de", ofType: "lproj"))
-        let german = try #require(Bundle(path: path)).localizedString(forKey: "Invalid server address", value: nil, table: nil)
-        #expect(german == "Ungültige Server-Adresse")
+    /// The package's strings resolve from its own catalogs, in both languages.
+    @Test(arguments: [
+        (Bundle.fernsyCore, "Buffer", "Puffer"),
+        (Bundle.fernsyShared, "Invalid server address", "Ungültige Server-Adresse"),
+    ])
+    func packageStringsAreTranslated(_ bundle: Bundle, _ key: String, _ translation: String) throws {
+        let english = String(localized: String.LocalizationValue(key), bundle: bundle, locale: Locale(identifier: "en"))
+        #expect(english == key)
+        let path = try #require(bundle.path(forResource: "de", ofType: "lproj"))
+        let german = try #require(Bundle(path: path)).localizedString(forKey: key, value: nil, table: nil)
+        #expect(german == translation)
     }
 
     static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
@@ -18,6 +23,7 @@ struct LocalizationTests {
     static let catalogs = [
         "Fernsy/Localizable.xcstrings", "Fernsy/AppShortcuts.xcstrings", "Fernsy/InfoPlist.xcstrings",
         "Packages/FernsyCore/Sources/FernsyCore/Resources/Localizable.xcstrings",
+        "Packages/FernsyCore/Sources/FernsyShared/Resources/Localizable.xcstrings",
         "Packages/FernsyPlayer/Sources/FernsyPlayer/Resources/Localizable.xcstrings",
         "FernsyTV/Localizable.xcstrings",
     ]

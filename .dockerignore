@@ -1,0 +1,6 @@
+# Docker builds (server/Dockerfile) need only the shared package and the server.
+*
+!Packages/FernsyCore
+!server
+**/.build
+**/.swiftpm

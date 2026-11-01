@@ -620,6 +620,7 @@ private struct GuideDetail: View {
             Spacer(minLength: 8)
             VStack(spacing: 8) {
                 recordButton
+                ServerRecordButton(entry: entry, channel: channel)
                 Button { app.play(channel) } label: {
                     Text("Watch").frame(maxWidth: .infinity)
                 }

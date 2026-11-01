@@ -1,6 +1,9 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
-@testable import FernsyCore
+@testable import FernsyShared
 
 /// Recorded answers of the demo server (Fixtures/xtream, recorded once with the public demo
 /// account; lists cut to five entries).

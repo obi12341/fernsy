@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Jellyfin answers (Fixtures/jellyfin, recorded from a local Docker test server with Jellyfin
 /// 12.3.0; ids, tokens, addresses and online metadata replaced) decoded into the models.

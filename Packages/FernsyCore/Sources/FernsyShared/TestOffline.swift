@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// `IPTV_TESTOFFLINE=1` (debug builds, offline-recording-downloads 3.3): every request of
 /// Fernsy's sessions fails as without network, so the offline start can be tested on a Mac

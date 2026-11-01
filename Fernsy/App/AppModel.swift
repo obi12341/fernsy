@@ -460,6 +460,13 @@ final class AppModel: ObservableObject {
                             title: channel.displayName, subtitle: nil, url: url)
         let blocking = recordingsBlocking(channel.id)
         guard !force, let first = blocking.first else {
+            if !force, let order = serverBlocking(channel.id) {
+                Task {
+                    guard await askAboutServer(order, channel: channel) else { return }
+                    nowPlaying = item
+                }
+                return
+            }
             nowPlaying = item
             return
         }
@@ -472,6 +479,20 @@ final class AppModel: ObservableObject {
             for recording in blocking { recorder.stop(recording.id) }
             nowPlaying = item
         }
+    }
+
+    /// A recording on Fernsy Server that would leave no stream for `channelId` (headless-recorder).
+    private func serverBlocking(_ channelId: Int) -> ServerModel.Order? {
+        let local = Set(recorder.recordings.filter { $0.status == .recording }.map(\.channelId))
+        return cloud.server.blockingOrder(for: channelId, local: local, limit: tuners.limit)
+    }
+
+    /// The server's recording cannot be stopped from here: watching may cut into it.
+    private func askAboutServer(_ order: ServerModel.Order, channel: LiveChannel) async -> Bool {
+        await Prompt.ask(
+            title: String(localized: "Recording on Fernsy Server"),
+            message: String(localized: "Fernsy Server is recording “\(order.order.title)”. Your account allows only \(tuners.limit) stream(s) at a time, so watching \(channel.displayName) now can interrupt that recording."),
+            confirm: String(localized: "Watch Anyway"), cancel: String(localized: "Cancel"))
     }
 
     /// A past show from the channel's archive (catch-up): asks first when recordings hold every

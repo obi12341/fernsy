@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The guide's free stretches (tvos-guide-empty-channels 2.2).
 struct GuideGapsTests {

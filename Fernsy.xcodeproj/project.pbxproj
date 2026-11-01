@@ -93,6 +93,7 @@
 				Screens/PlayerScreen.swift,
 				Screens/RecordingsScreen.swift,
 				Screens/RootScreen.swift,
+				Screens/ServerScreens.swift,
 				Screens/SettingsScreen.swift,
 				Screens/SignInScreen.swift,
 				Screens/StartScreen.swift,

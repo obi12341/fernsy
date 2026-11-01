@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FernsyCore
+@testable import FernsyShared
 
 /// Credentials never reach a log entry (app-log spec).
 struct AppLogTests {

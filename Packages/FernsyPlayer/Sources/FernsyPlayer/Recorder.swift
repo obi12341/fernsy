@@ -294,8 +294,13 @@ public final class Recorder: ObservableObject {
 
     // MARK: Scheduling
 
-    private var padBefore: TimeInterval { Double(UserDefaults.standard.integer(forKey: Self.padBeforeKey)) * 60 }
-    private var padAfter: TimeInterval { Double(UserDefaults.standard.integer(forKey: Self.padAfterKey)) * 60 }
+    private var padBefore: TimeInterval { Self.padding.before }
+    private var padAfter: TimeInterval { Self.padding.after }
+
+    /// The padding from Settings, in seconds (also for orders to a Fernsy Server).
+    public static var padding: (before: TimeInterval, after: TimeInterval) {
+        (Double(UserDefaults.standard.integer(forKey: padBeforeKey)) * 60, Double(UserDefaults.standard.integer(forKey: padAfterKey)) * 60)
+    }
 
     public enum PlanResult {
         /// Planned; the notice names paddings shortened for it.

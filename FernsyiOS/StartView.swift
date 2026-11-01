@@ -363,6 +363,7 @@ struct ShowDetailSheet: View {
                     }
                     .buttonStyle(ActionButtonStyle())
                     .padding(.top, 8)
+                    ServerRecordButton(show: show, channel: channel)
                 }
                 .padding(20)
             }
@@ -370,6 +371,8 @@ struct ShowDetailSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
             }
         }
+        .onAppear { model.cloud.server.startPolling() }
+        .onDisappear { model.cloud.server.stopPolling() }
         .presentationDetents([.medium, .large])
         .preferredColorScheme(.dark)
     }

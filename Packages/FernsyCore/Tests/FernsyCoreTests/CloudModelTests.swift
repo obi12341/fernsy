@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The purchase path (cloud-account-from-icloud-key 2.4) with a fake App Store and a stubbed
 /// server: opening creates no key, a purchase registers the key first and carries its account
