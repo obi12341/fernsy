@@ -13,7 +13,7 @@
 
 ## 3. Website
 
-- [ ] 3.1 `cloud.html` / `en/cloud.html`: order summary, Payment and Address Element, start request, "Zahlungspflichtig abonnieren" / "Subscribe and pay", links to terms, refunds, withdrawal
+- [x] 3.1 `cloud.html` / `en/cloud.html`: order summary, Payment and Address Element, start request, "Zahlungspflichtig abonnieren" / "Subscribe and pay", links to terms, refunds, withdrawal
 - [x] 3.2 Withdrawal pages (`widerruf.html`, `en/withdrawal.html`) with the model form; cancellation pages (`kuendigen.html`, `en/cancel.html`); footers
 - [x] 3.3 Terms, pricing, refunds and privacy pages: mobilistics as seller, Stripe as processor, Stripe.js on the checkout page
 
@@ -24,8 +24,18 @@
 
 ## 5. Verification and go-live
 
-- [ ] 5.1 Test mode end to end: DMG subscribes with a Stripe test card through the local checkout page → active within a minute on the Mac and in the iOS simulator; portal; cancellation page; second purchase refused; `openspec validate --all --strict`
+- [x] 5.1 Test mode end to end: DMG subscribes with a Stripe test card through the local checkout page → active within a minute on the Mac and in the iOS simulator; portal; cancellation page; second purchase refused; `openspec validate --all --strict`
 - [ ] 5.2 Live: Stripe's go-ahead, live price and webhook, prod deploy, pricing page matches; DEVELOPMENT.md
+
+Test mode end to end, 2026-11-01: the DMG (Debug, `IPTV_TESTCLOUDBUY`, `IPTV_CHECKOUTPAGE`) opened the
+local checkout page; without the start request the page refuses, with it Stripe's test card paid
+the first invoice (3.49 €, Stripe Tax `not_collecting` until the sandbox has a tax registration)
+and the Mac saw the subscription after 42 s and switched uploads on. The account reads `provider:
+stripe`, 100 GB; the portal link opens Stripe's portal; a second checkout is refused. The
+cancellation page cancelled by e-mail address at the period end (1 Dec 2026), the account stays
+active until then. The iOS UI test `testWebSubscriptionIsManagedWhereBought` passes with the same
+key; Mac (both variants) and Apple TV build. Open: the cancellation's e-mail confirmation at the
+time of cancelling (Stripe e-mails only when the subscription ends).
 
 ## Workflow follow-up
 
