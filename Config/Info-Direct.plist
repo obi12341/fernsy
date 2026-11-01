@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Fernsy Cloud shows only with FERNSY_CLOUD = YES (add-recording-cloud design H); in the DMG
+	     only for test builds, as purchases need the App Store. -->
+	<key>FernsyCloud</key>
+	<string>$(FERNSY_CLOUD)</string>
 	<!-- Info.plist of the "Fernsy Direct" target (DMG with Sparkle). Keep the shared keys in sync
 	     with Config/Info.plist; the Sparkle keys below exist only here. -->
 	<key>SUFeedURL</key>
