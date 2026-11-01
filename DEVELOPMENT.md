@@ -746,8 +746,6 @@ to English (change `fernsy-core-package`).
 
 ## License
 
-Copyright © 2026 mobilistics GmbH
-
 Fernsy is source-available under the PolyForm Noncommercial License 1.0.0
 ([LICENSE](LICENSE)): use, changes and sharing are allowed for personal and other
 non-commercial purposes, commercial use is not. Releases up to v1.6.0 were published under the
