@@ -288,3 +288,12 @@ Cloud Data", removes it everywhere. Settings SHALL show the space all downloads 
 #### Scenario: Remove on the iPad only
 - **WHEN** the user chooses "Remove Download" on the iPad
 - **THEN** the download's space is freed and the recording stays in the cloud and streamable
+
+### Requirement: Uploads from a Fernsy Server
+A paired Fernsy Server SHALL upload its recordings to the user's Fernsy Cloud with the same
+end-to-end encryption, details and quota as uploads from the Mac, so every app lists and plays
+them like the Mac's.
+
+#### Scenario: Server recording in the list
+- **WHEN** the server finished uploading a recording
+- **THEN** the iPad lists it with title, channel and time and plays it

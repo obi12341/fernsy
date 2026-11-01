@@ -42,7 +42,7 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 - [x] 5.1 `server/Dockerfile` (static binary, minimal runtime image), `compose.yaml` example
 - [ ] 5.2 GitHub Actions: build and push linux/amd64 and linux/arm64 to `ghcr.io/obi12341/fernsy-server` on release tags; a test build on pushes to `server/`
-- [ ] 5.3 CloudKit schema: `ControlKey` in development, then production
+- [x] 5.3 CloudKit schema in `iCloud.de.mobilistics.fernsy`: record type `ControlKey` (encrypted bytes `key`) created by hand in Development, then "Deploy Schema Changes" to Production (CloudKit Console, by the user, deployed 2026-11-01; Fernsy Dev created it in the `.dev` container)
 
 ## 6. Docs and verification
 
@@ -50,10 +50,13 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 - [x] 6.2 End to end (simulators and the host instead of the test VM, which plays no video): the iPhone pairs the server, it records a demo channel and uploads with the iPhone's cloud key, the Apple TV plays the recording from Fernsy Cloud; the Mac shows the server's orders
 - [ ] 6.3 arm64 on a Raspberry Pi 4: start, pair, one recording
 - [x] 6.4 `openspec validate --all --strict`
-- [ ] 6.5 Production deployment of `fernsy-control` before the apps ship
+- [x] 6.5 Production deployment of `fernsy-control` (2026-11-01; smoke test with a throwaway space, the release image opens its mailbox there without any setting)
 
 ## Workflow follow-up
 
+- Archived on 2026-11-01 with 5.2 and 6.3 open, by the user's choice: 5.2 is checked by running
+  the image workflow on `main` after the merge; 6.3 (Raspberry Pi 4) follows with the image from
+  ghcr.io.
 - With the release that ships the apps' server UI: a "Fernsy Server" part in README.md and on the
   website (project-readme: the README only names what the current release has).
 - Release-note trailers when the apps' server UI ships. Archive, merge into `main` and push with
