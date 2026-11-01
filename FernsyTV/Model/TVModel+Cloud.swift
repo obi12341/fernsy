@@ -13,16 +13,12 @@ extension TVModel {
             return try CloudByteSource(recordingId: item.id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, file: downloads.dataURL(item.id))
         }
         #endif
-        let (url, meta) = try await cloud.playback(for: item)
-        let client = cloud.client, id = item.id
-        return CloudByteSource(recordingId: id, plaintextSize: meta.plaintextBytes, fileKey: meta.key, dataURL: url) {
-            try await client.readURLs(id: id).dataURL
-        }
+        return try await cloud.streamSource(for: item)
     }
 
     /// The share watched (0…1), for the card's bar.
     func watchedShare(_ item: CloudRecordingItem) -> Double {
         guard let duration = item.meta?.duration, duration > 0 else { return 0 }
-        return min(1, resume.position("cloud.\(item.id)") / duration)
+        return min(1, resume.position(ResumeStore.cloudKey(item.id)) / duration)
     }
 }

@@ -150,17 +150,10 @@ struct StartScreen: View {
 
     /// What Continue Watching, Next Up and the recordings read: the player closing, positions
     /// from iCloud, Jellyfin's lists and the recorder's.
-    private var resumeInputs: String {
-        let playing = model.playingVOD != nil || model.playingRecording != nil
-        let jellyfin = model.jellyfin.homeRevision
-        let recordings = model.recorder.recordings.map { "\($0.id)\($0.status)" }.joined(separator: ",")
-        return "\(playing)|\(model.resumeRevision)|\(jellyfin)|\(recordings)"
-    }
+    private var resumeInputs: String { model.startResumeInputs }
 
     /// What On Now reads: favourites, recently watched, the channel list and hidden channels.
-    private var liveInputs: String {
-        "\(model.favorites.sorted())|\(model.recentChannels).\(model.channels.count).\(model.visibility.modifiedAt.timeIntervalSince1970)"
-    }
+    private var liveInputs: String { model.startLiveInputs }
 
     private func refreshResume() {
         rows.resume = model.continueWatching
@@ -220,13 +213,7 @@ struct StartScreen: View {
         }
     }
 
-    static func sourceName(_ source: LibraryEntry.Source) -> String {
-        switch source {
-        case .iptv: "IPTV"
-        case .jellyfin: "Jellyfin"
-        case .recording: String(localized: "Recording")
-        }
-    }
+    static func sourceName(_ source: LibraryEntry.Source) -> String { LibraryText.sourceName(source) }
 
     /// Click resumes; films and series without a position open their page.
     private func open(_ entry: LibraryEntry) {
@@ -364,7 +351,7 @@ private struct Hero: View {
             if item.type == "Episode" { if let subtitle = VODItem.jellyfin(item).subtitle { list.append(subtitle) } } else {
                 if let year = item.productionYear { list.append("\(year)") }
                 if let genre = item.genres?.first { list.append(genre) }
-                if let ticks = item.runTimeTicks { list.append(Runtime.text(seconds: Double(ticks) / 10_000_000)) }
+                if let seconds = item.runTimeSeconds { list.append(Runtime.text(seconds: seconds)) }
                 if let rating = item.communityRating { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
             }
         case .movie(let movie):
@@ -379,14 +366,7 @@ private struct Hero: View {
         return list.joined(separator: " · ")
     }
 
-    private var kind: String {
-        switch entry.open {
-        case .movie: String(localized: "MOVIE")
-        case .series, .episode: String(localized: "SERIES")
-        case .jellyfin(let item): item.type == "Episode" ? String(localized: "SERIES") : String(localized: "MOVIE")
-        case .recording: String(localized: "RECORDING")
-        }
-    }
+    private var kind: String { LibraryText.kind(entry.open) }
 
     /// All of the title's backdrops (tvos-living-hero design 3), else its picture.
     static func backdrops(_ entry: LibraryEntry, _ model: TVModel) -> [URL] {

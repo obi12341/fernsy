@@ -271,10 +271,10 @@ final class MCPTools {
         result["iptv_films_in_progress"] = app.movies
             .filter { app.showAdult || (!$0.isAdult && !adultMovies.contains($0.categoryId ?? "")) }
             .compactMap { movie -> [String: Any]? in
-                let position = app.resumePosition("movie.\(movie.id)")
+                let position = app.resumePosition(ResumeStore.movieKey(movie.id))
                 guard position > 0 else { return nil }
                 var value: [String: Any] = ["item_id": "movie:\(movie.id)", "title": movie.name, "position_seconds": Int(position)]
-                if let fraction = app.resumeFraction("movie.\(movie.id)") {
+                if let fraction = app.resumeFraction(ResumeStore.movieKey(movie.id)) {
                     value["progress_percent"] = Int(fraction * 100)
                     value.merge(Self.runtime(duration: position / fraction, position: position)) { $1 }
                 }
@@ -294,8 +294,8 @@ final class MCPTools {
         }
         var value: [String: Any] = ["item_id": "jellyfin:\(item.id)", "title": title, "type": item.type]
         if let percent = item.userData?.playedPercentage { value["progress_percent"] = Int(percent) }
-        value.merge(Self.runtime(duration: item.runTimeTicks.map { Double($0) / 10_000_000 },
-                                 position: item.userData?.playbackPositionTicks.map { Double($0) / 10_000_000 })) { $1 }
+        value.merge(Self.runtime(duration: item.runTimeSeconds,
+                                 position: item.userData?.playbackPositionTicks.map(JellyfinTicks.seconds))) { $1 }
         return value
     }
 
@@ -512,8 +512,8 @@ final class MCPTools {
             if let plot = details?.plot, !plot.isEmpty { value["plot"] = plot }
             if let genre = details?.genre { value["genre"] = genre }
             if let date = details?.releaseDate { value["release_date"] = date }
-            let position = app.resumePosition("movie.\(id)")
-            let duration = details?.duration.flatMap(Self.seconds) ?? app.resumeFraction("movie.\(id)").map { position / $0 }
+            let position = app.resumePosition(ResumeStore.movieKey(id))
+            let duration = details?.duration.flatMap(Self.seconds) ?? app.resumeFraction(ResumeStore.movieKey(id)).map { position / $0 }
             value.merge(Self.runtime(duration: duration, position: position)) { $1 }
         case ("episode", 3):
             guard app.showsIPTVSeries, let seriesId = Int(parts[1]), let show = app.series.first(where: { $0.id == seriesId }),
@@ -526,7 +526,7 @@ final class MCPTools {
             value["episode"] = episode.number
             value["title"] = episode.title
             if let plot = episode.plot, !plot.isEmpty { value["plot"] = plot }
-            value.merge(Self.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition("episode.\(episode.id)"))) { $1 }
+            value.merge(Self.runtime(duration: episode.durationSeconds.map(Double.init), position: app.resumePosition(ResumeStore.episodeKey(episode.id)))) { $1 }
         case ("jellyfin", 2):
             guard app.hasJellyfin else { throw ToolError("No Jellyfin account") }
             let item = try await app.jellyfin.call { try await $0.item(userId: $1, id: parts[1]) }
@@ -558,7 +558,7 @@ final class MCPTools {
             value["type"] = "recording"
             if !recording.description.isEmpty { value["plot"] = recording.description }
             value.merge(Self.runtime(duration: recording.recordEnd.timeIntervalSince(recording.recordStart),
-                                     position: app.resumePosition("recording.\(id.uuidString)"))) { $1 }
+                                     position: app.resumePosition(ResumeStore.recordingKey(id)))) { $1 }
         default:
             throw ToolError("item_id must be movie:<id>, episode:<series>:<episode>, jellyfin:<id> or recording:<id>")
         }
@@ -993,78 +993,5 @@ final class MCPTools {
             if let date = local.date(from: text) { return date }
         }
         throw ToolError("Not an ISO 8601 date: \(text)")
-    }
-}
-
-/// Opens the player window from outside a view (an MCP `play` while no library window is
-/// open, e.g. Fernsy runs in the menu bar). Views hand over their `openWindow`.
-@MainActor
-enum PlayerWindow {
-    static var openWindow: OpenWindowAction?
-    /// From the menu bar item, which outlives the windows (see `MenuBarLabel`).
-    static var menuBarOpenWindow: OpenWindowAction?
-
-    private static func open(_ id: String) {
-        (menuBarOpenWindow ?? openWindow)?(id: id)
-    }
-
-    private static var window: NSWindow? {
-        NSApp.windows.first { $0.identifier?.rawValue.hasPrefix("player") == true }
-    }
-
-    /// A player window opened by `show` comes to the front once it appears (`appeared()`).
-    private static var pendingFront = false
-
-    /// Playback started from outside Fernsy (MCP, Siri): the player comes in front of every
-    /// window without activating Fernsy, so the user's app keeps keyboard focus. A new window of
-    /// a background app would otherwise open behind the active app's windows.
-    static func show(_ app: AppModel) {
-        guard !app.isPictureInPictureActive else { return }
-        NSApp.setActivationPolicy(.regular)
-        if let window, window.isVisible || window.isMiniaturized {
-            if window.isMiniaturized { window.deminiaturize(nil) }
-            orderFront()
-            AppLog.detail(.app, "player window brought to the front")
-            return
-        }
-        pendingFront = true
-        open("player")
-    }
-
-    /// Called by the player when its window appears.
-    static func appeared() {
-        guard pendingFront else { return }
-        pendingFront = false
-        orderFront()
-        AppLog.detail(.app, "new player window brought to the front")
-    }
-
-    /// SwiftUI orders a new window in after onAppear, and starting playback reorders an existing
-    /// one; a single call is undone by that, so it repeats briefly.
-    private static func orderFront() {
-        for delay in [0, 0.15, 0.4] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { AppActivation.orderFrontRegardless(window) }
-        }
-    }
-
-    static func close() {
-        if let window, window.isVisible { window.close() }
-    }
-
-    /// Brings the library window to the front, or opens one (Fernsy may run in the menu bar).
-    static func showLibrary() {
-        NSApp.setActivationPolicy(.regular)
-        AppActivation.activate()
-        if let hidden = LibraryWindows.takeHidden() {
-            hidden.makeKeyAndOrderFront(nil)
-            AppLog.detail(.app, "hidden library window brought to the front")
-        } else if let library = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("library") == true && $0.canBecomeMain && ($0.isVisible || $0.isMiniaturized) }) {
-            library.deminiaturize(nil)
-            library.makeKeyAndOrderFront(nil)
-            AppLog.detail(.app, "library window brought to the front")
-        } else {
-            AppLog.detail(.app, "opening a library window (menu bar action: \(menuBarOpenWindow != nil))")
-            open("library")
-        }
     }
 }

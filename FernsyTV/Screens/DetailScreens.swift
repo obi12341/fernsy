@@ -5,7 +5,7 @@ import SwiftUI
 /// A film page (design screen `film`) for an IPTV film or a Jellyfin film: backdrop, facts,
 /// description, Resume (or Play), From the Beginning, favourite, and director, cast and tracks.
 struct FilmScreen: View {
-    enum Film { case iptv(Movie), jellyfin(JFItem) }
+    typealias Film = LibraryDetail.Film
 
     @EnvironmentObject private var model: TVModel
     let film: Film
@@ -101,21 +101,7 @@ struct FilmScreen: View {
 
     private var overview: String? { jfItem?.overview ?? details?.plot }
 
-    private var facts: [String] {
-        var list: [String] = []
-        if let item = jfItem {
-            if let year = item.productionYear { list.append("\(year)") }
-            if let genre = item.genres?.first { list.append(genre) }
-            if let ticks = item.runTimeTicks { list.append(Runtime.text(seconds: Double(ticks) / 10_000_000)) }
-            if let rating = item.communityRating { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
-        } else if case .iptv(let movie) = film {
-            if let year = details?.releaseDate?.prefix(4), !year.isEmpty { list.append(String(year)) }
-            if let genre = details?.genre?.split(separator: ",").first { list.append(String(genre).trimmingCharacters(in: .whitespaces)) }
-            if let duration = details?.duration, !duration.isEmpty { list.append(duration) }
-            if let rating = movie.rating, rating > 0 { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
-        }
-        return list
-    }
+    private var facts: [String] { LibraryDetail.facts(film, jellyfin: jfItem, details: details) }
 
     private var badges: [String] {
         guard let item = jfItem else { return [] }
@@ -124,21 +110,9 @@ struct FilmScreen: View {
         return list
     }
 
-    private var position: Double {
-        switch film {
-        case .iptv(let movie): model.resume.position(ResumeStore.movieKey(movie.id))
-        case .jellyfin(let item): Double((jfItem ?? item).userData?.playbackPositionTicks ?? 0) / 10_000_000
-        }
-    }
+    private var position: Double { LibraryDetail.position(film, jellyfin: jfItem, model: model) }
 
-    private var duration: Double {
-        switch film {
-        case .iptv(let movie):
-            let key = ResumeStore.movieKey(movie.id)
-            return model.resume.fraction(key).map { model.resume.position(key) / $0 } ?? 0
-        case .jellyfin(let item): return Double((jfItem ?? item).runTimeTicks ?? 0) / 10_000_000
-        }
-    }
+    private var duration: Double { LibraryDetail.duration(film, jellyfin: jfItem, model: model) }
 
     private var progress: Double? { duration > 0 ? position / duration : nil }
 
@@ -283,16 +257,7 @@ struct SeriesScreen: View {
     }
 
     /// One episode, whichever the source.
-    struct EpisodeEntry: Identifiable {
-        let id: String
-        let title: String
-        let number: String
-        let label: String
-        let image: URL?
-        let progress: Double?
-        let watched: Bool
-        let item: VODItem
-    }
+    typealias EpisodeEntry = LibraryDetail.EpisodeEntry
 
     private func load() async {
         switch show {
@@ -353,38 +318,22 @@ struct SeriesScreen: View {
         switch show {
         case .iptv(let series):
             guard let key = currentSeason.flatMap(Int.init) else { return [] }
-            return (info?.seasons[key] ?? []).map { Self.entry($0, series, model) }
+            return (info?.seasons[key] ?? []).map { LibraryDetail.entry($0, series, model) }
         case .jellyfin:
             guard let key = currentSeason else { return [] }
-            return (model.jellyfin.episodes[key] ?? []).map(Self.entry)
+            return (model.jellyfin.episodes[key] ?? []).map(LibraryDetail.entry)
         }
     }
 
-    private static func entry(_ episode: Episode, _ series: Series, _ model: TVModel) -> EpisodeEntry {
-        let key = "episode.\(episode.id)"
-        let runtime = episode.durationSeconds.map { " · " + Runtime.text(seconds: Double($0)) } ?? ""
-        return EpisodeEntry(id: episode.id, title: episode.title, number: "S\(episode.season) F\(episode.number)\(runtime)",
-                            label: "S\(episode.season) F\(episode.number)", image: (episode.image ?? series.cover).flatMap(URL.init(string:)),
-                            progress: model.resume.fraction(key), watched: model.resume.isWatched(key), item: .episode(episode, series))
-    }
-
-    private static func entry(_ item: JFItem) -> EpisodeEntry {
-        let runtime = item.runTimeTicks.map { " · " + Runtime.text(seconds: Double($0) / 10_000_000) } ?? ""
-        let label = "S\(item.parentIndexNumber ?? 0) F\(item.indexNumber ?? 0)"
-        let share = item.userData?.playedPercentage.map { $0 / 100 }
-        return EpisodeEntry(id: item.id, title: item.name, number: label + runtime, label: label,
-                            image: TVModel.shared.jellyfin.thumbURL(item).flatMap(URL.init(string:)),
-                            progress: share.flatMap { $0 > 0 ? $0 : nil }, watched: item.userData?.played == true, item: .jellyfin(item))
-    }
 
     /// The episode to continue with: Jellyfin's Next Up, or the IPTV rule (TVModel.nextEpisode).
     private var nextEpisode: EpisodeEntry? {
         switch show {
         case .iptv(let series):
             guard let info, let episode = model.nextEpisode(of: series, in: info) else { return nil }
-            return Self.entry(episode, series, model)
+            return LibraryDetail.entry(episode, series, model)
         case .jellyfin(let item):
-            if let next = model.jellyfin.nextUp.first(where: { $0.seriesId == item.id }) { return Self.entry(next) }
+            if let next = model.jellyfin.nextUp.first(where: { $0.seriesId == item.id }) { return LibraryDetail.entry(next) }
             return episodes.first { !$0.watched }
         }
     }

@@ -7,10 +7,8 @@ import Foundation
 /// categories in step and offers logins found in iCloud. Keychain-less runs (UI tests) sync
 /// only with IPTV_SYNC=1.
 extension TVModel {
-    static var syncAllowed: Bool { !skipKeychain || ProcessInfo.processInfo.environment["IPTV_SYNC"] == "1" }
-    static let syncedKeys = [LiveRules.favoritesKey, LiveRules.recentKey, TrackPreferences.audioKey,
-                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey,
-                             LibraryRules.moviesSwitchKey, LibraryRules.seriesSwitchKey]
+    static var syncAllowed: Bool { ICloudSync.allowed(skipKeychain: skipKeychain) }
+    static let syncedKeys = ICloudSync.syncedKeys
 
     func startSync() {
         sync.onChange = { [weak self] names in self?.syncArrived(names) }
@@ -35,71 +33,42 @@ extension TVModel {
         }
     }
 
-    /// The logins: CloudKit when sync is allowed. Debug builds' IPTV_TESTICLOUDLOGIN=demo|demo-wrong|
-    /// jellyfin puts one in memory, so UI tests run the launch path without iCloud.
-    static func makeLogins() -> LoginSync {
-        #if DEBUG
-        // IPTV_TESTICLOUDDELAY=<s>: the lookup takes that long, as CloudKit does on a device.
-        let delay = Duration.seconds(Double(ProcessInfo.processInfo.environment["IPTV_TESTICLOUDDELAY"] ?? "") ?? 0)
-        switch ProcessInfo.processInfo.environment["IPTV_TESTICLOUDLOGIN"] {
-        case "demo": return LoginSync(backing: MemoryLogins(xtream: IPTVSignInScreen.demo, delay: delay))
-        case "demo-wrong":
-            return LoginSync(backing: MemoryLogins(xtream: XtreamCredentials(server: IPTVSignInScreen.demo.server, username: "demo", password: "wrong"), delay: delay))
-        case "jellyfin":
-            return LoginSync(backing: MemoryLogins(jellyfin: .init(server: "http://127.0.0.1:8097", username: "fixture", password: "fixture-pass"), delay: delay))
-        default: break
-        }
-        #endif
-        return syncAllowed ? .cloudKit() : LoginSync(backing: nil)
-    }
+    static func makeLogins() -> LoginSync { ICloudSync.makeLogins(allowed: syncAllowed) }
 
     /// Launched without an account (icloud-auto-signin): signs in with what iCloud has, provider
     /// and Jellyfin each on their own, showing the steps (at least `minimumShown` once something
     /// signed in, until the channels are loaded). What fails stays offered on the welcome screen,
     /// with the reason if nothing could be signed in.
     func signInFromICloud() async {
-        let started = ContinuousClock.now
-        iCloudSteps = [ICloudSignInStep(.found)]
-        let found = await logins.launchLogins()
-        var failure: String?
-        if found.xtream != nil || found.jellyfin != nil { iCloudSteps.finish(.found) }
-        if let login = found.xtream {
-            let host = login.baseURL?.host() ?? login.server
-            AppLog.info(.app, "iCloud: signing in with the IPTV login at \(host)")
-            iCloudSteps.append(ICloudSignInStep(.provider, server: host))
-            await signIn(login)
-            if case .failed(let message) = signIn { failure = message; syncedXtream = login } else { iCloudSteps.finish(.channels) }
-        }
-        if let login = found.jellyfin {
-            let host = URL(string: login.server)?.host() ?? login.server
-            AppLog.info(.app, "iCloud: signing in with the Jellyfin login at \(host)")
-            iCloudSteps.append(ICloudSignInStep(.jellyfin, server: host))
-            do {
-                try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
-                iCloudSteps.finish(.jellyfin)
-            } catch {
-                failure = failure ?? error.localizedDescription
-                syncedJellyfin = login
-            }
-        }
-        let signedIn = credentials != nil || jellyfin.session != nil
-        iCloudSignInError = signedIn ? nil : failure
-        if signedIn {
-            // The last checkmark stays a moment, and the screen at least `minimumShown`.
-            try? await Task.sleep(for: .milliseconds(400))
-            try? await Task.sleep(until: started + ICloudSignInStep.minimumShown)
-        }
+        iCloudSignInError = await ICloudSync.signInAtLaunch(
+            logins: logins, steps: { iCloudSteps }, setSteps: { iCloudSteps = $0 },
+            signInIPTV: { login in
+                await signIn(login)
+                guard case .failed(let message) = signIn else { return nil }
+                syncedXtream = login
+                return message
+            },
+            signInJellyfin: { login in
+                do {
+                    try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
+                    return nil
+                } catch {
+                    syncedJellyfin = login
+                    return error.localizedDescription
+                }
+            },
+            isSignedIn: { credentials != nil || jellyfin.session != nil })
         signingInFromICloud = false
     }
 
     private func syncArrived(_ names: Set<String>) {
-        let defaults = UserDefaults.standard
-        if names.contains("d." + LiveRules.favoritesKey) { favorites = Set(defaults.stringArray(forKey: LiveRules.favoritesKey) ?? []) }
-        if names.contains("d." + LiveRules.recentKey) { recentChannels = defaults.array(forKey: LiveRules.recentKey) as? [Int] ?? [] }
-        if names.contains("resume") { resumeRevision += 1 }
+        let arrived = ICloudSync.arrived(names)
+        if let value = arrived.favorites { favorites = value }
+        if let value = arrived.recentChannels { recentChannels = value }
+        if arrived.resume { resumeRevision += 1 }
         // Films or series switched on another device: as if switched here (drops or downloads).
-        if names.contains("d." + LibraryRules.moviesSwitchKey) { showsIPTVMovies = defaults.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true }
-        if names.contains("d." + LibraryRules.seriesSwitchKey) { showsIPTVSeries = defaults.object(forKey: LibraryRules.seriesSwitchKey) as? Bool ?? true }
+        if let value = arrived.showsMovies { showsIPTVMovies = value }
+        if let value = arrived.showsSeries { showsIPTVSeries = value }
         pullLiveValues()
     }
 
@@ -113,37 +82,23 @@ extension TVModel {
     func pullLiveValues() {
         guard let account = credentials?.accountKey else { return }
         let hiddenName = SyncStore.accountName(account, "visibility")
-        if let remote = sync.pull(ChannelVisibility.self, name: hiddenName, newerThan: visibility.modifiedAt) {
+        if let remote = ICloudSync.pullNewer(ChannelVisibility.self, name: hiddenName, local: visibility, modifiedAt: visibility.modifiedAt, sync: sync) {
             visibility = remote
             store(remote.encoded, as: "live.visibility")
-        } else if !sync.hasValue(hiddenName) && visibility.modifiedAt.timeIntervalSince1970 > 0 {
-            sync.push(visibility, as: hiddenName, modifiedAt: visibility.modifiedAt)
         }
         let pinnedName = SyncStore.accountName(account, "pinned")
-        if let remote = sync.pull(PinnedCategories.self, name: pinnedName, newerThan: pinned.modifiedAt) {
+        if let remote = ICloudSync.pullNewer(PinnedCategories.self, name: pinnedName, local: pinned, modifiedAt: pinned.modifiedAt, sync: sync) {
             pinned = remote
             store(remote.encoded, as: "live.pinned")
-        } else if !sync.hasValue(pinnedName) && pinned.modifiedAt.timeIntervalSince1970 > 0 {
-            sync.push(pinned, as: pinnedName, modifiedAt: pinned.modifiedAt)
         }
     }
 
     /// Signed in: the login goes to iCloud if it is not there yet. Without an account: what iCloud
     /// has is offered on the welcome screen.
     func refreshSyncedLogins() async {
-        iCloudAvailable = await logins.isAvailable()
-        guard iCloudAvailable else { AppLog.info(.app, "iCloud: not available"); return }
-        if let credentials {
-            if await logins.xtream() == nil { await logins.save(credentials) }
-        } else if !startedWithAccount {
-            syncedXtream = await logins.xtream()
-            if let login = syncedXtream { AppLog.info(.app, "iCloud: offers the IPTV login at \(login.baseURL?.host() ?? login.server)") }
-        }
-        if let login = jellyfin.login {
-            if await logins.jellyfin() == nil { await logins.save(login) }
-        } else if jellyfin.session == nil {
-            syncedJellyfin = await logins.jellyfin()
-            if let login = syncedJellyfin { AppLog.info(.app, "iCloud: offers the Jellyfin login at \(URL(string: login.server)?.host() ?? login.server)") }
-        }
+        await ICloudSync.refreshLogins(logins, available: { iCloudAvailable = $0 },
+                                       credentials: credentials, offerXtream: !startedWithAccount, offeredXtream: { syncedXtream = $0 },
+                                       jellyfinLogin: jellyfin.login, jellyfinSignedIn: jellyfin.session != nil,
+                                       offeredJellyfin: { syncedJellyfin = $0 })
     }
 }

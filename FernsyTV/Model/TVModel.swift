@@ -193,16 +193,8 @@ final class TVModel: ObservableObject {
         cloud.downloads = downloads
         #endif
         #if DEBUG
-        // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run, as on
-        // the Mac (keys such as movie.500, episode.<id>).
-        if let spec = ProcessInfo.processInfo.environment["IPTV_TESTRESUME"] {
-            for item in spec.split(separator: ",") {
-                let p = item.split(separator: ":")
-                if p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) {
-                    resume.save(String(p[0]), position: position, duration: duration)
-                }
-            }
-        }
+        // IPTV_TESTRESUME: resume positions for this run, as on the Mac.
+        for item in DebugEnv.resumePositions { resume.save(item.key, position: item.position, duration: item.duration) }
         #endif
         // Screens observe the model: the recorder's list changes are the model's changes too.
         recorderChanges = recorder.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
@@ -265,38 +257,8 @@ final class TVModel: ObservableObject {
     }
 
     #if os(iOS)
-    private var offlineRetry: Task<Void, Never>?
-
-    /// The app comes to the front: offline, try at once (the network may have come back while
-    /// it was suspended, which the path monitor then never reports).
-    func appBecameActive() {
-        if signIn == .offline { Task { await retrySignIn() } }
-    }
-
-    private func retrySignIn() async {
-        guard signIn == .offline, let credentials else { return }
-        await signIn(credentials, remember: false)
-        guard signIn == .signedIn else { return }
-        if let downloads { await downloads.resume() }
-        if CloudFeature.isEnabled { await cloud.refresh() }
-    }
-
-    /// While offline, tries again with growing pauses (2 s up to 60 s): a request that timed out
-    /// can leave the app offline while the path monitor already says there is network, and then
-    /// no path change comes to end it (seen on the iPad after airplane mode, 2026-10-30).
-    private func retryWhileOffline() {
-        guard offlineRetry == nil else { return }
-        offlineRetry = Task { [weak self] in
-            var delay = 2.0
-            while !Task.isCancelled, let state = self?.signIn, state == .offline || state == .signingIn {
-                try? await Task.sleep(for: .seconds(delay))
-                guard let self else { return }
-                if self.signIn == .offline && self.isNetworkAvailable { await self.retrySignIn() }
-                delay = min(delay * 2, 60)
-            }
-            self?.offlineRetry = nil
-        }
-    }
+    /// The retry loop while offline (TVModel+Offline.swift in FernsyiOS).
+    var offlineRetry: Task<Void, Never>?
     #endif
 
     /// No connection, as opposed to a server that answers with an error.
@@ -340,13 +302,13 @@ final class TVModel: ObservableObject {
             }
             loadLiveState()
             #if DEBUG
-            // IPTV_TESTHIDE=category:<id>,channel:<id>,…: hidden for this run (in memory), as on the Mac.
-            if let spec = ProcessInfo.processInfo.environment["IPTV_TESTHIDE"] {
-                for item in spec.split(separator: ",") {
-                    let p = item.split(separator: ":")
-                    guard p.count == 2 else { continue }
-                    if p[0] == "category" { visibility.hiddenCategories.insert(String(p[1])) }
-                    if p[0] == "channel", let id = Int(p[1]) { visibility.hiddenChannels.insert(id) }
+            // IPTV_TESTHIDE=category:<id>,channel:<id>,…: hidden for this run (in memory), as on the
+            // Mac; "show:" and "wait:" steps apply only there.
+            for step in DebugEnv.hideSteps {
+                switch step {
+                case .category(let id, hidden: true): visibility.hiddenCategories.insert(id)
+                case .channel(let id, hidden: true): visibility.hiddenChannels.insert(id)
+                default: break
                 }
             }
             // IPTV_FRESHRECORDINGS=1: start without the recordings of earlier test runs.
@@ -419,20 +381,8 @@ final class TVModel: ObservableObject {
     /// listings of their own.
     private static func debugEnlargedChannels(_ data: Data) -> Data {
         #if DEBUG
-        guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGLIVE"].flatMap(Int.init),
-              let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !items.isEmpty else { return data }
-        var out = items
-        var copy = 1
-        while out.count < target {
-            for item in items where out.count < target {
-                var item = item
-                let base = (item["stream_id"] as? Int) ?? Int("\(item["stream_id"] ?? 0)") ?? 0
-                item["stream_id"] = base + copy * 1_000_000
-                out.append(item)
-            }
-            copy += 1
-        }
-        return (try? JSONSerialization.data(withJSONObject: out)) ?? data
+        guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGLIVE"].flatMap(Int.init) else { return data }
+        return DebugEnv.enlarged(data, to: target, id: "stream_id")
         #else
         return data
         #endif
@@ -566,10 +516,7 @@ final class TVModel: ObservableObject {
     /// IPTV_SERVER/IPTV_USER/IPTV_PASS (debug builds): sign in without the keychain.
     static var debugCredentials: XtreamCredentials? {
         #if DEBUG
-        let env = ProcessInfo.processInfo.environment
-        // An empty IPTV_SERVER= starts without an account (the welcome screen).
-        guard let server = env["IPTV_SERVER"], !server.isEmpty, let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
-        return XtreamCredentials(server: server, username: user, password: pass)
+        DebugEnv.credentials
         #else
         nil
         #endif

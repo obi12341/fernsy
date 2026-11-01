@@ -119,8 +119,8 @@ struct SeriesDetailView: View {
     /// The episode with a resume position, else the first one not watched (else the first).
     private func nextEpisode(_ info: SeriesInfo) -> Episode? {
         let all = info.seasons.keys.sorted().flatMap { (info.seasons[$0] ?? []).sorted { $0.number < $1.number } }
-        if let started = all.first(where: { app.resumePosition("episode.\($0.id)") > 0 }) { return started }
-        return all.first { !app.isWatched("episode.\($0.id)") } ?? all.first
+        if let started = all.first(where: { app.resumePosition(ResumeStore.episodeKey($0.id)) > 0 }) { return started }
+        return all.first { !app.isWatched(ResumeStore.episodeKey($0.id)) } ?? all.first
     }
 
     @ViewBuilder
@@ -140,7 +140,7 @@ struct SeriesDetailView: View {
                 }
                 LazyVStack(spacing: 10) {
                     ForEach((info.seasons[season] ?? []).sorted { $0.number < $1.number }) { episode in
-                        let key = "episode.\(episode.id)"
+                        let key = ResumeStore.episodeKey(episode.id)
                         EpisodeRow(episode: episode, resume: app.resumePosition(key), fraction: app.resumeFraction(key),
                                    watched: app.isWatched(key), isNext: episode.id == next?.id) {
                             app.play(episode, of: series)

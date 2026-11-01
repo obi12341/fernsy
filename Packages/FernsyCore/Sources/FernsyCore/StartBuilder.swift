@@ -199,7 +199,7 @@ public struct StartBuilder {
         }
         for item in jellyfinResume {
             let date = item.userData?.lastPlayedDate.flatMap { try? Date($0, strategy: .iso8601) } ?? .distantPast
-            let left = item.runTimeTicks.map { Double($0 - (item.userData?.playbackPositionTicks ?? 0)) / 10_000_000 }
+            let left = item.runTimeTicks.map { JellyfinTicks.seconds($0 - (item.userData?.playbackPositionTicks ?? 0)) }
             entries.append(LibraryEntry(id: "jf." + item.id, title: item.seriesName ?? item.name,
                                         detail: left.map { Self.minutesLeft($0) } ?? "", source: .jellyfin,
                                         image: images.thumb(item).flatMap(URL.init(string:)),
@@ -231,7 +231,7 @@ public struct StartBuilder {
     public func finishedRecordings() -> [LibraryEntry] {
         recordings.filter(\.finished).sorted { $0.start > $1.start }.prefix(12).map { recording in
             LibraryEntry(id: "rec." + recording.id.uuidString, title: recording.title,
-                         detail: "\(recording.channelName) · \(recording.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))",
+                         detail: ItemText.channelAndTime(recording.channelName, recording.start),
                          source: .recording, image: channels.first { $0.id == recording.channelId }?.icon.flatMap(URL.init(string:)),
                          progress: resume?.fraction(ResumeStore.recordingKey(recording.id)), date: recording.start, open: .recording(recording.id))
         }

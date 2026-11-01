@@ -133,7 +133,7 @@ struct JellyfinOverviewPage: View {
 
     private func remaining(_ item: JFItem) -> String {
         guard let ticks = item.runTimeTicks else { return "" }
-        let left = Double(ticks - (item.userData?.playbackPositionTicks ?? 0)) / 10_000_000
+        let left = JellyfinTicks.seconds(ticks - (item.userData?.playbackPositionTicks ?? 0))
         return String(localized: "\(max(1, Int((left / 60).rounded()))) min left")
     }
 }
@@ -210,7 +210,7 @@ private struct JellyfinSpotlight: View {
         var list: [String] = []
         if let year = item.productionYear { list.append("\(year)") }
         if let genre = item.genres?.first { list.append(genre) }
-        if let ticks = item.runTimeTicks { list.append(Runtime.text(seconds: Double(ticks) / 10_000_000)) }
+        if let seconds = item.runTimeSeconds { list.append(Runtime.text(seconds: seconds)) }
         if let rating = item.communityRating { list.append("★ \(rating.formatted(.number.precision(.fractionLength(1))))") }
         return list.joined(separator: " · ")
     }

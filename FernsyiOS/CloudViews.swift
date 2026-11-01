@@ -167,7 +167,7 @@ private struct CloudRecordingRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: item.meta?.title ?? String(localized: "Locked cloud recording")).font(.headline).lineLimit(1)
                 if let meta = item.meta {
-                    Text(verbatim: "\(meta.channel) · \(meta.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())) · \(Duration.seconds(meta.duration).formatted(.time(pattern: .hourMinute)))")
+                    Text(verbatim: "\(meta.channel) · \(ItemText.shortDateTime(meta.recordStart)) · \(Duration.seconds(meta.duration).formatted(.time(pattern: .hourMinute)))")
                         .font(.subheadline).foregroundStyle(TVTheme.secondary).lineLimit(1)
                 } else {
                     Text(item.isDamaged ? "Damaged" : "Key missing on this device").font(.subheadline).foregroundStyle(TVTheme.secondary)

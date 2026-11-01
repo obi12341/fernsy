@@ -79,20 +79,10 @@ struct StartView: View {
         builder.series = app.showsIPTVSeries ? app.series : []
         builder.movieCategories = app.movieCategories
         builder.seriesCategories = app.seriesCategories
-        builder.jellyfinFilms = jellyfin.films
-        builder.jellyfinLatestFilms = jellyfin.latestFilms
-        builder.jellyfinLatestSeries = jellyfin.latestSeries
-        builder.jellyfinResume = jellyfin.resume
-        builder.jellyfinNextUp = jellyfin.nextUp
-        let store = jellyfin
-        builder.images = .init(poster: { store.posterURL($0) }, thumb: { store.thumbURL($0) }, backdrop: { store.backdropURL($0) })
+        builder.addJellyfin(jellyfin)
         builder.resume = app.resume
         builder.episodeIndex = app.episodeIndex
-        builder.recordings = recorder.recordings.map { recording in
-            StartRecording(id: recording.id, title: recording.title, channelId: recording.channelId, channelName: recording.channelName,
-                           start: recording.start, recordStart: recording.recordStart, recordEnd: recording.recordEnd,
-                           finished: recording.status == .done, failed: recording.status == .failed)
-        }
+        builder.recordings = recorder.recordings.map(StartBuilder.recording)
         builder.channels = app.channels
         return builder
     }

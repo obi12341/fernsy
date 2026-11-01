@@ -64,7 +64,7 @@ struct MovieGridView: View {
                         PosterCard(title: movie.name, imageURL: movie.poster, rating: movie.rating,
                                    isFavorite: app.isFavorite("movie:\(movie.id)"),
                                    progress: resumeFraction(movie),
-                                   fraction: app.resumeFraction("movie.\(movie.id)"))
+                                   fraction: app.resumeFraction(ResumeStore.movieKey(movie.id)))
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
@@ -83,7 +83,7 @@ struct MovieGridView: View {
     }
 
     private func resumeFraction(_ movie: Movie) -> Double? {
-        let pos = app.resumePosition("movie.\(movie.id)")
+        let pos = app.resumePosition(ResumeStore.movieKey(movie.id))
         return pos > 0 ? pos : nil
     }
 }
@@ -283,7 +283,7 @@ struct MovieDetailView: View {
     }
 
     private var actionButtons: some View {
-        let key = "movie.\(movie.id)"
+        let key = ResumeStore.movieKey(movie.id)
         let resume = app.resumePosition(key)
         let fraction = app.resumeFraction(key)
         return HStack(spacing: 12) {

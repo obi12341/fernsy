@@ -70,13 +70,7 @@ struct JellyfinView: View {
         }
     }
 
-    private var overviewInputs: String {
-        let store = model.jellyfin
-        let all = store.films + store.series
-        let played = all.filter(\.isPlayed).count, favorites = all.filter(\.isFavorite).count
-        let left = store.series.reduce(0) { $0 + ($1.userData?.unplayedItemCount ?? 0) }
-        return "\(store.films.count).\(store.series.count).\(played).\(favorites).\(left)"
-    }
+    private var overviewInputs: String { model.jellyfinOverviewInputs }
 
     private func drawSpotlight() {
         spotlight = JellyfinOverview.pick(from: overview.spotlightCandidates, avoiding: recentSpotlights)
@@ -341,67 +335,13 @@ struct SearchView: View {
 
     /// The channels searched: favourites, recently watched, then the first visible ones (at most
     /// 50, like the Mac's programme search).
-    private var liveChannels: [LiveChannel] {
-        var seen = Set<Int>()
-        return (model.channels(for: .favorites) + model.channels(for: .recent) + model.channels(for: .all))
-            .filter { seen.insert($0.id).inserted }.prefix(50).map { $0 }
-    }
+    private var liveChannels: [LiveChannel] { model.searchChannels }
 
-    private var liveHits: [(show: EPGEntry, channel: LiveChannel)] {
-        let needle = makeSearchKey(query)
-        guard needle.count >= 2 else { return [] }
-        let now = Date()
-        var hits: [(show: EPGEntry, channel: LiveChannel)] = []
-        for channel in liveChannels {
-            for show in model.guide.guide(channel.id).entries ?? [] where show.end > now && makeSearchKey(show.title).contains(needle) {
-                hits.append((show, channel))
-            }
-        }
-        return Array(hits.sorted { ($0.show.start <= now ? 0 : 1, $0.show.start) < ($1.show.start <= now ? 0 : 1, $1.show.start) }.prefix(12))
-    }
+    private var liveHits: [(show: EPGEntry, channel: LiveChannel)] { model.liveSearchHits(query) }
 
-    private func buildIndex() async {
-        let movies = model.movies.map(\.name), series = model.series.map(\.name)
-        let films = model.jellyfin.films.map(\.name), shows = model.jellyfin.series.map(\.name)
-        index = await Task.detached(priority: .utility) {
-            var entries: [SearchEntry] = []
-            for (i, name) in movies.enumerated() { entries.append(SearchEntry(source: .movies, index: i, key: makeSearchKey(name))) }
-            for (i, name) in series.enumerated() { entries.append(SearchEntry(source: .series, index: i, key: makeSearchKey(name))) }
-            for (i, name) in films.enumerated() { entries.append(SearchEntry(source: .jellyfinFilms, index: i, key: makeSearchKey(name))) }
-            for (i, name) in shows.enumerated() { entries.append(SearchEntry(source: .jellyfinSeries, index: i, key: makeSearchKey(name))) }
-            return SearchIndex(entries: entries)
-        }.value
-    }
+    private func buildIndex() async { index = await model.searchIndex() }
 
-    private struct VODHit: Identifiable {
-        let id: String
-        let title: String
-        let source: String
-        let image: URL?
-        let target: DetailTarget
-    }
-
-    private var vodHits: [VODHit] {
-        let found = index.search(makeSearchKey(query))
-        var hits: [VODHit] = []
-        for i in found[.movies] ?? [] where i < model.movies.count {
-            let movie = model.movies[i]
-            hits.append(VODHit(id: "m\(movie.id)", title: movie.name, source: "IPTV", image: movie.poster.flatMap(URL.init(string:)), target: .movie(movie)))
-        }
-        for i in found[.series] ?? [] where i < model.series.count {
-            let show = model.series[i]
-            hits.append(VODHit(id: "s\(show.id)", title: show.name, source: "IPTV", image: show.cover.flatMap(URL.init(string:)), target: .series(show)))
-        }
-        for i in (found[.jellyfinFilms] ?? []) where i < model.jellyfin.films.count {
-            let item = model.jellyfin.films[i]
-            hits.append(VODHit(id: "j\(item.id)", title: item.name, source: "Jellyfin", image: model.jellyfin.posterURL(item).flatMap(URL.init(string:)), target: .jellyfin(item)))
-        }
-        for i in (found[.jellyfinSeries] ?? []) where i < model.jellyfin.series.count {
-            let item = model.jellyfin.series[i]
-            hits.append(VODHit(id: "j\(item.id)", title: item.name, source: "Jellyfin", image: model.jellyfin.posterURL(item).flatMap(URL.init(string:)), target: .jellyfin(item)))
-        }
-        return Array(hits.prefix(30))
-    }
+    private var vodHits: [VODHit] { model.vodSearchHits(query, in: index) }
 
     @ViewBuilder private var results: some View {
         let live = liveHits, vod = vodHits
@@ -469,11 +409,5 @@ private struct LiveHit: View {
         .contentShape(.rect)
     }
 
-    private var detail: String {
-        if show.start <= Date() {
-            let minutes = max(1, Int((show.end.timeIntervalSinceNow / 60).rounded()))
-            return String(localized: "\(channel.displayName) · on now, \(minutes) min left")
-        }
-        return "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).hour().minute()))"
-    }
+    private var detail: String { LibraryText.liveHit(show, on: channel) }
 }

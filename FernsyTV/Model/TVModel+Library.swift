@@ -36,9 +36,9 @@ enum VODItem: Equatable {
     var subtitle: String? {
         switch self {
         case .archive(let show, let channel):
-            "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))"
+            ItemText.channelAndTime(channel.displayName, show.start)
         case .cloud(let item):
-            item.meta.map { "\($0.channel) · \($0.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))" }
+            item.meta.map { ItemText.channelAndTime($0.channel, $0.recordStart) }
         case .movie: nil
         case .episode(let episode, _): "S\(episode.season) F\(episode.number) · \(episode.title)"
         case .jellyfin(let item):
@@ -50,8 +50,8 @@ enum VODItem: Equatable {
     var resumeKey: String? {
         switch self {
         case .movie(let movie): ResumeStore.movieKey(movie.id)
-        case .episode(let episode, _): "episode.\(episode.id)"
-        case .cloud(let item): "cloud.\(item.id)"
+        case .episode(let episode, _): ResumeStore.episodeKey(episode.id)
+        case .cloud(let item): ResumeStore.cloudKey(item.id)
         case .jellyfin, .archive: nil   // archives expire within days
         }
     }
@@ -153,27 +153,9 @@ extension TVModel {
     /// so the simulator has a provider-sized catalog without a real provider (tvos-start-scrolling).
     private static func debugEnlarged(_ cache: LibraryCache) -> LibraryCache {
         guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGCATALOG"].flatMap(Int.init) else { return cache }
-        func enlarged(_ data: Data, id: String, date: String) -> Data {
-            guard let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !items.isEmpty else { return data }
-            var out = items
-            var copy = 1
-            while out.count < target {
-                for item in items where out.count < target {
-                    var item = item
-                    let base = (item[id] as? Int) ?? Int("\(item[id] ?? 0)") ?? 0
-                    item[id] = base + copy * 1_000_000
-                    item["name"] = "\(item["name"] ?? "") \(copy)"
-                    let stamp = (item[date] as? Int) ?? Int("\(item[date] ?? 0)") ?? 0
-                    item[date] = "\(max(0, stamp - copy * 60))"
-                    out.append(item)
-                }
-                copy += 1
-            }
-            return (try? JSONSerialization.data(withJSONObject: out)) ?? data
-        }
         var cache = cache
-        cache.movies = enlarged(cache.movies, id: "stream_id", date: "added")
-        cache.series = enlarged(cache.series, id: "series_id", date: "last_modified")
+        cache.movies = DebugEnv.enlarged(cache.movies, to: target, id: "stream_id", date: "added")
+        cache.series = DebugEnv.enlarged(cache.series, to: target, id: "series_id", date: "last_modified")
         return cache
     }
     #endif
@@ -227,8 +209,8 @@ extension TVModel {
     /// The next episode to watch: the first not watched after the last watched or started one.
     func nextEpisode(of series: Series, in info: SeriesInfo) -> Episode? {
         let all = info.seasons.keys.sorted().flatMap { info.seasons[$0] ?? [] }
-        if let started = all.first(where: { resume.position("episode.\($0.id)") > 0 }) { return started }
-        let lastWatched = all.lastIndex { resume.isWatched("episode.\($0.id)") }
+        if let started = all.first(where: { resume.position(ResumeStore.episodeKey($0.id)) > 0 }) { return started }
+        let lastWatched = all.lastIndex { resume.isWatched(ResumeStore.episodeKey($0.id)) }
         return lastWatched.map { all.index(after: $0) < all.count ? all[all.index(after: $0)] : all[$0] } ?? all.first
     }
 
@@ -236,12 +218,7 @@ extension TVModel {
 
     /// Episodes seen in loaded series, by id, so "Continue Watching" can name them.
     var episodeIndex: [String: (Episode, Series)] {
-        var index: [String: (Episode, Series)] = [:]
-        for (id, info) in seriesInfo {
-            guard let show = seriesByID[id] else { continue }
-            for episode in info.seasons.values.flatMap({ $0 }) { index[episode.id] = (episode, show) }
-        }
-        return index
+        SeriesInfo.episodeIndex(seriesInfo) { seriesByID[$0] }
     }
 
     // MARK: Playback
@@ -260,34 +237,20 @@ extension TVModel {
             guard let url = client?.episodeURL(episode) else { return }
             engine.load(url: url, isLive: false, startAt: fromStart ? 0 : resume.position(item.resumeKey ?? ""))
         case .jellyfin(let jfItem):
-            Task { @MainActor in
-                guard let playback = await JellyfinPlayback.make(itemId: jfItem.id, store: jellyfin, engine: engine),
-                      playingVOD == item else { return }
-                jellyfinPlayback = playback
-                let start = fromStart ? 0 : Double(jfItem.userData?.playbackPositionTicks ?? 0) / 10_000_000
-                playback.start(at: start)
-            }
+            PlaybackStart.jellyfin(itemId: jfItem.id, store: jellyfin, engine: engine, startAt: fromStart ? 0 : jfItem.positionSeconds,
+                                   stillWanted: { [weak self] in self?.playingVOD == item }, started: { [weak self] in self?.jellyfinPlayback = $0 })
         case .archive(let show, let channel):
             // Its own connection, counted against the account's limit (catch-up design 4).
             tuners.reserveArchive(channel.id)
-            let client = client, zone = serverTimeZone
-            let playback = ArchivePlayback(channelId: channel.id, start: show.start, end: show.end, engine: engine) { from, minutes in
-                client?.archiveURL(channel: channel.id, start: from, minutes: minutes, timeZone: zone)
-            }
-            archivePlayback = playback
-            playback.play()
+            archivePlayback = PlaybackStart.archive(channelId: channel.id, start: show.start, end: show.end, client: client,
+                                                    timeZone: serverTimeZone, engine: engine)
         case .cloud(let cloudItem):
-            let start = fromStart ? 0 : resume.position(item.resumeKey ?? "")
-            Task { @MainActor in
-                do {
-                    let source = try await cloudSource(cloudItem)
-                    guard playingVOD == item else { return }
-                    engine.load(cloud: source, startAt: start)
-                } catch {
-                    AppLog.warning(.player, "Fernsy Cloud: cannot play \(cloudItem.id.prefix(8)): \(error)")
-                    engine.reportFailure(CloudModel.describe(error))
-                }
-            }
+            PlaybackStart.cloud(id: cloudItem.id, engine: engine, startAt: fromStart ? 0 : resume.position(item.resumeKey ?? ""),
+                                source: { [weak self] in
+                                    guard let self else { throw CancellationError() }
+                                    return try await self.cloudSource(cloudItem)
+                                },
+                                stillWanted: { [weak self] in self?.playingVOD == item })
         }
         AppLog.info(.player, "play \(item.title)")
     }

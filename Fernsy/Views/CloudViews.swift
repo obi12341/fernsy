@@ -69,7 +69,7 @@ struct CloudRecordingRow: View {
                     HStack(spacing: 6) {
                         Text(verbatim: meta.channel)
                         Text(verbatim: "·")
-                        Text(meta.recordStart.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())).monospacedDigit()
+                        Text(ItemText.shortDateTime(meta.recordStart)).monospacedDigit()
                         Text(verbatim: "·")
                         Text(Duration.seconds(meta.duration).formatted(.time(pattern: .hourMinute)))
                         Text(verbatim: "·")

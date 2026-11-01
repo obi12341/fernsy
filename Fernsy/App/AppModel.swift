@@ -47,60 +47,9 @@ enum LibrarySection: String, Hashable, CaseIterable, Identifiable {
     }
 }
 
-/// What the player window should show.
-struct PlayItem: Equatable {
-    enum Kind: Equatable {
-        case live(channelId: Int, categoryId: String?)
-        case movie(id: Int)
-        case episode(id: String, seriesId: Int)
-        case recording(id: UUID)
-        /// A recording in Fernsy Cloud, by its cloud id.
-        case cloud(id: String)
-        /// A Jellyfin film or episode, started at `startAt` seconds.
-        case jellyfin(itemId: String, startAt: Double, seriesId: String? = nil)
-        /// A past show from the channel's archive (catch-up).
-        case archive(channelId: Int, start: Date, end: Date)
-    }
-
-    let kind: Kind
-    let title: String
-    let subtitle: String?
-    let url: URL
-
-    var isLive: Bool {
-        if case .live = kind { return true }
-        return false
-    }
-
-    var resumeKey: String? {
-        switch kind {
-        case .live: return nil
-        case .movie(let id): return "movie.\(id)"
-        case .episode(let id, _): return "episode.\(id)"
-        case .recording(let id): return "recording.\(id.uuidString)"
-        case .cloud(let id): return "cloud.\(id)"
-        case .jellyfin: return nil // resume positions live on the server
-        case .archive: return nil  // archives expire within days
-        }
-    }
-
-    /// What is played, for the log (no URL: it carries the account's credentials).
-    var logDescription: String {
-        switch kind {
-        case .live(let id, _): return "channel \(id)"
-        case .movie(let id): return "film \(id)"
-        case .episode(let id, _): return "episode \(id)"
-        case .recording: return "recording"
-        case .cloud: return "cloud recording"
-        case .jellyfin(let id, let startAt, _): return "Jellyfin item \(id)\(startAt > 0 ? " at \(Int(startAt)) s" : "")"
-        case .archive(let id, let start, _): return "archive of channel \(id) from \(start.formatted(date: .abbreviated, time: .shortened))"
-        }
-    }
-}
-
 @MainActor
 final class AppModel: ObservableObject {
-    @Published private(set) var credentials: XtreamCredentials? {
+    @Published var credentials: XtreamCredentials? {
         didSet {
             if credentials?.accountKey != oldValue?.accountKey {
                 loadSavedConnectionLimit()
@@ -119,22 +68,22 @@ final class AppModel: ObservableObject {
     /// until `account` answers again.
     private var savedConnectionLimit: Int?
 
-    @Published private(set) var liveCategories: [XCategory] = []
-    @Published private(set) var movieCategories: [XCategory] = []
-    @Published private(set) var seriesCategories: [XCategory] = []
-    @Published private(set) var channels: [LiveChannel] = []
-    @Published private(set) var movies: [Movie] = []
-    @Published private(set) var series: [Series] = []
+    @Published var liveCategories: [XCategory] = []
+    @Published var movieCategories: [XCategory] = []
+    @Published var seriesCategories: [XCategory] = []
+    @Published var channels: [LiveChannel] = []
+    @Published var movies: [Movie] = []
+    @Published var series: [Series] = []
 
-    @Published private(set) var isLoading = false
-    @Published private(set) var loadError: String?
+    @Published var isLoading = false
+    @Published var loadError: String?
     /// The last background refresh failed while the cached catalog is shown (Live TV's notice).
-    @Published private(set) var refreshError: String?
-    @Published private(set) var lastUpdated: Date?
+    @Published var refreshError: String?
+    @Published var lastUpdated: Date?
 
-    @Published private(set) var favorites: Set<String>
+    @Published var favorites: Set<String>
     /// Live channels played last, newest first (Live TV › "Zuletzt gesehen").
-    @Published private(set) var recentChannels: [Int]
+    @Published var recentChannels: [Int]
     /// Channels the provider reported offline when played in this run (cleared by a successful start).
     @Published var offlineChannels: Set<Int> = []
     /// macOS has a network path (Wi-Fi, Ethernet …). False lets the player say "no internet"
@@ -143,7 +92,7 @@ final class AppModel: ObservableObject {
     private let pathMonitor = NWPathMonitor()
     static let recentLimit = LiveRules.recentLimit
     /// Hidden live categories and channels of the signed-in account.
-    @Published private(set) var visibility = ChannelVisibility() {
+    @Published var visibility = ChannelVisibility() {
         didSet { updateVisibleCounts() }
     }
     @Published var showAdult: Bool {
@@ -260,22 +209,22 @@ final class AppModel: ObservableObject {
     /// Logins found in iCloud while this Mac has none: the login screen offers them.
     @Published var syncedXtream: XtreamCredentials?
     @Published var syncedJellyfin: LoginSync.JellyfinLogin?
-    @Published private(set) var iCloudAvailable = false
+    @Published var iCloudAvailable = false
     /// Launched without an account while logins may be in iCloud: "Signing in …" shows until
     /// they are tried (icloud-auto-signin); then why none worked, if so.
-    @Published private(set) var signingInFromICloud = false
+    @Published var signingInFromICloud = false
     /// The launch screen's lines while `signingInFromICloud`.
-    @Published private(set) var iCloudSteps: [ICloudSignInStep] = []
-    @Published private(set) var iCloudSignInError: String?
+    @Published var iCloudSteps: [ICloudSignInStep] = []
+    @Published var iCloudSignInError: String?
 
     static let timeshiftMinutesKey = "timeshift.minutes"
 
-    private(set) var channelsByCategory: [String: [LiveChannel]] = [:]
-    private(set) var moviesByCategory: [String: [Movie]] = [:]
-    private(set) var seriesByCategory: [String: [Series]] = [:]
+    var channelsByCategory: [String: [LiveChannel]] = [:]
+    var moviesByCategory: [String: [Movie]] = [:]
+    var seriesByCategory: [String: [Series]] = [:]
     /// Live channels per category and in total, without hidden ones.
-    private(set) var visibleChannelCounts: [String: Int] = [:]
-    private(set) var visibleChannelTotal = 0
+    var visibleChannelCounts: [String: Int] = [:]
+    var visibleChannelTotal = 0
 
     private var logSecrets: Set<AnyCancellable> = []
 
@@ -386,7 +335,7 @@ final class AppModel: ObservableObject {
 
     /// Asks the provider for the account again (stream limit, expiry); a failed request keeps
     /// what is known.
-    private func refreshAccount(_ client: XtreamClient) async {
+    func refreshAccount(_ client: XtreamClient) async {
         #if DEBUG
         // IPTV_TESTCATALOGFAIL=1 makes this fail too, as if the provider were unreachable.
         if ProcessInfo.processInfo.environment["IPTV_TESTCATALOGFAIL"] != nil { return }
@@ -396,251 +345,26 @@ final class AppModel: ObservableObject {
 
     /// Development login from IPTV_SERVER/IPTV_USER/IPTV_PASS. Takes precedence over the
     /// keychain, which a freshly built debug binary may not read without a password prompt.
-    private static var debugCredentials: XtreamCredentials? {
+    static var debugCredentials: XtreamCredentials? {
         #if DEBUG
         if let copied = XtreamCredentials.copied { return copied }
-        let env = ProcessInfo.processInfo.environment
-        // An empty IPTV_SERVER= starts without an account, as on Apple TV.
-        guard let server = env["IPTV_SERVER"], !server.isEmpty, let user = env["IPTV_USER"], let pass = env["IPTV_PASS"] else { return nil }
-        return XtreamCredentials(server: server, username: user, password: pass)
+        return DebugEnv.credentials
         #else
         return nil
         #endif
     }
 
-    #if DEBUG
-    private var debugFavoritesInMemory = false
-    private var debugSettingsInMemory = false
-    private var debugAdultChannels: Set<Int> = []
-
-    /// Development hook: IPTV_SERVER/IPTV_USER/IPTV_PASS log in without the keychain,
-    /// IPTV_AUTOPLAY=live:<id> | movie:<id> starts playback once the catalog is loaded,
-    /// IPTV_TESTHIDE hides channels and categories (see below).
-    private func debugBootstrap() {
-        let env = ProcessInfo.processInfo.environment
-        if let debug = Self.debugCredentials {
-            credentials = debug
-            Task { await loadCatalog(forceRefresh: false) }
-        }
-        if let size = env["IPTV_WINDOW"]?.split(separator: "x").compactMap({ Double($0) }), size.count == 2 {
-            // Screenshot runs: keep every titled window at this size (points, frame incl. title bar).
-            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) {
-                    guard window.frame.size != CGSize(width: size[0], height: size[1]) else { continue }
-                    window.setFrame(CGRect(origin: CGPoint(x: 80, y: 80), size: CGSize(width: size[0], height: size[1])), display: true)
-                }
-            }
-        }
-        // IPTV_SECTION=<live|recordings|…>: the library opens on that section.
-        if let section = env["IPTV_SECTION"].flatMap(LibrarySection.init(rawValue:)) {
-            requestedSection = section
-        }
-        if let list = env["IPTV_TESTRECORD"] {
-            // IPTV_TESTRECORD=<channel>:<starts in s>:<seconds>[:<before min>:<after min>],…: shows
-            // recorded without padding, or with the given padding, planned in this order.
-            let specs = list.split(separator: ",").map { $0.split(separator: ":").compactMap { Double($0) } }.filter { $0.count == 3 || $0.count == 5 }
-            Task {
-                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                let now = Date()
-                for (n, spec) in specs.enumerated() {
-                    guard let channel = channel(Int(spec[0])) else { continue }
-                    let start = now.addingTimeInterval(spec[1])
-                    let entry = EPGEntry(id: "test\(n)", title: "Test \(n + 1) \(Int(spec[0]))", description: "", start: start, end: start.addingTimeInterval(spec[2]))
-                    recorder.schedule(entry, on: channel, padding: spec.count == 5 ? (spec[3] * 60, spec[4] * 60) : (0, 0))
-                }
-            }
-        }
-        if let spec = env["IPTV_TESTPADDING"]?.split(separator: ":").compactMap({ Double($0) }), spec.count == 3 {
-            // IPTV_TESTPADDING=<after s>:<before min>:<after min>: as if Settings changed (without
-            // touching the shared defaults of an installed Fernsy).
-            DispatchQueue.main.asyncAfter(deadline: .now() + spec[0]) { [recorder] in
-                recorder.applyPadding(before: spec[1] * 60, after: spec[2] * 60)
-            }
-        }
-        // Youth protection tests, in memory only (the demo has no adult channels):
-        // IPTV_TESTADULT=<id,…> treats channels as adult, IPTV_RECENT=<id,…> sets "Zuletzt
-        // gesehen", IPTV_SHOWADULT / IPTV_ADULTRECENT=0|1 set both settings,
-        // IPTV_TESTUNRECENT=<id> removes a channel from the history 3 s after the catalog loaded.
-        if let list = env["IPTV_TESTADULT"] { debugAdultChannels = Set(list.split(separator: ",").compactMap { Int($0) }) }
-        if let list = env["IPTV_RECENT"] { recentChannels = list.split(separator: ",").compactMap { Int($0) } }
-        // IPTV_SHOWMOVIES / IPTV_SHOWSERIES=0|1: the IPTV account's films and series, in memory only.
-        if env["IPTV_SHOWMOVIES"] != nil || env["IPTV_SHOWSERIES"] != nil {
-            debugSettingsInMemory = true
-            if let value = env["IPTV_SHOWMOVIES"] { showsIPTVMovies = value == "1" }
-            if let value = env["IPTV_SHOWSERIES"] { showsIPTVSeries = value == "1" }
-        }
-        // IPTV_TESTINTENT=<step>[|<step>…]: runs Siri's actions once the catalog is loaded, as the
-        // system does, one step every 4 s, and logs the answer. Steps: query:<text>, play:<id>,
-        // whatson, find:<text>, record[:<id>], recordshow:<channel>:<epoch>, stop.
-        if let steps = env["IPTV_TESTINTENT"]?.split(separator: "|").map(String.init) {
-            Task {
-                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                try? await Task.sleep(for: .seconds(2))
-                for step in steps {
-                    let parts = step.split(separator: ":", maxSplits: 1).map(String.init)
-                    let arg = parts.count > 1 ? parts[1] : ""
-                    var line: String
-                    switch parts[0] {
-                    case "query":
-                        let found = (try? await ChannelQuery().entities(matching: arg)) ?? []
-                        line = found.map { "\($0.id) \($0.name)" }.joined(separator: ", ")
-                    case "suggested":
-                        line = ((try? await ChannelQuery().suggestedEntities()) ?? []).map(\.name).joined(separator: ", ")
-                    case "play": line = await IntentActions.play(channelId: Int(arg) ?? 0).text
-                    case "whatson":
-                        let answer = await IntentActions.whatsOn()
-                        line = answer.text + " | rows: \(answer.rows.count)"
-                    case "find":
-                        let answer = await IntentActions.findShow(arg)
-                        line = answer.text + " | shows: " + answer.shows.prefix(3).map(\.id).joined(separator: ",")
-                    case "record": line = await IntentActions.recordNow(channelId: Int(arg)).text
-                    case "recordshow": line = await IntentActions.record(showId: arg).text
-                    case "stop": line = await IntentActions.stop().text
-                    case "open": line = await IntentActions.play(channelId: Int(arg) ?? 0).text
-                    case "search": line = IntentActions.search(arg).text
-                    default: line = "unknown step"
-                    }
-                    debugLog("[test] intent \(step): \(line)")
-                    try? await Task.sleep(for: .seconds(4))
-                }
-            }
-        }
-        // IPTV_TESTSWITCHMEDIA=<s>:<movies|series>:<0|1>,…: flips the switch s seconds after the
-        // live catalog loaded, as in Settings (also in memory only).
-        if let list = env["IPTV_TESTSWITCHMEDIA"] {
-            debugSettingsInMemory = true
-            let steps = list.split(separator: ",").map { $0.split(separator: ":") }.filter { $0.count == 3 }
-            Task {
-                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                let loaded = Date()
-                for step in steps {
-                    guard let at = Double(step[0]) else { continue }
-                    try? await Task.sleep(for: .seconds(max(0, at - Date().timeIntervalSince(loaded))))
-                    debugLog("[test] \(step[1]) \(step[2] == "1" ? "on" : "off")")
-                    if step[1] == "movies" { showsIPTVMovies = step[2] == "1" } else { showsIPTVSeries = step[2] == "1" }
-                }
-            }
-        }
-        if env["IPTV_SHOWADULT"] != nil || env["IPTV_ADULTRECENT"] != nil {
-            debugSettingsInMemory = true
-            if let value = env["IPTV_SHOWADULT"] { showAdult = value == "1" }
-            if let value = env["IPTV_ADULTRECENT"] { showAdultInRecent = value == "1" }
-        }
-        if let id = env["IPTV_TESTUNRECENT"].flatMap(Int.init) {
-            Task {
-                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                try? await Task.sleep(for: .seconds(3))
-                removeRecent(id)
-            }
-        }
-        if let list = env["IPTV_FAVORITES"] {
-            // IPTV_FAVORITES=live:101,movie:5: these favorites, in memory only (the shared
-            // defaults of an installed Fernsy stay untouched, also when toggling).
-            favorites = Set(list.split(separator: ",").map(String.init))
-            debugFavoritesInMemory = true
-        }
-        if let spec = env["IPTV_TESTHIDE"] {
-            // IPTV_TESTHIDE=channel:102,category:3,wait:20,show:channel:102: hides (or with
-            // "show:" shows) live channels and categories in order once the catalog is loaded,
-            // "wait:<s>" pauses in between.
-            Task {
-                while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                for item in spec.split(separator: ",") {
-                    var parts = item.split(separator: ":").map(String.init)
-                    let hidden = parts.first != "show"
-                    if !hidden { parts.removeFirst() }
-                    guard parts.count == 2 else { continue }
-                    switch parts[0] {
-                    case "wait": try? await Task.sleep(for: .seconds(Double(parts[1]) ?? 0))
-                    case "channel": if let id = Int(parts[1]) { setChannel(id, hidden: hidden) }
-                    case "category": setCategory(parts[1], hidden: hidden)
-                    default: continue
-                    }
-                    debugLog("[test] test \(item): \(visibleChannelTotal) of \(channels.count) channels visible")
-                }
-            }
-        }
-        if let raw = env["IPTV_PLAYURL"], let url = URL(string: raw) {
-            // IPTV_PLAYURL=<url>: play any URL as a movie (VOD path, range requests), e.g. a
-            // media server's direct stream for format tests. Resume key: movie.-1.
-            Task {
-                try? await Task.sleep(for: .seconds(1))
-                nowPlaying = PlayItem(kind: .movie(id: -1), title: url.lastPathComponent, subtitle: nil, url: url)
-            }
-        }
-        if let spec = env["IPTV_TESTSIGNOUT"]?.split(separator: ":"), spec.count == 2, let delay = Double(spec[1]) {
-            // IPTV_TESTSIGNOUT=<iptv|jellyfin>:<s>: sign out of that account after <s> seconds.
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-                debugLog("[test] signing out of \(spec[0])")
-                if spec[0] == "iptv" { logout() } else { jellyfin.signOut() }
-            }
-        }
-        if env["IPTV_LOGOTONETEST"] == "1" { LogoTile.selfTest() }
-        if let keys = env["IPTV_TESTWATCHED"] { markWatchedForTest(keys.split(separator: ",").map(String.init)) }
-        if let spec = env["IPTV_TESTRESUME"] {
-            // IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run.
-            for item in spec.split(separator: ",") {
-                let p = item.split(separator: ":")
-                if p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) {
-                    resume.save(String(p[0]), position: position, duration: duration)
-                }
-            }
-        }
-        if let appearance = env["IPTV_APPEARANCE"] {
-            // IPTV_APPEARANCE=light|dark: one run in that appearance, without touching the system setting.
-            NSApp.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
-        }
-        if let spec = env["JF_AUTOPLAY"] {
-            // JF_AUTOPLAY=<item id>[:<start s>]: play a Jellyfin film or episode once signed in.
-            let parts = spec.split(separator: ":").map(String.init)
-            Task {
-                while jellyfin.films.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                await jellyfin.loadDetail(parts[0])
-                guard var item = jellyfin.details[parts[0]] else { debugLog("[test] autoplay: unknown item"); return }
-                if parts.count > 1, let start = Double(parts[1]) {
-                    item.userData = (item.userData ?? JFUserData())
-                    item.userData?.playbackPositionTicks = Int64(start * 10_000_000)
-                }
-                play(jellyfin: item)
-            }
-        }
-        if let spec = env["IPTV_TESTSWITCH"]?.split(separator: ":"), spec.count == 3,
-           let after = Double(spec[0]), let id = Int(spec[2]) {
-            // IPTV_TESTSWITCH=<s>:<live|movie>:<id>: start another item after <s> seconds the way
-            // the main window does (e.g. while Picture in Picture runs).
-            Task {
-                try? await Task.sleep(for: .seconds(after))
-                debugLog("[test] switch to \(spec[1]) \(id)")
-                if spec[1] == "live", let channel = channel(id) { play(channel) }
-                if spec[1] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
-            }
-        }
-        guard let auto = env["IPTV_AUTOPLAY"] else { return }
-        let parts = auto.split(separator: ":")
-        guard parts.count >= 2, let id = Int(parts[1]) else { return }
-        Task {
-            while channels.isEmpty && movies.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-            try? await Task.sleep(for: .seconds(1))
-            if parts[0] == "live", let channel = channel(id) { play(channel) }
-            if parts[0] == "movie", let movie = movies.first(where: { $0.id == id }) { play(movie) }
-            if parts[0] == "recording", recorder.recordings.indices.contains(id) { play(recorder.recordings[id]) }
-            // archive:<channel id>: the show that began about a day ago on that channel (catch-up).
-            if parts[0] == "archive", let channel = channel(id) {
-                await epg.loadPast(id, client: client, from: Date().addingTimeInterval(-26 * 3600))
-                let target = Date().addingTimeInterval(-24 * 3600)
-                if let show = epg.guide(id).entries?.last(where: { $0.start <= target }) { playArchive(show, on: channel) }
-            }
-            // episode:<series id>:<n> – the n-th episode over all seasons (1-based).
-            if parts[0] == "episode", parts.count == 3, let n = Int(parts[2]), let show = series.first(where: { $0.id == id }),
-               let info = try? await client?.seriesInfo(id) {
-                let all = info.seasons.keys.sorted().flatMap { info.seasons[$0] ?? [] }
-                if all.indices.contains(n - 1) { play(all[n - 1], of: show) }
-            }
-        }
-    }
-    #endif
-
     var client: XtreamClient? { credentials.map(XtreamClient.init) }
+
+    // Stored state of the extensions.
+    #if DEBUG
+    var debugFavoritesInMemory = false
+    var debugSettingsInMemory = false
+    var debugAdultChannels: Set<Int> = []
+    #endif
+    var lastRefresh: Date?
+    var refreshInFlight = false
+    var periodicRefresh: Task<Void, Never>?
 
     // MARK: Account
 
@@ -688,233 +412,6 @@ final class AppModel: ObservableObject {
         epg.removeAll()
     }
 
-    // MARK: Catalog
-    //
-    // Stale-while-revalidate: the last downloaded catalog is shown straight from disk
-    // (live channels first, they are the smallest and most used), then every section
-    // is re-downloaded in the background and only re-applied if its bytes changed.
-
-    /// Sections of the catalog that are decoded and applied independently.
-    private enum CatalogSection: CaseIterable {
-        case live, movies, series
-
-        var actions: [CatalogAction] {
-            switch self {
-            case .live: return [.liveCategories, .liveStreams]
-            case .movies: return [.vodCategories, .vodStreams]
-            case .series: return [.seriesCategories, .series]
-            }
-        }
-    }
-
-    private enum DecodedSection: Sendable {
-        case live([XCategory], [LiveChannel])
-        case movies([XCategory], [Movie])
-        case series([XCategory], [Series])
-    }
-
-    private static let refreshInterval: TimeInterval = 6 * 3600
-    private var lastRefresh: Date?
-    private var refreshInFlight = false
-    private var periodicRefresh: Task<Void, Never>?
-
-    private var cacheDirectory: URL? {
-        guard let credentials else { return nil }
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("Fernsy/\(credentials.accountKey)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }
-
-    /// Shows the cached catalog immediately (if any) and refreshes it in the background.
-    /// `forceRefresh` bypasses the "refreshed a moment ago" check (manual refresh).
-    func loadCatalog(forceRefresh: Bool) async {
-        guard let client, let dir = cacheDirectory else { return }
-        loadError = nil
-
-        if channels.isEmpty && movies.isEmpty && series.isEmpty {
-            await loadFromCache(dir)
-        }
-        #if DEBUG
-        // A copied account is shown from its cache only: no credentials, no requests.
-        if client.credentials.isCopied { return }
-        #endif
-        if account == nil {
-            Task { await refreshAccount(client) }
-        }
-        startPeriodicRefresh()
-
-        if !forceRefresh, let lastRefresh, Date().timeIntervalSince(lastRefresh) < 300 { return }
-        await refresh(client: client, dir: dir)
-    }
-
-    private func loadFromCache(_ dir: URL) async {
-        let stamp = dir.appendingPathComponent("updated")
-        guard let cachedAt = (try? FileManager.default.attributesOfItem(atPath: stamp.path)[.modificationDate]) as? Date else { return }
-        lastUpdated = cachedAt
-
-        let started = Date()
-        if let live = await Self.decode(.live, from: dir) { apply(live) }
-        AppLog.detail(.catalog, "live from cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(channels.count) channels)")
-
-        await withTaskGroup(of: DecodedSection?.self) { group in
-            if showsIPTVMovies { group.addTask { await Self.decode(.movies, from: dir) } }
-            if showsIPTVSeries { group.addTask { await Self.decode(.series, from: dir) } }
-            for await section in group {
-                if let section { apply(section) }
-            }
-        }
-        AppLog.detail(.catalog, "full cache in \(Int(Date().timeIntervalSince(started) * 1000)) ms (\(movies.count) movies, \(series.count) series)")
-    }
-
-    private func refresh(client: XtreamClient, dir: URL) async {
-        guard !refreshInFlight else { return }
-        refreshInFlight = true
-        isLoading = true
-        defer {
-            refreshInFlight = false
-            isLoading = false
-        }
-
-        // The package may have changed (stream limit).
-        Task { await refreshAccount(client) }
-        let started = Date()
-        do {
-            #if DEBUG
-            // IPTV_TESTCATALOGFAIL=1: the refresh fails as if the provider were unreachable.
-            if ProcessInfo.processInfo.environment["IPTV_TESTCATALOGFAIL"] != nil { throw URLError(.cannotConnectToHost) }
-            #endif
-            // Download everything, keep only actions whose payload changed.
-            let changed: Set<CatalogAction> = try await withThrowingTaskGroup(of: CatalogAction?.self) { group in
-                for action in CatalogSection.allCases.filter(isEnabled).flatMap(\.actions) {
-                    group.addTask {
-                        let data = try await client.catalog(action)
-                        let file = dir.appendingPathComponent(action.rawValue + ".json")
-                        if let old = try? Data(contentsOf: file), old == data { return nil }
-                        try data.write(to: file, options: .atomic)
-                        return action
-                    }
-                }
-                var result = Set<CatalogAction>()
-                for try await action in group { if let action { result.insert(action) } }
-                return result
-            }
-            FileManager.default.createFile(atPath: dir.appendingPathComponent("updated").path, contents: Data())
-            lastRefresh = Date()
-            lastUpdated = lastRefresh
-
-            for section in CatalogSection.allCases where isEnabled(section) && (!changed.isDisjoint(with: section.actions) || isEmpty(section)) {
-                if let decoded = await Self.decode(section, from: dir) { apply(decoded) }
-            }
-            refreshError = nil
-            AppLog.info(.catalog, "refresh in \(Int(Date().timeIntervalSince(started) * 1000)) ms, changed: \(changed.map(\.rawValue).sorted())")
-        } catch {
-            // Without cached data the whole library says so; with it, Live TV shows a notice.
-            if channels.isEmpty && movies.isEmpty && series.isEmpty {
-                loadError = error.localizedDescription
-            } else {
-                refreshError = error.localizedDescription
-            }
-            AppLog.error(.catalog, "refresh failed: \(error.localizedDescription)")
-        }
-    }
-
-    private func startPeriodicRefresh() {
-        guard periodicRefresh == nil else { return }
-        periodicRefresh = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(Self.refreshInterval))
-                guard let self, !Task.isCancelled else { return }
-                await self.loadCatalog(forceRefresh: true)
-            }
-        }
-    }
-
-    private func isEnabled(_ section: CatalogSection) -> Bool {
-        switch section {
-        case .live: return true
-        case .movies: return showsIPTVMovies
-        case .series: return showsIPTVSeries
-        }
-    }
-
-    /// Off: the section is emptied and its cache removed. On: it is downloaded at once, after a
-    /// refresh that is still running (which skipped it).
-    private func catalogSectionSwitched(_ section: CatalogSection, on: Bool) {
-        AppLog.info(.catalog, "\(section == .movies ? "films" : "series") switched \(on ? "on" : "off")")
-        guard on else {
-            apply(section == .movies ? .movies([], []) : .series([], []))
-            if let dir = cacheDirectory {
-                for action in section.actions { try? FileManager.default.removeItem(at: dir.appendingPathComponent(action.rawValue + ".json")) }
-            }
-            return
-        }
-        Task {
-            while refreshInFlight { try? await Task.sleep(for: .milliseconds(200)) }
-            guard isEnabled(section), let client, let dir = cacheDirectory else { return }
-            isLoading = true
-            defer { isLoading = false }
-            do {
-                for action in section.actions {
-                    try await client.catalog(action).write(to: dir.appendingPathComponent(action.rawValue + ".json"), options: .atomic)
-                }
-                if isEnabled(section), let decoded = await Self.decode(section, from: dir) { apply(decoded) }
-                AppLog.info(.catalog, "\(section == .movies ? "films" : "series") downloaded")
-            } catch {
-                refreshError = error.localizedDescription
-                AppLog.error(.catalog, "download after switching on failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func isEmpty(_ section: CatalogSection) -> Bool {
-        switch section {
-        case .live: return channels.isEmpty
-        case .movies: return movies.isEmpty
-        case .series: return series.isEmpty
-        }
-    }
-
-    private nonisolated static func decode(_ section: CatalogSection, from dir: URL) async -> DecodedSection? {
-        await Task.detached(priority: .userInitiated) { () -> DecodedSection? in
-            func load<T: Decodable>(_ action: CatalogAction, _ type: T.Type) -> T? {
-                guard let data = try? Data(contentsOf: dir.appendingPathComponent(action.rawValue + ".json")) else { return nil }
-                return try? JSONDecoder().decode(T.self, from: data)
-            }
-            switch section {
-            case .live:
-                guard let streams = load(.liveStreams, [LiveChannel].self) else { return nil }
-                return .live(load(.liveCategories, [XCategory].self) ?? [], streams)
-            case .movies:
-                guard let streams = load(.vodStreams, [Movie].self) else { return nil }
-                return .movies(load(.vodCategories, [XCategory].self) ?? [], streams)
-            case .series:
-                guard let streams = load(.series, [Series].self) else { return nil }
-                return .series(load(.seriesCategories, [XCategory].self) ?? [], streams)
-            }
-        }.value
-    }
-
-    private func apply(_ section: DecodedSection) {
-        switch section {
-        case .live(let categories, let list):
-            channelsByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
-            liveCategories = categories
-            channels = list
-            // Archive channels keep their past programme (catch-up design 5).
-            epg.archiveDays = Dictionary(list.filter { $0.archiveDays > 0 }.map { ($0.id, $0.archiveDays) }, uniquingKeysWith: { a, _ in a })
-            updateVisibleCounts()
-        case .movies(let categories, let list):
-            moviesByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
-            movieCategories = categories
-            movies = list
-        case .series(let categories, let list):
-            seriesByCategory = Dictionary(grouping: list) { $0.categoryId ?? "" }
-            seriesCategories = categories
-            series = list
-        }
-    }
-
     // MARK: Adult filter
 
     func isAdultCategory(_ category: XCategory) -> Bool { LiveRules.isAdultCategory(category) }
@@ -930,93 +427,6 @@ final class AppModel: ObservableObject {
 
     func visibleCategories(_ list: [XCategory]) -> [XCategory] {
         showAdult ? list : list.filter { !isAdultCategory($0) }
-    }
-
-    // MARK: Hidden categories and channels
-
-    func isHidden(_ channel: LiveChannel) -> Bool { visibility.isHidden(channel) }
-
-    func isCategoryHidden(_ id: String) -> Bool { visibility.hiddenCategories.contains(id) }
-
-    func isChannelHidden(_ id: Int) -> Bool { visibility.hiddenChannels.contains(id) }
-
-    func setCategory(_ id: String, hidden: Bool) {
-        guard isCategoryHidden(id) != hidden else { return }
-        var value = visibility
-        if hidden { value.hiddenCategories.insert(id) } else { value.hiddenCategories.remove(id) }
-        storeVisibility(value)
-    }
-
-    func setChannel(_ id: Int, hidden: Bool) {
-        guard isChannelHidden(id) != hidden else { return }
-        var value = visibility
-        if hidden { value.hiddenChannels.insert(id) } else { value.hiddenChannels.remove(id) }
-        storeVisibility(value)
-    }
-
-    /// Edit mode's "Show All": nothing hidden any more.
-    func showAllChannels() {
-        guard !visibility.hiddenCategories.isEmpty || !visibility.hiddenChannels.isEmpty else { return }
-        var value = visibility
-        value.hiddenCategories = []
-        value.hiddenChannels = []
-        storeVisibility(value)
-    }
-
-    var hasHiddenChannels: Bool { !visibility.hiddenCategories.isEmpty || !visibility.hiddenChannels.isEmpty }
-
-    private func storeVisibility(_ value: ChannelVisibility) {
-        var value = value
-        value.modifiedAt = Date()
-        visibility = value
-        if let dir = cacheDirectory { value.save(to: dir) }
-        if let key = credentials?.accountKey { sync.push(value, as: SyncStore.accountName(key, "visibility"), modifiedAt: value.modifiedAt) }
-    }
-
-    /// The signed-in account's choice; signed out, nothing is hidden (the file stays).
-    private func loadVisibility() {
-        visibility = cacheDirectory.map(ChannelVisibility.load) ?? ChannelVisibility()
-        AppLog.detail(.app, "\(credentials?.accountKey ?? "-"): \(visibility.hiddenCategories.count) categories, \(visibility.hiddenChannels.count) channels hidden")
-        pullVisibility()
-    }
-
-    private func updateVisibleCounts() {
-        var counts: [String: Int] = [:]
-        for channel in channels where !isHidden(channel) { counts[channel.categoryId ?? "", default: 0] += 1 }
-        visibleChannelCounts = counts
-        visibleChannelTotal = counts.values.reduce(0, +)
-        SiriIndex.schedule(self)
-    }
-
-    /// Teaches Siri which channels are watched (suggestions, "Schalte Fernsy auf …").
-    private func donateChannel(_ id: Int) {
-        guard SiriIndex.isEnabled, let channel = channel(id) else { return }
-        let entity = ChannelEntity(channel, app: self)
-        Task { _ = try? await PlayChannelIntent(channel: entity).donate() }
-    }
-
-    // MARK: Favorites
-
-    func isFavorite(_ key: String) -> Bool { favorites.contains(key) }
-
-    private func noteRecent(_ channelId: Int) {
-        recentChannels = LiveRules.noting(channelId, in: recentChannels)
-        // Test runs (no keychain) keep it in memory: they share the installed app's defaults.
-        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: LiveRules.recentKey) }
-    }
-
-    /// Context menu: takes a channel out of "Zuletzt gesehen".
-    func removeRecent(_ channelId: Int) {
-        recentChannels.removeAll { $0 == channelId }
-        if !Self.skipKeychain { UserDefaults.standard.set(recentChannels, forKey: LiveRules.recentKey) }
-    }
-
-    func toggleFavorite(_ key: String) {
-        if favorites.contains(key) { favorites.remove(key) } else { favorites.insert(key) }
-        #if DEBUG
-        if debugFavoritesInMemory { return }
-        #endif
-        UserDefaults.standard.set(Array(favorites), forKey: LiveRules.favoritesKey)
     }
 
     // MARK: Playback
@@ -1069,7 +479,7 @@ final class AppModel: ObservableObject {
               let url = client?.archiveURL(channel: channel.id, start: show.start, minutes: Archive.minutes(for: show), timeZone: account?.serverTimeZone)
         else { return }
         let item = PlayItem(kind: .archive(channelId: channel.id, start: show.start, end: show.end), title: show.title,
-                            subtitle: "\(channel.displayName) · \(show.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()))",
+                            subtitle: ItemText.channelAndTime(channel.displayName, show.start),
                             url: url)
         let blocking = recorder.recordings.filter { r in
             r.status == .recording && tuners.archiveBlockers().contains { $0.owners.contains(.recording(r.id)) }
@@ -1098,45 +508,6 @@ final class AppModel: ObservableObject {
     }
 
     /// Plays a Jellyfin film or episode; series start with their Next Up episode.
-    /// Language rules for a playback: the series' remembered choice, else the settings.
-    func trackPreferences(for item: PlayItem) -> TrackPreferences {
-        guard let key = Self.seriesTrackKey(item), let data = seriesTracks[key],
-              let stored = try? JSONDecoder().decode(TrackPreferences.self, from: data) else { return TrackPreferences.settings }
-        return stored
-    }
-
-    /// The user picked tracks in the player: series episodes keep that choice for the next ones.
-    func rememberTracks(_ preferences: TrackPreferences, for item: PlayItem) {
-        guard let key = Self.seriesTrackKey(item), let data = try? JSONEncoder().encode(preferences) else { return }
-        var all = seriesTracks
-        all[key] = data
-        var order = (UserDefaults.standard.stringArray(forKey: Self.seriesTracksStore + ".order") ?? []).filter { $0 != key } + [key]
-        while order.count > 200 { all[order.removeFirst()] = nil }
-        UserDefaults.standard.set(all, forKey: Self.seriesTracksStore)
-        UserDefaults.standard.set(order, forKey: Self.seriesTracksStore + ".order")
-        AppLog.detail(.player, "remembered for \(key): audio \(preferences.audioLanguage ?? "system"), subtitles \(preferences.subtitles.stored)")
-    }
-
-    private var seriesTracks: [String: Data] {
-        UserDefaults.standard.dictionary(forKey: Self.seriesTracksStore) as? [String: Data] ?? [:]
-    }
-
-    /// Debug runs can keep their memory apart from the user's (IPTV_TRACKSTORE=test).
-    static var seriesTracksStore: String {
-        #if DEBUG
-        if let suffix = ProcessInfo.processInfo.environment["IPTV_TRACKSTORE"] { return "tracks.series.\(suffix)" }
-        #endif
-        return "tracks.series"
-    }
-
-    private static func seriesTrackKey(_ item: PlayItem) -> String? {
-        switch item.kind {
-        case .episode(_, let seriesId): return "iptv.\(seriesId)"
-        case .jellyfin(_, _, let seriesId?): return "jellyfin.\(seriesId)"
-        default: return nil
-        }
-    }
-
     func play(jellyfin item: JFItem, resume: Bool = true) {
         Task {
             var target = item
@@ -1145,7 +516,7 @@ final class AppModel: ObservableObject {
                 target = episode
             }
             guard let base = jellyfin.session?.baseURL else { return }
-            let start = resume ? Double(target.userData?.playbackPositionTicks ?? 0) / 10_000_000 : 0
+            let start = resume ? target.positionSeconds : 0
             var subtitle: String?
             if target.type == "Episode" {
                 let code = [target.parentIndexNumber.map { "S\($0)" }, target.indexNumber.map { "E\($0)" }].compactMap { $0 }.joined()
@@ -1202,12 +573,7 @@ final class AppModel: ObservableObject {
 
     /// Episodes of loaded series by id, for Start's Continue Watching.
     var episodeIndex: [String: (Episode, Series)] {
-        var index: [String: (Episode, Series)] = [:]
-        for (id, info) in seriesInfos {
-            guard let show = series.first(where: { $0.id == id }) else { continue }
-            for episode in info.seasons.values.flatMap({ $0 }) { index[episode.id] = (episode, show) }
-        }
-        return index
+        SeriesInfo.episodeIndex(seriesInfos) { id in series.first { $0.id == id } }
     }
 
     // MARK: Resume positions
@@ -1220,7 +586,7 @@ final class AppModel: ObservableObject {
 
     /// Counts changes of resume positions (played here or arrived from iCloud), so Start rebuilds
     /// Continue Watching without reading every position on each redraw.
-    @Published private(set) var resumeRevision = 0
+    @Published var resumeRevision = 0
 
     func saveResume(_ key: String, position: Double, duration: Double) {
         if resume.save(key, position: position, duration: duration) { AppLog.detail(.player, "watched \(key)") }
@@ -1237,145 +603,4 @@ final class AppModel: ObservableObject {
     /// IPTV_TESTWATCHED=<key>,…: these items count as watched (in memory).
     func markWatchedForTest(_ keys: [String]) { resume.markWatched(keys) }
     #endif
-}
-
-// MARK: iCloud sync
-
-/// The Mac's side of icloud-sync: SyncStore mirrors the synced UserDefaults keys and resume
-/// positions; this applies what arrives, keeps the account's hidden channels in step and offers
-/// logins found in iCloud.
-extension AppModel {
-    static var syncAllowed: Bool { !skipKeychain || ProcessInfo.processInfo.environment["IPTV_SYNC"] == "1" }
-    static let syncedKeys = [LiveRules.favoritesKey, LiveRules.recentKey, TrackPreferences.audioKey,
-                             TrackPreferences.subtitlesKey, Recorder.padBeforeKey, Recorder.padAfterKey,
-                             LibraryRules.moviesSwitchKey, LibraryRules.seriesSwitchKey]
-
-    fileprivate func startSync() {
-        sync.onChange = { [weak self] names in self?.syncArrived(names) }
-        sync.start()
-        jellyfin.onSignedIn = { [weak self] login in
-            guard let self else { return }
-            syncedJellyfin = nil
-            Task { await self.logins.save(login) }
-        }
-        Task {
-            if signingInFromICloud { await signInFromICloud() }
-            await refreshSyncedLogins()
-        }
-    }
-
-    /// The logins: CloudKit when sync is allowed. Debug builds' IPTV_TESTICLOUDLOGIN=demo|demo-wrong|
-    /// jellyfin puts one in memory, so the launch path runs without iCloud.
-    static func makeLogins() -> LoginSync {
-        #if DEBUG
-        let demo = "https://fernsy-demo.mobilistics.workers.dev"
-        // IPTV_TESTICLOUDDELAY=<s>: the lookup takes that long, as CloudKit does on a device.
-        let delay = Duration.seconds(Double(ProcessInfo.processInfo.environment["IPTV_TESTICLOUDDELAY"] ?? "") ?? 0)
-        switch ProcessInfo.processInfo.environment["IPTV_TESTICLOUDLOGIN"] {
-        case "demo": return LoginSync(backing: MemoryLogins(xtream: XtreamCredentials(server: demo, username: "demo", password: "demo"), delay: delay))
-        case "demo-wrong": return LoginSync(backing: MemoryLogins(xtream: XtreamCredentials(server: demo, username: "demo", password: "wrong"), delay: delay))
-        case "jellyfin":
-            return LoginSync(backing: MemoryLogins(jellyfin: .init(server: "http://127.0.0.1:8097", username: "fixture", password: "fixture-pass"), delay: delay))
-        default: break
-        }
-        #endif
-        return syncAllowed ? .cloudKit() : LoginSync(backing: nil)
-    }
-
-    /// Launched without an account (icloud-auto-signin): signs in with what iCloud has, provider
-    /// and Jellyfin each on their own, showing the steps (at least `minimumShown` once something
-    /// signed in, until the channels are loaded). What fails stays offered on the login screen,
-    /// with the reason if nothing could be signed in.
-    private func signInFromICloud() async {
-        let started = ContinuousClock.now
-        iCloudSteps = [ICloudSignInStep(.found)]
-        let found = await logins.launchLogins()
-        var failure: Error?
-        if found.xtream != nil || found.jellyfin != nil { iCloudSteps.finish(.found) }
-        if let xtream = found.xtream {
-            let host = xtream.baseURL?.host() ?? xtream.server
-            AppLog.info(.app, "iCloud: signing in with the IPTV login at \(host)")
-            iCloudSteps.append(ICloudSignInStep(.provider, server: host))
-            do {
-                try await login(xtream)
-                iCloudSteps.finish(.channels)
-            } catch {
-                failure = error
-                syncedXtream = xtream
-            }
-        }
-        if let login = found.jellyfin {
-            let host = URL(string: login.server)?.host() ?? login.server
-            AppLog.info(.app, "iCloud: signing in with the Jellyfin login at \(host)")
-            iCloudSteps.append(ICloudSignInStep(.jellyfin, server: host))
-            do {
-                try await jellyfin.signIn(server: login.server, username: login.username, password: login.password)
-                iCloudSteps.finish(.jellyfin)
-            } catch {
-                failure = failure ?? error
-                syncedJellyfin = login
-            }
-        }
-        let signedIn = credentials != nil || jellyfin.session != nil
-        iCloudSignInError = signedIn ? nil : failure?.localizedDescription
-        if signedIn {
-            // The last checkmark stays a moment, and the screen at least `minimumShown`.
-            try? await Task.sleep(for: .milliseconds(400))
-            try? await Task.sleep(until: started + ICloudSignInStep.minimumShown)
-        }
-        signingInFromICloud = false
-    }
-
-    /// Values from another device: favourites, recently watched and the films and series switches
-    /// again from UserDefaults (track languages and padding are read where they are used), hidden
-    /// channels from the store.
-    private func syncArrived(_ names: Set<String>) {
-        if names.contains("d." + LiveRules.favoritesKey) {
-            favorites = Set(UserDefaults.standard.stringArray(forKey: LiveRules.favoritesKey) ?? [])
-        }
-        if names.contains("d." + LiveRules.recentKey) {
-            recentChannels = UserDefaults.standard.array(forKey: LiveRules.recentKey) as? [Int] ?? []
-        }
-        if names.contains("resume") { resumeRevision += 1 }
-        // Films or series switched on another device: as if switched here (drops or downloads).
-        if names.contains("d." + LibraryRules.moviesSwitchKey) {
-            showsIPTVMovies = UserDefaults.standard.object(forKey: LibraryRules.moviesSwitchKey) as? Bool ?? true
-        }
-        if names.contains("d." + LibraryRules.seriesSwitchKey) {
-            showsIPTVSeries = UserDefaults.standard.object(forKey: LibraryRules.seriesSwitchKey) as? Bool ?? true
-        }
-        pullVisibility()
-    }
-
-    /// The account's hidden categories and channels: the newer of this Mac's and iCloud's; sent
-    /// once if iCloud has none yet.
-    fileprivate func pullVisibility() {
-        guard let key = credentials?.accountKey else { return }
-        let name = SyncStore.accountName(key, "visibility")
-        if let remote = sync.pull(ChannelVisibility.self, name: name, newerThan: visibility.modifiedAt) {
-            visibility = remote
-            if let dir = cacheDirectory { remote.save(to: dir) }
-        } else if !sync.hasValue(name) && visibility.modifiedAt.timeIntervalSince1970 > 0 {
-            sync.push(visibility, as: name, modifiedAt: visibility.modifiedAt)
-        }
-    }
-
-    /// Signed in: the login goes to iCloud if it is not there yet (logins from before sync).
-    /// Signed out: what iCloud has is offered on the login screen.
-    func refreshSyncedLogins() async {
-        iCloudAvailable = await logins.isAvailable()
-        guard iCloudAvailable else { AppLog.info(.app, "iCloud: not available"); return }
-        if let credentials {
-            if await logins.xtream() == nil { await logins.save(credentials) }
-        } else {
-            syncedXtream = await logins.xtream()
-            if let login = syncedXtream { AppLog.info(.app, "iCloud: offers the IPTV login at \(login.baseURL?.host() ?? login.server)") }
-        }
-        if let login = jellyfin.login {
-            if await logins.jellyfin() == nil { await logins.save(login) }
-        } else if jellyfin.session == nil {
-            syncedJellyfin = await logins.jellyfin()
-            if let login = syncedJellyfin { AppLog.info(.app, "iCloud: offers the Jellyfin login at \(URL(string: login.server)?.host() ?? login.server)") }
-        }
-    }
 }

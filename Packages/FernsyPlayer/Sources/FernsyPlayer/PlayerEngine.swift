@@ -4,122 +4,6 @@ import Combine
 import FernsyCore
 import SwiftUI
 
-/// Position/duration live in their own object so that 10 Hz clock updates only
-/// re-render the transport bar, not the whole player.
-public final class PlaybackProgress: ObservableObject {
-    @Published public var position: Double = 0
-    @Published public var duration: Double = 0
-    @Published public var buffered: Double = 0
-    /// Timeshift: buffer time range that can be played, and the clock time of `position`.
-    @Published public var liveStart: Double = 0
-    @Published public var liveEnd: Double = 0
-    @Published public var wallClock: Date?
-    /// Timeshift: playback follows the live stream (not paused or rewound since). Measured
-    /// distance to the newest data is no good for this: providers deliver in bursts.
-    @Published public var followsLive = true
-
-    /// Seconds behind live (0 while following live).
-    public var behindLive: Double { followsLive ? 0 : max(0, liveEnd - position - PlayerEngine.liveLead) }
-}
-
-/// Buffer level over time for the info overlay. Separate object so the once-per-second
-/// samples only re-render the chart.
-public final class BufferHistory: ObservableObject {
-    public enum Event { case reconnect, restart, rebuffer }
-
-    public struct Sample: Identifiable {
-        public let id: Int
-        public let time: Date
-        /// Demuxed and waiting in the player.
-        public let player: Double
-        /// Received but not yet demuxed, converted at the average data rate.
-        public let network: Double
-        public let events: [Event]
-    }
-
-    public static let window: TimeInterval = 120
-
-    @Published public private(set) var samples: [Sample] = []
-    /// Average over the last 30 s; single seconds are useless for bursty channels.
-    @Published public private(set) var averageMbps = 0.0
-
-    private var nextID = 0
-    private var rates: [Double] = []
-    private var previous: PlaybackStats?
-
-    public func reset() {
-        samples = []
-        rates = []
-        averageMbps = 0
-        previous = nil
-    }
-
-    /// The restart count is passed separately: it lives in the engine, not in the session.
-    /// `disk`: timeshift, seconds stored ahead of the player (instead of network bytes).
-    public func record(_ stats: PlaybackStats, disk: Double? = nil) {
-        rates.append(stats.bitrateMbps)
-        if rates.count > 30 { rates.removeFirst(rates.count - 30) }
-        averageMbps = rates.reduce(0, +) / Double(rates.count)
-
-        var events: [Event] = []
-        if let previous {
-            // Session counters restart from zero after a full restart.
-            if stats.restarts > previous.restarts { events.append(.restart) }
-            else if stats.seamlessReconnects > previous.seamlessReconnects { events.append(.reconnect) }
-            if stats.rebuffers > previous.rebuffers { events.append(.rebuffer) }
-        }
-        previous = stats
-
-        let rate = averageMbps * 125_000
-        let network = disk ?? (rate > 0 ? Double(stats.networkBufferBytes) / rate : 0)
-        let now = Date()
-        samples.append(Sample(id: nextID, time: now, player: stats.bufferSeconds, network: network, events: events))
-        nextID += 1
-        if let first = samples.firstIndex(where: { now.timeIntervalSince($0.time) <= Self.window }), first > 0 {
-            samples.removeFirst(first)
-        }
-    }
-}
-
-/// Hooks for a controller that plays something other than a plain URL (Jellyfin): a transcode
-/// started mid-item, seeking by restarting, falling back when the source cannot be opened.
-public struct ExternalPlayback {
-    /// Item position at which the current stream starts (transcodes started with an offset).
-    public var timelineOffset: Double = 0
-    /// The whole item's length when the stream does not know it (progressive transcodes).
-    public var duration: Double?
-    /// Non-seekable stream: the controller restarts at the requested item position.
-    public var restartAt: ((Double) -> Void)?
-    /// The stream failed before playing; return true when the controller takes over.
-    public var onFailedBeforeStart: ((String) -> Bool)?
-    /// The stream failed while playing (e.g. the server rejected the token); return true when
-    /// the controller recovers by loading again.
-    public var onFailedAfterStart: ((String) -> Bool)?
-    /// Track choices the controller handles itself (external files, transcode restarts);
-    /// return false to let the engine switch the stream's own track.
-    public var selectAudio: ((MediaTrack) -> Bool)?
-    public var selectSubtitle: ((MediaTrack?) -> Bool)?
-    /// Tracks the controller already chose (stream ids); nil = the engine's language rules.
-    public var tracks: TrackRequest?
-    /// A stream opened (each restart opens its own); the controller adjusts the track menus.
-    public var onOpened: (() -> Void)?
-    /// "Direct play" / "Transcode", shown in the info overlay.
-    public var methodLabel: String?
-
-    public init(timelineOffset: Double = 0, duration: Double? = nil, restartAt: ((Double) -> Void)? = nil, onFailedBeforeStart: ((String) -> Bool)? = nil, onFailedAfterStart: ((String) -> Bool)? = nil, selectAudio: ((MediaTrack) -> Bool)? = nil, selectSubtitle: ((MediaTrack?) -> Bool)? = nil, tracks: TrackRequest? = nil, onOpened: (() -> Void)? = nil, methodLabel: String? = nil) {
-        self.timelineOffset = timelineOffset
-        self.duration = duration
-        self.restartAt = restartAt
-        self.onFailedBeforeStart = onFailedBeforeStart
-        self.onFailedAfterStart = onFailedAfterStart
-        self.selectAudio = selectAudio
-        self.selectSubtitle = selectSubtitle
-        self.tracks = tracks
-        self.onOpened = onOpened
-        self.methodLabel = methodLabel
-    }
-}
-
 /// Owns the renderers and the current PlaybackSession; main-thread API for the UI.
 public final class PlayerEngine: ObservableObject {
     public enum Status: Equatable {
@@ -193,7 +77,7 @@ public final class PlayerEngine: ObservableObject {
     private var debugOpenedItems = 0
     #endif
     private let audioRenderer: AVSampleBufferAudioRenderer
-    private let synchronizer: AVSampleBufferRenderSynchronizer
+    let synchronizer: AVSampleBufferRenderSynchronizer
     /// The renderers' receivers (macOS 27): every enqueue and flush goes through them.
     public let videoSink: VideoSink
     private let audioSink: AudioSink
@@ -639,26 +523,6 @@ public final class PlayerEngine: ObservableObject {
         recentLag.removeAll()
     }
 
-    #if DEBUG
-    /// IPTV_TESTSTALL=<at s>:<s>,…: the playback clock stands still for <s> seconds, <at>
-    /// seconds after the live start – like a stall, without touching the live state.
-    private func scheduleStallTest() {
-        guard let spec = ProcessInfo.processInfo.environment["IPTV_TESTSTALL"] else { return }
-        for item in spec.split(separator: ",") {
-            let p = item.split(separator: ":").compactMap { Double($0) }
-            guard p.count == 2 else { continue }
-            DispatchQueue.main.asyncAfter(deadline: .now() + p[0]) { [weak self] in
-                guard let self else { return }
-                debugLog("[test] stall \(Int(p[1])) s at \(String(format: "%.1f", self.progress.liveEnd - self.progress.position)) s behind")
-                self.synchronizer.setRate(0, time: self.synchronizer.currentTime())
-                DispatchQueue.main.asyncAfter(deadline: .now() + p[1]) {
-                    self.synchronizer.setRate(1, time: self.synchronizer.currentTime())
-                }
-            }
-        }
-    }
-    #endif
-
     /// At the live edge again (the user's "Live" or a seek to the edge): measure from there.
     private func resetLagBaseline() {
         lagBaseline = Self.liveLead
@@ -984,7 +848,6 @@ public final class PlayerEngine: ObservableObject {
         activity = nil
     }
 }
-
 
 /// A weak engine reference the receivers' event tasks can carry; it is only read on the main queue.
 private final class WeakEngine: @unchecked Sendable {
