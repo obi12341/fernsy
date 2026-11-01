@@ -139,7 +139,7 @@ export function getSubscription(env, deps, id) { return api(env, deps, "GET", `/
 /// Stripe Tax, and an incomplete subscription for the account whose first invoice the page pays.
 export async function createSubscription(env, deps, { accountId, email, country, postalCode, consentAt, locale }) {
   const customer = await api(env, deps, "POST", "/customers", {
-    email, address: { country, postal_code: postalCode }, tax: { validate_location: "immediately" },
+    email, address: { country, postal_code: postalCode || undefined }, tax: { validate_location: "immediately" },
     preferred_locales: locale ? [locale] : undefined,   // receipts and portal in the buyer's language
     metadata: { fernsy_account: accountId },
   });

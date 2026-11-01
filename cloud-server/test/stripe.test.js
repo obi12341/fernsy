@@ -155,6 +155,15 @@ test("subscribe refuses without consent, with a bad address and for subscribed a
   assert.equal((await buy(t, key, { consent: false })).order.body.error, "no_consent");
   assert.equal((await buy(t, key, { email: "nope" })).order.body.error, "bad_email");
   assert.equal((await buy(t, key, { country: "XX" })).order.body.error, "bad_address");
+  assert.equal((await buy(t, key, { country: "US", postalCode: "" })).order.body.error, "bad_address");
+});
+
+test("subscribe without a postal code in the EU", async () => {
+  const t = setup();
+  const { order } = await buy(t, deviceKey(), { postalCode: "" });
+  assert.equal(order.status, 200);
+  assert.equal(t.stripe.lastCustomer["address[country]"], "DE");
+  assert.equal(t.stripe.lastCustomer["address[postal_code]"], undefined);
 });
 
 test("webhooks: active links the account, cancel at period end keeps it until then, deleted ends it", async () => {

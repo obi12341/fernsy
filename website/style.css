@@ -199,6 +199,7 @@ footer a { color: var(--nav); }
 .order p { margin: 6px 0 0; font-size: 14px; }
 form.pay { display: flex; flex-direction: column; gap: 14px; margin: 18px 0; }
 form.pay[hidden] { display: none; }
+form.pay label[hidden] { display: none; }
 form.pay label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--t2); }
 form.pay .row2 { display: flex; gap: 12px; flex-wrap: wrap; }
 form.pay .row2 > label { flex: 1 1 160px; }

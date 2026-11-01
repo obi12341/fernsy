@@ -39,7 +39,7 @@
       <label>E-Mail-Adresse (für Rechnung und Kündigung)<input id="email" type="email" autocomplete="email" required></label>
       <div class="row2">
         <label>Land<select id="country" autocomplete="country"><option value="AT" data-code="AT">AT</option><option value="BE" data-code="BE">BE</option><option value="BG" data-code="BG">BG</option><option value="CH" data-code="CH">CH</option><option value="CY" data-code="CY">CY</option><option value="CZ" data-code="CZ">CZ</option><option value="DE" selected data-code="DE">DE</option><option value="DK" data-code="DK">DK</option><option value="EE" data-code="EE">EE</option><option value="ES" data-code="ES">ES</option><option value="FI" data-code="FI">FI</option><option value="FR" data-code="FR">FR</option><option value="GB" data-code="GB">GB</option><option value="GR" data-code="GR">GR</option><option value="HR" data-code="HR">HR</option><option value="HU" data-code="HU">HU</option><option value="IE" data-code="IE">IE</option><option value="IS" data-code="IS">IS</option><option value="IT" data-code="IT">IT</option><option value="LI" data-code="LI">LI</option><option value="LT" data-code="LT">LT</option><option value="LU" data-code="LU">LU</option><option value="LV" data-code="LV">LV</option><option value="MT" data-code="MT">MT</option><option value="NL" data-code="NL">NL</option><option value="NO" data-code="NO">NO</option><option value="PL" data-code="PL">PL</option><option value="PT" data-code="PT">PT</option><option value="RO" data-code="RO">RO</option><option value="SE" data-code="SE">SE</option><option value="SI" data-code="SI">SI</option><option value="SK" data-code="SK">SK</option><option value="US" data-code="US">US</option><option value="CA" data-code="CA">CA</option><option value="AU" data-code="AU">AU</option><option value="NZ" data-code="NZ">NZ</option></select></label>
-        <label>Postleitzahl<input id="postal" type="text" autocomplete="postal-code" required></label>
+        <label id="postal-row" hidden>Postleitzahl<input id="postal" type="text" autocomplete="postal-code"></label>
       </div>
       <div id="payment"></div>
       <label class="consent"><input id="consent" type="checkbox"><span>Ich verlange ausdrücklich, dass die mobilistics GmbH vor Ablauf der Widerrufsfrist mit Fernsy Cloud beginnt. Mir ist bekannt, dass ich bei einem Widerruf einen anteiligen Betrag für die Zeit bis dahin zahle.</span></label>
@@ -92,9 +92,15 @@
     var stripe = Stripe(info.publishableKey, { locale: lang });
     var elements = stripe.elements({ mode: "subscription", amount: info.amount, currency: info.currency, locale: lang,
       appearance: { theme: "night", variables: { colorPrimary: "#6C65F0", colorBackground: "#1C1B21", borderRadius: "10px" } } });
-    elements.create("payment", { fields: { billingDetails: { email: "never", address: { country: "never", postalCode: "never" } } } })
+    elements.create("payment", { fields: { billingDetails: { email: "never", address: { country: "never", postalCode: "auto" } } } })
       .mount("#payment");
     var form = document.getElementById("pay"), button = document.getElementById("subscribe"), error = document.getElementById("error");
+    // The postal code only where tax depends on it (US states, Canadian provinces); in the EU the country is enough.
+    var countrySelect = document.getElementById("country"), postalRow = document.getElementById("postal-row"), postal = document.getElementById("postal");
+    var needsPostal = function () { return countrySelect.value === "US" || countrySelect.value === "CA"; };
+    var updatePostal = function () { postalRow.hidden = !needsPostal(); postal.required = needsPostal(); };
+    countrySelect.addEventListener("change", updatePostal);
+    updatePostal();
     show("ready");
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -102,7 +108,7 @@
       if (!document.getElementById("consent").checked) { error.textContent = L.missingConsent; return; }
       var email = document.getElementById("email").value.trim();
       var country = document.getElementById("country").value;
-      var postalCode = document.getElementById("postal").value.trim();
+      var postalCode = needsPostal() ? postal.value.trim() : "";
       button.disabled = true;
       elements.submit().then(function (r) {
         if (r.error) throw r.error;
@@ -112,7 +118,7 @@
         if (order.status !== 200) throw { message: order.error === "bad_address" ? L.address : (order.message || order.error) };
         var back = location.origin + location.pathname;
         return stripe.confirmPayment({ elements: elements, clientSecret: order.clientSecret, redirect: "if_required",
-          confirmParams: { return_url: back, payment_method_data: { billing_details: { email: email, address: { country: country, postal_code: postalCode } } } } });
+          confirmParams: { return_url: back, payment_method_data: { billing_details: { email: email, address: { country: country } } } } });
       }).then(function (result) {
         if (!result) return;
         if (result.error) throw result.error;

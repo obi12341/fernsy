@@ -49,7 +49,7 @@ or null. Errors look like `{"error": "<code>", "message": "…"}`.
 | `GET /v1/offer` | no auth → `{price: {amount, currency} \| null}`: the website price including VAT (DMG offer) |
 | `POST /v1/checkout` | DMG only (stripe-cloud-subscription) → `{token, price: {amount, currency} \| null}`; a signed checkout token (1 h) for `fernsy.app/cloud.html?t=`; `409 already_subscribed`; `503 checkout_not_configured` |
 | `POST /v1/checkout/verify` | no auth, CORS for fernsy.app: `{token}` → `{publishableKey, price, amount, currency, alreadySubscribed}`; `400 bad_token` |
-| `POST /v1/checkout/subscribe` | no auth, CORS: `{token, email, country, postalCode, consent: true, locale: de|en}` → `{clientSecret}` of the first invoice's payment; the worker creates customer and subscription (flexible billing mode, Stripe Tax); `400 no_consent\|bad_email\|bad_address\|stripe_refused`; `409 already_subscribed` |
+| `POST /v1/checkout/subscribe` | no auth, CORS: `{token, email, country, postalCode (US and CA only), consent: true, locale: de|en}` → `{clientSecret}` of the first invoice's payment; the worker creates customer and subscription (flexible billing mode, Stripe Tax); `400 no_consent\|bad_email\|bad_address\|stripe_refused`; `409 already_subscribed` |
 | `POST /v1/stripe/notifications` | Stripe webhooks (`Stripe-Signature`, at most 5 min old): `customer.subscription.*` link to the account in the subscription's `metadata.fernsy_account`; `invoice.finalization_failed` is logged |
 | `POST /v1/subscription/portal` | → `{url}`: a Stripe customer portal session; `404 not_web` |
 | `POST /v1/dev/account` | dev only: `{state: none\|active\|ended, endedDaysAgo?, quotaBytes?}` → account |
