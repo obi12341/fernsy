@@ -179,8 +179,35 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
-    /// Fernsy Cloud (add-recording-cloud): subscription, account, cloud recordings, uploads.
+    /// Fernsy Cloud (add-recording-cloud): subscription, account, cloud recordings, uploads. The
+    /// DMG has no StoreKit purchases: it sells through Paddle's checkout on fernsy.app
+    /// (paddle-cloud-subscription).
+    #if DIRECT_DISTRIBUTION
+    let cloud: CloudModel = {
+        let client = CloudClient.live()
+        // The checkout page in the app's language (German or English).
+        let page = { @Sendable () -> URL in
+            #if DEBUG
+            // Debug switch IPTV_CHECKOUTPAGE: a local copy of the page while testing.
+            if let value = ProcessInfo.processInfo.environment["IPTV_CHECKOUTPAGE"], let url = URL(string: value) { return url }
+            #endif
+            return URL(string: Locale.current.language.languageCode?.identifier == "de"
+                ? "https://www.fernsy.app/cloud.html" : "https://www.fernsy.app/en/cloud.html")!
+        }
+        return CloudModel(client: client, store: PaddleCloudStore(client: client, checkoutPage: page, open: { url in
+            #if DEBUG
+            // With a local page the link goes to the log, for a browser the test drives.
+            if ProcessInfo.processInfo.environment["IPTV_CHECKOUTPAGE"] != nil {
+                AppLog.info(.app, "Fernsy Cloud: checkout \(url.absoluteString)")
+                return
+            }
+            #endif
+            Task { @MainActor in NSWorkspace.shared.open(url) }
+        }))
+    }()
+    #else
     let cloud = CloudModel()
+    #endif
     private(set) lazy var cloudUploads = CloudUploadQueue(api: cloud.client, keys: cloud.keys, stateURL: CloudUploadQueue.defaultStateURL())
     var cloudRecordingWatch: AnyCancellable?
     /// Recordings the automatic upload has seen finish (each is queued at most once).

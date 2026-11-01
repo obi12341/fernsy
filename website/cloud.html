@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fernsy – Fernsy Cloud abonnieren</title>
+<meta name="description" content="Fernsy Cloud für Fernsy auf dem Mac abonnieren: Aufnahmen Ende-zu-Ende-verschlüsselt in der Cloud und der Fernsy-Assistent.">
+<meta name="theme-color" content="#111015">
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/icon.png">
+<link rel="alternate" hreflang="en" href="en/cloud.html">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="assets/icon.png" alt="">Fernsy</a>
+  <nav class="top">
+    <a href="./">Start</a>
+    <a href="support.html">Support</a>
+    <a href="datenschutz.html">Datenschutz</a>
+    <a href="impressum.html">Impressum</a>
+    <a href="en/cloud.html" hreflang="en" lang="en">English</a>
+  </nav>
+</div></header>
+
+<main class="text">
+  <h1>Fernsy Cloud abonnieren</h1>
+  <p>Deine Aufnahmen Ende-zu-Ende-verschlüsselt in deinem privaten Speicher, abspielbar auf iPhone, iPad und Apple TV – und der Fernsy-Assistent auf allen deinen Geräten. Zahlung, Rechnung und Umsatzsteuer übernimmt unser Händler Paddle.</p>
+  <noscript><p>Für das Bezahlen braucht diese Seite JavaScript.</p></noscript>
+  <p data-state="nolink" hidden>Fernsy Cloud abonnierst du in Fernsy auf deinem Mac: Einstellungen › Aufnahmen › Fernsy Cloud › „Abonnieren“. Fernsy öffnet dann diese Seite mit deinem Konto. Ein Benutzerkonto bei uns brauchst du nicht – dein Schlüssel liegt in deiner iCloud.</p>
+  <p data-state="loading" hidden>Einen Moment …</p>
+  <p data-state="invalid" hidden>Dieser Link ist abgelaufen oder ungültig. Öffne „Abonnieren“ bitte noch einmal in Fernsy auf deinem Mac.</p>
+  <p data-state="subscribed" hidden>Fernsy Cloud ist für dein Konto schon aktiv. Du musst nichts weiter tun.</p>
+  <div data-state="ready" hidden><p>Falls sich das Bezahlfenster nicht geöffnet hat:</p><p><button class="button primary" id="subscribe" type="button">Jetzt abonnieren</button></p></div>
+  <p data-state="done" hidden>Danke! Dein Abo ist aktiv. Wechsle zurück zu Fernsy – nach wenigen Sekunden zeigt es Fernsy Cloud als aktiv an. Rechnungen und Kündigung findest du in der E-Mail von Paddle.</p>
+</main>
+
+<footer><div class="wrap">
+  <span>© 2026 mobilistics GmbH</span>
+  <nav><a href="./">Start</a><a href="datenschutz.html">Datenschutz</a><a href="impressum.html">Impressum</a><a href="https://github.com/obi12341/fernsy">GitHub</a></nav>
+</div></footer>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+// Fernsy Cloud checkout (paddle-cloud-subscription design 2): the DMG opens this page with a
+// signed token. The worker checks it and names Paddle's environment, client token and price;
+// Paddle.js opens the overlay with the token as custom data, so the webhook knows the account.
+(function () {
+  var t = new URLSearchParams(location.search).get("t");
+  var show = function (id) {
+    document.querySelectorAll("[data-state]").forEach(function (el) { el.hidden = el.getAttribute("data-state") !== id; });
+  };
+  if (!t) { show("nolink"); return; }
+  var env;
+  try { env = JSON.parse(atob(t.split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))).e; } catch (e) { show("invalid"); return; }
+  var worker = env === "live" ? "https://fernsy-cloud.mobilistics.workers.dev" : "https://fernsy-cloud-dev.mobilistics.workers.dev";
+  show("loading");
+  fetch(worker + "/v1/checkout/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: t }) })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (info) {
+      if (info.alreadySubscribed) { show("subscribed"); return; }
+      if (info.environment === "sandbox") Paddle.Environment.set("sandbox");
+      Paddle.Initialize({
+        token: info.clientToken,
+        eventCallback: function (event) { if (event.name === "checkout.completed") show("done"); }
+      });
+      var open = function () {
+        Paddle.Checkout.open({
+          items: [{ priceId: info.priceId, quantity: 1 }],
+          customData: { fernsy_checkout: t },
+          settings: { displayMode: "overlay", theme: "dark", locale: document.documentElement.lang, allowLogout: false }
+        });
+      };
+      document.getElementById("subscribe").addEventListener("click", open);
+      show("ready");
+      open();
+    })
+    .catch(function () { show("invalid"); });
+})();
+</script>
+</body>
+</html>

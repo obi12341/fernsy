@@ -164,7 +164,18 @@ struct CloudSettingsSection: View {
             }
             if cloud.hasAccount, cloud.account != nil {
                 HStack {
-                    Button("Manage Subscription…") { NSWorkspace.shared.open(CloudSettingsSection.manageURL) }
+                    #if DIRECT_DISTRIBUTION
+                    Button("Manage Subscription…") {
+                        Task { if let url = await cloud.manageSubscriptionURL() { NSWorkspace.shared.open(url) } }
+                    }
+                    #else
+                    if cloud.account?.isPaddle == true {
+                        // Bought outside the App Store: no link to it here (App Store guideline 3.1.3(b)).
+                        Text("This subscription is managed where you bought it.").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Button("Manage Subscription…") { NSWorkspace.shared.open(CloudSettingsSection.manageURL) }
+                    }
+                    #endif
                     Spacer()
                     Button("Delete Fernsy Cloud Data…", role: .destructive) { confirmDeleteAll = true }
                         .accessibilityIdentifier("cloud.deleteAll")
@@ -188,6 +199,8 @@ struct CloudSettingsSection: View {
             #if DEBUG
             // IPTV_TESTCLOUDDELETE=1 shows the delete confirmation, for screenshots.
             if ProcessInfo.processInfo.environment["IPTV_TESTCLOUDDELETE"] != nil { confirmDeleteAll = true }
+            // IPTV_TESTCLOUDBUY=1 opens the subscribe sheet and presses Subscribe (DMG purchase tests).
+            if ProcessInfo.processInfo.environment["IPTV_TESTCLOUDBUY"] != nil, !cloud.canUpload { enabling = true }
             #endif
         }
     }
@@ -249,10 +262,25 @@ struct CloudEnableSheet: View {
                             Button("Subscribe") { Task { if await cloud.purchase() { finish() } } }
                                 .buttonStyle(.borderedProminent)
                                 .disabled(cloud.isPurchasing)
+                            #if DIRECT_DISTRIBUTION
+                            // Paid in the browser: the server learns about it from Paddle.
+                            Button("Check Again") { Task { if await cloud.restore() { finish() } } }
+                                .disabled(cloud.isPurchasing)
+                            #else
                             Button("Restore Purchases") { Task { if await cloud.restore() { finish() } } }
                                 .disabled(cloud.isPurchasing)
-                            if cloud.isPurchasing { ProgressView().controlSize(.small) }
+                            #endif
+                            if cloud.isPurchasing || cloud.isAwaitingCheckout { ProgressView().controlSize(.small) }
                         }
+                        #if DIRECT_DISTRIBUTION
+                        if cloud.isAwaitingCheckout {
+                            Text("Finish the payment in your browser. Fernsy notices it by itself.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text("You pay on fernsy.app. Our reseller Paddle handles payment, invoice and sales tax.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        #endif
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -267,7 +295,12 @@ struct CloudEnableSheet: View {
         }
         .padding(24)
         .frame(width: 460)
-        .task { await cloud.refreshSubscription() }
+        .task {
+            await cloud.refreshSubscription()
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["IPTV_TESTCLOUDBUY"] != nil, await cloud.purchase() { finish() }
+            #endif
+        }
         .onChange(of: cloud.canUpload) { _, can in if can { finish() } }
     }
 

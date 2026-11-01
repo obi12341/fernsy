@@ -39,7 +39,8 @@ struct CloudModelTests {
         /// Every request fails as without network.
         nonisolated(unsafe) static var offline = false
         nonisolated(unsafe) static var recordings = #"[{"id":"r1","dataBytes":10,"metaBytes":5,"completedAt":"2026-10-30T10:00:00Z"}]"#
-        static func reset() { calls = []; state = "none"; foreign = false; offline = false }
+        nonisolated(unsafe) static var paddle = false
+        static func reset() { calls = []; state = "none"; foreign = false; offline = false; paddle = false }
         override class func canInit(with request: URLRequest) -> Bool { true }
         override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
         override func startLoading() {
@@ -61,6 +62,12 @@ struct CloudModelTests {
                     text = #"{"state":"active","usedBytes":0,"totalBytes":1000}"#
                 }
             case ("DELETE", "/v1/account"): Self.recordings = "[]"; text = "{}"
+            case ("GET", "/v1/account") where Self.state == "active" && Self.paddle:
+                text = #"{"state":"active","usedBytes":0,"totalBytes":1000,"provider":"paddle"}"#
+            case ("GET", "/v1/offer"): text = #"{"price":{"amount":"€2.99","currency":"EUR"}}"#
+            case ("POST", "/v1/checkout"):
+                if Self.state == "active" { status = 409; text = #"{"error":"already_subscribed"}"# } else { text = #"{"token":"tok.sig","price":null}"# }
+            case ("POST", "/v1/subscription/portal"): text = #"{"url":"https://sandbox-customer-portal.paddle.com/cpl_1?token=t"}"#
             case ("GET", "/v1/recordings"): text = #"{"recordings":\#(Self.recordings)}"#
             default: break
             }
@@ -237,5 +244,45 @@ struct CloudModelTests {
         try await cloud.deleteCloudData()
         #expect(downloads.downloads.isEmpty)
     }
-}
 
+    // MARK: DMG (paddle-cloud-subscription)
+
+    final class Opened: @unchecked Sendable { var urls: [URL] = [] }
+
+    func paddleModel(_ memory: Memory, _ opened: Opened) -> CloudModel {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [Server.self]
+        let client = CloudClient(baseURL: URL(string: "https://cloud.test")!, urlSession: URLSession(configuration: config), credential: .none)
+        let keys = CloudKeyStore(backing: nil, loadLocal: { memory.key }, saveLocal: { memory.key = $0 }, macOverride: .known)
+        let model = CloudModel(client: client, keys: keys, store: PaddleCloudStore(client: client, checkoutPage: { URL(string: "https://www.fernsy.app/cloud.html")! },
+                                                                                  open: { opened.urls.append($0) }))
+        model.checkoutPoll = (.milliseconds(50), .seconds(5))
+        return model
+    }
+
+    @Test func dmgOffersPaddlesPriceAndOpensTheCheckout() async throws {
+        Server.reset()
+        Server.paddle = true
+        let memory = Memory(), opened = Opened()
+        let cloud = paddleModel(memory, opened)
+        await cloud.start()
+        #expect(cloud.offer?.price == "€2.99")
+        #expect(memory.key == nil, "the offer needs no key")
+
+        #expect(await cloud.purchase() == false)
+        let url = try #require(opened.urls.first)
+        #expect(url.absoluteString.hasPrefix("https://www.fernsy.app/") && url.query == "t=tok.sig")
+        #expect(cloud.isAwaitingCheckout)
+        // Paddle's webhook arrives: the next poll sees the account active.
+        Server.state = "active"
+        for _ in 0..<100 where cloud.isAwaitingCheckout { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(cloud.hasSubscription)
+        #expect(!cloud.isAwaitingCheckout)
+        #expect(cloud.account?.isPaddle == true)
+        #expect(await cloud.manageSubscriptionURL()?.host == "sandbox-customer-portal.paddle.com")
+        // Already subscribed: no second checkout.
+        #expect(await cloud.purchase())
+        #expect(opened.urls.count == 1)
+    }
+
+}

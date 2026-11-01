@@ -431,9 +431,15 @@ private struct CloudSettingsScreen: View {
                     Button(role: .destructive) { confirmDeleteAll = true } label: { SettingsRow(title: Text("Delete Fernsy Cloud Data")) }
                         .accessibilityIdentifier("cloud.deleteAll")
                 }
-                // tvOS has no subscription sheet: name the place instead.
-                Text("To cancel the subscription, open Settings › Users and Accounts › your account › Subscriptions on this Apple TV.")
-                    .font(.system(size: 20)).foregroundStyle(TVTheme.secondary)
+                // tvOS has no subscription sheet: name the place instead. A subscription bought outside
+                // the App Store is managed there, without a link (App Store guideline 3.1.3(b)).
+                if cloud.account?.isPaddle == true {
+                    Text("This subscription is managed where you bought it.")
+                        .font(.system(size: 20)).foregroundStyle(TVTheme.secondary)
+                } else {
+                    Text("To cancel the subscription, open Settings › Users and Accounts › your account › Subscriptions on this Apple TV.")
+                        .font(.system(size: 20)).foregroundStyle(TVTheme.secondary)
+                }
             }
             if model.assistant.hasConsent {
                 Button { model.assistant.withdrawConsent() } label: { SettingsRow(title: Text("Withdraw Consent for the Assistant")) }

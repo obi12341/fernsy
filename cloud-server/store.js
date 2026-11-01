@@ -28,7 +28,8 @@ export function accountState(user, now, graceDays = 30) {
 }
 
 // The user with its linked subscription (the one with the latest expiry, if several).
-const USER_WITH_SUBSCRIPTION = `SELECT u.*, s.original_transaction_id, s.product_id, s.expires_at, s.revoked_at
+const USER_WITH_SUBSCRIPTION = `SELECT u.*, s.original_transaction_id, s.product_id, s.expires_at, s.revoked_at,
+  s.provider, s.customer_id, s.last_event_at
   FROM users u LEFT JOIN subscriptions s ON s.original_transaction_id = (
     SELECT original_transaction_id FROM subscriptions WHERE user_id = u.id ORDER BY expires_at DESC LIMIT 1)`;
 
@@ -103,6 +104,23 @@ export async function takeBack(db, user, now) {
     }, now);
   }
   return results.map((s) => s.original_transaction_id);
+}
+
+/// Paddle's word on a subscription (paddle-cloud-subscription design 3): linked to the account
+/// its checkout token named, applied only when newer than what is stored. Returns false for an
+/// older event.
+export async function linkPaddle(db, user, { originalTransactionId, productId, expiresAt, customerId }, occurredAt) {
+  const before = await subscription(db, originalTransactionId);
+  if (before && before.last_event_at && occurredAt && Date.parse(before.last_event_at) > Date.parse(occurredAt)) return false;
+  await db.prepare(
+    `INSERT INTO subscriptions (original_transaction_id, token_account_id, user_id, product_id, expires_at, revoked_at, provider, customer_id, last_event_at)
+     VALUES (?, ?, ?, ?, ?, NULL, 'paddle', ?, ?)
+     ON CONFLICT(original_transaction_id) DO UPDATE SET token_account_id = excluded.token_account_id, user_id = excluded.user_id,
+       product_id = excluded.product_id, expires_at = excluded.expires_at, customer_id = COALESCE(excluded.customer_id, customer_id),
+       last_event_at = excluded.last_event_at, provider = 'paddle'`)
+    .bind(originalTransactionId, user.account_id, user.id, productId, expiresAt, customerId, occurredAt).run();
+  await db.prepare("UPDATE users SET ended_at = NULL WHERE id = ?").bind(user.id).run();
+  return true;
 }
 
 /// Apple's latest word on a known subscription (notifications, cron, account refresh).
@@ -196,7 +214,7 @@ export async function recordingsOf(db, userId) {
 /// Subscriptions whose expiry passed without a word from Apple (refreshed by the cron job).
 export async function staleSubscriptions(db, now, limit = 50) {
   const { results } = await db.prepare(
-    `SELECT * FROM subscriptions WHERE original_transaction_id NOT LIKE 'dev:%' AND revoked_at IS NULL
+    `SELECT * FROM subscriptions WHERE original_transaction_id NOT LIKE 'dev:%' AND provider = 'apple' AND revoked_at IS NULL
      AND expires_at < ? AND expires_at > ? LIMIT ?`).bind(iso(now), iso(now - 35 * DAY), limit).all();
   return results;
 }

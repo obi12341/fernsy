@@ -10,6 +10,7 @@ import {
 } from "./apple.js";
 import * as store from "./store.js";
 import { relay, DEFAULTS as ASSISTANT } from "./assistant.js";
+import * as paddle from "./paddle.js";
 
 const MiB = 1048576;
 const MIN_PART = 5 * MiB;
@@ -150,13 +151,77 @@ async function refreshSubscription(deps, env, originalTransactionId, userId) {
 }
 
 async function refreshFromApple(deps, env, user) {
+  if (user.provider === "paddle") return refreshFromPaddle(deps, env, user);
   await refreshSubscription(deps, env, user.original_transaction_id, user.id);
   return store.userById(env.DB, user.id);
 }
 
+/// A Paddle subscription whose stored period ended asks Paddle once (lost or late webhooks,
+/// paddle-cloud-subscription design "Risks"); errors keep what is stored.
+async function refreshFromPaddle(deps, env, user) {
+  if (!env.PADDLE_API_KEY) return user;
+  try {
+    const status = paddle.subscriptionStatus(await paddle.getSubscription(env, deps, user.original_transaction_id), deps.now());
+    if (status) await store.linkPaddle(env.DB, user, status, new Date(deps.now()).toISOString());
+  } catch {
+    log({ route: "refresh", user: user.id, outcome: "paddle_error" });
+  }
+  return store.userById(env.DB, user.id);
+}
+
+// MARK: Paddle (paddle-cloud-subscription)
+
+/// The checkout page on fernsy.app (and a local copy while testing) may call /v1/checkout/verify.
+function corsHeaders(env, request) {
+  const origin = request.headers.get("Origin") || "";
+  const allowed = ["https://www.fernsy.app", "https://fernsy.app", ...String(env.CHECKOUT_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean)];
+  return allowed.includes(origin)
+    ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type", Vary: "Origin" }
+    : {};
+}
+
+async function paddleNotification(request, env, deps) {
+  const raw = await request.text();
+  if (!(await paddle.verifySignature(request.headers.get("Paddle-Signature"), raw, env.PADDLE_WEBHOOK_SECRET, deps.now()))) {
+    log({ route: "paddle", outcome: "bad_signature" });
+    fail(401, "unauthorized", "bad signature");
+  }
+  let event;
+  try { event = JSON.parse(raw); } catch { fail(400, "bad_request", "body is not JSON"); }
+  if (!String(event.event_type || "").startsWith("subscription.")) return json(200, {});
+  const status = paddle.subscriptionStatus(event.data, deps.now());
+  if (!status) return json(200, {});
+  const accountId = await paddle.readCheckoutToken(env, status.checkoutToken, deps.now(), { ignoreExpiry: true });
+  const user = accountId ? await store.userByAccount(env.DB, accountId) : null;
+  if (!user) {
+    // Not started from an app of ours (or for an account deleted since): nothing to link.
+    log({ route: "paddle", outcome: accountId ? "unknown_account" : "no_token" });
+    return json(200, {});
+  }
+  const applied = await store.linkPaddle(env.DB, user, status, event.occurred_at ?? new Date(deps.now()).toISOString());
+  log({ route: "paddle", user: user.id, event: event.event_type, outcome: applied ? "updated" : "older" });
+  return json(200, {});
+}
+
+async function checkoutVerify(request, env, deps) {
+  const cors = corsHeaders(env, request);
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (!paddle.paddleConfigured(env)) return json(503, { error: "paddle_not_configured" }, cors);
+  const { token } = await body(request);
+  const accountId = await paddle.readCheckoutToken(env, token, deps.now());
+  const user = accountId ? await store.userByAccount(env.DB, accountId) : null;
+  if (!user) return json(400, { error: "bad_token", message: "the link from the app is invalid or expired" }, cors);
+  const { state } = store.accountState(user, deps.now(), Number(env.GRACE_DAYS ?? GRACE_DAYS));
+  return json(200, {
+    environment: env.PADDLE_ENV === "live" ? "production" : "sandbox",
+    clientToken: env.PADDLE_CLIENT_TOKEN, priceId: env.PADDLE_PRICE_ID, alreadySubscribed: state === "active",
+  }, cors);
+}
+
 async function accountJSON(env, user, now) {
   const graceDays = Number(env.GRACE_DAYS ?? GRACE_DAYS);
-  return { userId: user.account_id === "dev" ? user.id : user.account_id, ...store.accountState(user, now, graceDays), usedBytes: await store.usedBytes(env.DB, user.id), totalBytes: quotaOf(env, user) };
+  return { userId: user.account_id === "dev" ? user.id : user.account_id, ...store.accountState(user, now, graceDays), usedBytes: await store.usedBytes(env.DB, user.id), totalBytes: quotaOf(env, user),
+    provider: user.original_transaction_id ? (user.provider ?? "apple") : null };
 }
 
 function requireState(env, user, now, allowed) {
@@ -171,6 +236,21 @@ async function route(request, env, deps) {
   const path = u.pathname.replace(/\/+$/, "");
   const method = request.method;
   const now = deps.now();
+
+  if (method === "POST" && path === "/v1/paddle/notifications") {
+    if (!env.PADDLE_WEBHOOK_SECRET) fail(503, "paddle_not_configured", "Paddle is not configured");
+    return paddleNotification(request, env, deps);
+  }
+
+  if (method === "GET" && path === "/v1/offer") {
+    // The DMG's offer before any account exists: Paddle's price for the caller's country.
+    if (!paddle.paddleConfigured(env)) fail(503, "paddle_not_configured", "Paddle is not configured");
+    return json(200, { price: await paddle.pricePreview(env, deps, request.headers.get("CF-IPCountry")) });
+  }
+
+  if ((method === "POST" || method === "OPTIONS") && path === "/v1/checkout/verify") {
+    return checkoutVerify(request, env, deps);
+  }
 
   if (method === "POST" && path === "/v1/apple/notifications") {
     const { signedPayload } = await body(request);
@@ -205,6 +285,26 @@ async function route(request, env, deps) {
   if (method === "GET" && path === "/v1/account") {
     if (user.expires_at && Date.parse(user.expires_at) <= now && !user.revoked_at) user = await refreshFromApple(deps, env, user);
     return reply(200, await accountJSON(env, user, now));
+  }
+
+  if (method === "POST" && path === "/v1/checkout") {
+    // The DMG's purchase (paddle-cloud-subscription design 2): a token for fernsy.app/cloud.
+    if (auth.dev) fail(400, "bad_request", "the dev user has its own subscription");
+    if (!paddle.paddleConfigured(env)) fail(503, "paddle_not_configured", "Paddle is not configured");
+    if (store.accountState(user, now, Number(env.GRACE_DAYS ?? GRACE_DAYS)).state === "active") {
+      fail(409, "already_subscribed", "this account has an active subscription");
+    }
+    const token = await paddle.makeCheckoutToken(env, user.account_id, now);
+    const price = await paddle.pricePreview(env, deps, request.headers.get("CF-IPCountry"));
+    log({ route: "checkout", user: user.id, outcome: "token" });
+    return reply(200, { token, price });
+  }
+
+  if (method === "POST" && path === "/v1/subscription/portal") {
+    if (user.provider !== "paddle" || !user.customer_id) fail(404, "not_paddle", "no Paddle subscription for this account");
+    const portal = await paddle.portalURL(env, deps, user.customer_id, user.original_transaction_id);
+    if (!portal) fail(502, "paddle_error", "Paddle gave no portal link");
+    return reply(200, { url: portal });
   }
 
   if (method === "POST" && path === "/v1/subscription") {
@@ -382,6 +482,7 @@ export async function handle(request, env, deps = { fetch: (...a) => fetch(...a)
   } catch (e) {
     if (e instanceof HTTPError) return json(e.status, { error: e.code, ...e.extra });
     if (e instanceof AppleNotConfigured) return json(503, { error: "apple_not_configured", message: "App Store Server API is not configured" });
+    if (e instanceof paddle.PaddleNotConfigured) return json(503, { error: "paddle_not_configured", message: "Paddle API key is missing" });
     log({ route: new URL(request.url).pathname.replace(/[0-9a-f-]{36}/g, ":id"), outcome: "error", error: String(e.message).slice(0, 80) });
     return json(500, { error: "internal", message: "internal error" });
   }

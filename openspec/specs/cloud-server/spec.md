@@ -9,11 +9,11 @@ keys or readable content.
 ## Requirements
 
 ### Requirement: Subscription check
-The server SHALL decide whether a user's subscription is active only from Apple's App Store
-Server API and Server Notifications, never from a client's claim alone. A subscription SHALL
-be linked to the account whose id Apple reports as the transaction's app account token. A
-transaction without that token, or with another account's, SHALL be linked only when the
-request explicitly asks to move it.
+The server SHALL decide whether a subscription is active only from the provider that sold it
+(Apple's server API and notifications, Paddle's signed webhooks and API), never from a client's
+claim alone. An Apple subscription SHALL be linked to the account named by the transaction's app
+account token, any other only on an explicit move; a Paddle subscription to the account named in
+its custom data. An account SHALL count as subscribed while either provider's subscription is.
 
 #### Scenario: Renewal
 - **WHEN** Apple notifies a renewal for a user's subscription
@@ -30,6 +30,14 @@ request explicitly asks to move it.
 #### Scenario: Transaction id alone
 - **WHEN** a request names a valid transaction id of someone else's purchase made for another account
 - **THEN** the server does not link it to the requesting account
+
+#### Scenario: Paddle renewal and cancellation
+- **WHEN** Paddle notifies that an account's subscription renewed, and later that it was canceled at the end of the period
+- **THEN** the account stays active until the end of the paid period and then ends, with the usual grace period for its recordings
+
+#### Scenario: Forged notification
+- **WHEN** a request to the Paddle notification route carries no valid Paddle signature
+- **THEN** the server rejects it and no subscription changes
 
 ### Requirement: Private storage per user
 Each user's objects SHALL be stored under a location the server derives from the user id;
@@ -163,3 +171,13 @@ subscription, naming the reason.
 #### Scenario: Tool definitions from the client
 - **WHEN** a request carries its own system prompt or tools
 - **THEN** the server ignores them and uses Fernsy's
+
+### Requirement: Managing a Paddle subscription
+For an account with a Paddle subscription, the server SHALL return a short-lived, authenticated
+link to Paddle's customer portal for it, where the user updates payment details, downloads
+invoices and cancels. The server SHALL store only Paddle's customer and subscription ids for the
+account, no e-mail address or payment details.
+
+#### Scenario: Manage from the DMG
+- **WHEN** a Paddle subscriber chooses "Manage Subscription" in the DMG
+- **THEN** Paddle's customer portal opens signed in to their subscription without a login

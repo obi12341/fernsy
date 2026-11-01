@@ -21,9 +21,11 @@ public final class CloudClient: @unchecked Sendable {
         public var deleteAt: Date?
         public var usedBytes: Int64
         public var totalBytes: Int64
+        /// Who sold the subscription: "apple" or "paddle" (paddle-cloud-subscription); nil without one.
+        public var provider: String?
 
         public init(userId: String? = nil, state: State, expiresAt: Date? = nil, endedAt: Date? = nil, deleteAt: Date? = nil,
-                    usedBytes: Int64 = 0, totalBytes: Int64 = 0) {
+                    usedBytes: Int64 = 0, totalBytes: Int64 = 0, provider: String? = nil) {
             self.userId = userId
             self.state = state
             self.expiresAt = expiresAt
@@ -31,7 +33,10 @@ public final class CloudClient: @unchecked Sendable {
             self.deleteAt = deleteAt
             self.usedBytes = usedBytes
             self.totalBytes = totalBytes
+            self.provider = provider
         }
+
+        public var isPaddle: Bool { provider == "paddle" }
 
         public var canUpload: Bool { state == .active }
         public var canPlay: Bool { state == .active || state == .grace }
@@ -85,6 +90,9 @@ public final class CloudClient: @unchecked Sendable {
         /// The subscription was bought for another account or without one; it can be moved.
         case otherAccount
         case appleNotConfigured
+        /// The account has an active subscription already (paddle-cloud-subscription).
+        case alreadySubscribed
+        case paddleNotConfigured
         case server(status: Int, code: String)
         case network(String)
     }
@@ -139,6 +147,35 @@ public final class CloudClient: @unchecked Sendable {
 
     /// Links the subscription to this account; `move` takes it over from another account
     /// (design E), which the app offers only after `otherAccount`.
+    // MARK: Paddle (paddle-cloud-subscription, DMG)
+
+    public struct Price: Codable, Equatable, Sendable {
+        /// Formatted with tax, in the caller's currency ("€2.99").
+        public var amount: String?
+        public var currency: String?
+    }
+
+    /// Paddle's price for this country, without an account.
+    public func offerPrice() async throws -> Price? {
+        struct Answer: Decodable { var price: Price? }
+        let answer: Answer = try await send("GET", "v1/offer", authorized: false)
+        return answer.price
+    }
+
+    /// A signed token for the checkout page on fernsy.app; `.alreadySubscribed` when active.
+    public func checkoutToken() async throws -> String {
+        struct Answer: Decodable { var token: String }
+        let answer: Answer = try await send("POST", "v1/checkout")
+        return answer.token
+    }
+
+    /// An authenticated link to Paddle's customer portal for this account's subscription.
+    public func portalURL() async throws -> URL {
+        struct Answer: Decodable { var url: URL }
+        let answer: Answer = try await send("POST", "v1/subscription/portal")
+        return answer.url
+    }
+
     public func linkSubscription(originalTransactionId: String, move: Bool = false) async throws -> Account {
         struct Body: Encodable { var originalTransactionId: String; var move: Bool? }
         return try await send("POST", "v1/subscription", body: Body(originalTransactionId: originalTransactionId, move: move ? true : nil))
@@ -204,7 +241,7 @@ public final class CloudClient: @unchecked Sendable {
         var freeBytes: Int64?
     }
 
-    private func send<T: Decodable>(_ method: String, _ path: String, body: (any Encodable)? = nil) async throws -> T {
+    private func send<T: Decodable>(_ method: String, _ path: String, body: (any Encodable)? = nil, authorized: Bool = true) async throws -> T {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = method
         request.timeoutInterval = 30
@@ -212,7 +249,7 @@ public final class CloudClient: @unchecked Sendable {
             request.httpBody = try JSONEncoder().encode(body)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        try authorize(&request)
+        if authorized { try authorize(&request) }
         let data: Data, response: URLResponse
         do {
             (data, response) = try await urlSession.data(for: request)
@@ -229,7 +266,9 @@ public final class CloudClient: @unchecked Sendable {
             case (402, _): throw Failure.noSubscription
             case (413, _): throw Failure.quota(needed: answer?.neededBytes ?? 0, free: answer?.freeBytes ?? 0)
             case (404, _): throw Failure.notFound
+            case (409, "already_subscribed"): throw Failure.alreadySubscribed
             case (409, _): throw Failure.otherAccount
+            case (503, "paddle_not_configured"): throw Failure.paddleNotConfigured
             case (503, "apple_not_configured"): throw Failure.appleNotConfigured
             default: throw Failure.server(status: status, code: code)
             }
