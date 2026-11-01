@@ -30,6 +30,7 @@ function fakeStripe(now) {
     const b = form(init.body);
     if (method === "POST" && p === "/v1/customers") {
       if (b["address[country]"] === "XX") return Response.json({ error: { code: "customer_tax_location_invalid", message: "tax location invalid" } }, { status: 400 });
+      state.lastCustomer = b;
       const c = { id: `cus_${state.next++}`, email: b.email, metadata: { fernsy_account: b["metadata[fernsy_account]"] } };
       state.customers.set(c.id, c);
       return Response.json(c);
@@ -90,7 +91,7 @@ function setup({ configured = true } = {}) {
 async function buy(t, key, overrides = {}) {
   const { token } = (await t.call("POST", "/v1/checkout", { auth: key.auth })).body;
   const order = await t.call("POST", "/v1/checkout/subscribe", { headers: { Origin: "https://www.fernsy.app" },
-    body: { token, email: "buyer@example.com", country: "DE", postalCode: "10115", consent: true, ...overrides } });
+    body: { token, email: "buyer@example.com", country: "DE", postalCode: "10115", consent: true, locale: "de", ...overrides } });
   return { token, order };
 }
 
@@ -145,6 +146,7 @@ test("checkout: verify with CORS, subscribe creates the subscription for the tok
   assert.equal(created["automatic_tax[enabled]"], "true");
   assert.equal(created["expand[0]"], "latest_invoice.confirmation_secret");
   assert.ok(created["metadata[start_consent_at]"]);
+  assert.equal(t.stripe.lastCustomer["preferred_locales[0]"], "de");
 });
 
 test("subscribe refuses without consent, with a bad address and for subscribed accounts", async () => {

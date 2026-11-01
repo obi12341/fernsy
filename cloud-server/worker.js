@@ -243,6 +243,7 @@ async function checkoutSubscribe(request, env, deps, cors) {
   try {
     const result = await stripe.createSubscription(env, deps, {
       accountId: user.account_id, email, country, postalCode, consentAt: new Date(deps.now()).toISOString(),
+      locale: b.locale === "de" ? "de" : b.locale === "en" ? "en" : undefined,
     });
     log({ route: "subscribe", user: user.id, outcome: "created" });
     return json(200, { clientSecret: result.clientSecret }, cors);

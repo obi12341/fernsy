@@ -106,7 +106,7 @@
       button.disabled = true;
       elements.submit().then(function (r) {
         if (r.error) throw r.error;
-        return post("/v1/checkout/subscribe", { token: t, email: email, country: country, postalCode: postalCode, consent: true });
+        return post("/v1/checkout/subscribe", { token: t, email: email, country: country, postalCode: postalCode, consent: true, locale: lang });
       }).then(function (order) {
         if (order.status === 409) { show("subscribed"); return null; }
         if (order.status !== 200) throw { message: order.error === "bad_address" ? L.address : (order.message || order.error) };

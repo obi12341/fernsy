@@ -137,9 +137,10 @@ export function getSubscription(env, deps, id) { return api(env, deps, "GET", `/
 
 /// The checkout page's purchase (design 2): a customer with the buyer's e-mail and location for
 /// Stripe Tax, and an incomplete subscription for the account whose first invoice the page pays.
-export async function createSubscription(env, deps, { accountId, email, country, postalCode, consentAt }) {
+export async function createSubscription(env, deps, { accountId, email, country, postalCode, consentAt, locale }) {
   const customer = await api(env, deps, "POST", "/customers", {
     email, address: { country, postal_code: postalCode }, tax: { validate_location: "immediately" },
+    preferred_locales: locale ? [locale] : undefined,   // receipts and portal in the buyer's language
     metadata: { fernsy_account: accountId },
   });
   const sub = await api(env, deps, "POST", "/subscriptions", {
