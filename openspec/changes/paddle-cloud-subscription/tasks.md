@@ -30,8 +30,13 @@ or "Fernsy Direct" in Debug with `IPTV_CLOUD`.
 ## 5. Verification and go-live
 
 - [ ] 5.1 End to end in the sandbox: DMG subscribes with a test card → active within a minute on the Mac and in the iOS simulator with the same key; portal cancel → ends at period end; second purchase refused
-- [ ] 5.2 Live: Paddle account verified, domain fernsy.app approved, live catalog and secrets, production deploy (after 1.1)
+- [ ] 5.2 Live: Paddle account verified, domain fernsy.app approved, live catalog (price with quantity 1..1) and secrets, default payment link `https://www.fernsy.app/cloud.html` (without it Paddle.js answers `transaction_default_checkout_url_not_set`), production deploy (after 1.1)
 - [x] 5.3 DEVELOPMENT.md › Fernsy Cloud (Paddle part), `cloud-server/README.md`; `openspec validate --all --strict`
+
+Sandbox purchase done 2026-11-01 through the checkout page in Chrome with Paddle's test card: the
+real webhook made the dev account active (`provider: paddle`, period end a month later) and a second
+checkout was refused. Still open for 5.1: the DMG app itself through it, the iOS simulator with the
+same key, and the portal cancel (needs a sandbox API key).
 
 ## Workflow follow-up
 
