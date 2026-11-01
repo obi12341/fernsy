@@ -1,13 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Subscription
-Fernsy Cloud SHALL require an auto-renewable subscription. The App Store apps, the Apple TV
-included, SHALL sell and restore it as an in-app subscription, with Apple's purchase confirmation
-as the only dialog, and SHALL NOT mention or link to another way to pay. The Mac app from the
-website (DMG) SHALL sell it through Paddle's checkout in the browser. A subscription from either
-SHALL count on every device with the same cloud key. It SHALL include the recordings cloud and
-the assistant (see `assistant`). Settings SHALL show its state (none, active with used and total
-storage and the assistant requests used this month, ending or ended with dates).
+Fernsy Cloud SHALL require an auto-renewable subscription with the recordings cloud and the
+assistant (see `assistant`). The App Store apps, the Apple TV included, SHALL sell and restore it
+in-app with Apple's confirmation as the only dialog and SHALL NOT mention another way to pay; the
+DMG SHALL sell it through Paddle's checkout in the browser. Either SHALL count on every device with
+the same cloud key. Settings SHALL show its state (none, active, ending, ended) with dates and usage.
 
 #### Scenario: Restore
 - **WHEN** a user who subscribed on the iPad turns the switch on on the Mac and chooses "Restore purchases"

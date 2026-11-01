@@ -1,13 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Subscription check
-The server SHALL decide whether a user's subscription is active only from the provider that sold
-it – Apple's App Store Server API and Server Notifications, or Paddle's signed webhooks and API –
-never from a client's claim alone. An Apple subscription SHALL be linked to the account whose id
-Apple reports as the transaction's app account token; a transaction without that token, or with
-another account's, SHALL be linked only when the request explicitly asks to move it. A Paddle
-subscription SHALL be linked to the account named in its custom data. An account's subscription
-SHALL count as active when a subscription from either provider is.
+The server SHALL decide whether a subscription is active only from the provider that sold it
+(Apple's server API and notifications, Paddle's signed webhooks and API), never from a client's
+claim alone. An Apple subscription SHALL be linked to the account named by the transaction's app
+account token, any other only on an explicit move; a Paddle subscription to the account named in
+its custom data. An account SHALL count as subscribed while either provider's subscription is.
 
 #### Scenario: Renewal
 - **WHEN** Apple notifies a renewal for a user's subscription

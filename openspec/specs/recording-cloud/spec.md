@@ -73,11 +73,11 @@ it off SHALL stop uploading and keep what is stored.
 - **THEN** it is not queued
 
 ### Requirement: Subscription
-Fernsy Cloud SHALL require an auto-renewable in-app subscription that can be bought and
-restored in every app, the Apple TV included. It SHALL include the recordings cloud and the
-assistant (see `assistant`). Apple's purchase confirmation SHALL be the only dialog. Settings
-SHALL show its state (none, active with used and total storage and the assistant requests used
-this month, ending or ended with dates).
+Fernsy Cloud SHALL require an auto-renewable subscription with the recordings cloud and the
+assistant (see `assistant`). The App Store apps, the Apple TV included, SHALL sell and restore it
+in-app with Apple's confirmation as the only dialog and SHALL NOT mention another way to pay; the
+DMG SHALL sell it through Paddle's checkout in the browser. Either SHALL count on every device with
+the same cloud key. Settings SHALL show its state (none, active, ending, ended) with dates and usage.
 
 #### Scenario: Restore
 - **WHEN** a user who subscribed on the iPad turns the switch on on the Mac and chooses "Restore purchases"
@@ -90,6 +90,14 @@ this month, ending or ended with dates).
 #### Scenario: Offer without a Mac
 - **WHEN** a user who never ran Fernsy on a Mac opens Settings › Fernsy Cloud on the iPhone
 - **THEN** the offer shows, naming the assistant on all devices and the recordings cloud with Fernsy on a Mac
+
+#### Scenario: Subscribing in the DMG
+- **WHEN** a user of the DMG chooses "Subscribe" in Settings › Recordings › Fernsy Cloud and pays in Paddle's checkout
+- **THEN** the Mac shows the subscription as active within a minute of returning to the app, and the iPhone with the same Apple ID can play the cloud recordings without buying again
+
+#### Scenario: Already subscribed
+- **WHEN** the account already has an active subscription from Apple or Paddle
+- **THEN** no app and no checkout page offers buying another one
 
 ### Requirement: Upload of earlier recordings
 While the cloud switch is on, every finished recording in the Recordings section that is not
