@@ -315,6 +315,8 @@ final class CloudRecordingsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["This subscription is managed where you bought it."].waitForExistence(timeout: 20),
                       "no note for the Paddle subscription:\n\(app.debugDescription)")
         XCTAssertFalse(app.buttons["Manage Subscription"].exists, "the App Store's management is offered")
+        let storage = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "of 100 GB used")).firstMatch
+        XCTAssertTrue(storage.exists, "the storage does not read as of 100 GB (cloud-pricing-100gb):\n\(app.debugDescription)")
         shot("cloud-paddle", app)
     }
 }
