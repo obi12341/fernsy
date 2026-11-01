@@ -21,7 +21,7 @@ public final class CloudClient: @unchecked Sendable {
         public var deleteAt: Date?
         public var usedBytes: Int64
         public var totalBytes: Int64
-        /// Who sold the subscription: "apple" or "paddle" (paddle-cloud-subscription); nil without one.
+        /// Who sold the subscription: "apple", or "stripe" for the website (stripe-cloud-subscription); nil without one.
         public var provider: String?
 
         public init(userId: String? = nil, state: State, expiresAt: Date? = nil, endedAt: Date? = nil, deleteAt: Date? = nil,
@@ -36,7 +36,8 @@ public final class CloudClient: @unchecked Sendable {
             self.provider = provider
         }
 
-        public var isPaddle: Bool { provider == "paddle" }
+        /// Bought on fernsy.app, not in the App Store.
+        public var isWebPurchase: Bool { provider != nil && provider != "apple" }
 
         public var canUpload: Bool { state == .active }
         public var canPlay: Bool { state == .active || state == .grace }
@@ -90,9 +91,9 @@ public final class CloudClient: @unchecked Sendable {
         /// The subscription was bought for another account or without one; it can be moved.
         case otherAccount
         case appleNotConfigured
-        /// The account has an active subscription already (paddle-cloud-subscription).
+        /// The account has an active subscription already (website purchase).
         case alreadySubscribed
-        case paddleNotConfigured
+        case checkoutNotConfigured
         case server(status: Int, code: String)
         case network(String)
     }
@@ -147,15 +148,15 @@ public final class CloudClient: @unchecked Sendable {
 
     /// Links the subscription to this account; `move` takes it over from another account
     /// (design E), which the app offers only after `otherAccount`.
-    // MARK: Paddle (paddle-cloud-subscription, DMG)
+    // MARK: Website purchase (stripe-cloud-subscription, DMG)
 
     public struct Price: Codable, Equatable, Sendable {
-        /// Formatted with tax, in the caller's currency ("€2.99").
+        /// Formatted with tax ("€3.49").
         public var amount: String?
         public var currency: String?
     }
 
-    /// Paddle's price for this country, without an account.
+    /// The website price, without an account.
     public func offerPrice() async throws -> Price? {
         struct Answer: Decodable { var price: Price? }
         let answer: Answer = try await send("GET", "v1/offer", authorized: false)
@@ -169,7 +170,7 @@ public final class CloudClient: @unchecked Sendable {
         return answer.token
     }
 
-    /// An authenticated link to Paddle's customer portal for this account's subscription.
+    /// A link to Stripe's customer portal for this account's website subscription.
     public func portalURL() async throws -> URL {
         struct Answer: Decodable { var url: URL }
         let answer: Answer = try await send("POST", "v1/subscription/portal")
@@ -268,7 +269,7 @@ public final class CloudClient: @unchecked Sendable {
             case (404, _): throw Failure.notFound
             case (409, "already_subscribed"): throw Failure.alreadySubscribed
             case (409, _): throw Failure.otherAccount
-            case (503, "paddle_not_configured"): throw Failure.paddleNotConfigured
+            case (503, "checkout_not_configured"): throw Failure.checkoutNotConfigured
             case (503, "apple_not_configured"): throw Failure.appleNotConfigured
             default: throw Failure.server(status: status, code: code)
             }

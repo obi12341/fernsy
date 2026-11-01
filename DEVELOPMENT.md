@@ -527,31 +527,34 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `IPTV_TESTOFFLINE=requests` fails only the requests while the path says there is network.
   `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
   (catalog, guide, artwork, cloud details; downloads stay).
-- **Paddle in the DMG (paddle-cloud-subscription).** The DMG ("Fernsy Direct",
+- **Website purchase in the DMG (stripe-cloud-subscription).** The DMG ("Fernsy Direct",
   `DIRECT_DISTRIBUTION`) has no StoreKit purchases; `AppModel` gives `CloudModel` a
-  `PaddleCloudStore` that asks the worker for a checkout token (`POST /v1/checkout`) and opens
-  `fernsy.app/cloud.html?t=…` (`website/cloud.html`, `website/en/cloud.html`: Paddle.js overlay with
-  the token as `customData.fernsy_checkout`). Paddle's webhooks (`/v1/paddle/notifications`) link
-  the subscription to the token's account; the Mac polls every 10 s for 5 min. "Manage
-  Subscription" opens Paddle's customer portal (`/v1/subscription/portal`). The App Store builds
-  never show or contain the checkout link (the URL lives in the DMG's code); a Paddle
-  subscription shows a neutral note there. Sandbox: catalog, client token and notification
-  destination in Paddle's sandbox (Paddle MCP), values in `~/.config/fernsy/paddle-sandbox.json`,
-  deployed to `fernsy-cloud-dev` (`PADDLE_ENV=sandbox`, see `cloud-server/README.md`). Test the
+  `WebCloudStore` that asks the worker for a checkout token (`POST /v1/checkout`) and opens
+  `fernsy.app/cloud.html?t=…` (`website/cloud.html`, `website/en/cloud.html`). The page shows the
+  order, Stripe's Payment Element, the start request and "Zahlungspflichtig abonnieren"; the worker
+  creates customer and subscription for the token's account (`/v1/checkout/subscribe`) and Stripe.js
+  confirms the first payment. Stripe's webhooks (`/v1/stripe/notifications`) keep the state; the
+  Mac polls every 10 s for 5 min. "Manage Subscription" opens Stripe's customer portal
+  (`/v1/subscription/portal`); otherwise subscribers cancel by e-mail to info@ (no cancellation
+  page, the user's decision, see the change's design 4). mobilistics is the seller (Stripe
+  Tax, withdrawal pages `widerruf.html` / `en/withdrawal.html`). The App Store builds never show or
+  contain the checkout link (the URL lives in the DMG's code); a website subscription shows a
+  neutral note there. Test mode: the Stripe plugin's MCP (`plugin:stripe:stripe`, sandbox
+  `acct_1UX6aYEsDUkIy6j0`) holds catalog, portal and webhook endpoint; ids and the webhook secret
+  in `~/.config/fernsy/stripe-test.json`, keys in `stripe-test-secret-key` and
+  `stripe-test-publishable-key`; deployed to `fernsy-cloud-dev` (`STRIPE_ENV=test`, see
+  `cloud-server/README.md`). Test cards: `4242 4242 4242 4242`, any future date, any CVC. Test the
   page locally with `python3 -m http.server 8000` in `website/` and `CHECKOUT_ORIGINS` containing
-  `http://localhost:8000`; Paddle's webhook simulator with a custom `subscription.created` payload
-  carrying a real checkout token exercises the worker without paying. Paddle IDs in simulated
-  payloads must match `^sub_[a-z\d]{26}$` and `^ctm_[a-z\d]{26}$`.
+  `http://localhost:8000` (Stripe.js needs HTTPS only in live mode).
   The whole purchase from the app: build the scheme "Fernsy Direct" in Debug and start it with
   `IPTV_CLOUD=<dev worker> IPTV_CLOUDKEY=<base64 key JSON>
   IPTV_CHECKOUTPAGE=http://localhost:8000/cloud.html IPTV_TESTSETTINGS=recordings
   IPTV_TESTCLOUDBUY=1`. `IPTV_CHECKOUTPAGE` uses the local page and writes the checkout link to the
   log ("Fernsy Cloud: checkout http…") instead of opening the default browser, so a browser the test
-  drives pays with Paddle's test card; `IPTV_TESTCLOUDBUY` opens the subscribe sheet and presses
-  Subscribe. The iOS UI test `CloudRecordingsUITests/testPaddleSubscriptionIsManagedWhereBought`
+  drives pays with a test card; `IPTV_TESTCLOUDBUY` opens the subscribe sheet and presses
+  Subscribe. The iOS UI test `CloudRecordingsUITests/testWebSubscriptionIsManagedWhereBought`
   checks the same key's subscription in the App Store app (`TEST_RUNNER_IPTV_CLOUD`,
-  `TEST_RUNNER_FERNSY_PADDLE_KEY`). Live values: `~/.config/fernsy/paddle-live.json` and
-  `paddle-live-api-key`.
+  `TEST_RUNNER_FERNSY_WEB_KEY`).
 - **Assistant (cloud-assistant).** `FernsyCore/AssistantModel.swift` holds what the apps show
   (consent per device in `assistant.consent`, the session's entries, refusal texts, the month's
   usage, the question before `cancel_recording`); the Mac's window `AssistantView` runs the tools

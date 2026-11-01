@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   token_account_id TEXT,                    -- Apple's appAccountToken; null when the purchase has none
   user_id TEXT,                             -- the user it is linked to now
   product_id TEXT,
-  expires_at TEXT,                          -- subscription expiry (Apple), or the paid period's end (Paddle)
+  expires_at TEXT,                          -- subscription expiry (Apple), or the paid period's end (Stripe)
   revoked_at TEXT,                          -- refund or revocation from Apple
-  provider TEXT NOT NULL DEFAULT 'apple',   -- 'apple' | 'paddle' (paddle-cloud-subscription)
-  customer_id TEXT,                         -- Paddle's customer id (ctm_…), for the customer portal
-  last_event_at TEXT                        -- Paddle: occurred_at of the newest event applied
+  provider TEXT NOT NULL DEFAULT 'apple',   -- 'apple' | 'stripe' (stripe-cloud-subscription)
+  customer_id TEXT,                         -- Stripe's customer id (cus_…), for the customer portal
+  last_event_at TEXT                        -- Stripe: created time of the newest event applied
 );
 -- Older databases get the last three columns from deploy.sh (ALTER TABLE, once).
 

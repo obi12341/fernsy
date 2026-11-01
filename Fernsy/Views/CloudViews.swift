@@ -169,7 +169,7 @@ struct CloudSettingsSection: View {
                         Task { if let url = await cloud.manageSubscriptionURL() { NSWorkspace.shared.open(url) } }
                     }
                     #else
-                    if cloud.account?.isPaddle == true {
+                    if cloud.account?.isWebPurchase == true {
                         // Bought outside the App Store: no link to it here (App Store guideline 3.1.3(b)).
                         Text("This subscription is managed where you bought it.").font(.caption).foregroundStyle(.secondary)
                     } else {
@@ -263,7 +263,7 @@ struct CloudEnableSheet: View {
                                 .buttonStyle(.borderedProminent)
                                 .disabled(cloud.isPurchasing)
                             #if DIRECT_DISTRIBUTION
-                            // Paid in the browser: the server learns about it from Paddle.
+                            // Paid in the browser: the server learns about it from Stripe.
                             Button("Check Again") { Task { if await cloud.restore() { finish() } } }
                                 .disabled(cloud.isPurchasing)
                             #else
@@ -274,10 +274,12 @@ struct CloudEnableSheet: View {
                         }
                         #if DIRECT_DISTRIBUTION
                         if cloud.isAwaitingCheckout {
-                            Text("Finish the payment in your browser. Fernsy notices it by itself.")
+                            Text(verbatim: Self.directText("Finish the payment in your browser. Fernsy notices it by itself.",
+                                                           "Schließ die Zahlung in deinem Browser ab. Fernsy bemerkt das von selbst."))
                                 .font(.caption).foregroundStyle(.secondary)
                         } else {
-                            Text("You pay on fernsy.app. Our reseller Paddle handles payment, invoice and sales tax.")
+                            Text(verbatim: Self.directText("You pay on fernsy.app by card, Apple Pay or another method through Stripe.",
+                                                           "Du bezahlst auf fernsy.app mit Karte, Apple Pay oder einer anderen Zahlart über Stripe."))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         #endif
@@ -303,6 +305,14 @@ struct CloudEnableSheet: View {
         }
         .onChange(of: cloud.canUpload) { _, can in if can { finish() } }
     }
+
+    #if DIRECT_DISTRIBUTION
+    /// The DMG's texts about the website purchase stay out of the string catalog, so the App Store
+    /// apps carry no hint of another way to pay (stripe-cloud-subscription design 6).
+    static func directText(_ english: String, _ german: String) -> String {
+        Locale.current.language.languageCode?.identifier == "de" ? german : english
+    }
+    #endif
 
     /// The switch goes on as soon as the account can upload.
     private func finish() {

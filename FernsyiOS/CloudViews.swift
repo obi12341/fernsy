@@ -267,7 +267,7 @@ struct CloudSettingsView: View {
                     }
                 }
                 Section {
-                    if cloud.account?.isPaddle == true {
+                    if cloud.account?.isWebPurchase == true {
                         // Bought outside the App Store: no link to it here (App Store guideline 3.1.3(b)).
                         Text("This subscription is managed where you bought it.").foregroundStyle(TVTheme.secondary)
                     } else {
