@@ -8,8 +8,12 @@
 - Fernsy Cloud: the apps encrypt with the user's cloud key (`CloudCrypto`, CryptoKit) and upload
   through `CloudClient` to the worker; the key and the synced logins are stored in the private
   CloudKit database in `encryptedValues` (`CloudKey`, `Login`), end-to-end encrypted by Apple.
+- Fernsy Cloud authenticates an account with a secret derived from the cloud key
+  (`CloudAccountKey.accessSecret`, `Authorization: Key <account>:<secret>`): whoever holds the
+  cloud key can act as the account, and only the user's devices hold it.
 - Decided with the user (2026-11-01): Docker image for servers and Raspberry Pi, controlled from
-  the apps through CloudKit, recordings go to Fernsy Cloud.
+  the apps, recordings go to Fernsy Cloud. Control was planned through CloudKit; the spike
+  (decision 0) moved it to its own worker, end-to-end encrypted (decision 3).
 
 ## Goals / Non-Goals
 
@@ -20,15 +24,18 @@ apps); no new secrets path through our worker; reuse the apps' recording rules a
 
 ## Decisions
 
-### 0. Spike first: CloudKit Web Services against the private database
-Before anything else, a throwaway script (curl against CloudKit Web Services; the language does
-not matter for what it has to prove) shows: (a) signing in once with the user's
-Apple ID through CloudKit's web sign-in yields a `ckWebAuthToken` for the private database of
-`iCloud.de.mobilistics.fernsy`; (b) with it the tool can create a custom zone, write and read
-plain records and fetch zone changes with a sync token; (c) how long the token lives and how it
-renews; (d) that `encryptedValues` fields are indeed not readable (expected). If (a)–(c) fail,
-control moves to the Fernsy Cloud worker (rejected alternative below) and the specs are revised
-before building.
+### 0. Spike: CloudKit Web Services against the private database (done, failed)
+Tried on 2026-11-01 against `iCloud.de.mobilistics.fernsy.dev` (development) with a curl/Python
+script. Results:
+- A web auth token needs no browser sign-in: an app gets one with `CKFetchWebAuthTokenOperation`
+  (macOS, iOS, tvOS; the token is bound to the API token it was fetched with).
+- With that token, the private database answered `403 ACCESS_DENIED` "private db access disabled
+  for this account": the account has web access to iCloud data turned off, which is the default
+  with Advanced Data Protection. Every user with it would have to turn on web access to all their
+  iCloud data for the server - not acceptable, and exactly the users who run a home server.
+- The token rotates with every response (`X-Apple-CloudKit-Web-Auth-Token`), so a long-running
+  server would have to carry it forward without a gap - another way to break.
+So control does not go through CloudKit (decision 3).
 
 ### 1. Swift on Linux, sharing a small part of FernsyCore
 The server is a Swift package (`server/`) built with the Swift Static Linux SDK (musl) for amd64
@@ -53,38 +60,64 @@ length) as the apps do. No decoding, no FFmpeg in the image.
 Rejected: FFmpeg remuxing (a Linux FFmpeg build per arch for no gain; the apps' recordings are
 `.ts` too); HLS-only providers are out of scope for the first version (logged as unsupported).
 
-### 3. Control through the user's private CloudKit database
-A custom zone `FernsyServer` holds three record types: `RecordingOrder` (written by the apps:
-channel id and name, show title, start, end, padding, created by), `RecordingState` (written by the
-server, same record name as its order: state, reason, file size, upload id), `FernsyServerStatus`
-(written by the server: last contact, version, free space, running and next orders, error). The
-server polls zone changes every 30 seconds with a sync token (CloudKit Web Services offers no push
-to servers). The apps use the CloudKit framework as for the other synced data. Two record types
-for one order keep writers apart: no conflicts between app and server edits.
-Rejected: control through the Fernsy Cloud worker (works without Apple's web sign-in, but adds a
-second sync path and makes the worker see readable orders; it is the fallback if the spike fails);
-one record type written by both (CloudKit conflicts on every state change).
+### 3. Control through its own worker, end-to-end encrypted, without accounts
+A separate Cloudflare worker, `fernsy-control` (`control-server/` in the repository, its own D1
+database), carries orders and states between the apps and the server. It has no accounts and does
+not know about subscriptions:
+- **Control key.** The apps create a random 256-bit control key once and sync it through iCloud
+  like the cloud key (record `ControlKey`, `encryptedValues`). From it they derive with HKDF (own
+  salts): the space id, a write secret (the worker keeps only its SHA-256, set by the first write)
+  and the item key. Whoever holds the control key - the user's devices and the paired server - can
+  read and write the space; the worker sees only ids and ciphertext.
+- **Items.** `GET /v1/spaces/<space>/items?since=<n>` returns the items changed after change
+  number `n` (deleted ones as tombstones); `PUT .../items/<kind>/<id>` writes one, `DELETE` removes
+  it; every request carries the write secret. Each item is a JSON body sealed with AES-GCM under
+  the item key, the AAD binds kind and id. Kinds and their writers:
+  - `order` (apps): channel id and name, show title, start, end, padding, created by, cancelled.
+  - `state` (server, same id as its order): scheduled, recording, uploading, done, failed or
+    refused with a reason, file size, cloud recording id.
+  - `server` (server, one item): last contact, version, free space, running and next orders, error.
+  One writer per kind keeps app and server edits from conflicting.
+- **Polling.** The server polls every 30 seconds; the apps poll while a recordings list or the
+  server settings are open and when they come to the foreground.
+- **Limits instead of a subscription.** Per space at most 500 items of 8 KB, 4 requests per second;
+  done and failed items are removed 30 days after their end, spaces without a request for 90 days
+  entirely. The subscription is checked where it costs: Fernsy Cloud refuses the server's uploads
+  without one (headless-recorder spec), so control itself stays free and could later serve a
+  server that keeps recordings at home.
+Rejected: CloudKit (decision 0); the items as part of the Fernsy Cloud worker (ties control to the
+subscription and the cloud account, and mixes a small always-polled store into the storage
+worker's deployment); a readable order store (the worker would learn the user's viewing plans);
+push to the server (an open connection per server; 30 s polling is cheap and enough).
 
-### 4. Pairing
-1. The server starts unpaired, creates an X25519 key pair and serves a status page on its port.
-2. On the page the user signs in with their Apple ID (CloudKit web sign-in); the server stores the
-   web token in its volume and writes a `FernsyServerPairing` record: its public key and a
-   six-digit code shown on the page.
-3. The app (Settings › Fernsy Cloud › Server) sees the pairing record, asks for the code shown by
-   the server and, when it matches, writes `FernsyServerSecrets`: the cloud key and the chosen IPTV
-   login, sealed to the server's public key (HPKE-style: X25519 + HKDF + AES-GCM). CloudKit only
-   carries ciphertext; `encryptedValues` are not needed.
-4. The server opens the secrets, stores them in its volume (file mode 600) and deletes the secrets
-   record. Removing the server in the app deletes the pairing; the server notices, wipes its
-   secrets and shows a new code.
-Rejected: typing the IPTV password and cloud key into the server's page (the cloud key is not
-something users see); a QR code from the server read by the iPhone (Apple TV and Mac have no
-camera, and the code already proves it is the right server).
+### 4. Pairing through a short-lived mailbox on the worker
+1. The server starts unpaired, creates an X25519 key pair and a pairing code of ten characters
+   (Crockford base32, shown as `XXXX-XXXXXX`, about 50 bits). The first four characters are the
+   mailbox id, the other six the secret; the worker only ever sees the mailbox id.
+2. The server posts its public key and a tag to `fernsy-control`, `POST /v1/pairing/<mailbox>`
+   (rate limited per IP; expires after 15 minutes). The tag is an HMAC of the public key under a key
+   derived from the secret with PBKDF2-SHA256 (600,000 rounds, swift-crypto `_CryptoExtras`), so
+   a worker that wanted to swap the key would have to guess the secret offline faster than the
+   mailbox expires.
+3. The user enters the code in the app (Settings › Fernsy Cloud › Server). The app fetches the
+   public key, checks the tag, and puts a sealed message into the mailbox: the control key, the
+   cloud key and the chosen IPTV login, sealed to the server's key (HPKE-style: X25519 + HKDF +
+   AES-GCM).
+4. The server polls its mailbox, opens the message, stores the secrets in its volume (file mode
+   600) and deletes the mailbox. From then on it reads and writes the control space and uploads to
+   Fernsy Cloud with the cloud key's access secret, like the Mac; it writes its `server` item and
+   the app shows it as paired.
+5. Removing the server in the app writes a `removed` mark into the space and deletes the `server`
+   item; the server sees it on its next poll, wipes its secrets and shows a new code.
+Rejected: the user types the IPTV password and cloud key into the server's page (the cloud key
+is not something users see); a QR code (Apple TV and Mac have no camera); pairing over the local
+network (needs the local network permission in every app and fails when the phone is not at
+home); CloudKit records for pairing (decision 0).
 
 ### 5. Stream limit across server and apps
 The server counts its own running recordings against the account's limit (from the provider's
-`max_connections`) and refuses orders that would exceed it. The apps read the server's status and
-count its running recordings as connections in use, so "Ask before taking a connection" (recordings
+`max_connections`) and refuses orders that would exceed it. The apps read the server's `server`
+item and count its running recordings as connections in use, so "Ask before taking a connection" (recordings
 spec) also covers the server.
 
 ### 6. Upload
@@ -103,13 +136,19 @@ default 8080). A `compose.yaml` example in the docs. The image falls under the r
 
 ## Risks / Trade-offs
 
-- [CloudKit web sign-in or token renewal does not work for a long-running server] → spike first
-  (decision 0); fallback: control through the worker.
-- [Apple ID sign-in on a page served over plain HTTP in the LAN] → the sign-in itself happens on
-  Apple's pages; the server only receives the token. The status page binds to the LAN; docs warn
-  against exposing it.
+- [The worker could swap the server's key during pairing] → the PBKDF2 tag (decision 4); the
+  attacker would be our own worker, and the window is 15 minutes.
+- [Polling costs worker requests] → one request per server every 30 s (~86,000 a month), well
+  inside the Workers plan; apps poll only while the relevant screens are open.
+- [A free, account-less store invites misuse] → small per-space limits, per-IP limits on space
+  creation and pairing, expiry of idle spaces; a space only holds ciphertext of its owner.
+- [A second worker to run] → same Cloudflare account and deploy script pattern as Fernsy Cloud,
+  its own dev deployment for tests.
+- [The status page is plain HTTP in the LAN] → it shows the pairing code and state only, no
+  secrets; docs warn against exposing the port.
 - [The server's volume holds the cloud key and the IPTV login] → file mode 600, never logged;
-  removing the server in the app wipes them; documented.
+  removing the server in the app wipes them; documented. Whoever takes the volume can act as the
+  account until the user removes the server.
 - [Provider counts the server's connection when the user also watches] → decision 5; with a
   single-stream account the server's recording wins and the apps ask before taking it.
 - [Clock and time zone on small devices] → `TZ` required in the docs; orders carry absolute times.
@@ -117,15 +156,13 @@ default 8080). A `compose.yaml` example in the docs. The image falls under the r
 
 ## Migration Plan
 
-New component; nothing changes for users without a server. CloudKit record types go to the
-development schema first, then production before release. The image ships with the app release
-that adds the pairing UI.
+New component; nothing changes for users without a server. `fernsy-control` is deployed (dev
+first, then production) before the apps that use it; the `ControlKey` record type goes to the
+CloudKit schema (development, then production). The image ships with the app release that adds the pairing UI.
 
 ## Open Questions
 
-- Results of the spike (decision 0) decide between CloudKit and the worker fallback.
-- CloudyKit (github.com/camdenfullmer/CloudyKit, MIT) offers the CloudKit API over Web Services but
-  only with server-to-server keys for the public database, without the private database and zone
-  changes this design needs; at most a reference for request shapes.
 - Whether the Apple TV's own recordings and the server's should be merged into one list (first
   version: one list with a "Server" mark).
+- CloudyKit (github.com/camdenfullmer/CloudyKit, MIT) was looked at during the spike: CloudKit API
+  over Web Services, public database with server-to-server keys only - moot now.

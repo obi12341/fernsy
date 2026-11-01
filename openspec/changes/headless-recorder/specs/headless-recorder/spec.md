@@ -1,7 +1,7 @@
 ## Purpose
 Fernsy Server: a headless recorder in a Docker container that plans and runs one user's IPTV
-recordings around the clock, controlled from the Fernsy apps through the user's iCloud and
-uploading its recordings end-to-end encrypted to Fernsy Cloud.
+recordings around the clock, controlled from the Fernsy apps through an end-to-end encrypted
+control service and uploading its recordings end-to-end encrypted to Fernsy Cloud.
 
 ## ADDED Requirements
 
@@ -20,8 +20,9 @@ with its pairing and pending orders. Its FFmpeg, when used, SHALL be LGPL-only l
 
 ### Requirement: Pairing with an app
 A new server SHALL show a short pairing code. Entering it in an app (Settings › Fernsy Cloud ›
-Server) SHALL hand the server the user's Fernsy Cloud key, the IPTV login it records with and
-access to the user's private CloudKit data, encrypted for that server only. The user SHALL be
+Server) SHALL hand the server the user's control key, Fernsy Cloud key and the IPTV login it
+records with, encrypted for that server only; the service that passes them on SHALL not be able
+to read them. The user SHALL be
 able to remove the server in the app, after which it holds no secrets and can be paired anew.
 
 #### Scenario: Pairing
@@ -33,8 +34,8 @@ able to remove the server in the app, after which it holds no secrets and can be
 - **THEN** the server deletes its keys and login and shows a new pairing code
 
 ### Requirement: Orders from the apps
-The server SHALL take recording orders that the apps write to the user's private iCloud data,
-apply the recording rules of the apps (padding, stream limit, overlaps, missed shows), and write
+The server SHALL take recording orders that the apps write, encrypted with the user's control
+key, to the control service, apply the recording rules of the apps (padding, stream limit, overlaps, missed shows), and write
 back each order's state: scheduled, recording, uploading, done, failed with a reason, refused with
 a reason. A cancelled order SHALL be dropped, and stopped while it runs.
 
@@ -60,9 +61,18 @@ successful upload. Recording SHALL need an active subscription.
 - **WHEN** the subscription is not active at a recording's start
 - **THEN** the order fails with that reason and nothing is recorded
 
+### Requirement: Control service without an account
+The control service SHALL store only encrypted orders, states and status that it cannot read,
+SHALL need no account or subscription of its own, and SHALL limit what one user can store and how
+often they can ask.
+
+#### Scenario: What the service sees
+- **WHEN** the user schedules a show for the server
+- **THEN** the control service stores an item it cannot read: no channel, title or time
+
 ### Requirement: Server status
 The server SHALL report its state (paired, last contact, free space, running and next
-recordings, errors) to the apps through the user's iCloud and on a local status page, and log
+recordings, errors) to the apps through the control service and on a local status page, and log
 without credentials, keys or stream URLs.
 
 #### Scenario: Server offline

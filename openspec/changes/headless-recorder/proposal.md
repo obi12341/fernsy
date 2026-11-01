@@ -14,25 +14,26 @@ recordings into Fernsy Cloud, where every app plays them.
 - **Fernsy Server**: a headless recorder as a Docker image (linux/amd64 and linux/arm64) that
   plans and runs recordings for one user's IPTV account and uploads each finished recording,
   end-to-end encrypted, to the user's Fernsy Cloud.
-- **Control through CloudKit**: the apps write recording orders to the user's private CloudKit
-  database; the server reads them through CloudKit Web Services and writes back what it does
+- **Control through its own worker, end-to-end encrypted**: the apps write recording orders,
+  sealed with a control key that only the user's devices and the paired server hold, to a small
+  new worker (`fernsy-control`) without accounts; the server polls it and writes back what it does
   (scheduled, recording, uploading, done, failed). Every app shows the server's recordings and can
-  schedule and cancel them.
-- **Pairing**: an app pairs a new server once with a short code. Because the cloud key and the
-  provider logins are end-to-end encrypted in iCloud (`encryptedValues`, not readable by CloudKit
-  Web Services), the app hands them to the server in that step, encrypted for the server's own
-  key; the server keeps them in its volume.
-- **Shared Swift core on Linux**: the parts of FernsyCore the server needs (Xtream client, guide,
-  recording plan, Fernsy Cloud client and crypto) build on Linux; the server records by copying
-  the provider's MPEG-TS stream to a file (no decoding), with reconnects and gap marks like the
-  apps.
-- Requires an active Fernsy Cloud subscription.
+  schedule and cancel them. (CloudKit was the first plan; a spike showed its web access to the
+  private database is off for accounts with Advanced Data Protection.)
+- **Pairing**: an app pairs a new server once with a code the server shows. Through a short-lived
+  mailbox on the control worker the app hands it the control key, the cloud key and the IPTV
+  login, sealed to the server's own key; the server keeps them in its volume.
+- **Shared Swift core on Linux**: a `FernsyShared` target (Xtream client, recording plan and gaps,
+  Fernsy Cloud client and crypto) builds on Linux; the server records by copying the provider's
+  MPEG-TS stream to a file (no decoding), with reconnects and gap marks like the apps.
+- Requires an active Fernsy Cloud subscription for the uploads; the control worker itself does not
+  depend on one.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `headless-recorder`: the server — image, pairing, orders from CloudKit, recording, upload,
+- `headless-recorder`: the server — image, pairing, orders from the apps, recording, upload,
   status, restarts.
 
 ### Modified Capabilities
@@ -43,13 +44,13 @@ recordings into Fernsy Cloud, where every app plays them.
 
 ## Impact
 
-- New: `server/` (Swift package for Linux, Dockerfile, compose example), a CI job building and
-  publishing the image (GitHub Container Registry), docs.
-- FernsyCore: Linux-buildable parts split from Apple-only ones (CloudKit, StoreKit, Combine,
-  Network framework), behind `#if canImport` or a separate target.
+- New: `server/` (Swift package for Linux, Dockerfile, compose example), `control-server/` (the
+  control worker, D1), a CI job building and publishing the image (GitHub Container Registry),
+  docs.
+- FernsyCore: the Linux-buildable part split off as the `FernsyShared` target.
 - Apps: the server as a record target in the schedule actions, its recordings in the lists,
   Settings › Fernsy Cloud › Server (pair, state, remove).
-- CloudKit schema: new record types for orders and server state (development, then production).
+- CloudKit schema: one new record type, `ControlKey` (development, then production).
 - Fernsy Cloud worker: unchanged API; the server is one more client of the user's account.
 
 ## Out of scope
