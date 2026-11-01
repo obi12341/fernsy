@@ -15,7 +15,7 @@ final class LiveTVUITests: FernsyUITestCase {
             "IPTV_USER": "demo",
             "IPTV_PASS": "demo",
         ].merging(extra) { $1 }
-        app.launch()
+        app.launchForTest()
         return app
     }
 
@@ -99,7 +99,7 @@ final class AllCategoriesUITests: XCTestCase {
             "IPTV_USER": "demo",
             "IPTV_PASS": "demo",
         ]
-        app.launch()
+        app.launchForTest()
         let remote = XCUIRemote.shared
         showTab("Live TV", app)
         let all = app.buttons["live.allCategories"]

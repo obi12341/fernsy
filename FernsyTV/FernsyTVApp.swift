@@ -18,6 +18,11 @@ struct FernsyTVApp: App {
     init() {
         #if DEBUG
         Self.debugServer.startIfRequested(model: TVModel.shared)
+        // IPTV_OPEN=<fernsy:// link>: open or play an item at launch, as a Top Shelf tile does,
+        // so UI tests start on the screen they test (faster-ui-tests).
+        if let link = ProcessInfo.processInfo.environment["IPTV_OPEN"].flatMap(URL.init(string:)) {
+            TVModel.shared.handle(url: link)
+        }
         #endif
     }
 

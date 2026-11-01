@@ -8,7 +8,7 @@ final class JellyfinSignInUITests: FernsyUITestCase {
         try XCTSkipUnless(jellyfinRunning(), "the local test Jellyfin is not running")
         let app = XCUIApplication()
         app.launchEnvironment = ["FERNSY_NO_KEYCHAIN": "1", "IPTV_SERVER": ""]
-        app.launch()
+        app.launchForTest()
         let card = app.buttons["welcome.jellyfin"]
         XCTAssertTrue(card.waitForExistence(timeout: 15), "no Jellyfin card")
         move(.right, to: card, app)

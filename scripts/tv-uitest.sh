@@ -7,6 +7,7 @@
 #   scripts/tv-uitest.sh --no-build   # test the last build
 #   scripts/tv-uitest.sh --shard 2/3  # only the second of three parts (each test class in one part)
 #   scripts/tv-uitest.sh --list 3     # print the classes of each of three parts, run nothing
+#   scripts/tv-uitest.sh --parallel 3 # three simulator clones at once (about half the time locally)
 #   scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"   # further xcodebuild arguments
 #
 # On a failure xcodebuild would otherwise run `simctl diagnose`, which takes many minutes;
@@ -19,11 +20,13 @@ DEVICE_NAME="${DEVICE_NAME:-Apple TV 4K (3rd generation)}"   # another simulator
 BUILD=1
 SHARD=""
 LIST=""
+PARALLEL=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-build) BUILD=0; shift ;;
         --shard) SHARD="$2"; shift 2 ;;
         --list) LIST="$2"; shift 2 ;;
+        --parallel) PARALLEL="$2"; shift 2 ;;
         *) break ;;
     esac
 done
@@ -90,6 +93,7 @@ echo "▸ UI tests on $DEVICE_NAME ($DEVICE)"
 RESULT="$DD/Logs/uitest-$(date +%Y%m%d-%H%M%S).xcresult"
 if ! xcodebuild test-without-building "${ARGS[@]}" -quiet -collect-test-diagnostics never -resultBundlePath "$RESULT" \
     -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 120 \
+    ${PARALLEL:+-parallel-testing-enabled YES -parallel-testing-worker-count "$PARALLEL"} \
     "${ONLY[@]+"${ONLY[@]}"}" "$@"; then
     # -quiet leaves out why a test failed: print the failure messages (first lines) from the bundle.
     xcrun xcresulttool get test-results tests --path "$RESULT" 2>/dev/null | python3 -c '

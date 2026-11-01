@@ -43,10 +43,19 @@ struct RootScreen: View {
 
 /// The top tab bar in the design's order; tabs whose source is not signed in are left out.
 struct MainTabs: View {
-    enum Tab: Hashable { case start, live, films, series, jellyfin, recordings, search, settings }
+    enum Tab: String, Hashable { case start, live, films, series, jellyfin, recordings, search, settings }
 
     @EnvironmentObject private var model: TVModel
-    @State private var selection: Tab = .start
+    @State private var selection: Tab = Self.launchTab
+
+    /// Start; in debug builds IPTV_TAB=<live|films|series|jellyfin|recordings|search|settings>
+    /// opens another tab at launch, as on iOS (faster-ui-tests).
+    private static var launchTab: Tab {
+        #if DEBUG
+        if let name = ProcessInfo.processInfo.environment["IPTV_TAB"], let tab = Tab(rawValue: name) { return tab }
+        #endif
+        return .start
+    }
     /// The films and series switches as the tab bar shows them. Taken over only outside
     /// Settings: removing a tab rebuilds the tabs after it, which closed the settings page where
     /// the switch was just turned off and sent the next Back out of the app (tvos-vod-switch).
