@@ -8,13 +8,13 @@
 ## 2. Worker
 
 - [x] 2.1 `stripe.js`: signature check, subscription mapping, API calls (customer, subscription, portal session, cancel at period end, price text) with a pinned API version; tests with recorded test-mode payloads and forged signatures
-- [x] 2.2 Routes: `GET /v1/offer`, `POST /v1/checkout`, `POST /v1/checkout/verify`, `POST /v1/checkout/subscribe`, `POST /v1/stripe/notifications`, `POST /v1/subscription/portal`, `POST /v1/subscription/cancel` (rate-limited); provider `stripe`; refresh from Stripe when the period ended; Paddle code and tests removed
+- [x] 2.2 Routes: `GET /v1/offer`, `POST /v1/checkout`, `POST /v1/checkout/verify`, `POST /v1/checkout/subscribe`, `POST /v1/stripe/notifications`, `POST /v1/subscription/portal`; provider `stripe`; refresh from Stripe when the period ended; Paddle code and tests removed
 - [x] 2.3 `deploy.sh` and README: Stripe secrets, Paddle secrets dropped; dev deploy
 
 ## 3. Website
 
 - [x] 3.1 `cloud.html` / `en/cloud.html`: order summary, Payment and Address Element, start request, "Zahlungspflichtig abonnieren" / "Subscribe and pay", links to terms, refunds, withdrawal
-- [x] 3.2 Withdrawal pages (`widerruf.html`, `en/withdrawal.html`) with the model form; cancellation pages (`kuendigen.html`, `en/cancel.html`); footers
+- [x] 3.2 Withdrawal pages (`widerruf.html`, `en/withdrawal.html`) with the model form; footers. The cancellation page was built and removed again by the user's decision (design 4)
 - [x] 3.3 Terms, pricing, refunds and privacy pages: mobilistics as seller, Stripe as processor, Stripe.js on the checkout page
 
 ## 4. Apps
@@ -24,18 +24,17 @@
 
 ## 5. Verification and go-live
 
-- [x] 5.1 Test mode end to end: DMG subscribes with a Stripe test card through the local checkout page → active within a minute on the Mac and in the iOS simulator; portal; cancellation page; second purchase refused; `openspec validate --all --strict`
+- [x] 5.1 Test mode end to end: DMG subscribes with a Stripe test card through the local checkout page → active within a minute on the Mac and in the iOS simulator; portal; second purchase refused; `openspec validate --all --strict`
 - [ ] 5.2 Live: Stripe's go-ahead, live price and webhook, prod deploy, pricing page matches; DEVELOPMENT.md
 
 Test mode end to end, 2026-11-01: the DMG (Debug, `IPTV_TESTCLOUDBUY`, `IPTV_CHECKOUTPAGE`) opened the
 local checkout page; without the start request the page refuses, with it Stripe's test card paid
 the first invoice (3.49 €, Stripe Tax `not_collecting` until the sandbox has a tax registration)
 and the Mac saw the subscription after 42 s and switched uploads on. The account reads `provider:
-stripe`, 100 GB; the portal link opens Stripe's portal; a second checkout is refused. The
-cancellation page cancelled by e-mail address at the period end (1 Dec 2026), the account stays
-active until then. The iOS UI test `testWebSubscriptionIsManagedWhereBought` passes with the same
-key; Mac (both variants) and Apple TV build. Open: the cancellation's e-mail confirmation at the
-time of cancelling (Stripe e-mails only when the subscription ends).
+stripe`, 100 GB; the portal link opens Stripe's portal; a second checkout is refused. A
+cancellation page (by e-mail address) worked in the test and was then removed by the user's
+decision (design 4). The iOS UI test `testWebSubscriptionIsManagedWhereBought` passes with the same
+key; Mac (both variants) and Apple TV build.
 
 ## Workflow follow-up
 

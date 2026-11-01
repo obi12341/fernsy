@@ -51,12 +51,3 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
 );
 
 CREATE INDEX IF NOT EXISTS assistant_usage_user ON assistant_usage(user_id, at);
-
--- Attempts on the cancellation page (stripe-cloud-subscription design 4), per IP or e-mail hash;
--- pruned by the daily cleanup.
-CREATE TABLE IF NOT EXISTS cancel_attempts (
-  key TEXT NOT NULL,
-  at INTEGER NOT NULL                       -- epoch milliseconds
-);
-
-CREATE INDEX IF NOT EXISTS cancel_attempts_key ON cancel_attempts(key, at);

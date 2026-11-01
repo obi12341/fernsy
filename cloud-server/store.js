@@ -123,20 +123,6 @@ export async function linkWeb(db, user, { originalTransactionId, productId, expi
   return true;
 }
 
-/// Attempts on the cancellation page per key (an IP or an e-mail hash) since a time.
-export async function attemptsSince(db, key, since) {
-  const row = await db.prepare("SELECT COUNT(*) AS n FROM cancel_attempts WHERE key = ? AND at >= ?").bind(key, since).first();
-  return Number(row?.n ?? 0);
-}
-
-export async function recordAttempt(db, key, at) {
-  await db.prepare("INSERT INTO cancel_attempts (key, at) VALUES (?, ?)").bind(key, at).run();
-}
-
-export async function pruneAttempts(db, before) {
-  await db.prepare("DELETE FROM cancel_attempts WHERE at < ?").bind(before).run();
-}
-
 /// Apple's latest word on a known subscription (notifications, cron, account refresh).
 export async function updateSubscription(db, originalTransactionId, { productId, expiresAt, revokedAt, appAccountToken }) {
   await db.prepare(

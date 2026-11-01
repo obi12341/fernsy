@@ -1,10 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Pages in two languages
-The site SHALL offer home, support, pricing, terms of service, refund policy, withdrawal,
-cancellation, privacy and imprint pages in German (`/`) and English (`/en/`), using the company
-data of mobilistics GmbH. Every page's footer SHALL link pricing, terms, refunds, withdrawal,
-cancellation, privacy and imprint in its language.
+The site SHALL offer home, support, pricing, terms of service, refund policy, withdrawal, privacy
+and imprint pages in German (`/`) and English (`/en/`), using the company data of mobilistics
+GmbH. Every page's footer SHALL link pricing, terms, refunds, withdrawal, privacy and imprint in
+its language.
 
 #### Scenario: English support page
 - **WHEN** someone opens https://www.fernsy.app/en/support.html
@@ -12,7 +12,7 @@ cancellation, privacy and imprint in its language.
 
 #### Scenario: Legal links from the home page
 - **WHEN** a payment provider's reviewer opens https://www.fernsy.app
-- **THEN** the footer links the pricing page, the terms, the refund policy, the withdrawal information, the cancellation page, the privacy policy and the imprint with the contact address
+- **THEN** the footer links the pricing page, the terms, the refund policy, the withdrawal information, the privacy policy and the imprint with the contact address
 
 ### Requirement: Privacy statement matches the app
 The privacy pages SHALL state that Fernsy collects no data and only connects to the
@@ -54,11 +54,11 @@ period ends and to acknowledge the consequence, and SHALL label the payment butt
 - **WHEN** a buyer opens the checkout page from the DMG
 - **THEN** it shows Fernsy Cloud, 3,49 € per month including VAT, monthly renewal and cancellation, the start request, and the button "Zahlungspflichtig abonnieren"
 
-### Requirement: Withdrawal information and cancellation page
+### Requirement: Withdrawal information
 The site SHALL publish the withdrawal information with the model withdrawal form for website
-purchases, and a cancellation page reachable from every footer, labelled "Verträge hier kündigen",
-that cancels a website subscription by e-mail address without signing in (see `cloud-server`).
+purchases, and the refund policy SHALL say how to cancel: "Manage Subscription" in the DMG or an
+e-mail to mobilistics.
 
-#### Scenario: Cancellation from the footer
-- **WHEN** a subscriber clicks "Verträge hier kündigen" in the footer
-- **THEN** a page asks for the e-mail address used for the purchase and offers a button "Jetzt kündigen"
+#### Scenario: Withdrawal from the footer
+- **WHEN** a buyer clicks "Widerruf" in the footer
+- **THEN** the withdrawal information with mobilistics' address and the model form is shown

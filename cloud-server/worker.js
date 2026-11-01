@@ -171,9 +171,7 @@ async function refreshFromStripe(deps, env, user) {
 
 // MARK: Stripe (stripe-cloud-subscription)
 
-const CANCEL_ATTEMPTS_PER_HOUR = 5;
-
-/// The pages on fernsy.app (and a local copy while testing) may call the checkout and cancel routes.
+/// The checkout page on fernsy.app (and a local copy while testing) may call the checkout routes.
 function corsHeaders(env, request) {
   const origin = request.headers.get("Origin") || "";
   const allowed = ["https://www.fernsy.app", "https://fernsy.app", ...String(env.CHECKOUT_ORIGINS || "").split(",").map((o) => o.trim()).filter(Boolean)];
@@ -258,27 +256,7 @@ async function checkoutSubscribe(request, env, deps, cors) {
   }
 }
 
-/// Cancellation without signing in (cloud-server "Cancelling a website subscription without
-/// signing in"): by the e-mail address of the purchase, at most a few attempts per hour.
-async function subscriptionCancel(request, env, deps, cors) {
-  const { email: raw } = await body(request);
-  const email = String(raw ?? "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(400, { error: "bad_email", message: "invalid e-mail address" }, cors);
-  const now = deps.now();
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const keys = [`ip:${ip}`, `email:${await sha256Hex(new TextEncoder().encode(email))}`];
-  for (const key of keys) {
-    if ((await store.attemptsSince(env.DB, key, now - 3600 * 1000)) >= CANCEL_ATTEMPTS_PER_HOUR) {
-      return json(429, { error: "too_many", message: "too many attempts, try again later" }, cors);
-    }
-  }
-  for (const key of keys) await store.recordAttempt(env.DB, key, now);
-  const until = await stripe.cancelByEmail(env, deps, email);
-  log({ route: "cancel", outcome: until ? "cancelled" : "not_found" });
-  return json(200, until ? { result: "cancelled", until } : { result: "not_found" }, cors);
-}
-
-/// The routes the pages on fernsy.app call, with CORS and without an app's credential.
+/// The routes the checkout page on fernsy.app calls, with CORS and without an app's credential.
 async function pageRoute(request, env, deps, handler) {
   const cors = corsHeaders(env, request);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -324,7 +302,6 @@ async function route(request, env, deps) {
   if (method === "POST" || method === "OPTIONS") {
     if (path === "/v1/checkout/verify") return pageRoute(request, env, deps, checkoutVerify);
     if (path === "/v1/checkout/subscribe") return pageRoute(request, env, deps, checkoutSubscribe);
-    if (path === "/v1/subscription/cancel") return pageRoute(request, env, deps, subscriptionCancel);
   }
 
   if (method === "POST" && path === "/v1/apple/notifications") {
@@ -546,7 +523,6 @@ export async function cleanup(env, deps, { abandonDays, graceDays } = {}) {
     result.deletedUsers++;
   }
   result.prunedAssistantRows = await store.pruneAssistantUsage(env.DB, now - 40 * store.DAY);
-  await store.pruneAttempts(env.DB, now - store.DAY);
   log({ route: "cleanup", outcome: "ok", ...result });
   return result;
 }

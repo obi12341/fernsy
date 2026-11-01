@@ -13,8 +13,8 @@ opening the page, `provider` on subscriptions, and the neutral note in the App S
 ## Goals / Non-Goals
 
 **Goals:** the DMG sells Fernsy Cloud through Stripe with mobilistics as seller, meeting the German
-rules for online subscriptions (button text, withdrawal, cancellation button) as far as the site
-can.
+rules for online subscriptions (button text, withdrawal) as far as the site can; see decision 4
+for the cancellation button.
 
 **Non-Goals:** our own invoices (Stripe's invoices/receipts with Stripe Tax serve), coupons,
 several currencies beyond what Stripe shows from the euro price, the App Store purchase.
@@ -64,13 +64,17 @@ billing address.
 
 ### 4. Managing and cancelling
 `POST /v1/subscription/portal` creates a billing portal session for the account's customer;
-the DMG opens it. The cancellation page (`kuendigen.html`, `en/cancel.html`) sends the e-mail
-address to `POST /v1/subscription/cancel`, which finds active Stripe subscriptions of customers
-with that address and sets `cancel_at_period_end`; Stripe's subscription e-mails (cancellation
-notice turned on in the Stripe settings) confirm it in text form. The answer never says more than
-"cancelled until <date>" or "no subscription found", and the route is rate-limited per address and
-IP. Rejected: a sign-in or an e-mail link first (the law asks for cancellation without further
-hurdles); cancelling at once (the user paid for the month).
+the DMG opens it ("Manage Subscription…"), where the subscriber cancels at the period end, updates
+the payment method or downloads invoices. Otherwise subscribers cancel by e-mail to
+info@mobilistics.de, which mobilistics carries out in Stripe's dashboard.
+Decided by the user (2026-11-01): no cancellation page on fernsy.app. A first version cancelled by
+e-mail address without signing in (§312k BGB's cancellation button); the user rejected it because
+anyone knowing a subscriber's address could cancel their subscription, and the purchase starts in
+the app, which also offers the cancellation. The user accepts the legal risk that §312k BGB applies
+because the order is placed on the website (consumers may then cancel at any time without notice;
+competitors or associations may send warnings).
+Rejected: the page with the e-mail address alone (cancellation by strangers); with e-mail address
+and postal code (the user preferred no page).
 
 ### 5. Withdrawal
 Consumers may withdraw within 14 days. The checkout asks them to request the start before the
@@ -98,9 +102,8 @@ mode. The checkout page takes the publishable key from the verify answer, so one
   Stripe has no objection.
 - [mobilistics carries VAT, invoices, chargebacks and support] → Stripe Tax, Stripe's receipts
   and dispute handling; volume is small.
-- [The cancellation page can be used with someone else's address] → It only ends a subscription at
-  the period end and says nothing about the address beyond the result; Stripe e-mails the owner,
-  who can resume in the portal.
+- [No cancellation button on the website (§312k BGB)] → The user's decision (design 4); the DMG's
+  "Manage Subscription…" and e-mail cancel; revisit with the lawyer's review of the texts.
 - [Legal texts drafted without a lawyer] → They follow the statutory model texts; the user has
   them reviewed before live.
 

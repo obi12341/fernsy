@@ -48,16 +48,3 @@ address or payment details.
 #### Scenario: Manage from the DMG
 - **WHEN** a Stripe subscriber chooses "Manage Subscription" in the DMG
 - **THEN** Stripe's customer portal opens for their subscription without a login
-
-### Requirement: Cancelling a website subscription without signing in
-The server SHALL cancel a website subscription at the end of its paid period when the cancellation
-page names the e-mail address the subscription was bought with, without any other sign-in, and
-SHALL confirm the cancellation with its end date on the page and by e-mail to that address.
-
-#### Scenario: Cancel by e-mail address
-- **WHEN** someone enters the e-mail address of an active website subscription on the cancellation page and confirms
-- **THEN** the subscription ends at the end of the paid month, the page shows that date, and an e-mail confirms it
-
-#### Scenario: Unknown address
-- **WHEN** the entered address belongs to no active website subscription
-- **THEN** nothing changes and the page says that no subscription was found for it

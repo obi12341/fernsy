@@ -6,7 +6,7 @@ Paddle's domain review of fernsy.app on 2026-11-01 refused the account ("Digital
 Streaming Services"), so the DMG cannot sell Fernsy Cloud through Paddle. mobilistics GmbH already
 has a contract with Stripe. With Stripe, mobilistics sells the subscription itself: Stripe takes
 the payment, mobilistics is the seller with the duties that come with it (VAT, invoices,
-withdrawal, cancellation button).
+withdrawal).
 
 ## What Changes
 
@@ -16,8 +16,6 @@ withdrawal, cancellation button).
   creates the subscription for the account named by the signed checkout token.
 - VAT through Stripe Tax; the price stays 3.49 € a month including VAT.
 - "Manage Subscription" in the DMG opens Stripe's customer portal.
-- **New:** a cancellation page on fernsy.app ("Vertrag hier kündigen") that cancels a website
-  subscription without signing in, as German law requires for subscriptions sold online.
 - **New:** withdrawal information and model withdrawal form; consent to immediate start in the
   checkout. Refunds: withdrawal within 14 days (minus the days used when the buyer asked to start
   at once), no refunds for renewals.
@@ -37,21 +35,21 @@ None.
 ### Modified Capabilities
 
 - `cloud-server`: subscription check with Stripe instead of Paddle; managing a website
-  subscription through Stripe's portal; cancelling a website subscription without signing in.
+  subscription through Stripe's portal.
 - `recording-cloud`: the DMG sells through Stripe on fernsy.app.
-- `website`: pages for withdrawal and cancellation; terms, prices, refunds and privacy for
-  mobilistics as seller with Stripe.
+- `website`: withdrawal page; terms, prices, refunds and privacy for mobilistics as seller with
+  Stripe.
 
 ## Impact
 
 - `cloud-server/`: `paddle.js` → `stripe.js` (signature check, subscription mapping, API calls),
-  routes under `/v1/checkout`, `/v1/stripe/notifications`, `/v1/subscription/portal`,
-  `/v1/subscription/cancel`; `deploy.sh` secrets (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+  routes under `/v1/checkout`, `/v1/stripe/notifications`, `/v1/subscription/portal`;
+  `deploy.sh` secrets (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
   `STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRICE_ID`, `STRIPE_ENV`); tests; README.
 - FernsyCore/FernsyShared: `PaddleCloudStore` → provider-neutral `WebCloudStore`,
   `Account.isPaddle` → `isWebPurchase`, failure names; tests.
 - Mac (`DIRECT_DISTRIBUTION`) texts that name Paddle; iOS/TV note conditions; German strings.
-- `website/`: `cloud.html` (Stripe.js Payment Element), new withdrawal and cancellation pages,
+- `website/`: `cloud.html` (Stripe.js Payment Element), new withdrawal pages,
   terms, pricing, refunds, privacy, footers.
 - Stripe account (user): API keys (test and live), Stripe Tax with the OSS registration,
   customer portal settings, webhook endpoints, Stripe's review of the business.

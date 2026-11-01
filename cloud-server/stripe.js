@@ -1,6 +1,6 @@
 // Stripe, the DMG's way to subscribe (stripe-cloud-subscription): signed webhooks, the checkout
 // token the DMG passes to fernsy.app, and the API calls the worker makes (customer and
-// subscription for the checkout page, customer portal, cancellation by e-mail, price text).
+// subscription for the checkout page, customer portal, price text).
 // mobilistics is the seller; the worker keeps only Stripe's ids. See design.md of the change.
 
 import { b64urlEncode, b64urlDecode } from "./apple.js";
@@ -159,24 +159,6 @@ export async function createSubscription(env, deps, { accountId, email, country,
 export async function portalURL(env, deps, customerId) {
   const session = await api(env, deps, "POST", "/billing_portal/sessions", { customer: customerId, return_url: "https://www.fernsy.app/" });
   return session.url ?? null;
-}
-
-/// Cancellation without signing in (design 4): every active subscription of the customers with
-/// this e-mail ends at its period end. Returns the latest end date, or null when none was found.
-export async function cancelByEmail(env, deps, email) {
-  const customers = await api(env, deps, "GET", "/customers", { email, limit: 10 });
-  let until = null;
-  for (const customer of customers.data ?? []) {
-    const subs = await api(env, deps, "GET", "/subscriptions", { customer: customer.id, status: "all", limit: 10 });
-    for (const sub of subs.data ?? []) {
-      if (!["active", "trialing", "past_due"].includes(sub.status)) continue;
-      const updated = sub.cancel_at_period_end ? sub
-        : await api(env, deps, "POST", `/subscriptions/${encodeURIComponent(sub.id)}`, { cancel_at_period_end: true });
-      const end = updated.items?.data?.[0]?.current_period_end ?? updated.cancel_at ?? null;
-      if (end && (!until || end > until)) until = end;
-    }
-  }
-  return until ? new Date(until * 1000).toISOString() : null;
 }
 
 /// The price as the buyer sees it ("€3.49"), from the price object; null when unknown.

@@ -535,8 +535,8 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   creates customer and subscription for the token's account (`/v1/checkout/subscribe`) and Stripe.js
   confirms the first payment. Stripe's webhooks (`/v1/stripe/notifications`) keep the state; the
   Mac polls every 10 s for 5 min. "Manage Subscription" opens Stripe's customer portal
-  (`/v1/subscription/portal`); `kuendigen.html` / `en/cancel.html` cancel by e-mail without signing
-  in (`/v1/subscription/cancel`, `?env=test` for the dev worker). mobilistics is the seller (Stripe
+  (`/v1/subscription/portal`); otherwise subscribers cancel by e-mail to info@ (no cancellation
+  page, the user's decision, see the change's design 4). mobilistics is the seller (Stripe
   Tax, withdrawal pages `widerruf.html` / `en/withdrawal.html`). The App Store builds never show or
   contain the checkout link (the URL lives in the DMG's code); a website subscription shows a
   neutral note there. Test mode: the Stripe plugin's MCP (`plugin:stripe:stripe`, sandbox

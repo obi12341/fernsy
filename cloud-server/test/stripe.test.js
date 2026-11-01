@@ -222,23 +222,6 @@ test("portal link for a Stripe subscriber; refresh from Stripe when the stored p
   assert.ok(t.stripe.calls.includes(`GET /v1/subscriptions/${sub.id}`));
 });
 
-test("cancellation page: by e-mail address at period end, unknown address, attempt limit", async () => {
-  const t = setup();
-  const key = deviceKey();
-  await buy(t, key);
-  const sub = [...t.stripe.subscriptions.values()][0];
-  sub.status = "active";
-  const page = { headers: { Origin: "https://www.fernsy.app", "CF-Connecting-IP": "203.0.113.1" } };
-  const done = await t.call("POST", "/v1/subscription/cancel", { ...page, body: { email: "Buyer@Example.com " } });
-  assert.equal(done.status, 200);
-  assert.equal(done.body.result, "cancelled");
-  assert.equal(done.body.until, new Date(sub.items.data[0].current_period_end * 1000).toISOString());
-  assert.equal(sub.cancel_at_period_end, true);
-  assert.equal((await t.call("POST", "/v1/subscription/cancel", { ...page, body: { email: "other@example.com" } })).body.result, "not_found");
-  for (let i = 0; i < 3; i++) await t.call("POST", "/v1/subscription/cancel", { ...page, body: { email: `x${i}@example.com` } });
-  assert.equal((await t.call("POST", "/v1/subscription/cancel", { ...page, body: { email: "y@example.com" } })).status, 429);
-});
-
 test("offer: the website price without an account; unconfigured routes say so", async () => {
   const t = setup();
   assert.deepEqual((await t.call("GET", "/v1/offer")).body, { price: { amount: "€3.49", currency: "EUR" } });
