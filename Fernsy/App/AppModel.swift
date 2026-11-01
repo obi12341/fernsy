@@ -187,10 +187,21 @@ final class AppModel: ObservableObject {
         let client = CloudClient.live()
         // The checkout page in the app's language (German or English).
         let page = { @Sendable () -> URL in
-            URL(string: Locale.current.language.languageCode?.identifier == "de"
+            #if DEBUG
+            // Debug switch IPTV_CHECKOUTPAGE: a local copy of the page while testing.
+            if let value = ProcessInfo.processInfo.environment["IPTV_CHECKOUTPAGE"], let url = URL(string: value) { return url }
+            #endif
+            return URL(string: Locale.current.language.languageCode?.identifier == "de"
                 ? "https://www.fernsy.app/cloud.html" : "https://www.fernsy.app/en/cloud.html")!
         }
         return CloudModel(client: client, store: PaddleCloudStore(client: client, checkoutPage: page, open: { url in
+            #if DEBUG
+            // With a local page the link goes to the log, for a browser the test drives.
+            if ProcessInfo.processInfo.environment["IPTV_CHECKOUTPAGE"] != nil {
+                AppLog.info(.app, "Fernsy Cloud: checkout \(url.absoluteString)")
+                return
+            }
+            #endif
             Task { @MainActor in NSWorkspace.shared.open(url) }
         }))
     }()

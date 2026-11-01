@@ -286,5 +286,35 @@ final class CloudRecordingsUITests: XCTestCase {
         XCTAssertTrue(wait(30) { self.mcp("get_log", #"{"query":"signed in"}"#).contains("signed in, ") }, "still offline without a path change")
         XCTAssertTrue(wait(10) { !self.element(app, "offline.note").exists }, "the offline note stays")
     }
-}
 
+    /// A subscription bought in the DMG through Paddle (paddle-cloud-subscription 5.1): the App
+    /// Store app shows it, with a neutral note instead of a link. Needs `TEST_RUNNER_IPTV_CLOUD`
+    /// and `TEST_RUNNER_FERNSY_PADDLE_KEY`, the key of a development account subscribed in
+    /// Paddle's sandbox; skipped without them.
+    func testPaddleSubscriptionIsManagedWhereBought() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let server = env["IPTV_CLOUD"], let key = env["FERNSY_PADDLE_KEY"] else { throw XCTSkip("no Paddle sandbox account in the test environment") }
+        let app = XCUIApplication()
+        app.launchEnvironment = [
+            "FERNSY_NO_KEYCHAIN": "1",
+            "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
+            "IPTV_USER": "demo",
+            "IPTV_PASS": "demo",
+            "IPTV_CLOUD": server,
+            "IPTV_CLOUDKEY": key,
+        ]
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+
+        let settings = app.buttons["start.settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 30), "no Settings button:\n\(app.debugDescription)")
+        settings.tap()
+        let cloud = app.buttons["settings.cloud"]
+        XCTAssertTrue(cloud.waitForExistence(timeout: 10), "no Fernsy Cloud row:\n\(app.debugDescription)")
+        cloud.tap()
+        XCTAssertTrue(app.staticTexts["This subscription is managed where you bought it."].waitForExistence(timeout: 20),
+                      "no note for the Paddle subscription:\n\(app.debugDescription)")
+        XCTAssertFalse(app.buttons["Manage Subscription"].exists, "the App Store's management is offered")
+        shot("cloud-paddle", app)
+    }
+}

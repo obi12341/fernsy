@@ -542,6 +542,16 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `http://localhost:8000`; Paddle's webhook simulator with a custom `subscription.created` payload
   carrying a real checkout token exercises the worker without paying. Paddle IDs in simulated
   payloads must match `^sub_[a-z\d]{26}$` and `^ctm_[a-z\d]{26}$`.
+  The whole purchase from the app: build the scheme "Fernsy Direct" in Debug and start it with
+  `IPTV_CLOUD=<dev worker> IPTV_CLOUDKEY=<base64 key JSON>
+  IPTV_CHECKOUTPAGE=http://localhost:8000/cloud.html IPTV_TESTSETTINGS=recordings
+  IPTV_TESTCLOUDBUY=1`. `IPTV_CHECKOUTPAGE` uses the local page and writes the checkout link to the
+  log ("Fernsy Cloud: checkout http…") instead of opening the default browser, so a browser the test
+  drives pays with Paddle's test card; `IPTV_TESTCLOUDBUY` opens the subscribe sheet and presses
+  Subscribe. The iOS UI test `CloudRecordingsUITests/testPaddleSubscriptionIsManagedWhereBought`
+  checks the same key's subscription in the App Store app (`TEST_RUNNER_IPTV_CLOUD`,
+  `TEST_RUNNER_FERNSY_PADDLE_KEY`). Live values: `~/.config/fernsy/paddle-live.json` and
+  `paddle-live-api-key`.
 - **Assistant (cloud-assistant).** `FernsyCore/AssistantModel.swift` holds what the apps show
   (consent per device in `assistant.consent`, the session's entries, refusal texts, the month's
   usage, the question before `cancel_recording`); the Mac's window `AssistantView` runs the tools

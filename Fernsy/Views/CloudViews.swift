@@ -199,6 +199,8 @@ struct CloudSettingsSection: View {
             #if DEBUG
             // IPTV_TESTCLOUDDELETE=1 shows the delete confirmation, for screenshots.
             if ProcessInfo.processInfo.environment["IPTV_TESTCLOUDDELETE"] != nil { confirmDeleteAll = true }
+            // IPTV_TESTCLOUDBUY=1 opens the subscribe sheet and presses Subscribe (DMG purchase tests).
+            if ProcessInfo.processInfo.environment["IPTV_TESTCLOUDBUY"] != nil, !cloud.canUpload { enabling = true }
             #endif
         }
     }
@@ -293,7 +295,12 @@ struct CloudEnableSheet: View {
         }
         .padding(24)
         .frame(width: 460)
-        .task { await cloud.refreshSubscription() }
+        .task {
+            await cloud.refreshSubscription()
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["IPTV_TESTCLOUDBUY"] != nil, await cloud.purchase() { finish() }
+            #endif
+        }
         .onChange(of: cloud.canUpload) { _, can in if can { finish() } }
     }
 
