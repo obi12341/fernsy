@@ -267,7 +267,12 @@ struct CloudSettingsView: View {
                     }
                 }
                 Section {
-                    Button("Manage Subscription") { managing = true }
+                    if cloud.account?.isPaddle == true {
+                        // Bought outside the App Store: no link to it here (App Store guideline 3.1.3(b)).
+                        Text("This subscription is managed where you bought it.").foregroundStyle(TVTheme.secondary)
+                    } else {
+                        Button("Manage Subscription") { managing = true }
+                    }
                     if cloud.hasAccount {
                         Button("Delete Fernsy Cloud Data", role: .destructive) { confirmDeleteAll = true }
                             .accessibilityIdentifier("cloud.deleteAll")

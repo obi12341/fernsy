@@ -3822,6 +3822,16 @@
           }
         }
       }
+    },
+    "This subscription is managed where you bought it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Abo verwaltest du dort, wo du es abgeschlossen hast."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

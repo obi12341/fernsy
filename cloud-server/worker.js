@@ -242,6 +242,12 @@ async function route(request, env, deps) {
     return paddleNotification(request, env, deps);
   }
 
+  if (method === "GET" && path === "/v1/offer") {
+    // The DMG's offer before any account exists: Paddle's price for the caller's country.
+    if (!paddle.paddleConfigured(env)) fail(503, "paddle_not_configured", "Paddle is not configured");
+    return json(200, { price: await paddle.pricePreview(env, deps, request.headers.get("CF-IPCountry")) });
+  }
+
   if ((method === "POST" || method === "OPTIONS") && path === "/v1/checkout/verify") {
     return checkoutVerify(request, env, deps);
   }

@@ -31,7 +31,7 @@ terms and withdrawal handling ourselves); Lemon Squeezy (similar to Paddle, fewe
 ### 2. Checkout on fernsy.app, opened from the app with a signed token
 The DMG asks the worker for a checkout token (`POST /v1/checkout`, authenticated with the access
 secret): an HMAC over account id, environment and expiry (1 hour), not the access secret. It
-opens `https://www.fernsy.app/cloud/?t=<token>` (`/en/cloud/` in English). The page sends the
+opens `https://www.fernsy.app/cloud.html?t=<token>` (`/en/cloud.html` in English). The page sends the
 token to the worker (`POST /v1/checkout/verify`), which answers whether the account may buy (no
 active subscription) and which Paddle environment and price to use; the page then opens Paddle.js
 overlay checkout with `customData: { fernsy_checkout: <token> }`. The webhook verifies that
@@ -62,8 +62,8 @@ screens ourselves.
 
 ### 5. The DMG's store
 FernsyCore gets `PaddleCloudStore: CloudStore`, used only in `DIRECT_DISTRIBUTION` builds:
-`offer()` from the worker's verify answer (price text in the user's currency via Paddle's pricing
-preview, made by the worker), `purchase` asks for the token and opens the browser (returns false:
+`offer()` from `GET /v1/offer` (price text in the user's currency via Paddle's pricing preview,
+made by the worker, no account needed), `purchase` asks for the token and opens the browser (returns false:
 the account becomes active through the webhook), `hasEntitlement`/`sync` read the account from
 the worker. The Mac refreshes the account when it becomes active again (back from the browser)
 and every 10 seconds for 5 minutes after opening the checkout. Account JSON gets `provider` so the
@@ -71,7 +71,9 @@ apps know what "Manage Subscription" opens (Apple's page or the portal link).
 Rejected: a StoreKit-like local receipt (nothing local to verify; the worker is the source).
 
 ### 6. App Store builds
-No Paddle code paths, strings or links outside `DIRECT_DISTRIBUTION`; the App Store apps simply
+No Paddle code paths, strings or links outside `DIRECT_DISTRIBUTION` (the checkout page URL is
+handed to FernsyCore's `PaddleCloudStore` by the DMG's code, so the App Store binaries do not
+contain it; checked by searching the built App Store app); the App Store apps simply
 see the account as active (Guideline 3.1.3(b) multiplatform services; the subscription is also
 offered as in-app purchase there). Their "Manage Subscription" for a Paddle subscription shows a
 neutral note ("Manage it where you subscribed") instead of a link.

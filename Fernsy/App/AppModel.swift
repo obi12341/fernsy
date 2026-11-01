@@ -179,8 +179,24 @@ final class AppModel: ObservableObject {
     let epg = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
-    /// Fernsy Cloud (add-recording-cloud): subscription, account, cloud recordings, uploads.
+    /// Fernsy Cloud (add-recording-cloud): subscription, account, cloud recordings, uploads. The
+    /// DMG has no StoreKit purchases: it sells through Paddle's checkout on fernsy.app
+    /// (paddle-cloud-subscription).
+    #if DIRECT_DISTRIBUTION
+    let cloud: CloudModel = {
+        let client = CloudClient.live()
+        // The checkout page in the app's language (German or English).
+        let page = { @Sendable () -> URL in
+            URL(string: Locale.current.language.languageCode?.identifier == "de"
+                ? "https://www.fernsy.app/cloud.html" : "https://www.fernsy.app/en/cloud.html")!
+        }
+        return CloudModel(client: client, store: PaddleCloudStore(client: client, checkoutPage: page, open: { url in
+            Task { @MainActor in NSWorkspace.shared.open(url) }
+        }))
+    }()
+    #else
     let cloud = CloudModel()
+    #endif
     private(set) lazy var cloudUploads = CloudUploadQueue(api: cloud.client, keys: cloud.keys, stateURL: CloudUploadQueue.defaultStateURL())
     var cloudRecordingWatch: AnyCancellable?
     /// Recordings the automatic upload has seen finish (each is queued at most once).

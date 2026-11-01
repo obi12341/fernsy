@@ -81,6 +81,49 @@ public struct AppStoreCloudStore: CloudStore {
     }
 }
 
+/// The DMG's store (paddle-cloud-subscription design 5): StoreKit does not work outside the App
+/// Store, so the purchase happens on fernsy.app in Paddle's checkout and the worker learns about it
+/// from Paddle; the account is the only source of the subscription's state.
+public struct PaddleCloudStore: CloudStore {
+    let client: CloudClient
+    /// The checkout page on fernsy.app; it comes from the DMG's code, so the App Store builds
+    /// carry no link to another way to pay (design 6).
+    let checkoutPage: @Sendable () -> URL
+    let open: @Sendable (URL) -> Void
+
+    public init(client: CloudClient, checkoutPage: @escaping @Sendable () -> URL, open: @escaping @Sendable (URL) -> Void) {
+        self.client = client
+        self.checkoutPage = checkoutPage
+        self.open = open
+    }
+
+    public func offer() async -> CloudModel.Offer? {
+        guard let amount = (try? await client.offerPrice())??.amount else { return nil }
+        return CloudModel.Offer(name: "Fernsy Cloud", price: amount)
+    }
+
+    public func hasEntitlement() async -> Bool {
+        guard client.hasAccount else { return false }
+        return (try? await client.account().canUpload) ?? false
+    }
+
+    /// Opens the checkout in the browser; false, because the purchase completes there. True when
+    /// the account is subscribed already (from either provider).
+    public func purchase(token: UUID) async throws -> Bool {
+        let checkout: String
+        do { checkout = try await client.checkoutToken() } catch CloudClient.Failure.alreadySubscribed { return true }
+        var page = URLComponents(url: checkoutPage(), resolvingAgainstBaseURL: false)!
+        page.queryItems = [URLQueryItem(name: "t", value: checkout)]
+        open(page.url!)
+        AppLog.info(.app, "Fernsy Cloud: checkout opened in the browser")
+        return false
+    }
+
+    public func sync() async throws {}
+    public func finishUnfinished() async {}
+    public func originalTransactionId() async -> String? { nil }
+}
+
 /// Fernsy Cloud as the apps show it (add-recording-cloud, cloud-account-from-icloud-key): the
 /// subscription (StoreKit), the account that comes from the cloud key without any prompt, the
 /// list of cloud recordings and the player source for one. Shared by the Mac, iOS and Apple TV.
@@ -105,6 +148,12 @@ public final class CloudModel {
     public private(set) var isPurchasing = false
     /// The subscription belongs to another account (or to none): offer to move it (design E).
     public private(set) var canMoveSubscription = false
+    /// The DMG opened Paddle's checkout in the browser and waits for the subscription
+    /// (paddle-cloud-subscription design 5).
+    public private(set) var isAwaitingCheckout = false
+    @ObservationIgnored private var checkoutWait: Task<Void, Never>?
+    /// How often and how long the DMG asks after opening the checkout.
+    @ObservationIgnored public var checkoutPoll: (interval: Duration, limit: Duration) = (.seconds(10), .seconds(300))
 
     @ObservationIgnored public let client: CloudClient
     @ObservationIgnored public let keys: CloudKeyStore
@@ -200,6 +249,10 @@ public final class CloudModel {
         defer { isPurchasing = false }
         guard let key = await accountKey(), let token = UUID(uuidString: key.accountId) else { return false }
         do {
+            if store is PaddleCloudStore {
+                if try await store.purchase(token: token) { await refreshSubscription() } else { awaitCheckout() }
+                return hasSubscription
+            }
             if try await store.purchase(token: token) {
                 await refreshSubscription()
                 if !hasSubscription {
@@ -214,6 +267,34 @@ public final class CloudModel {
         await refreshSubscription()
         if hasSubscription { await linkSubscription() }
         return hasSubscription
+    }
+
+    /// After the DMG opened the checkout: asks the server until the subscription is active, for at
+    /// most `checkoutPoll.limit` (also when the app comes back to the front, `refreshSubscription`).
+    private func awaitCheckout() {
+        checkoutWait?.cancel()
+        isAwaitingCheckout = true
+        checkoutWait = Task { [weak self] in
+            let deadline = ContinuousClock.now + (self?.checkoutPoll.limit ?? .seconds(300))
+            while !Task.isCancelled, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: self?.checkoutPoll.interval ?? .seconds(10))
+                guard let self else { return }
+                await self.refreshSubscription()
+                if self.hasSubscription {
+                    AppLog.info(.app, "Fernsy Cloud: subscription active after the checkout")
+                    await self.refresh()
+                    break
+                }
+            }
+            self?.isAwaitingCheckout = false
+        }
+    }
+
+    /// Where "Manage Subscription" goes: Paddle's portal for a Paddle subscription (an
+    /// authenticated link from the server), Apple's subscriptions page otherwise.
+    public func manageSubscriptionURL() async -> URL? {
+        if account?.isPaddle == true { return try? await client.portalURL() }
+        return URL(string: "https://apps.apple.com/account/subscriptions")
     }
 
     @discardableResult
@@ -304,7 +385,7 @@ public final class CloudModel {
         case .accountConflict?: String(localized: "Fernsy Cloud does not accept this device’s key. Please contact support.", bundle: .module)
         case .noSubscription?: String(localized: "Fernsy Cloud needs an active subscription.", bundle: .module)
         case .network?: String(localized: "Fernsy Cloud cannot be reached.", bundle: .module)
-        case .appleNotConfigured?: String(localized: "Fernsy Cloud is not ready yet.", bundle: .module)
+        case .appleNotConfigured?, .paddleNotConfigured?: String(localized: "Fernsy Cloud is not ready yet.", bundle: .module)
         case .quota(let needed, let free)?:
             String(localized: "Not enough Fernsy Cloud storage: \(CloudUploadQueue.bytes(needed)) needed, \(CloudUploadQueue.bytes(free)) free.", bundle: .module)
         default:

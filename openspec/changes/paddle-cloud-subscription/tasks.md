@@ -18,14 +18,14 @@ or "Fernsy Direct" in Debug with `IPTV_CLOUD`.
 
 ## 3. Website
 
-- [ ] 3.1 `website/cloud/` and `website/en/cloud/`: verify the token, show the price or "already subscribed", open Paddle.js overlay with `customData`, success note pointing back to the app; works without the app's token only as an explanation page
+- [x] 3.1 `website/cloud.html` and `website/en/cloud.html`: verify the token, show the price or "already subscribed", open Paddle.js overlay with `customData`, success note pointing back to the app; works without the app's token only as an explanation page
 - [ ] 3.2 Terms, refund policy and privacy (Paddle as seller and processor) in both languages, as Paddle's domain review requires
 
 ## 4. Apps
 
-- [ ] 4.1 FernsyCore `PaddleCloudStore` and the provider in `CloudModel`; `CloudModelTests` with a fake store and a fake worker answer
-- [ ] 4.2 DMG (Fernsy Direct): Subscribe opens the checkout page, polling after return, "Manage Subscription" opens the portal link; strings in German and English; App Store targets unchanged (check the built App Store app for the absence of Paddle strings)
-- [ ] 4.3 App Store apps: "Manage Subscription" for a Paddle subscription shows the neutral note; no purchase offered while active
+- [x] 4.1 FernsyCore `PaddleCloudStore` and the provider in `CloudModel`; `CloudModelTests` with a fake store and a fake worker answer
+- [x] 4.2 DMG (Fernsy Direct): Subscribe opens the checkout page, polling after return, "Manage Subscription" opens the portal link; strings in German and English; App Store targets unchanged (check the built App Store app for the absence of Paddle strings)
+- [x] 4.3 App Store apps: "Manage Subscription" for a Paddle subscription shows the neutral note; no purchase offered while active
 
 ## 5. Verification and go-live
 

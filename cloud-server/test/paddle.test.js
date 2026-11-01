@@ -167,6 +167,13 @@ test("portal link for a Paddle subscriber; refresh from Paddle when the stored p
   assert.ok(t.paddleAPI.calls.includes("GET /subscriptions/sub_01test"));
 });
 
+test("offer: the price for the caller's country without an account", async () => {
+  const t = setup();
+  const offer = await t.call("GET", "/v1/offer", { headers: { "CF-IPCountry": "DE" } });
+  assert.deepEqual(offer.body, { price: { amount: "€2.99", currency: "EUR" } });
+  assert.ok(t.paddleAPI.calls.includes("POST /pricing-preview"));
+});
+
 test("without Paddle settings the routes say so", async () => {
   const t = setup();
   delete t.env.PADDLE_WEBHOOK_SECRET;
