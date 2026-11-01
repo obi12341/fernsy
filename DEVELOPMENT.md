@@ -527,6 +527,21 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `IPTV_TESTOFFLINE=requests` fails only the requests while the path says there is network.
   `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
   (catalog, guide, artwork, cloud details; downloads stay).
+- **Paddle in the DMG (paddle-cloud-subscription).** The DMG ("Fernsy Direct",
+  `DIRECT_DISTRIBUTION`) has no StoreKit purchases; `AppModel` gives `CloudModel` a
+  `PaddleCloudStore` that asks the worker for a checkout token (`POST /v1/checkout`) and opens
+  `fernsy.app/cloud.html?t=…` (`website/cloud.html`, `website/en/cloud.html`: Paddle.js overlay with
+  the token as `customData.fernsy_checkout`). Paddle's webhooks (`/v1/paddle/notifications`) link
+  the subscription to the token's account; the Mac polls every 10 s for 5 min. "Manage
+  Subscription" opens Paddle's customer portal (`/v1/subscription/portal`). The App Store builds
+  never show or contain the checkout link (the URL lives in the DMG's code); a Paddle
+  subscription shows a neutral note there. Sandbox: catalog, client token and notification
+  destination in Paddle's sandbox (Paddle MCP), values in `~/.config/fernsy/paddle-sandbox.json`,
+  deployed to `fernsy-cloud-dev` (`PADDLE_ENV=sandbox`, see `cloud-server/README.md`). Test the
+  page locally with `python3 -m http.server 8000` in `website/` and `CHECKOUT_ORIGINS` containing
+  `http://localhost:8000`; Paddle's webhook simulator with a custom `subscription.created` payload
+  carrying a real checkout token exercises the worker without paying. Paddle IDs in simulated
+  payloads must match `^sub_[a-z\d]{26}$` and `^ctm_[a-z\d]{26}$`.
 - **Assistant (cloud-assistant).** `FernsyCore/AssistantModel.swift` holds what the apps show
   (consent per device in `assistant.consent`, the session's entries, refusal texts, the month's
   usage, the question before `cancel_recording`); the Mac's window `AssistantView` runs the tools

@@ -31,7 +31,7 @@ or "Fernsy Direct" in Debug with `IPTV_CLOUD`.
 
 - [ ] 5.1 End to end in the sandbox: DMG subscribes with a test card → active within a minute on the Mac and in the iOS simulator with the same key; portal cancel → ends at period end; second purchase refused
 - [ ] 5.2 Live: Paddle account verified, domain fernsy.app approved, live catalog and secrets, production deploy (after 1.1)
-- [ ] 5.3 DEVELOPMENT.md › Fernsy Cloud (Paddle part), `cloud-server/README.md`; `openspec validate --all --strict`
+- [x] 5.3 DEVELOPMENT.md › Fernsy Cloud (Paddle part), `cloud-server/README.md`; `openspec validate --all --strict`
 
 ## Workflow follow-up
 
