@@ -22,9 +22,11 @@ struct AppLogTests {
     @Test func storedEntriesAreRedacted() {
         AppLog.shared.setSecret("test", "s3cr3t-Pass")
         defer { AppLog.shared.setSecret("test", nil) }
-        AppLog.shared.add(.detail, .app, "login with s3cr3t-Pass")
-        let stored = AppLog.shared.entries(after: nil).last?.message ?? ""
-        #expect(stored == "login with •••")
+        // The log is shared and tests run in parallel: find this test's own entry, not the last one.
+        let marker = UUID().uuidString
+        AppLog.shared.add(.detail, .app, "login \(marker) with s3cr3t-Pass")
+        let stored = AppLog.shared.entries(after: nil).last { $0.message.contains(marker) }?.message ?? ""
+        #expect(stored == "login \(marker) with •••")
     }
 
     @Test func lineRoundTripsThroughTheFileFormat() {
