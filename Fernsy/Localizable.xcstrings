@@ -5691,6 +5691,36 @@
           }
         }
       }
+    },
+    "Recording on Fernsy Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme auf Fernsy Server"
+          }
+        }
+      }
+    },
+    "Fernsy Server is recording “%@”. Your account allows only %lld stream(s) at a time, so watching %@ now can interrupt that recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt gerade „%1$@“ auf. Dein Zugang erlaubt nur %2$lld Stream(s) gleichzeitig, deshalb kann es diese Aufnahme unterbrechen, wenn du jetzt %3$@ schaust."
+          }
+        }
+      }
+    },
+    "Watch Anyway": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trotzdem ansehen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

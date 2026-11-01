@@ -3722,6 +3722,66 @@
           }
         }
       }
+    },
+    "Fernsy Server records your shows around the clock on a computer at home – a NAS, a home server or a Raspberry Pi – and puts them into Fernsy Cloud, also while this Apple TV sleeps.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt deine Sendungen rund um die Uhr auf einem Rechner zu Hause auf – einem NAS, einem Heimserver oder einem Raspberry Pi – und legt sie in Fernsy Cloud, auch während dieses Apple TV schläft."
+          }
+        }
+      }
+    },
+    "Pairing …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gekoppelt …"
+          }
+        }
+      }
+    },
+    "Remove from Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vom Server entfernen"
+          }
+        }
+      }
+    },
+    "Recording on Fernsy Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme auf Fernsy Server"
+          }
+        }
+      }
+    },
+    "Fernsy Server is recording “%@”. Your account allows only %lld stream(s) at a time, so watching %@ now can interrupt that recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt gerade „%1$@“ auf. Dein Zugang erlaubt nur %2$lld Stream(s) gleichzeitig, deshalb kann es diese Aufnahme unterbrechen, wenn du jetzt %3$@ schaust."
+          }
+        }
+      }
+    },
+    "Watch Anyway": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trotzdem ansehen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

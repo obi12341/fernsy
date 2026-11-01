@@ -127,7 +127,7 @@ struct SettingsRow: View {
 }
 
 /// A page under Settings: title and its content.
-private struct SettingsPage<Content: View>: View {
+struct SettingsPage<Content: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder let content: Content
 
@@ -416,6 +416,11 @@ private struct CloudSettingsScreen: View {
                         Text(verbatim: note).font(.system(size: 22)).foregroundStyle(TVTheme.warning)
                     }
                 }
+                NavigationLink { ServerSettingsScreen() } label: {
+                    SettingsRow(title: Text(verbatim: "Fernsy Server"),
+                                value: Text(cloud.server.isPaired ? "Paired" : "Not Set Up"))
+                }
+                .accessibilityIdentifier("cloud.server")
                 if cloud.canMoveSubscription {
                     Text("Your subscription is linked to another Fernsy Cloud key, for example from before your iCloud data was reset. Move it here to use Fernsy Cloud with this key. Recordings under the old key cannot be read anymore and are deleted after 30 days.")
                         .font(.system(size: 22)).foregroundStyle(TVTheme.warning)

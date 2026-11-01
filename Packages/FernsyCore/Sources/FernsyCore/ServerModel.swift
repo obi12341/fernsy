@@ -82,6 +82,18 @@ public final class ServerModel {
     /// The channels the server records now (a channel counts once, as in `RecordingPlan`).
     public var runningChannels: Set<Int> { Set(orders.filter { $0.state?.phase == .recording }.map(\.order.channelId)) }
 
+    /// The server recording that playing `channelId` here would push over the account's limit
+    /// (spec "Stream limit across server and apps"): the server's connections count as in use
+    /// beside this device's recordings (`local`, their channels). Nil when there is room, or when
+    /// the server has not reported for a while (its state may be old).
+    public func blockingOrder(for channelId: Int, local: Set<Int>, limit: Int, now: Date = .now) -> Order? {
+        guard isPaired, isOnline(now: now) else { return nil }
+        let running = orders.filter { $0.state?.phase == .recording }
+        guard let first = running.first else { return nil }
+        let inUse = Set(running.map(\.order.channelId)).count + local.subtracting([channelId]).count
+        return inUse + 1 > limit ? first : nil
+    }
+
     // MARK: Reading
 
     /// Reads what changed since the last call (everything on the first).

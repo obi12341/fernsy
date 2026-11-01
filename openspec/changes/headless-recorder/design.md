@@ -124,8 +124,11 @@ home); CloudKit records for pairing (decision 0).
 ### 5. Stream limit across server and apps
 The server counts its own running recordings against the account's limit (from the provider's
 `max_connections`) and refuses orders that would exceed it. The apps read the server's `server`
-item and count its running recordings as connections in use, so "Ask before taking a connection" (recordings
-spec) also covers the server.
+item and the order states and count the server's running recordings as connections in use: when
+playing a channel would exceed the limit, they ask first ("Watch Anyway" / "Cancel"). Unlike a
+recording on the device itself, the server's recording is not stopped from the app (that would
+lose it); the provider then decides which stream it cuts, and the server marks a gap and
+reconnects. A server that has not reported for 10 minutes does not count.
 
 ### 6. Upload
 After a recording ends (and its handover window), the server encrypts and uploads it with the

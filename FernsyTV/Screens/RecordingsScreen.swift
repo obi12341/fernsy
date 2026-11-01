@@ -30,7 +30,10 @@ struct RecordingsScreen: View {
                 if !recorded.isEmpty {
                     Shelf(title: "Recorded", count: "\(recorded.count)", recordings: recorded)
                 }
-                if CloudFeature.isEnabled && model.cloud.canUseCloud { CloudShelf() }
+                if CloudFeature.isEnabled && model.cloud.canUseCloud {
+                    ServerShelf()
+                    CloudShelf()
+                }
             }
             .padding(.horizontal, 90)
             .padding(.vertical, 20)
@@ -40,6 +43,8 @@ struct RecordingsScreen: View {
         .foregroundStyle(TVTheme.text)
         .accessibilityIdentifier("recordings.screen")
         .task { if CloudFeature.isEnabled { await model.cloud.refresh() } }
+        .onAppear { model.cloud.server.startPolling() }
+        .onDisappear { model.cloud.server.stopPolling() }
     }
 }
 

@@ -33,10 +33,10 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## 4. Apps
 
-- [ ] 4.1 FernsyCore: control key in iCloud (`ControlKey`, like `CloudKeyStore`), control client for order, state and status items
-- [ ] 4.2 Settings › Fernsy Cloud › Server on Mac, Apple TV, iOS: pair with the code, state, remove
-- [ ] 4.3 Scheduling offers the server (default on iPhone and iPad); lists show server orders with state and allow cancelling
-- [ ] 4.4 Stream limit: running server recordings count as connections in use
+- [x] 4.1 FernsyCore: control key in iCloud (`ControlKey`, like `CloudKeyStore`), control client for order, state and status items
+- [x] 4.2 Settings › Fernsy Cloud › Server on Mac, Apple TV, iOS: pair with the code, state, remove
+- [x] 4.3 Scheduling offers the server (default on iPhone and iPad); lists show server orders with state and allow cancelling
+- [x] 4.4 Stream limit: running server recordings count as connections in use
 
 ## 5. Image and CI
 
