@@ -29,15 +29,15 @@ test VM (`scripts/vm.sh`).
 
 ## 4. Docs and privacy
 
-- [ ] 4.1 Website privacy page (German, English): assistant data, provider, no storage
-- [ ] 4.2 DEVELOPMENT.md: relay, settings, testing the assistant against the dev deployment
+- [x] 4.1 Website privacy page (German, English): assistant data, provider, no storage — drafted in `privacy-draft.md`; published with the Fernsy Cloud launch after the user's review (the pages go live on every push to main, the assistant stays hidden until then)
+- [x] 4.2 DEVELOPMENT.md: relay, settings, testing the assistant against the dev deployment
 
 ## 5. Verify
 
-- [ ] 5.1 Worker tests and `scripts/test.sh`
+- [x] 5.1 Worker tests and `scripts/test.sh`
 - [ ] 5.2 Mac dev run (host): "spiel ZDF"-style requests on the demo channels play, a recording gets scheduled, an off-topic request is declined, the allowance end shows (`IPTV_` switch or a dev worker setting for a tiny allowance)
-- [ ] 5.3 UI tests: iOS sheet and Apple TV overlay with a stub relay (no model calls in CI)
-- [ ] 5.4 `openspec validate --all --strict`
+- [x] 5.3 UI tests: iOS sheet and Apple TV overlay with a stub relay (no model calls in CI)
+- [x] 5.4 `openspec validate --all --strict`
 
 ## Workflow follow-up
 

@@ -530,7 +530,15 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   without the relay (a request with "ZDF" or "Nordlicht" plays `live:101`, anything else gets a
   fixed answer) and counts as subscribed; `IPTV_ASSISTANT_CONSENT=1` agrees for the run, `=0`
   forgets the stored consent. The UI tests `AssistantUITests` (Apple TV, iOS) use both with
-  `IPTV_CLOUD=http://127.0.0.1:9` (Fernsy Cloud shown, nothing reaches a server).
+  `IPTV_CLOUD=http://127.0.0.1:9` (Fernsy Cloud shown, nothing reaches a server). The relay is
+  `POST /v1/assistant` on the Fernsy Cloud worker (`cloud-server/README.md`): it needs the
+  secret `OPENROUTER_API_KEY` (`deploy.sh` takes it from the environment) and takes the model
+  and limits from `ASSISTANT_MODEL`, `ASSISTANT_MONTHLY`, `ASSISTANT_PER_MINUTE`. To try the
+  real model, run a debug build with `IPTV_CLOUD=https://fernsy-cloud-dev.mobilistics.workers.dev`
+  and `IPTV_CLOUDTOKEN=<DEV_TOKEN>` (the dev user is subscribed); a tiny allowance for the end
+  of the month comes from deploying the dev worker with `ASSISTANT_MONTHLY=2`. The tools the
+  relay sends are generated from FernsyCore: after changing `AssistantTools`, run
+  `scripts/assistant-tools.sh` (the FernsyCore tests fail until the worker's copy matches).
 - **StoreKit.** `Config/FernsyCloud.storekit` has the subscription
   `de.mobilistics.fernsy.cloud.monthly` for local purchases: choose it under Edit Scheme › Run ›
   Options › StoreKit Configuration.
