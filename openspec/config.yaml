@@ -3,7 +3,8 @@ schema: spec-driven
 context: |
   Fernsy is a native macOS IPTV player (Xtream Codes API) by mobilistics GmbH, sold in the
   Mac App Store (bundle id de.mobilistics.fernsy, team B8YT7FNB66), Apple Silicon only,
-  macOS 27+. Source is public on GitHub (obi12341/fernsy) under GPLv3.
+  macOS 27+. Source is public on GitHub (obi12341/fernsy) under the PolyForm Noncommercial
+  License 1.0.0 (releases up to v1.6.0: GPLv3).
 
   Constraints an agent cannot infer from the code:
   - Write all OpenSpec artifacts in English (the repo is public). The user talks German.
