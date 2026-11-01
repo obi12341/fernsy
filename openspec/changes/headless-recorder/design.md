@@ -21,7 +21,8 @@ apps); no new secrets path through our worker; reuse the apps' recording rules a
 ## Decisions
 
 ### 0. Spike first: CloudKit Web Services against the private database
-Before anything else, a throwaway Swift-on-Linux tool proves: (a) signing in once with the user's
+Before anything else, a throwaway script (curl against CloudKit Web Services; the language does
+not matter for what it has to prove) shows: (a) signing in once with the user's
 Apple ID through CloudKit's web sign-in yields a `ckWebAuthToken` for the private database of
 `iCloud.de.mobilistics.fernsy`; (b) with it the tool can create a custom zone, write and read
 plain records and fetch zone changes with a sync token; (c) how long the token lives and how it
@@ -29,14 +30,21 @@ renews; (d) that `encryptedValues` fields are indeed not readable (expected). If
 control moves to the Fernsy Cloud worker (rejected alternative below) and the specs are revised
 before building.
 
-### 1. Swift on Linux, sharing FernsyCore
+### 1. Swift on Linux, sharing a small part of FernsyCore
 The server is a Swift package (`server/`) built with the Swift Static Linux SDK (musl) for amd64
-and arm64. FernsyCore gets a Linux-buildable part: files that need only Foundation (Xtream client,
-EPG parsing, `RecordingPlan`, channel names, `CloudClient`, `CloudCrypto`) build on Linux, CryptoKit
-through swift-crypto's `Crypto` module (same API); Apple-only files (CloudKit, StoreKit, Network
-path monitor, Observation models) stay behind `#if canImport(...)`.
-Rejected: a rewrite in Go or Node (two copies of the recording rules and the crypto, which must
-stay byte-compatible with the apps); running the macOS app headless (no Apple hardware on a Pi).
+and arm64. It shares only what must stay identical to the apps: a new target `FernsyShared` in the
+FernsyCore package holds the Xtream client and models, channel names, `RecordingPlan` and
+`GapTracker`, `CloudCrypto` and `CloudClient`, the app log and `TestOffline` - Foundation only,
+CryptoKit through swift-crypto's `Crypto` (same API) on Linux, no string catalogs on Linux.
+FernsyCore depends on it and re-exports it (`@_exported import`), so app code does not change; on
+Linux the manifest contains only `FernsyShared` and its tests. Everything else the server needs
+(recorder, CloudKit Web Services client, pairing, status page, upload queue) is written for the
+server; the apps' `CloudUploadQueue` is tied to CloudKit and StoreKit and is not reused.
+Rejected: making all of FernsyCore build on Linux (tried first: `#if canImport` guards in two
+dozen files, and every new Apple API in FernsyCore would break the server build again); a rewrite
+of the shared parts in the server (two copies of the recording rules and of the crypto, which must
+stay byte-compatible with the apps); a rewrite in Go or Node (same, plus a second language);
+running the macOS app headless (no Apple hardware on a Pi).
 
 ### 2. Recording by copying the stream
 Xtream live streams are MPEG-TS over HTTP. The server writes the bytes to `<id>.ts` as they come,
@@ -116,5 +124,8 @@ that adds the pairing UI.
 ## Open Questions
 
 - Results of the spike (decision 0) decide between CloudKit and the worker fallback.
+- CloudyKit (github.com/camdenfullmer/CloudyKit, MIT) offers the CloudKit API over Web Services but
+  only with server-to-server keys for the public database, without the private database and zone
+  changes this design needs; at most a reference for request shapes.
 - Whether the Apple TV's own recordings and the server's should be merged into one list (first
   version: one list with a "Server" mark).

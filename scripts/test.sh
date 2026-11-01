@@ -26,7 +26,7 @@ DD="${BUILD_ROOT:-$ROOT/build}/core"   # BUILD_ROOT: build data elsewhere (scrip
 run() {
     echo "▸ $*"
     # -quiet keeps the log short; failing tests and errors are still printed.
-    xcodebuild "$@" -scheme FernsyCore -derivedDataPath "$DD" -quiet
+    xcodebuild "$@" -scheme FernsyCore-Package -derivedDataPath "$DD" -quiet
 }
 
 run test -destination 'platform=macOS'

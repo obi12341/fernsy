@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Cloud recordings as listed (add-recording-cloud 3.4): locked without a key, full details with it.
 struct CloudLibraryTests {

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Live list rules shared by the Mac and the Apple TV app (channel-visibility, live-tv specs):
 /// hiding, recently watched, adult detection, zap order, and the stored files.

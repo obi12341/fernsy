@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Downloads on iPad and iPhone (offline-recording-downloads 1.1, 1.2): queue, space check,
 /// cancel and remove, the index after a relaunch, backup exclusion, the size and header check,

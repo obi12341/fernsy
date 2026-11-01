@@ -7,13 +7,13 @@ the test VM or the host, and on a Raspberry Pi for the arm64 check.
 
 ## 0. Spike (decides decision 3)
 
-- [ ] 0.1 Swift-on-Linux tool: CloudKit web sign-in for `iCloud.de.mobilistics.fernsy`, custom zone, write/read records, zone changes with a sync token, token lifetime and renewal, `encryptedValues` not readable
+- [ ] 0.1 Spike script (curl): CloudKit web sign-in for `iCloud.de.mobilistics.fernsy`, custom zone, write/read records, zone changes with a sync token, token lifetime and renewal, `encryptedValues` not readable
 - [ ] 0.2 Write the result into design.md; if it fails, revise decision 3 and the specs to the worker fallback before going on
 
 ## 1. Shared core on Linux
 
-- [ ] 1.1 FernsyCore builds on Linux (Swift Static Linux SDK, amd64 and arm64): Apple-only files behind `#if canImport`, CryptoKit through swift-crypto
-- [ ] 1.2 The FernsyCore tests that cover the shared parts run on Linux in CI
+- [x] 1.1 Target `FernsyShared` (Xtream, channel names, plan, gaps, cloud crypto and client, log) builds on Linux, CryptoKit through swift-crypto; FernsyCore re-exports it
+- [x] 1.2 `FernsySharedTests` run on Linux amd64 and arm64 in CI (`linux` job)
 
 ## 2. Server
 

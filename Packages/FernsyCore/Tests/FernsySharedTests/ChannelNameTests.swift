@@ -1,5 +1,5 @@
 import Testing
-@testable import FernsyCore
+@testable import FernsyShared
 
 /// The spec's examples and known edge cases (channel-names spec).
 struct ChannelNameTests {

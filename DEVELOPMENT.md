@@ -752,10 +752,23 @@ FFmpeg; code that needs AppKit or SwiftUI views stays in the app. Public
 API is `public`; package strings use `String(localized: …, bundle: .module)` and live in the
 package's own `Resources/Localizable.xcstrings`.
 
+The part that Fernsy Server (headless-recorder) shares is its own target, `FernsyShared`, in the
+same package: Xtream client and models, channel names, recording plan and gap tracker, cloud
+crypto and client, the app log and `TestOffline`. It needs only Foundation and builds on Linux
+(CryptoKit through swift-crypto's `Crypto`, `FoundationNetworking` for URLSession; no string
+catalogs there, `LinuxShims.swift` returns the English keys). FernsyCore re-exports it
+(`@_exported import FernsyShared`), so app code imports only FernsyCore. Keep Apple-only APIs out
+of FernsyShared; anything that needs them (CloudKit, StoreKit, Observation, the assistant call on
+`CloudClient`) stays in FernsyCore. Members FernsyCore needs but apps must not see are `package`.
+On Linux the manifest has only FernsyShared and `FernsySharedTests` (Xtream fixtures, crypto,
+plan, gaps, names, log); run them there with
+`docker run --rm -v "$PWD/Packages/FernsyCore:/src:ro" swift:6.4.2-noble bash -c 'cp -r /src /w && cd /w && swift test'`.
+CI's `linux` job runs them on amd64 and arm64.
+
 `scripts/test.sh` runs the tests (Swift Testing) on macOS and builds the package for the tvOS
 simulator; `scripts/test.sh --tvos-sim` also runs them on a tvOS simulator, which needs the tvOS
 runtime (`xcodebuild -downloadPlatform tvOS`, several GB). The tests need no network and no
-account: network answers come from `Tests/FernsyCoreTests/Fixtures` – Xtream answers recorded
+account: network answers come from `Tests/*/Fixtures` – Xtream answers (`FernsySharedTests`) recorded
 once from the demo server (public demo account, lists cut to five entries), Jellyfin answers
 recorded from a throwaway local Docker Jellyfin (two generated clips; ids, tokens, addresses and
 online metadata replaced). Never record fixtures from a real provider or the user's Jellyfin.

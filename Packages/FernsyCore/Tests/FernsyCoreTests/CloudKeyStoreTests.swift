@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The account key (add-recording-cloud 3.2, cloud-account-from-icloud-key 2.2): two creators end
 /// with one key, only an answered "absent" lets a device create one, and the Mac marker.

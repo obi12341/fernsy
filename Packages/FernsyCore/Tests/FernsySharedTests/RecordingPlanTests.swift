@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FernsyCore
+@testable import FernsyShared
 
 /// The recordings spec's examples for sharing the account's streams.
 struct RecordingPlanTests {

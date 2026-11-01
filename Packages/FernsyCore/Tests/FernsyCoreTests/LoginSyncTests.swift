@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// Synced logins (icloud-sync 2.3): saved and found again, nothing while the switch is off.
 struct LoginSyncTests {

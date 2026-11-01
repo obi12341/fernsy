@@ -1,4 +1,8 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 
 /// End-to-end encryption of Fernsy Cloud recordings (add-recording-cloud design A/B).
@@ -264,7 +268,7 @@ public struct CloudRecordingMeta: Codable, Equatable, Sendable {
 }
 
 extension JSONEncoder {
-    static var cloud: JSONEncoder {
+    package static var cloud: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return encoder
@@ -272,7 +276,7 @@ extension JSONEncoder {
 }
 
 extension JSONDecoder {
-    static var cloud: JSONDecoder {
+    package static var cloud: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
             let text = try decoder.singleValueContainer().decode(String.self)

@@ -1,7 +1,11 @@
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 import Testing
-@testable import FernsyCore
+@testable import FernsyShared
 
 /// The FCR1 format (add-recording-cloud 3.1): round trip, ranges from the middle, and every kind
 /// of tampering fails instead of handing altered data to the demuxer.

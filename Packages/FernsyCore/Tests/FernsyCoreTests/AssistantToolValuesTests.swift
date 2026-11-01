@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import FernsyCore
+@testable import FernsyShared
 
 /// The tools' argument and result formats, shared by the Mac's MCP server and the Apple TV and
 /// iOS tool runners (cloud-assistant 1.3): argument errors reach the model as clear messages.
