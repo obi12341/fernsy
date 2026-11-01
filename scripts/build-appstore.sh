@@ -1,7 +1,8 @@
 #!/bin/bash
 # Archives Fernsy for the Mac App Store and exports or uploads it.
 #
-#   scripts/build-appstore.sh              # → build/appstore/export/Fernsy.pkg
+#   scripts/build-appstore.sh              # → build/appstore/macos/export/Fernsy.pkg
+#   PLATFORM=tvos scripts/build-appstore.sh  # the Apple TV app (tvos) or iPhone/iPad app (ios)
 #   UPLOAD=1 scripts/build-appstore.sh     # upload straight to App Store Connect
 #   VERSION=1.1 scripts/build-appstore.sh  # new version; the build number goes up on every run anyway
 #   BUILD_VERSION=1.2 BUILD_NUMBER=214 UPLOAD=1 scripts/build-appstore.sh
@@ -15,7 +16,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/build/appstore"
+PLATFORM="${PLATFORM:-macos}"
+case "$PLATFORM" in
+    macos) SCHEME=Fernsy; DESTINATION_ARGS=(); FRAMEWORKS=Contents/Frameworks ;;
+    tvos) SCHEME="Fernsy TV"; DESTINATION_ARGS=(-destination "generic/platform=tvOS"); FRAMEWORKS=Frameworks ;;
+    ios) SCHEME="Fernsy iOS"; DESTINATION_ARGS=(-destination "generic/platform=iOS"); FRAMEWORKS=Frameworks ;;
+    *) echo "PLATFORM must be macos, tvos or ios" >&2; exit 2 ;;
+esac
+OUT="$ROOT/build/appstore/$PLATFORM"
 cd "$ROOT"
 [ -n "${BUILD_NUMBER:-}" ] || BUMP_BUILD=1 "$ROOT/scripts/set-version.sh"
 [ -d "$ROOT/Packages/FernsyPlayer/Frameworks/avcodec.xcframework" ] || "$ROOT/scripts/build-ffmpeg.sh"
@@ -31,24 +39,29 @@ if [ -n "${ASC_KEY:-}" ]; then
     AUTH=(-authenticationKeyPath "$ASC_KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER")
 fi
 
-if [ -n "${ASC_KEY:-}" ] && [ "${CI:-}" = "true" ]; then
+if [ -n "${ASC_KEY:-}" ] && [ "${CI:-}" = "true" ] && [ "${CERT_CLEANUP:-}" != "workflow" ]; then
     # CI: the archive creates an Apple Development certificate on every fresh runner; revoke it
     # at the end so runs do not fill the team's certificate limit (scripts/ci-dev-certificates.swift).
     swift "$ROOT/scripts/ci-dev-certificates.swift" snapshot "$OUT/dev-certificates.txt"
     trap 'swift "$ROOT/scripts/ci-dev-certificates.swift" revoke-new "$OUT/dev-certificates.txt" || true' EXIT
 fi
 
-echo "▸ Archive"
-xcodebuild archive -project Fernsy.xcodeproj -scheme Fernsy -configuration Release \
+echo "▸ Archive ($PLATFORM)"
+xcodebuild archive -project Fernsy.xcodeproj -scheme "$SCHEME" ${DESTINATION_ARGS[@]+"${DESTINATION_ARGS[@]}"} -configuration Release \
     -archivePath "$OUT/Fernsy.xcarchive" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} ${VERSIONS[@]+"${VERSIONS[@]}"} -quiet
 
 # The archived app must embed the six FFmpeg frameworks and no loose dylib.
-FW="$OUT/Fernsy.xcarchive/Products/Applications/Fernsy.app/Contents/Frameworks"
+APP=$(ls -d "$OUT"/Fernsy.xcarchive/Products/Applications/*.app | head -1)
+FW="$APP/$FRAMEWORKS"
 for lib in avutil swresample swscale avcodec avformat avfilter; do
     [ -d "$FW/$lib.framework" ] || { echo "✗ $lib.framework missing in the archive" >&2; exit 1; }
 done
 if ls "$FW"/*.dylib >/dev/null 2>&1; then echo "✗ loose dylibs in the archive: $(ls "$FW"/*.dylib)" >&2; exit 1; fi
 echo "✓ FFmpeg frameworks embedded"
+if [ "$PLATFORM" = "tvos" ]; then
+    [ -d "$APP/PlugIns/FernsyTopShelf.appex" ] || { echo "✗ FernsyTopShelf.appex missing in the archive" >&2; exit 1; }
+    echo "✓ Top Shelf extension embedded"
+fi
 
 DESTINATION=export
 [ "${UPLOAD:-0}" = "1" ] && DESTINATION=upload

@@ -58,13 +58,17 @@ images (`en-*.webp`) come from copies of the mockups with translated texts.
 preview) with Xcode 27.1. The version comes from the tag, the build number from the commit
 count (`git rev-list --count`); neither is written back to the project.
 
-- **Tag `vX.Y` or `vX.Y.Z` on main.** This builds two things in parallel:
+- **Tag `vX.Y` or `vX.Y.Z` on main.** This builds in parallel:
   - the notarized DMG;
-  - the App Store build, signed with Apple's cloud signing through the API key and uploaded
-    to App Store Connect.
+  - the App Store builds of the Mac, Apple TV (with the Top Shelf extension) and iPhone/iPad
+    apps, one job per platform (`appstore (macos|tvos|ios)`), each signed with Apple's cloud
+    signing through the API key and uploaded to App Store Connect with the same version and
+    build number. Locally: `PLATFORM=tvos|ios scripts/build-appstore.sh`.
 
-  Only when both work does it publish the release "Fernsy X.Y" with `Fernsy.dmg` and
-  `Fernsy-X.Y.dmg`. Submitting for review stays a manual step in App Store Connect. A release
+  Only when the DMG and all three uploads work does it publish the release "Fernsy X.Y" with
+  `Fernsy.dmg` and `Fernsy-X.Y.dmg`. If one platform fails, "Re-run failed jobs" builds only
+  that one; publishing follows. Once per app record, App Store Connect needs the tvOS and iOS
+  platforms added to Fernsy (universal purchase), or their uploads fail. Submitting for review stays a manual step in App Store Connect. A release
   created by hand in the GitHub web interface keeps its text and gets the DMGs attached.
   Otherwise the release text comes from the commits (see "Release notes" below). The website's
   download button links to `releases/latest/download/Fernsy.dmg`.
@@ -76,7 +80,8 @@ count (`git rev-list --count`); neither is written back to the project.
   "latest".
 - **Manual runs:**
   - `gh workflow run release.yml` builds a nightly now;
-  - `-f channel=appstore-test` archives and exports the App Store build without uploading it.
+  - `-f channel=appstore-test` archives and exports the three App Store builds without
+    uploading them.
 
 **Release notes.** A commit with a change users notice ends with one sentence per language
 as trailers, next to `Co-Authored-By`:
@@ -143,9 +148,11 @@ installed app. `IPTV_TESTUPDATEHOLD=1` logs every 10 s whether an update would w
 recordings.
 
 Certificates: archiving on a fresh runner makes Xcode create an Apple Development certificate
-through the API key. `build-appstore.sh` revokes it at the end of the run in CI
-(`scripts/ci-dev-certificates.swift`, which also logs the team's development certificates), so
-runs do not fill the account's certificate limit. If an archive still fails with "Your account
+through the API key. In `release.yml`, the job `certs-snapshot` notes the team's development
+certificates before the App Store jobs and `certs-cleanup` revokes the ones created since after
+all of them (`scripts/ci-dev-certificates.swift`, which logs what it sees and revokes); run on its
+own in CI, `build-appstore.sh` does both itself. So runs do not fill the account's certificate
+limit. If an archive still fails with "Your account
 has reached the maximum number of certificates", revoke unused Apple Development certificates
 on developer.apple.com (not the Developer ID ones) and rerun the job.
 
