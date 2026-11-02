@@ -2,7 +2,7 @@
 
 ## 1. Worker
 
-- [ ] 1.1 `authenticate()`: `used_at` only when older than a day (`AND used_at < ?`); test that two requests in a row write it once
+- [ ] 1.1 `authenticate()`: `used_at` only when older than a day (`AND used_at < ?`), written after the answer through `ctx.waitUntil`; test that two requests in a row write it once
 - [ ] 1.2 Per-space minute limit through the `RATE_LIMIT` binding (120 per 60 s, keyed by space id); `counters` only for the hourly per-IP limits; fake binding in the tests, a test for 429 after 120 requests
 - [ ] 1.3 `deploy.sh`: `ratelimit` binding in the script metadata; README (limits, what a poll writes); `node --test control-server/test/*.test.js`
 

@@ -56,12 +56,19 @@ Rejected:
 
 ### 2. `used_at` at most once a day
 `UPDATE spaces SET used_at = ? WHERE id = ? AND used_at < ?`, with the bound one day earlier.
-D1 does not count a row as written when the WHERE clause matches nothing. The daily cleanup
+D1 does not count a row as written when the WHERE clause matches nothing.
+The update runs after the answer through `ctx.waitUntil`, so it never adds to a request's
+time; the answer does not depend on it. The daily cleanup
 removes spaces idle for 90 days, so a day's precision does not change which spaces it keeps.
 
 Rejected:
 - **Dropping `used_at`:** the cleanup needs it.
 - **Updating it only on writes:** a server that only reads for months would then look idle.
+- **Workers KV instead of D1 (for the status or `used_at`):** it is not cheaper and it is not
+  needed to avoid blocking. KV writes cost about five times a D1 row (5 $ vs 1 $ per million,
+  1 M vs 50 M included). D1 is SQLite and holds no row or connection locks that would slow other
+  requests: a write takes 0.2 ms at the median. The one write that the answer does not need goes
+  through `waitUntil`.
 
 ### 3. Per-space minute limit through the Workers Rate Limiting binding
 A `ratelimit` binding `RATE_LIMIT`, keyed by space id, with 120 requests per 60 s (the binding's
