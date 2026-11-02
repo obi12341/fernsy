@@ -25,22 +25,27 @@ scripts from the real apps, so a redesign only means running them again.
 
 ## Decisions
 
-### 1. Screenshots from a UI test per platform
-`StoreShotsUITests` (iOS and tvOS targets) launches the app with the demo account, a language
-argument (`STORE_LANGUAGE=de|en`, passed as `TEST_RUNNER_STORE_LANGUAGE`) and the existing debug
-switches that hide overlays, walks the scenes and takes `XCUIScreen.main.screenshot()` attachments
-named `01-live`, `02-guide` and so on. `scripts/store-media.sh shots` runs it per simulator and
-language with `-only-testing`, exports the attachments from the `.xcresult`
-(`xcresulttool export attachments`), drops the alpha channel (`sips`) and checks every size.
-The test is skipped unless `STORE_LANGUAGE` is set, so regular UI test runs do not take it.
-The status bar is set with `simctl status_bar override` (9:41, full battery, Wi-Fi).
-Rejected: hand-made screenshots (not repeatable); design mockups as for the website (App Review
-wants the app in use, and the mockups lag behind the app); fastlane `snapshot` (another Ruby
-toolchain for what xcodebuild and simctl already do).
+### 1. Screenshots by debug switches and simctl
+`scripts/store-media.sh shots` installs Fernsy Dev (Debug) in each simulator, sets the status bar
+(`simctl status_bar override`: 9:41, full battery, Wi-Fi) and launches the app once per scene with
+the demo account, `-AppleLanguages (de|en)` and the debug switches that open the scene
+(`IPTV_TAB`, `IPTV_LIVEVIEW`, `IPTV_DETAIL` or `IPTV_OPEN`, `IPTV_AUTOPLAY` with `IPTV_PLAYERMODE`
+and `IPTV_KEEPCONTROLS`, `IPTV_SEARCH`, on Apple TV `IPTV_TESTRECORD`). After a fixed wait it
+takes `simctl io screenshot` (native pixels, the sizes App Store Connect wants), removes the alpha
+channel (`scripts/store-flatten.swift`, CoreGraphics) and checks size and both languages.
+The Apple TV app gets the three switches iOS already had (`IPTV_LIVEVIEW`, `IPTV_KEEPCONTROLS`,
+`IPTV_SEARCH`), debug builds only.
+This replaces the planned screenshot UI test: the switches already exist for exactly this
+(DEVELOPMENT.md: "the simulator takes no touch input from scripts, so debug switches open
+screens"), a launch per scene is independent of focus and gesture timing, and no test build is
+needed. UI tests stay for the previews (decision 2), which need movement.
+Rejected: a screenshot UI test (slower, and its taps and focus moves are what the switches avoid);
+hand-made screenshots (not repeatable); design mockups as for the website (App Review wants the
+app in use, and the mockups lag behind the app); fastlane `snapshot` (another Ruby toolchain for
+what xcodebuild and simctl already do).
 
 ### 2. App previews recorded with simctl, finished with AVFoundation
-`scripts/store-media.sh previews` starts `simctl io recordVideo` and runs a second test method,
-`testPreview`, which plays a fixed sequence with pauses (open live TV, zap, open the guide, open a
+`scripts/store-media.sh previews` starts `simctl io recordVideo` and runs `StorePreviewUITests`, which plays a fixed sequence with pauses (open live TV, zap, open the guide, open a
 film and play it). A Swift script (`scripts/store-preview.swift`) trims the recording to the
 test's own start and end marks, scales and crops it to the preview size, sets 30 fps and adds a
 silent stereo track (App Store Connect rejects previews without audio).
@@ -74,10 +79,18 @@ once-per-redesign step); it can follow as its own change.
 
 ## Risks / Trade-offs
 
-- [iPhone Duo screenshots] → The simulator's screenshot might not match 2007 × 2853 in every
-  posture; the script checks every size and fails with a clear message instead of resizing.
-- [Video in the simulator] → Playback of demo streams in the simulator may stutter in a recording;
-  the preview uses the films (local seeking, steady) more than live channels, and is checked by eye.
+- [iPhone Duo screenshots] → The Duo simulator starts folded: the app shows on the cover display,
+  rendered sideways there, and the inner display stays black. Unfolding needs the Simulator's menu
+  (input on the user's Mac), and powering the displays with `simctl io screenConfig` crashed
+  SpringBoard. So the user unfolds the simulator once; the script shoots the inner display and
+  stops with that hint when it gets a black image.
+- [Live picture] → A demo channel shows wherever its loop stands at that moment, often the film's
+  title cards. The script picks, at shot time, one of the first twelve channels that is in the
+  middle of the film (the loop and the 41 s offset per channel are in `demo-server/worker.js`).
+- [Waits in the preview walk] → Every XCUITest tap or remote press waits for the app to settle
+  (about three seconds on iOS) and every `waitForExistence` costs about a second, which the
+  recording shows. The walks use direct taps and few pauses; the script warns when a walk is
+  outside 15–30 s instead of cutting it silently.
 - [App Review of the images] → Header and search images are reviewed; keeping to app screens,
   demo content and no prices avoids the usual rejections.
 - [Redesigns] → Screens change; the shots are cheap to take again, and the scene list in the test

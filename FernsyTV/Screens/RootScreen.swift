@@ -103,6 +103,12 @@ struct MainTabs: View {
         .onChange(of: selection) { updateVODTabs() }
         // A deep link's page opens on Start (tvos-top-shelf design 3).
         .onChange(of: model.pageRequest) { if model.pageRequest != nil { selection = .start } }
+        #if DEBUG
+        // IPTV_LIVEVIEW=list|guide picks Live TV's view, as on iOS (store screenshots).
+        .onAppear {
+            if let view = ProcessInfo.processInfo.environment["IPTV_LIVEVIEW"].flatMap(TVModel.LiveView.init(rawValue:)) { model.liveView = view }
+        }
+        #endif
     }
 
     private func updateVODTabs() {

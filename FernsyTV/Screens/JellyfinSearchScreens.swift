@@ -212,6 +212,10 @@ struct SearchScreen: View {
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
             .task(id: model.movies.count + model.series.count + model.jellyfin.films.count + model.jellyfin.series.count) { await buildIndex() }
             .task { for channel in liveChannels { await model.loadGuide(for: channel) } }
+            #if DEBUG
+            // IPTV_SEARCH=<query>: types it, as on iOS (store screenshots without a remote).
+            .onAppear { if let text = ProcessInfo.processInfo.environment["IPTV_SEARCH"], query.isEmpty { query = text } }
+            #endif
             .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                                 presenting: asked) { item in
                 Button("Record") { model.notice = model.schedule(item.show, on: item.channel) }

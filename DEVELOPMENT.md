@@ -43,8 +43,31 @@ scripts/build-dmg.sh                        # ad-hoc signed DMG in dist/ (outsid
 
 App Store texts and review notes are kept locally in `docs/app-store.md`, which is not
 part of the repository (`docs/` is git-ignored); `scripts/check-store-texts.py` checks
-their length limits. `scripts/make-icon.swift`
-renders the app icon.
+their length limits (Mac, iPhone/iPad and Apple TV sections, and the lines in the header images).
+`scripts/make-icon.swift` renders the app icon.
+
+The App Store media for iPhone, iPad and Apple TV (store-media) are made from Fernsy Dev with the
+demo server, in German and English, into `dist/store/<device>/<language>/`:
+
+```bash
+scripts/store-media.sh shots      # screenshots: iphone (6.3"), duo (iPhone Duo), ipad (13"), tv
+scripts/store-media.sh previews   # app previews (15–30 s): iphone, ipad, tv
+scripts/store-art/render.sh       # iOS header (3840 × 1646) and search image (3840 × 2560)
+scripts/store-media.sh check      # everything there, in both languages, at App Store sizes
+```
+
+`shots` launches the app once per scene with debug switches (`IPTV_TAB`, `IPTV_LIVEVIEW`,
+`IPTV_DETAIL`/`IPTV_OPEN`, `IPTV_AUTOPLAY` with `IPTV_PLAYERMODE` and `IPTV_KEEPCONTROLS`,
+`IPTV_SEARCH`; Apple TV recordings through the debug MCP server) and `-AppleLanguages`, sets the
+status bar to 9:41 and takes `simctl io screenshot`; `ONLY=<scene prefix>` retakes single scenes,
+`WAIT=<s>` gives them longer. The guide shows the Mac's current time, so take them in the
+evening for a prime-time guide. `previews` records the simulator while `StorePreviewUITests`
+(iOS and tvOS, skipped unless `TEST_RUNNER_STORE_LANGUAGE` is set) walks through the app, and
+`scripts/store-preview.swift` cuts the recording at the test's marks, scales it and adds the
+silent track App Store Connect requires. `scripts/store-flatten.swift` removes the alpha channel
+App Store Connect refuses. Upload by hand: screenshots and previews under each version's
+"App Previews and Screenshots" (iPhone Duo has its own tab), the header and search images under
+"Header and Search Results" (iOS only).
 
 The product, support, privacy and imprint pages (German and English) live in `website/` and
 are published to https://www.fernsy.app/ by `.github/workflows/pages.yml` on every push to
@@ -801,7 +824,8 @@ recordings on iOS (ios-app).
   from scripts, so debug switches open screens: `IPTV_TAB=start|live|films|series|jellyfin|search|settings`,
   `IPTV_LIVEVIEW=list|guide`, `IPTV_ALLCATEGORIES=1`, `IPTV_DETAIL=movie:<id>|series:<id>` (from the
   Movies or Series tab), `IPTV_SEARCH=<query>`, `IPTV_PLAYERMODE=channels` (the player's channel
-  list), `IPTV_KEEPCONTROLS=1` (the player's controls stay).
+  list), `IPTV_KEEPCONTROLS=1` (the player's controls stay), `IPTV_SETTINGS=cloud` (Settings ›
+  Fernsy Cloud, from the Settings tab on iPad).
 - `scripts/ios-uitest.sh [--no-build] [xcodebuild arguments]` runs the UI tests
   (`FernsyiOSUITests`, target "Fernsy iOS UITests") with real touch input on the iPhone
   simulator, `DEVICE_NAME="iPad Pro 13-inch (M5)"` on the iPad one. On iPhone the player turns

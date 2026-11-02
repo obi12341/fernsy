@@ -25,8 +25,8 @@ Promotional text, description, keywords and what's new are per platform and stil
 and tvOS.
 
 - **Screenshots** for iPhone, iPhone Duo, iPad 13" and Apple TV, in German and English, taken
-  from the real apps in the simulator with the demo server's fictional content. A UI test per
-  platform drives the scenes, and a script collects the images at the sizes above into
+  from the real apps in the simulator with the demo server's fictional content. Debug switches open
+  each scene, and a script takes the images at the sizes above into
   `dist/store/`, so they can be taken again after every redesign.
 - **App previews** (15–30 s videos) for iPhone, iPad and Apple TV per language, recorded from the
   simulator during a scripted UI test run and cut to the sizes above.
@@ -61,8 +61,9 @@ Out of scope:
 
 ## Impact
 
-- `FernsyiOSUITests/`, `FernsyTVUITests/`: a screenshot test per platform (`StoreShotsUITests`),
+- `FernsyiOSUITests/`, `FernsyTVUITests/`: a preview test per platform (`StorePreviewUITests`),
   run only on demand (not part of the regular UI test runs).
+- Apple TV app (debug builds only): the switches `IPTV_LIVEVIEW`, `IPTV_KEEPCONTROLS`, `IPTV_SEARCH`.
 - `scripts/store-media.sh` (new): runs the shot tests per device and language, extracts the images
   from the `.xcresult`, records the previews (`simctl io recordVideo`) and cuts them.
 - `scripts/store-art/` (new): HTML template and render script for header and search images.

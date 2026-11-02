@@ -22,7 +22,8 @@ produce all of them into `dist/store/`.
 
 ### Requirement: What the screenshots show
 The screenshots SHALL show the apps' main scenes (live TV with the program guide, a film page, the
-player, search, recordings, and on Apple TV the Start page) with demo content only, and no debug
+player, search and the Start page, and on Apple TV also recordings, since the iOS app has none)
+with demo content only, and no debug
 overlays, simulator chrome, prices or website addresses.
 
 #### Scenario: Checking a set
