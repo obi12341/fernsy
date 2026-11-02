@@ -29,6 +29,15 @@ overlays, simulator chrome, prices or website addresses.
 - **WHEN** the iPad screenshots for English are looked through
 - **THEN** each shows one of the main scenes with fictional demo content and a clean status bar
 
+### Requirement: German and English complete
+Every screenshot, app preview, header and search image and every store text SHALL exist in German
+and in English, each with its texts and demo content in that language. The media command SHALL fail
+when a file is missing for one of the two languages.
+
+#### Scenario: One language missing
+- **WHEN** the English iPad shots were taken but the German ones failed
+- **THEN** the command ends with an error naming the missing German files
+
 ### Requirement: App previews
 For each language there SHALL be one app preview of 15 to 30 seconds for iPhone (886 × 1920), iPad
 (1200 × 1600) and Apple TV (1920 × 1080), recorded from the app in the simulator with demo content,

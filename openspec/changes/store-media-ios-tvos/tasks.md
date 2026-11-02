@@ -4,7 +4,7 @@
 
 - [ ] 1.1 `StoreShotsUITests` in `FernsyiOSUITests`: demo account (`IPTV_SERVER`/`IPTV_USER`/`IPTV_PASS` of the demo server), language from `STORE_LANGUAGE`, scenes live TV, guide, film page, player, search, recordings; skipped without `STORE_LANGUAGE`
 - [ ] 1.2 `StoreShotsUITests` in `FernsyTVUITests`: Start, live TV with guide, film page, player, search, recordings, same switches
-- [ ] 1.3 `scripts/store-media.sh shots`: simulators iPhone 18 Pro, iPhone Duo, iPad Pro 13-inch (M5), Apple TV 4K (3rd generation); status bar override; export attachments, drop alpha, check sizes; output `dist/store/<platform>/<language>/`
+- [ ] 1.3 `scripts/store-media.sh shots`: simulators iPhone 18 Pro, iPhone Duo, iPad Pro 13-inch (M5), Apple TV 4K (3rd generation); status bar override; export attachments, drop alpha, check sizes; fail if a file is missing in German or English; output `dist/store/<platform>/<language>/`
 - [ ] 1.4 Run it for German and English against the demo server and check every image by eye (no debug overlays, no real content)
 
 ## 2. App previews
@@ -24,5 +24,5 @@
 
 ## 5. Upload and wrap-up
 
-- [ ] 5.1 User uploads the media and pastes the texts in App Store Connect (iOS and tvOS 1.0, German and English) and checks the header and search preview there
+- [ ] 5.1 User adds the German localization to the iOS and tvOS versions if missing, uploads the media and pastes the texts in App Store Connect (iOS and tvOS 1.0, German and English) and checks the header and search preview there
 - [ ] 5.2 DEVELOPMENT.md (how to produce the store media); `openspec validate --all --strict`; archive, merge into `main`, push
