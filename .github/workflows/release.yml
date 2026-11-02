@@ -24,9 +24,9 @@ on:
         options: [nightly, appstore-test, dmg-test]
         default: nightly
       cloud:
-        description: Fernsy Cloud shown in the DMG (FERNSY_CLOUD=YES; no purchase outside the App Store)
+        description: Fernsy Cloud in the DMG (purchase on fernsy.app with Stripe); off builds FERNSY_CLOUD=NO
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -233,7 +233,7 @@ jobs:
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
           BUILD_VERSION: ${{ needs.prepare.outputs.version }}
           BUILD_NUMBER: ${{ needs.prepare.outputs.build }}
-          FERNSY_CLOUD: ${{ inputs.cloud && 'YES' || '' }}
+          FERNSY_CLOUD: ${{ github.event_name == 'workflow_dispatch' && !inputs.cloud && 'NO' || 'YES' }}   # tags and nightlies: on
         run: scripts/build-dmg.sh
 
       - name: Verify
@@ -241,7 +241,7 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
           BUILD: ${{ needs.prepare.outputs.build }}
           CHANNEL: ${{ needs.prepare.outputs.channel }}
-          FERNSY_CLOUD: ${{ inputs.cloud && 'YES' || '' }}
+          FERNSY_CLOUD: ${{ github.event_name == 'workflow_dispatch' && !inputs.cloud && 'NO' || 'YES' }}   # tags and nightlies: on
         run: |
           DMG="dist/Fernsy-$VERSION.dmg"
           xcrun stapler validate "$DMG"
@@ -257,7 +257,7 @@ jobs:
           PLIST="$MOUNT/Fernsy.app/Contents/Info.plist"
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$PLIST")" = "$VERSION" ]
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$PLIST")" = "$BUILD" ]
-          if [ "$FERNSY_CLOUD" = YES ]; then
+          if [ "$FERNSY_CLOUD" != NO ]; then
             [ "$(/usr/libexec/PlistBuddy -c 'Print FernsyCloud' "$PLIST")" = "YES" ]
           fi
           hdiutil detach "$MOUNT"
