@@ -157,7 +157,8 @@ has reached the maximum number of certificates", revoke unused Apple Development
 on developer.apple.com (not the Developer ID ones) and rerun the job.
 
 Do not push a release tag before the previous version is approved in the App Store. A tag
-uploads to App Store Connect.
+uploads to App Store Connect. Until the first version is approved, tags only serve the DMG: the
+uploaded builds wait in App Store Connect and do not touch the version in review.
 
 Locally the same scripts still work:
 - `SIGN_IDENTITY="Developer ID Application: …" NOTARY_KEY=AuthKey.p8 NOTARY_KEY_ID=… NOTARY_ISSUER=… scripts/build-dmg.sh`
