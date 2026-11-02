@@ -14,4 +14,4 @@
 ## 3. Verification and go-live
 
 - [x] 3.1 Dev deploy; a Fernsy Server container (`FERNSY_POLL=10`, `IPTV_CONTROL` dev) paired with Fernsy Dev on the demo server (`IPTV_SERVER` demo): idle for 30 minutes, then the D1 query statistics show no counter upserts, `used_at` once, about 6 status writes; a recording ordered from Fernsy Dev appears as running on the next poll
-- [ ] 3.2 Prod deploy through a helper script the user runs; DEVELOPMENT.md; `openspec validate --all --strict`; archive, merge into `main`, push
+- [x] 3.2 Prod deploy through a helper script the user runs; DEVELOPMENT.md; `openspec validate --all --strict`; archive, merge into `main`, push
