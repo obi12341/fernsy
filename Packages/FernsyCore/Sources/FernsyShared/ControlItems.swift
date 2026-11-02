@@ -127,7 +127,8 @@ public struct ControlLoginOutcome: Codable, Equatable, Sendable {
     }
 }
 
-/// The server's report, written on every poll.
+/// The server's report: written when something in it changed, otherwise every 5 minutes
+/// (control-fewer-writes).
 public struct ControlServerStatus: Codable, Equatable, Sendable {
     public var lastContact: Date
     public var version: String

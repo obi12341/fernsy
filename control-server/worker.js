@@ -82,8 +82,10 @@ async function ipKey(request) {
 // MARK: Spaces
 
 /// `Authorization: Space <space id>:<base64url write secret>`. An unknown space registers with
-/// the secret's hash (at most `newSpacesPerHour` per IP); a known one must match it.
-async function authenticate(request, env, now) {
+/// the secret's hash (at most `newSpacesPerHour` per IP); a known one must match it. A request
+/// that only reads writes nothing here (control-fewer-writes): the per-space minute limit counts
+/// in the `RATE_LIMIT` binding, and `used_at` moves at most once a day, after the answer.
+async function authenticate(request, env, deps, now) {
   const m = (request.headers.get("Authorization") || "").match(/^Space ([0-9a-f]{32}):([A-Za-z0-9_-]{43})$/);
   if (!m || !SPACE.test(m[1])) fail(401, "unauthorized", "no space key");
   const hash = await sha256Hex(m[2]);
@@ -97,9 +99,20 @@ async function authenticate(request, env, now) {
     log({ route: "auth", outcome: "rejected" });
     fail(401, "unauthorized", "wrong space key");
   }
-  if (!(await count(env, `req:${space.id}`, LIMITS.perMinute, MINUTE, now))) fail(429, "rate_limited", "too many requests");
-  await env.DB.prepare("UPDATE spaces SET used_at = ? WHERE id = ?").bind(now, space.id).run();
+  if (!(await withinMinuteLimit(env, space.id, now))) fail(429, "rate_limited", "too many requests");
+  if (space.used_at < now - DAY) {
+    // The idle cleanup counts in days; the answer does not wait for this.
+    deps.waitUntil(env.DB.prepare("UPDATE spaces SET used_at = ? WHERE id = ? AND used_at < ?")
+      .bind(now, space.id, now - DAY).run());
+  }
   return space;
+}
+
+/// 120 requests per space and minute. The Workers Rate Limiting binding counts per location
+/// without a database write; without the binding (an older deploy) the D1 counter does.
+async function withinMinuteLimit(env, spaceId, now) {
+  if (env.RATE_LIMIT) return (await env.RATE_LIMIT.limit({ key: spaceId })).success;
+  return count(env, `req:${spaceId}`, LIMITS.perMinute, MINUTE, now);
 }
 
 async function nextChange(env, spaceId) {
@@ -237,20 +250,20 @@ async function route(request, env, deps) {
   }
 
   if (path === "/v1/items" && method === "GET") {
-    const space = await authenticate(request, env, now);
+    const space = await authenticate(request, env, deps, now);
     return json(200, await items(env, space, url));
   }
   const item = path.match(/^\/v1\/items\/([^/]+)\/([^/]+)$/);
   if (item && (method === "PUT" || method === "DELETE")) {
     if (!KIND.test(item[1]) || !ITEM_ID.test(item[2])) fail(400, "bad_request", "bad kind or id");
-    const space = await authenticate(request, env, now);
+    const space = await authenticate(request, env, deps, now);
     const result = method === "PUT"
       ? await putItem(env, space, item[1], item[2], request, now)
       : await deleteItem(env, space, item[1], item[2], now);
     return json(200, result);
   }
   if (path === "/v1/space" && method === "DELETE") {
-    const space = await authenticate(request, env, now);
+    const space = await authenticate(request, env, deps, now);
     await deleteSpace(env, space);
     log({ route: "space", outcome: "deleted" });
     return json(204, null);
@@ -273,8 +286,9 @@ export async function cleanup(env, deps) {
   return result;
 }
 
-/// Entry point for tests: the fetch handler with injectable time.
-export async function handle(request, env, deps = { now: () => Date.now() }) {
+/// Entry point for tests: the fetch handler with injectable time and `waitUntil`.
+export async function handle(request, env, deps = {}) {
+  deps = { now: () => Date.now(), waitUntil: (promise) => promise, ...deps };
   try {
     return await route(request, env, deps);
   } catch (e) {
@@ -285,6 +299,6 @@ export async function handle(request, env, deps = { now: () => Date.now() }) {
 }
 
 export default {
-  fetch(request, env) { return handle(request, env); },
+  fetch(request, env, ctx) { return handle(request, env, { waitUntil: (promise) => ctx.waitUntil(promise) }); },
   async scheduled(event, env, ctx) { ctx.waitUntil(cleanup(env, { now: () => Date.now() })); },
 };

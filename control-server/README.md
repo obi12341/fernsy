@@ -38,7 +38,16 @@ look like `{"error": "<code>", "message": "…"}`.
 mailbox four Crockford base32 characters.
 
 **Limits.** 500 live items of 8 KB per space; 120 requests per space and minute; 10 new spaces
-and 30 pairing requests per IP and hour (`429 rate_limited`).
+and 30 pairing requests per IP and hour (`429 rate_limited`). The per-space minute limit uses the
+Workers Rate Limiting binding `RATE_LIMIT` (approximate, counted per Cloudflare location; without
+the binding the worker falls back to the D1 counter); the hourly per-IP limits use the `counters`
+table.
+
+**What a request writes (control-fewer-writes).** Reading (`GET /v1/items`) writes nothing:
+`used_at` moves at most once a day, after the answer (`waitUntil`), which is enough for the 90-day
+idle cleanup. A `PUT` writes the item and the space's change number. A Fernsy Server sends its
+status only when it changed and otherwise every 5 minutes, so an idle server costs about
+26,000 written rows a month.
 
 **Daily cron (03:41 UTC).** Removes expired mailboxes and counters, tombstones older than 30
 days, and spaces (with their items) that had no request for 90 days.
