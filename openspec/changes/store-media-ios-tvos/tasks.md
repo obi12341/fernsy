@@ -5,7 +5,7 @@
 - [x] 1.1 iOS scenes opened by debug switches on the demo server (`IPTV_TAB`, `IPTV_LIVEVIEW`, `IPTV_DETAIL`, `IPTV_AUTOPLAY`, `IPTV_PLAYERMODE`, `IPTV_KEEPCONTROLS`, `IPTV_SEARCH`): Start, live list, guide, film page, series page, player, search (no recordings on iOS)
 - [x] 1.2 Apple TV scenes the same way; the TV app gets `IPTV_LIVEVIEW`, `IPTV_KEEPCONTROLS` and `IPTV_SEARCH` as iOS has them; recordings with real show titles through the debug MCP server (`IPTV_MCP=1`, `record`, `cancel_recording`), after `IPTV_FRESHRECORDINGS=1`
 - [x] 1.3 `scripts/store-media.sh shots` (launch per scene with `-AppleLanguages`, `simctl io screenshot`, `scripts/store-flatten.swift` drops alpha): simulators iPhone 18 Pro, iPhone Duo (inner display; stops with a hint while the simulator is folded), iPad Pro 13-inch (M5), Apple TV 4K (3rd generation); status bar override; check sizes; fail if a file is missing in German or English; output `dist/store/<platform>/<language>/`; fresh install per language; own builds named "Fernsy" in `build/store-*`
-- [ ] 1.4 Run it for German and English against the demo server and check every image by eye (no debug overlays, no real content)
+- [x] 1.4 Run it for German and English against the demo server and check every image by eye (no debug overlays, no real content)
 
 ## 2. App previews
 
