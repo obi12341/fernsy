@@ -131,6 +131,10 @@ struct PlayerScreen: View {
             // The overlay hides after a few seconds without input (not while choosing).
             // New input cancels the sleep; then the overlay stays (try? alone would hide it at once).
             guard (try? await Task.sleep(for: .seconds(6))) != nil else { return }
+            #if DEBUG
+            // IPTV_KEEPCONTROLS=1: the overlay stays, as on iOS (store screenshots).
+            if ProcessInfo.processInfo.environment["IPTV_KEEPCONTROLS"] == "1" { return }
+            #endif
             if mode == .info { mode = .hidden }
         }
     }

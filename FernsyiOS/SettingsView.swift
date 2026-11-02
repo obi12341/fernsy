@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(SyncStore.enabledKey) private var syncChoices = true
     @AppStorage(TrackPreferences.audioKey) private var audioLanguage = ""
     @AppStorage(TrackPreferences.subtitlesKey) private var subtitles = "off"
+    @State private var showsCloud = false
 
     var body: some View {
         Form {
@@ -56,6 +57,11 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(TVTheme.background.ignoresSafeArea())
         .navigationTitle("Settings")
+        .navigationDestination(isPresented: $showsCloud) { CloudSettingsView() }
+        #if DEBUG
+        // IPTV_SETTINGS=cloud: opens Fernsy Cloud (screenshots without touch input).
+        .onAppear { if ProcessInfo.processInfo.environment["IPTV_SETTINGS"] == "cloud", CloudFeature.isEnabled { showsCloud = true } }
+        #endif
     }
 
     static var version: String {
