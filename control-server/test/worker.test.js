@@ -15,19 +15,43 @@ function spaceKey() {
   return `Space ${id}:${b64url(random(32))}`;
 }
 
-function setup() {
+/// Stand-in for the Workers Rate Limiting binding: `limit` per key in fixed windows.
+function rateLimit(limit, periodMs, now) {
+  const counts = new Map();
+  return {
+    async limit({ key }) {
+      const slot = `${key}:${Math.floor(now() / periodMs)}`;
+      counts.set(slot, (counts.get(slot) ?? 0) + 1);
+      return { success: counts.get(slot) <= limit };
+    },
+  };
+}
+
+/// `binding: false` runs without the rate limiting binding (the D1 counter path).
+function setup({ binding = true } = {}) {
   let now = Date.parse("2026-11-01T12:00:00Z");
   const env = { DB: makeDB() };
+  if (binding) env.RATE_LIMIT = rateLimit(LIMITS.perMinute, 60_000, () => now);
+  const later = [];
   const call = async (method, path, { body, auth, ip = "192.0.2.1" } = {}) => {
     const headers = { "CF-Connecting-IP": ip };
     if (auth) headers.Authorization = auth;
     const res = await handle(new Request("https://control.test" + path, {
       method, headers, body: body === undefined ? undefined : JSON.stringify(body),
-    }), env, { now: () => now });
+    }), env, { now: () => now, waitUntil: (promise) => later.push(promise) });
+    await Promise.all(later.splice(0));
     const text = await res.text();
     return { status: res.status, body: text ? JSON.parse(text) : null };
   };
-  return { env, call, advance: (ms) => { now += ms; }, now: () => now };
+  /// Rows the database has written since the last call of `writes`.
+  let total = 0;
+  const writes = () => {
+    const now = Number(env.DB.raw.prepare("SELECT total_changes() AS n").get().n);
+    const n = now - total;
+    total = now;
+    return n;
+  };
+  return { env, call, writes, advance: (ms) => { now += ms; }, now: () => now };
 }
 
 test("items: write, list since a change, delete as tombstone", async () => {
@@ -174,4 +198,35 @@ test("cleanup: mailboxes, counters, old tombstones and idle spaces", async () =>
   assert.equal(result.idleSpaces, 1);
   assert.equal(result.idleItems, 1);
   assert.equal((await t.call("GET", "/v1/items", { auth: active })).body.items.length, 1);
+});
+
+test("a quiet poll writes nothing; used_at moves at most once a day", async () => {
+  const t = setup();
+  const auth = spaceKey();
+  const id = auth.slice(6, 38);
+  await t.call("PUT", "/v1/items/order/o1", { auth, body: { data: b64(random(10)) } });
+  t.writes();
+  for (let i = 0; i < 5; i++) {
+    t.advance(30_000);
+    assert.equal((await t.call("GET", "/v1/items?since=1", { auth })).status, 200);
+  }
+  assert.equal(t.writes(), 0, "a poll without news wrote rows");
+  const usedAt = () => t.env.DB.raw.prepare("SELECT used_at FROM spaces WHERE id = ?").get(id).used_at;
+  const before = usedAt();
+  t.advance(DAY);
+  await t.call("GET", "/v1/items?since=1", { auth });
+  assert.equal(t.writes(), 1);
+  assert.equal(usedAt(), t.now());
+  t.advance(30_000);
+  await t.call("GET", "/v1/items?since=1", { auth });
+  assert.equal(t.writes(), 0);
+  assert.ok(usedAt() > before);
+});
+
+test("without the rate limiting binding the D1 counter limits a space", async () => {
+  const t = setup({ binding: false });
+  const auth = spaceKey();
+  let last;
+  for (let i = 0; i < LIMITS.perMinute + 1; i++) last = await t.call("GET", "/v1/items", { auth });
+  assert.equal(last.status, 429);
 });

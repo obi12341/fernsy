@@ -24,6 +24,8 @@ actor Server {
     private var error: String?
     private var lastLoginCheck = Date.distantPast
     private var loginDisplay: String?
+    /// The status last sent to Fernsy Control and when (StatusReport).
+    private var sentStatus: (status: ControlServerStatus?, at: Date) = (nil, .distantPast)
 
     init(config: Config) {
         self.config = config
@@ -101,6 +103,8 @@ actor Server {
     private func serve(_ paired: PairingSecrets) async {
         var secrets = paired
         state = volume.loadState()
+        // A fresh pairing waits for a report newer than the code (ServerModel): send the first one at once.
+        sentStatus = (nil, .distantPast)
         if !FileManager.default.fileExists(atPath: volume.stateURL.path) { volume.saveState(state) }
         let cloud = CloudClient.live()
         if let key = secrets.cloudKey { cloud.use(key) }
@@ -181,7 +185,6 @@ actor Server {
             Log.warning("Fernsy Control: \(error)")
             self.error = "Fernsy Control is not reachable"
         }
-        dirty.insert("status")
         // Also keeps the recordings' progress (gaps) for a restart.
         volume.saveState(state)
         return .ok
@@ -478,10 +481,11 @@ actor Server {
                                 phase: state.states[id]?.phase.rawValue ?? "new", reason: state.states[id]?.reason?.rawValue)
             }.sorted { $0.start > $1.start }
         }
-        guard dirty.contains("status") else { return }
+        guard dirty.contains("status") || StatusReport.isDue(status, lastSent: sentStatus.status, lastSentAt: sentStatus.at, now: now) else { return }
         do {
             try await config.control.put(status, kind: .server, id: "status", key: key)
             dirty.remove("status")
+            sentStatus = (status, now)
         } catch {}
     }
 }

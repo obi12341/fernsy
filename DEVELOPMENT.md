@@ -610,7 +610,10 @@ that records for one user in Docker and uploads to Fernsy Cloud. It depends only
   (`control-server/`, worker `fernsy-control`, dev `fernsy-control-dev`): no accounts, items
   sealed with the control key (`FernsyShared/ControlCrypto.swift`, `ControlItems.swift`,
   `ControlClient.swift`). `control-server/deploy.sh [--prod]` deploys it like Fernsy Cloud; its
-  tests run in `scripts/test.sh`.
+  tests run in `scripts/test.sh`. Writes cost (control-fewer-writes): a poll without news writes
+  nothing. The per-space minute limit is the Rate Limiting binding `RATE_LIMIT`, `used_at` moves
+  once a day after the answer, and the server sends its status only when it changed
+  (`StatusReport`) or every 5 minutes. D1's query statistics in the Cloudflare dashboard show it.
 - **Pairing.** The server shows a ten-character code (status page and log); the app looks up the
   server's key in the worker's mailbox (first four characters), checks it with the code and seals
   control key, cloud key and IPTV login to it with HPKE.
