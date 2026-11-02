@@ -24,5 +24,5 @@
 
 ## 5. Upload and wrap-up
 
-- [ ] 5.1 User adds the German localization to the iOS and tvOS versions if missing, uploads the media and pastes the texts in App Store Connect (iOS and tvOS 1.0, German and English) and checks the header and search preview there
-- [ ] 5.2 DEVELOPMENT.md (how to produce the store media); `openspec validate --all --strict`; archive, merge into `main`, push
+- [x] 5.1 User adds the German localization to the iOS and tvOS versions if missing, uploads the media and pastes the texts in App Store Connect (iOS and tvOS 1.0, German and English) and checks the header and search preview there
+- [x] 5.2 DEVELOPMENT.md (how to produce the store media); `openspec validate --all --strict`; archive, merge into `main`, push
