@@ -1,0 +1,84 @@
+# Design
+
+## Context
+
+- The iOS and tvOS versions 1.0 are "Prepare for Submission" in App Store Connect, with builds
+  uploaded by CI but empty product pages. The Mac version is in review with its own texts in
+  `docs/app-store.md`.
+- The sizes and placements come from App Store Connect itself (checked 2 Nov 2026, see the
+  proposal's table). Header and search results exist only for the iOS app, carry no text fields,
+  and are attached per localization; tvOS offers screenshots and previews only.
+- Simulators for every size are installed: iPhone 18 Pro (6.3"), iPhone Duo, iPad Pro 13-inch
+  (M5) and Apple TV 4K (3rd generation).
+- The UI tests already sign in to the demo server through launch environment (`launchDemo` in
+  `FernsyiOSUITests` and `FernsyTVUITests/UITestSupport.swift`) and force English with
+  `-AppleLanguages`; the demo server answers in the app's language (demo-server spec).
+- There is no ffmpeg command on the Mac (only the LGPL libraries inside the app). The website
+  images are rendered from HTML with headless Chrome.
+
+## Goals / Non-Goals
+
+**Goals:** every upload slot the iOS and tvOS product pages need, in German and English, made by
+scripts from the real apps, so a redesign only means running them again.
+
+**Non-Goals:** uploading through the API, custom product pages, header videos, Mac media.
+
+## Decisions
+
+### 1. Screenshots from a UI test per platform
+`StoreShotsUITests` (iOS and tvOS targets) launches the app with the demo account, a language
+argument (`STORE_LANGUAGE=de|en`, passed as `TEST_RUNNER_STORE_LANGUAGE`) and the existing debug
+switches that hide overlays, walks the scenes and takes `XCUIScreen.main.screenshot()` attachments
+named `01-live`, `02-guide` and so on. `scripts/store-media.sh shots` runs it per simulator and
+language with `-only-testing`, exports the attachments from the `.xcresult`
+(`xcresulttool export attachments`), drops the alpha channel (`sips`) and checks every size.
+The test is skipped unless `STORE_LANGUAGE` is set, so regular UI test runs do not take it.
+The status bar is set with `simctl status_bar override` (9:41, full battery, Wi-Fi).
+Rejected: hand-made screenshots (not repeatable); design mockups as for the website (App Review
+wants the app in use, and the mockups lag behind the app); fastlane `snapshot` (another Ruby
+toolchain for what xcodebuild and simctl already do).
+
+### 2. App previews recorded with simctl, finished with AVFoundation
+`scripts/store-media.sh previews` starts `simctl io recordVideo` and runs a second test method,
+`testPreview`, which plays a fixed sequence with pauses (open live TV, zap, open the guide, open a
+film and play it). A Swift script (`scripts/store-preview.swift`) trims the recording to the
+test's own start and end marks, scales and crops it to the preview size, sets 30 fps and adds a
+silent stereo track (App Store Connect rejects previews without audio).
+Rejected: an ffmpeg command line (not installed, and the project bundles only libraries);
+recording a real device with QuickTime (manual, needs the user and a provider).
+
+### 3. Header and search images from HTML
+`scripts/store-art/` holds one HTML page per placement with the brand background, the line of
+text and two or three of the screenshots from decision 1 placed in device-less frames.
+`render.sh` renders it with headless Chrome at the exact pixel size per language into
+`dist/store/ios/<language>/header.png` and `search.png` (no alpha). Text and screens stay in the
+middle 60 % so the header's and the search card's crops both keep them.
+Rejected: one universal 5244 × 2950 image for both placements (the 21:9 and 3:2 crops cut text
+differently, so two images are safer); generated or stock art (the assets must show the app and
+stay 4+).
+
+### 4. Texts per platform in `docs/app-store.md`
+The file gets the sections "iPhone und iPad" and "Apple TV" (German and English) with promotional
+text (170), description (4000), keywords (100) and what's new (4000), and a section
+"Kopfzeile und Suche" with the image lines (aim 40 characters). Each platform's description names
+only that platform's features: no menu bar or PiP window on Apple TV, Top Shelf only there. Name
+and subtitle stay shared. `check-store-texts.py` keeps working, since it reads every
+`### Title (limit)` heading.
+Rejected: one shared description for all platforms (each describes features the others lack).
+
+### 5. Upload stays manual
+The user uploads screenshots, previews and images in App Store Connect and pastes the texts, as
+for the Mac. A script lists what goes where.
+Rejected: uploading through the App Store Connect API now (a further tool and key handling for a
+once-per-redesign step); it can follow as its own change.
+
+## Risks / Trade-offs
+
+- [iPhone Duo screenshots] → The simulator's screenshot might not match 2007 × 2853 in every
+  posture; the script checks every size and fails with a clear message instead of resizing.
+- [Video in the simulator] → Playback of demo streams in the simulator may stutter in a recording;
+  the preview uses the films (local seeking, steady) more than live channels, and is checked by eye.
+- [App Review of the images] → Header and search images are reviewed; keeping to app screens,
+  demo content and no prices avoids the usual rejections.
+- [Redesigns] → Screens change; the shots are cheap to take again, and the scene list in the test
+  is the only place to adjust.
