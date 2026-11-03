@@ -28,7 +28,7 @@ descriptions carry the links, so 2.3.1 passes.
 
 ### 1. One shared terms block, drawn per platform
 FernsyCore gets `CloudTerms`:
-- the renewal sentence (App Store: "Renews monthly until cancelled. Cancel at least 24 hours
+- the renewal sentence (App Store: "Renews monthly until canceled. Cancel at least 24 hours
   before the end of the period in your Apple account settings.";
   DMG: renewal and cancellation as on fernsy.app);
 - the Terms URL (Apple standard EULA, or `fernsy.app/agb.html` / `en/terms.html` for

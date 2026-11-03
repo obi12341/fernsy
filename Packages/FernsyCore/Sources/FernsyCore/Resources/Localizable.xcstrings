@@ -201,6 +201,16 @@
         }
       }
     },
+    "1 month": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Monat"
+          }
+        }
+      }
+    },
     "Audio": {
       "localizations": {
         "de": {
@@ -241,12 +251,52 @@
         }
       }
     },
+    "Privacy Policy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datenschutzerklärung"
+          }
+        }
+      }
+    },
     "Recordings from Fernsy on your Mac in the cloud, end-to-end encrypted and played on iPhone, iPad and Apple TV.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Aufnahmen von Fernsy auf deinem Mac in der Cloud, Ende-zu-Ende-verschlüsselt und abspielbar auf iPhone, iPad und Apple TV."
+          }
+        }
+      }
+    },
+    "Renews monthly until canceled. Cancel at least 24 hours before the end of the period in your Apple account settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängert sich monatlich, bis du kündigst. Kündige spätestens 24 Stunden vor Ablauf des Zeitraums in den Einstellungen deines Apple Accounts."
+          }
+        }
+      }
+    },
+    "Renews monthly until canceled. Cancel in Fernsy under Manage Subscription or by e-mail to info@mobilistics.de.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängert sich monatlich, bis du kündigst. Kündigen kannst du in Fernsy unter „Abo verwalten“ oder per E-Mail an info@mobilistics.de."
+          }
+        }
+      }
+    },
+    "Terms of Use (EULA)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzungsbedingungen (EULA)"
           }
         }
       }

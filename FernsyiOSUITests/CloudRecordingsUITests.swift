@@ -126,6 +126,11 @@ final class CloudRecordingsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'assistant'")).firstMatch.exists,
                       "the offer does not name the assistant:\n\(app.debugDescription)")
         XCTAssertFalse(app.buttons["cloud.signIn"].exists)
+        // subscription-terms-links: length, renewal and both links.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] '1 month'")).firstMatch.exists, "no length at the offer")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'renews monthly'")).firstMatch.exists, "no renewal note")
+        XCTAssertTrue(app.links["cloud.terms"].exists || app.buttons["cloud.terms"].exists, "no Terms of Use link:\n\(app.debugDescription)")
+        XCTAssertTrue(app.links["cloud.privacy"].exists || app.buttons["cloud.privacy"].exists, "no privacy link")
         shot("cloud-offer", app)
     }
 
