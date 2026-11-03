@@ -78,6 +78,10 @@ assistant (see `assistant`). The App Store apps, the Apple TV included, SHALL se
 in-app with Apple's confirmation as the only dialog and SHALL NOT mention another way to pay; the
 DMG SHALL sell it on fernsy.app with Stripe's payment form. Either SHALL count on every device with
 the same cloud key. Settings SHALL show its state (none, active, ending, ended) with dates and usage.
+Every place that offers the subscription SHALL show its name, length and price, that it renews
+automatically until canceled, and links to the Terms of Use and the privacy policy: Apple's
+standard EULA in the App Store apps, the terms on fernsy.app in the DMG, and the privacy page in
+the app's language. The Apple TV SHALL show both addresses as text.
 
 #### Scenario: Restore
 - **WHEN** a user who subscribed on the iPad turns the switch on on the Mac and chooses "Restore purchases"
@@ -98,6 +102,14 @@ the same cloud key. Settings SHALL show its state (none, active, ending, ended) 
 #### Scenario: Already subscribed
 - **WHEN** the account already has an active subscription from Apple or from the website
 - **THEN** no app and no checkout page offers buying another one
+
+#### Scenario: Terms at the offer
+- **WHEN** a user without a subscription opens Settings › Fernsy Cloud on the iPhone
+- **THEN** the offer shows "Fernsy Cloud · 1 month" with the price, that it renews monthly until canceled in the Apple account settings, and the links "Terms of Use (EULA)" and "Privacy Policy", which open Apple's standard EULA and fernsy.app's privacy page
+
+#### Scenario: Terms on the Apple TV
+- **WHEN** the assistant on the Apple TV offers the subscription
+- **THEN** it shows the price, the renewal note and the addresses of the Terms of Use and the privacy policy as text
 
 ### Requirement: Upload of earlier recordings
 While the cloud switch is on, every finished recording in the Recordings section that is not
