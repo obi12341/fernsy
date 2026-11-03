@@ -1,8 +1,12 @@
 #!/bin/bash
 # jellyfin-test-server.sh: a throwaway Jellyfin for tests on 127.0.0.1:8097 (container fernsy-jf-fixtures, user
 # fixture / fixture-pass) with an 8-minute film and a series of three 2-minute episodes.
+# --surround adds a library "Surround" with three one-minute films (AC-3 5.1, E-AC-3 5.1,
+# FLAC 7.1); the UI tests expect the library without it.
 # Remove it afterwards: docker rm -f fernsy-jf-fixtures
 set -euo pipefail
+SURROUND=0
+[ "${1:-}" = --surround ] && SURROUND=1
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 M="$ROOT/build/jellyfin-test"   # generated clips (git-ignored)
 IMG=jellyfin/jellyfin
@@ -15,6 +19,31 @@ clip() { # out, seconds, title
         -c:v libx264 -preset veryfast -c:a aac -metadata:s:a:0 language=eng "/media/$1"
 }
 clip "movies/Fixture Film (2024)/Fixture Film (2024).mkv" 480 "Fixture Film"
+# Surround clips (apple-tv-surround): one tone per channel, each its own frequency, so channel
+# order and passthrough can be checked. Test content only; the app's FFmpeg stays LGPL without
+# encoders.
+surround() { # out, codec, layout, channels, extra encoder args…
+    local out="$1" codec="$2" layout="$3" n="$4"; shift 4
+    [ -f "$M/$out" ] && return
+    mkdir -p "$(dirname "$M/$out")"
+    # One tone per channel in the layout's order. The map is explicit: join would put every mono
+    # sine (front centre) on FC first.
+    local freqs=(300 400 500 60 600 700 800 900) names=(FL FR FC LFE BL BR SL SR) graph="" inputs="" map=""
+    [ "$layout" = "5.1(side)" ] && names=(FL FR FC LFE SL SR)
+    for i in $(seq 0 $((n - 1))); do
+        graph+="sine=frequency=${freqs[$i]}:duration=60[a$i];"; inputs+="[a$i]"; map+="${map:+|}$i.0-${names[$i]}"
+    done
+    docker run --rm -v "$M:/media" --entrypoint /usr/lib/jellyfin-ffmpeg/ffmpeg $IMG -loglevel error \
+        -f lavfi -i "testsrc2=size=1280x720:rate=25:duration=60" \
+        -filter_complex "${graph}${inputs}join=inputs=$n:channel_layout=$layout:map=$map[a]" \
+        -vf "drawtext=text='$codec $layout %{pts\:hms}':fontsize=48:fontcolor=white:x=40:y=40" \
+        -map 0:v -map "[a]" -c:v libx264 -preset veryfast -c:a "$codec" "$@" -metadata:s:a:0 language=eng "/media/$out"
+}
+# Always generated (SurroundAudioTests reads them), in the library only with --surround.
+surround "surround/Surround AC3 (2024)/Surround AC3 (2024).mkv" ac3 "5.1(side)" 6 -b:a 448k
+surround "surround/Surround EAC3 (2024)/Surround EAC3 (2024).mkv" eac3 "5.1(side)" 6 -b:a 640k
+# FFmpeg's AC-3/E-AC-3/TrueHD encoders stop at 5.1: 7.1 (decoded by Fernsy itself) comes as FLAC.
+surround "surround/Surround FLAC 7.1 (2024)/Surround FLAC 7.1 (2024).mkv" flac 7.1 8
 for e in 1 2 3; do clip "shows/Fixture Show/Season 01/Fixture Show S01E0$e.mkv" 120 "S01E0$e"; done
 
 docker rm -f fernsy-jf-fixtures >/dev/null 2>&1 || true
@@ -34,6 +63,11 @@ TOKEN=$(curl -sf -X POST $J/Users/AuthenticateByName -H "$H" -H "Authorization: 
 A="Authorization: $AUTH, Token=\"$TOKEN\""
 curl -sf -X POST "$J/Library/VirtualFolders?name=Films&collectionType=movies&paths=/media/movies&refreshLibrary=false" -H "$A" -H "$H" -d '{"LibraryOptions":{"EnableRealtimeMonitor":false,"MetadataSavers":[],"TypeOptions":[]}}' >/dev/null
 curl -sf -X POST "$J/Library/VirtualFolders?name=Series&collectionType=tvshows&paths=/media/shows&refreshLibrary=false" -H "$A" -H "$H" -d '{"LibraryOptions":{"EnableRealtimeMonitor":false,"MetadataSavers":[],"TypeOptions":[]}}' >/dev/null
+if [ "$SURROUND" = 1 ]; then
+    # No internet metadata: Jellyfin took "Surround AC3 (2024)" for a real film.
+    curl -sf -X POST "$J/Library/VirtualFolders?name=Surround&collectionType=movies&paths=/media/surround&refreshLibrary=false" -H "$A" -H "$H" \
+        -d '{"LibraryOptions":{"EnableRealtimeMonitor":false,"MetadataSavers":[],"TypeOptions":[{"Type":"Movie","MetadataFetchers":[],"ImageFetchers":[]}]}}' >/dev/null
+fi
 curl -sf -X POST "$J/Library/Refresh" -H "$A" >/dev/null
 for i in $(seq 1 60); do
     n=$(curl -sf "$J/Items?recursive=true&includeItemTypes=Movie,Episode" -H "$A" | python3 -c "import json,sys;print(json.load(sys.stdin)['TotalRecordCount'])")

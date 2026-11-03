@@ -47,8 +47,11 @@ public final class PlaybackSession {
         case audioGap(Bool)
         /// The video decoder needs a flush and a key frame (sleep/wake, display change, broken data).
         case decoderNeedsFlush(String)
-        /// The audio renderer suggests a refill (output device changed, renderer failed).
+        /// The audio renderer suggests a refill (output device changed).
         case audioNeedsRefill
+        /// The audio renderer failed (a bitstream the system cannot play, broken PCM): it needs
+        /// replacing, as a flush does not reset it.
+        case audioRendererFailed
         case ended
         /// `retry`: a live reconnect may help (network drop), as opposed to e.g. an offline channel.
         case failed(String, retry: Bool)
@@ -126,6 +129,8 @@ public final class PlaybackSession {
     /// One recovery or refill request per flush (the output threads only).
     var videoRecoveryRequested = false
     var audioRefillRequested = false
+    /// The audio renderer failed and the engine was told (audio thread only).
+    var audioFailureReported = false
     var lastStatsAt = Date()
     var lastStatsFrames = 0
     var lastStatsBytes: Int64 = 0

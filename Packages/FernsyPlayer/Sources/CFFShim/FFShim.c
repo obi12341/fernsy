@@ -589,8 +589,22 @@ void ffs_resampler_free(FFSResampler **r) {
     *r = NULL;
 }
 
-int ffs_output_channels(int in_channels) {
-    return in_channels >= 6 ? 6 : 2;
+int ffs_output_channels(int in_channels, int out_max) {
+    if (in_channels >= 8 && out_max >= 8) return 8;
+    if (in_channels >= 6 && out_max >= 6) return 6;
+    return 2;
+}
+
+// 7.1 as kAudioChannelLayoutTag_MPEG_7_1_C (L R C LFE Ls Rs Rls Rrs): FFmpeg's own 7.1 puts the
+// back pair before the side pair, the renderer wants the sides (Ls Rs) first.
+static void ffs_output_layout(AVChannelLayout *layout, int channels) {
+    if (channels != 8 || av_channel_layout_custom_init(layout, 8) < 0) {
+        av_channel_layout_default(layout, channels);
+        return;
+    }
+    const enum AVChannel order[8] = { AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
+        AV_CHAN_LOW_FREQUENCY, AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT, AV_CHAN_BACK_LEFT, AV_CHAN_BACK_RIGHT };
+    for (int i = 0; i < 8; i++) layout->u.map[i].id = order[i];
 }
 
 int ffs_resample(FFSResampler *r, const AVFrame *frame, int out_channels, const uint8_t **out) {
@@ -606,7 +620,7 @@ int ffs_resample(FFSResampler *r, const AVFrame *frame, int out_channels, const 
     if (changed) {
         swr_free(&r->swr);
         AVChannelLayout out_layout = {0};
-        av_channel_layout_default(&out_layout, out_channels);
+        ffs_output_layout(&out_layout, out_channels);
         if (swr_alloc_set_opts2(&r->swr, &out_layout, AV_SAMPLE_FMT_FLT, frame->sample_rate,
                                 &in_layout, frame->format, frame->sample_rate, 0, NULL) < 0) {
             av_channel_layout_uninit(&in_layout);
@@ -637,4 +651,139 @@ int ffs_resample(FFSResampler *r, const AVFrame *frame, int out_channels, const 
     int n = swr_convert(r->swr, dst, max_out, (const uint8_t **)frame->extended_data, frame->nb_samples);
     *out = r->buffer;
     return n;
+}
+
+// MARK: - Dolby bitstream
+
+// libavcodec's AC3HeaderInfo (libavcodec/ac3_parser_internal.h, not installed). avpriv_ac3_parse_header
+// is exported, but the struct is private: this copy must match the FFmpeg version that
+// scripts/build-ffmpeg.sh builds (9.0.2). DolbyBitstreamTests checks the parsed values.
+typedef struct {
+    uint16_t sync_word;
+    uint16_t crc1;
+    uint8_t sr_code;
+    uint8_t bitstream_id;
+    uint8_t bitstream_mode;
+    uint8_t channel_mode;
+    uint8_t lfe_on;
+    uint8_t frame_type;
+    int substreamid;
+    int center_mix_level;
+    int surround_mix_level;
+    uint8_t channel_map_present;
+    uint16_t channel_map;
+    int num_blocks;
+    int dolby_surround_mode;
+    uint8_t sr_shift;
+    uint16_t sample_rate;
+    uint32_t bit_rate;
+    uint8_t channels;
+    uint16_t frame_size;
+    uint64_t channel_layout;
+    int8_t ac3_bit_rate_code;
+    int8_t dialog_normalization[2];
+    uint8_t compression_exists[2];
+    uint8_t heavy_dynamic_range[2];
+    uint8_t center_mix_level_ltrt;
+    uint8_t surround_mix_level_ltrt;
+    uint8_t dolby_headphone_mode;
+    uint8_t dolby_surround_ex_mode;
+    uint8_t lfe_mix_level_exists;
+    uint8_t lfe_mix_level;
+    uint8_t preferred_downmix;
+    uint8_t eac3_extension_type_a;
+    uint8_t complexity_index_type_a;
+} FFSAC3Header;
+
+int avpriv_ac3_parse_header(FFSAC3Header **hdr, const uint8_t *buf, size_t size);
+
+typedef struct { uint8_t *buf; int bit; } FFSBits;
+
+static void ffs_put_bits(FFSBits *b, int n, unsigned value) {
+    for (int i = n - 1; i >= 0; i--, b->bit++)
+        if ((value >> i) & 1) b->buf[b->bit / 8] |= 0x80 >> (b->bit % 8);
+}
+
+// Channels a dependent substream (E-AC-3 7.1) adds to the independent one. Its channel map
+// lists every channel it carries, also those that replace the independent one's (Ls Rs); only
+// the locations after Ls/Rs in libavcodec's ff_eac3_custom_channel_map_locations are new.
+static int ffs_dependent_new_channels(const FFSAC3Header *hdr, int base) {
+    if (!hdr->channel_map_present) return hdr->channels > base ? hdr->channels - base : 0;
+    // Index 5..14 (Lc/Rc, Lrs/Rrs, Cs, Ts, Lsd/Rsd, Lw/Rw, Lvh/Rvh, Cvh, Lts/Rts, LFE2).
+    static const int width[16] = { 0, 0, 0, 0, 0, 2, 2, 1, 1, 2, 2, 2, 1, 2, 1, 0 };
+    int added = 0;
+    for (int i = 0; i < 16; i++)
+        if (hdr->channel_map & (1 << (15 - i))) added += width[i];
+    return added;
+}
+
+int ffs_dolby_info(const uint8_t *data, int size, FFSDolbyInfo *out) {
+    memset(out, 0, sizeof(*out));
+    FFSAC3Header *hdr = NULL;
+    // The first independent frame describes the stream; dependent frames (7.1) add channels.
+    int offset = 0, bsid = 0, fscod = 0, bsmod = 0, acmod = 0, lfeon = 0, rate_code = 0, kbps = 0;
+    int dep = 0, chan_loc = 0, complexity = 0;
+    while (offset < size) {
+        if (avpriv_ac3_parse_header(&hdr, data + offset, size - offset) < 0 || hdr->frame_size == 0 ||
+            offset + hdr->frame_size > size) {
+            av_free(hdr);
+            return -1;
+        }
+        int independent = hdr->bitstream_id <= 10 || hdr->frame_type != 1; // 1: EAC3_FRAME_TYPE_DEPENDENT
+        if (independent && hdr->substreamid == 0) {
+            if (out->frames == 0) {
+                bsid = hdr->bitstream_id;
+                fscod = hdr->sr_code;
+                bsmod = hdr->bitstream_mode;
+                acmod = hdr->channel_mode;
+                lfeon = hdr->lfe_on;
+                rate_code = hdr->ac3_bit_rate_code;
+                kbps = (int)(hdr->bit_rate / 1000);
+                complexity = hdr->complexity_index_type_a;
+                out->sample_rate = hdr->sample_rate;
+                out->channels = hdr->channels;
+            }
+            out->frames++;
+            out->samples += 256 * hdr->num_blocks;
+        } else if (!independent && out->frames == 1) {
+            dep++;
+            chan_loc |= hdr->channel_map_present ? (hdr->channel_map >> 5) & 0x1f : hdr->channel_mode;
+            out->channels += ffs_dependent_new_channels(hdr, out->channels);
+        }
+        offset += hdr->frame_size;
+    }
+    av_free(hdr);
+    if (out->frames == 0) return -1;
+
+    // ETSI TS 102 366 annex F, as libavformat's movenc writes them.
+    FFSBits b = { out->cookie, 0 };
+    if (bsid <= 10) {
+        ffs_put_bits(&b, 2, fscod);
+        ffs_put_bits(&b, 5, bsid);
+        ffs_put_bits(&b, 3, bsmod);
+        ffs_put_bits(&b, 3, acmod);
+        ffs_put_bits(&b, 1, lfeon);
+        ffs_put_bits(&b, 5, rate_code < 0 ? 0 : rate_code);
+        ffs_put_bits(&b, 5, 0);
+    } else {
+        ffs_put_bits(&b, 13, kbps);
+        ffs_put_bits(&b, 3, 0);          // num_ind_sub - 1
+        ffs_put_bits(&b, 2, fscod);
+        ffs_put_bits(&b, 5, bsid);
+        ffs_put_bits(&b, 2, 0);          // reserved, asvc
+        ffs_put_bits(&b, 3, bsmod);
+        ffs_put_bits(&b, 3, acmod);
+        ffs_put_bits(&b, 1, lfeon);
+        ffs_put_bits(&b, 3, 0);
+        ffs_put_bits(&b, 4, dep);
+        if (dep) ffs_put_bits(&b, 9, chan_loc); else ffs_put_bits(&b, 1, 0);
+        if (complexity) {
+            ffs_put_bits(&b, 7, 0);
+            ffs_put_bits(&b, 1, 1);      // flag_ec3_extension_type_a: JOC (Atmos)
+            ffs_put_bits(&b, 8, complexity);
+            out->atmos = 1;
+        }
+    }
+    out->cookie_size = (b.bit + 7) / 8;
+    return 0;
 }

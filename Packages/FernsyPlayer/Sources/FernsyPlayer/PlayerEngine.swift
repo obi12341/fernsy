@@ -76,7 +76,10 @@ public final class PlayerEngine: ObservableObject {
     #if DEBUG
     private var debugOpenedItems = 0
     #endif
-    private let audioRenderer: AVSampleBufferAudioRenderer
+    private var audioRenderer: AVSampleBufferAudioRenderer
+    private var audioEvents: Task<Void, Never>?
+    /// Failed audio renderers replaced for the current item (at most three).
+    private var audioReplacements = 0
     let synchronizer: AVSampleBufferRenderSynchronizer
     /// The renderers' receivers (macOS 27): every enqueue and flush goes through them.
     public let videoSink: VideoSink
@@ -133,12 +136,16 @@ public final class PlayerEngine: ObservableObject {
         self.audioRenderer = audioRenderer
         self.synchronizer = synchronizer
         videoSink = VideoSink(receiver: synchronizer.sampleBufferReceiver(adding: displayLayer.sampleBufferRenderer))
-        audioSink = AudioSink(receiver: synchronizer.sampleBufferReceiver(adding: audioRenderer))
+        nonisolated(unsafe) let renderer = audioRenderer
+        audioSink = AudioSink(receiver: synchronizer.sampleBufferReceiver(adding: audioRenderer), status: { renderer.status })
 
         displayLayer.videoGravity = .resize // the view sizes the layer to the exact display aspect
         displayLayer.preventsDisplaySleepDuringVideoPlayback = true
         displayLayer.backgroundColor = CGColor(gray: 0, alpha: 1)
         audioRenderer.volume = volume
+        // AirPods and other headphones spatialise 5.1/7.1 as well as stereo.
+        audioRenderer.allowedAudioSpatializationFormats = .monoStereoAndMultichannel
+        _ = AudioOutput.shared // sets the audio session's category
         #if DEBUG
         // Test runs are silent unless asked for: the user may be watching in the installed app.
         if ProcessInfo.processInfo.environment["IPTV_SOUND"] != "1" {
@@ -156,11 +163,45 @@ public final class PlayerEngine: ObservableObject {
         sinkEvents.append(videoSink.observeEvents(
             needsFlush: { reason in DispatchQueue.main.async { engine.value?.recoverVideo(reason) } },
             decodeFailures: { count in DispatchQueue.main.async { AppLog.warning(.player, "\(count) video frames could not be decoded") } }))
-        sinkEvents.append(audioSink.observeEvents { DispatchQueue.main.async { engine.value?.refillAudio() } })
+        observeAudioEvents()
+    }
+
+    private func observeAudioEvents() {
+        let engine = WeakEngine(self)
+        audioEvents?.cancel()
+        audioEvents = audioSink.observeEvents { DispatchQueue.main.async { engine.value?.refillAudio() } }
+    }
+
+    /// A failed audio renderer stays failed, even after a flush: a new one takes its place in
+    /// the synchronizer and the sound is refilled.
+    private func replaceAudioRenderer() {
+        guard audioRenderer.status == .failed else { return }
+        guard audioReplacements < 3 else {
+            AppLog.error(.player, "audio renderer failed again (\(String(describing: audioRenderer.error))), playing without sound")
+            return
+        }
+        audioReplacements += 1
+        AppLog.warning(.player, "audio renderer failed (\(String(describing: audioRenderer.error))), replacing it")
+        synchronizer.removeRenderer(audioRenderer, at: synchronizer.currentTime(), completionHandler: nil)
+        let renderer = AVSampleBufferAudioRenderer()
+        renderer.volume = volume
+        renderer.isMuted = isMuted
+        renderer.allowedAudioSpatializationFormats = .monoStereoAndMultichannel
+        audioRenderer = renderer
+        nonisolated(unsafe) let r = renderer
+        audioSink.replace(receiver: synchronizer.sampleBufferReceiver(adding: renderer), status: { r.status })
+        observeAudioEvents()
+        refillAudio()
+        #if DEBUG
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak renderer] in
+            debugLog("[test] replacement audio renderer: status \(renderer?.status.rawValue ?? -1) (1 = rendering)")
+        }
+        #endif
     }
 
     deinit {
         sinkEvents.forEach { $0.cancel() }
+        audioEvents?.cancel()
         let s = session
         controlQueue.async { s?.stop() }
     }
@@ -331,6 +372,8 @@ public final class PlayerEngine: ObservableObject {
         case .file: isLive = false
         }
         currentIsLive = isLive
+        audioReplacements = 0
+        AudioOutput.shared.prepare()
         status = .loading
         media = nil
         stats = PlaybackStats()
@@ -676,6 +719,8 @@ public final class PlayerEngine: ObservableObject {
         case .stats(var s):
             s.restarts = restarts
             s.playMethod = external?.methodLabel
+            s.outputChannels = AudioOutput.shared.channels
+            s.renderingMode = AudioOutput.shared.renderingMode
             if isTimeshift {
                 s.timeshiftStored = max(0, progress.liveEnd - progress.liveStart)
                 s.timeshiftAhead = max(0, progress.liveEnd - progress.position - s.bufferSeconds)
@@ -706,6 +751,8 @@ public final class PlayerEngine: ObservableObject {
             recoverVideo(reason)
         case .audioNeedsRefill:
             refillAudio()
+        case .audioRendererFailed:
+            replaceAudioRenderer()
         case .ended:
             if currentIsLive {
                 reconnect(reason: String(localized: "Stream ended", bundle: .module))

@@ -11,9 +11,21 @@ struct StreamInfoTests {
     @Test func rowOrderAndSection() {
         let rows = StreamInfo.rows(PlaybackStats(), averageMbps: 0)
         #expect(rows.map(\.label) == ["Container", "Video", "Resolution", "Frame rate", "Decoder", "Pixel format", "Dynamic range",
-                                     "Deinterlacing", "Audio", "Bit rate", "Buffer", "Connection", "Startup", "Reconnects",
+                                     "Deinterlacing", "Audio", "Audio output", "Bit rate", "Buffer", "Connection", "Startup", "Reconnects",
                                      "Rebuffers", "Dropped"])
         #expect(rows.filter(\.startsSection).map(\.label) == ["Buffer"])
+    }
+
+    @Test func audioOutputNamesWhatReachesTheOutput() {
+        var stats = PlaybackStats()
+        #expect(values(stats)["Audio output"] == "–")
+        stats.audioOutput = "Dolby bitstream (E-AC-3 5.1)"
+        stats.outputChannels = 8
+        stats.renderingMode = "Dolby Atmos"
+        #expect(values(stats)["Audio output"] == "Dolby bitstream (E-AC-3 5.1) · output 8 ch · Dolby Atmos")
+        stats.audioOutput = "PCM 7.1"
+        stats.renderingMode = nil
+        #expect(values(stats)["Audio output"] == "PCM 7.1 · output 8 ch")
     }
 
     @Test func emptyValuesShowADash() {

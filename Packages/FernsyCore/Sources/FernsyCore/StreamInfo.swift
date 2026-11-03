@@ -29,6 +29,7 @@ public enum StreamInfo {
         add(String(localized: "Dynamic range", bundle: .module), stats.dynamicRange)
         add(String(localized: "Deinterlacing", bundle: .module), stats.deinterlace)
         add(String(localized: "Audio", bundle: .module), stats.audio)
+        add(String(localized: "Audio output", bundle: .module), audioOutput(stats))
         add(String(localized: "Bit rate", bundle: .module), String(format: "%.1f Mbit/s", stats.bitrateMbps))
         add(String(localized: "Buffer", bundle: .module), buffer(stats, averageMbps: averageMbps), section: true)
         if let stored = stats.timeshiftStored {
@@ -46,6 +47,15 @@ public enum StreamInfo {
             add(String(localized: "Decode errors", bundle: .module), String(localized: "\(stats.decodeFailures) frames", bundle: .module))
         }
         return rows
+    }
+
+    /// "Dolby bitstream (E-AC-3 5.1) · output 8 ch · Dolby Atmos".
+    public static func audioOutput(_ stats: PlaybackStats) -> String {
+        guard !stats.audioOutput.isEmpty else { return "" }
+        var parts = [stats.audioOutput]
+        if stats.outputChannels > 0 { parts.append(String(localized: "output \(stats.outputChannels) ch", bundle: .module)) }
+        if let mode = stats.renderingMode { parts.append(mode) }
+        return parts.joined(separator: " · ")
     }
 
     private static func buffer(_ stats: PlaybackStats, averageMbps: Double) -> String {
