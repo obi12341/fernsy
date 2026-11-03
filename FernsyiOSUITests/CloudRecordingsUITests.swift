@@ -106,19 +106,26 @@ final class CloudRecordingsUITests: XCTestCase {
     func testOfferWithoutAMac() throws {
         guard let cloud = Self.cloudEnv else { throw XCTSkip("no Fernsy Cloud development server in the test environment") }
         let app = XCUIApplication()
+        let phone = UIDevice.current.userInterfaceIdiom == .phone
         // No dev token: no subscription and no key, as on a fresh device without a Mac.
         app.launchEnvironment = [
             "FERNSY_NO_KEYCHAIN": "1",
             "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
             "IPTV_USER": "demo",
             "IPTV_PASS": "demo",
-            "IPTV_TAB": "settings",
+            // On iPhone Settings has no tab; the gear on Start opens it.
+            "IPTV_TAB": phone ? "start" : "settings",
             "IPTV_CLOUD": cloud.env["IPTV_CLOUD"]!,
             "IPTV_CLOUDKEY": "local",
             "IPTV_CLOUDMAC": "0",
         ]
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
+        if phone {
+            let gear = app.buttons["start.settings"]
+            XCTAssertTrue(gear.waitForExistence(timeout: 30), "no Settings button:\n\(app.debugDescription)")
+            gear.tap()
+        }
         let row = app.buttons["settings.cloud"]
         XCTAssertTrue(row.waitForExistence(timeout: 30), "no Fernsy Cloud row:\n\(app.debugDescription)")
         row.tap()
