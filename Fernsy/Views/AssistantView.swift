@@ -127,9 +127,7 @@ private struct AssistantOffer: View {
             Label("Fernsy Cloud", systemImage: "icloud").font(.title2.bold())
             Text("The assistant is part of Fernsy Cloud.").font(.headline)
             CloudOfferParts()
-            if let offer = cloud.offer {
-                Text("\(offer.name) – \(offer.price) per month")
-            }
+            Text(verbatim: cloud.terms.offerLine(cloud.offer)).font(.headline)
             HStack {
                 Button("Subscribe") { Task { await cloud.purchase() } }
                     .buttonStyle(.borderedProminent)
@@ -139,6 +137,7 @@ private struct AssistantOffer: View {
                     .disabled(cloud.isPurchasing)
                 if cloud.isPurchasing { ProgressView().controlSize(.small) }
             }
+            CloudTermsFooter(terms: cloud.terms)
             if case .failed(let message) = cloud.phase {
                 Text(verbatim: message).foregroundStyle(Theme.warning)
             }
@@ -146,6 +145,24 @@ private struct AssistantOffer: View {
         }
         .padding(24)
         .task { await cloud.refreshSubscription() }
+    }
+}
+
+/// Under every subscription offer (subscription-terms-links): the renewal and the links to the
+/// Terms of Use (Apple's standard EULA; the DMG: the terms on fernsy.app) and the privacy policy.
+struct CloudTermsFooter: View {
+    let terms: CloudTerms
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: terms.renewal).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 14) {
+                Link(terms.termsTitle, destination: terms.termsURL).accessibilityIdentifier("cloud.terms")
+                Link(terms.privacyTitle, destination: terms.privacyURL).accessibilityIdentifier("cloud.privacy")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 }
 

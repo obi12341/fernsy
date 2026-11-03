@@ -183,6 +183,8 @@ public final class CloudModel {
     /// Cloud places beyond the offer show.
     public var canUseCloud: Bool { hasSubscription || (account?.canPlay ?? false) }
     public var canUpload: Bool { hasAccount && (account?.canUpload ?? false) }
+    /// The DMG buys on fernsy.app (`WebCloudStore`), the App Store builds through StoreKit.
+    public var isWebStore: Bool { store is WebCloudStore }
     /// What the subscription includes, for the offer on every device (cloud-assistant design 9).
     public static var offerParts: [String] {
         [String(localized: "The assistant on all your devices: ask for a channel, a show or a recording in your own words.", bundle: .module),

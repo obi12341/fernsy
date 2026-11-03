@@ -230,14 +230,14 @@ struct CloudSettingsView: View {
             if !cloud.canUseCloud {
                 Section {
                     CloudOfferParts()
-                    if let offer = cloud.offer {
-                        Text(verbatim: "\(offer.name) · \(offer.price)").font(.headline)
-                    }
+                    Text(verbatim: cloud.terms.offerLine(cloud.offer)).font(.headline)
                     Button("Subscribe") { Task { await cloud.purchase() } }
                         .disabled(cloud.isPurchasing)
                         .accessibilityIdentifier("cloud.subscribe")
                     Button("Restore Purchases") { Task { await cloud.restore() } }
                         .disabled(cloud.isPurchasing)
+                } footer: {
+                    CloudTermsFooter(terms: cloud.terms)
                 }
             } else {
                 if let account = cloud.account, cloud.hasAccount {

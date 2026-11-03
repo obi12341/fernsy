@@ -120,5 +120,7 @@ struct AssistantOverlay: View {
                 .buttonStyle(TVPillStyle(prominent: false))
                 .disabled(model.cloud.isPurchasing)
         }
+        Text(verbatim: model.cloud.terms.offerLine(model.cloud.offer)).font(.system(size: 22, weight: .semibold))
+        CloudTermsText(terms: model.cloud.terms)
     }
 }

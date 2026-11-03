@@ -90,6 +90,11 @@ final class CloudRecordingsUITests: FernsyUITestCase {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'assistant'")).firstMatch.exists,
                       "the offer does not name the assistant:\n\(app.debugDescription)")
         XCTAssertFalse(app.buttons["cloud.signIn"].exists)
+        // subscription-terms-links: length, renewal and both addresses as text (no browser on tvOS).
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] '1 month'")).firstMatch.exists, "no length at the offer")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'renews monthly'")).firstMatch.exists, "no renewal note")
+        XCTAssertTrue(app.staticTexts["cloud.terms"].label.contains("apple.com/legal/internet-services/itunes/dev/stdeula"), "no EULA address")
+        XCTAssertTrue(app.staticTexts["cloud.privacy"].label.contains("fernsy.app/en/privacy.html"), "no privacy address")
         shot("cloud-offer", app)
     }
 }

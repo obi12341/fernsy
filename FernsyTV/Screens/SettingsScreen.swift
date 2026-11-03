@@ -382,6 +382,23 @@ enum LanguageChoice {
 /// Settings › Fernsy Cloud (add-recording-cloud, cloud-account-from-icloud-key, cloud-assistant):
 /// the offer naming the assistant and the recordings; with a subscription the account, the
 /// assistant's requests this month, moving and deleting; the assistant's consent. No sign-in.
+/// Under every subscription offer (subscription-terms-links): the renewal and the addresses of
+/// the Terms of Use and the privacy policy, as text, since tvOS opens no web pages.
+struct CloudTermsText: View {
+    let terms: CloudTerms
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: terms.renewal)
+            Text(verbatim: "\(terms.termsTitle): \(terms.termsURL.absoluteString)").accessibilityIdentifier("cloud.terms")
+            Text(verbatim: "\(terms.privacyTitle): \(terms.privacyURL.absoluteString)").accessibilityIdentifier("cloud.privacy")
+        }
+        .font(.system(size: 20))
+        .foregroundStyle(TVTheme.secondary)
+        .padding(.top, 8)
+    }
+}
+
 /// This device only plays recordings; uploads come from the Mac.
 private struct CloudSettingsScreen: View {
     @EnvironmentObject private var model: TVModel
@@ -398,12 +415,11 @@ private struct CloudSettingsScreen: View {
                         .font(.system(size: 22)).foregroundStyle(TVTheme.secondary)
                 }
                 .accessibilityIdentifier("cloud.offerParts")
-                if let offer = cloud.offer {
-                    Text(verbatim: "\(offer.name) · \(offer.price)").font(.system(size: 26, weight: .semibold))
-                }
+                Text(verbatim: cloud.terms.offerLine(cloud.offer)).font(.system(size: 26, weight: .semibold))
                 Button { Task { await cloud.purchase() } } label: { SettingsRow(title: Text("Subscribe")) }
                     .accessibilityIdentifier("cloud.subscribe")
                 Button { Task { await cloud.restore() } } label: { SettingsRow(title: Text("Restore Purchases")) }
+                CloudTermsText(terms: cloud.terms)
             } else {
                 if let account = cloud.account, cloud.hasAccount {
                     SettingsRow(title: Text("Subscription"), value: Text(verbatim: CloudModel.stateText(account)))

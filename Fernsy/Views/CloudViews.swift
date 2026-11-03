@@ -255,9 +255,7 @@ struct CloudEnableSheet: View {
             } else {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 10) {
-                        if let offer = cloud.offer {
-                            Text("\(offer.name) – \(offer.price) per month").font(.headline)
-                        }
+                        Text(verbatim: cloud.terms.offerLine(cloud.offer)).font(.headline)
                         HStack {
                             Button("Subscribe") { Task { if await cloud.purchase() { finish() } } }
                                 .buttonStyle(.borderedProminent)
@@ -283,6 +281,7 @@ struct CloudEnableSheet: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         #endif
+                        CloudTermsFooter(terms: cloud.terms)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

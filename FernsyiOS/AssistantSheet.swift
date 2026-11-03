@@ -111,14 +111,14 @@ struct AssistantSheet: View {
                 CloudOfferParts()
             }
             Section {
-                if let offer = cloud.offer {
-                    Text(verbatim: "\(offer.name) · \(offer.price)")
-                }
+                Text(verbatim: cloud.terms.offerLine(cloud.offer)).font(.headline)
                 Button("Subscribe") { Task { await cloud.purchase() } }
                     .disabled(cloud.isPurchasing)
                     .accessibilityIdentifier("assistant.subscribe")
                 Button("Restore Purchases") { Task { await cloud.restore() } }
                     .disabled(cloud.isPurchasing)
+            } footer: {
+                CloudTermsFooter(terms: cloud.terms)
             }
         }
         .scrollContentBackground(.hidden)
@@ -142,6 +142,24 @@ private struct Bubble: View {
 }
 
 /// What Fernsy Cloud includes, for the offers in Settings and the assistant (cloud-assistant design 9).
+/// Under every subscription offer (subscription-terms-links): the renewal and the links to the
+/// Terms of Use and the privacy policy.
+struct CloudTermsFooter: View {
+    let terms: CloudTerms
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: terms.renewal)
+            HStack(spacing: 16) {
+                Link(terms.termsTitle, destination: terms.termsURL).accessibilityIdentifier("cloud.terms")
+                Link(terms.privacyTitle, destination: terms.privacyURL).accessibilityIdentifier("cloud.privacy")
+            }
+            .foregroundStyle(TVTheme.accentLight)
+        }
+        .font(.footnote)
+    }
+}
+
 struct CloudOfferParts: View {
     var body: some View {
         ForEach(CloudModel.offerParts, id: \.self) { part in
