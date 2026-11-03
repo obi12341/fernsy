@@ -204,7 +204,7 @@ struct TVTools {
             "buffer_seconds": (s.bufferSeconds * 10).rounded() / 10, "bitrate_mbps": (s.bitrateMbps * 10).rounded() / 10,
             "dropped_frames": s.droppedFrames, "rebuffers": s.rebuffers, "seamless_reconnects": s.seamlessReconnects,
             "reconnecting": s.isReconnecting, "video_codec": s.videoCodec, "resolution": s.resolution,
-            "decoder": s.decoder, "audio": s.audio,
+            "decoder": s.decoder, "audio": s.audio, "audio_output": StreamInfo.audioOutput(s),
         ] as [String: Any]
         let recent = AppLog.shared.query(minimum: .warning, since: Date().addingTimeInterval(-600), limit: 50)
         value["recent_warnings"] = recent.entries.map { $0.line }

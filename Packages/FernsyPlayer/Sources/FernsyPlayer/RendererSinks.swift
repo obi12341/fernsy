@@ -107,16 +107,38 @@ public final class VideoSink: @unchecked Sendable {
 public final class AudioSink: @unchecked Sendable {
     public enum Outcome {
         case enqueued
-        /// The renderer suggests refilling (the output device changed, or the renderer failed).
+        /// The renderer suggests refilling (the output device changed).
         case suggestsFlush
         case flushedMeanwhile
+        /// The renderer failed (e.g. a bitstream the system cannot decode); refilling helps for PCM.
+        case failed
     }
 
     private let lock = NSLock()
-    private let receiver: AVSampleBufferAudioRenderer.Receiver
+    private var receiver: AVSampleBufferAudioRenderer.Receiver
+    private var status: @Sendable () -> AVQueuedSampleBufferRenderingStatus
 
-    public init(receiver: sending AVSampleBufferAudioRenderer.Receiver) {
+    public init(receiver: sending AVSampleBufferAudioRenderer.Receiver,
+                status: @escaping @Sendable () -> AVQueuedSampleBufferRenderingStatus = { .unknown }) {
         self.receiver = receiver
+        self.status = status
+    }
+
+    /// A failed renderer stays failed, even after a flush: the engine hands over a new one.
+    public func replace(receiver: sending AVSampleBufferAudioRenderer.Receiver,
+                        status: @escaping @Sendable () -> AVQueuedSampleBufferRenderingStatus) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.receiver = receiver
+        self.status = status
+    }
+
+    /// Whether the renderer has started rendering what it was given (bitstream check).
+    public var isRendering: Bool {
+        lock.lock()
+        let status = status
+        lock.unlock()
+        return status() == .rendering
     }
 
     public func enqueue(_ sample: CMSampleBuffer) -> Outcome {
@@ -127,7 +149,7 @@ public final class AudioSink: @unchecked Sendable {
         case .enqueued: return .enqueued
         case .enqueuedWithSuggestedFlush: return .suggestsFlush
         case .cancelledDueToFlush: return .flushedMeanwhile
-        case .cancelledDueToError: return .suggestsFlush
+        case .cancelledDueToError: return .failed
         @unknown default: return .enqueued
         }
     }
@@ -140,7 +162,9 @@ public final class AudioSink: @unchecked Sendable {
 
     /// Automatic flushes after enqueuing stopped (output device changed while paused).
     public func observeEvents(_ handler: @escaping @Sendable () -> Void) -> Task<Void, Never> {
+        lock.lock()
         let receiver = receiver
+        lock.unlock()
         return Task {
             for await event in receiver.renderingEventsAfterFinishedEnqueuing {
                 switch event {

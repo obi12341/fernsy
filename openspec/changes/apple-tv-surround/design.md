@@ -100,15 +100,32 @@ For a track whose codec is AC-3 or E-AC-3 the audio thread does not open a decod
   extension.
 - **Timing.** Timestamps, flushes (seek, timeshift, reconnect) and the missing-audio monitor stay
   as they are: they work on packets and the renderer, not on PCM.
-- **Fallback.** When the renderer's status becomes `.failed`, or no audio reaches the renderer's
-  timeline within 2 s of the first enqueued bitstream buffer while video plays, the session
-  flushes the renderer and reopens the track with FFmpeg decoding for the rest of that playback,
-  and logs why.
+- **Fallback.** When the renderer's status becomes `.failed`, or it has not started rendering 2 s
+  after the first bitstream buffer while the clock runs, or 25 packets in a row have no valid
+  Dolby header, the session reopens the track with FFmpeg decoding for the rest of that playback,
+  and logs why. A failed `AVSampleBufferAudioRenderer` stays failed after a flush (found while
+  testing it): the engine removes it from the synchronizer, adds a new one in its place
+  (`AudioSink.replace`, at most three times per item) and refills the sound.
 - **Debug.** `IPTV_AUDIOPASSTHROUGH=0` skips the bitstream path. The level meter
   (`IPTV_AUDIOLEVEL`) only works with PCM and says so.
 
 Applies on all platforms, since the Mac decodes AC-3/E-AC-3 natively too. Task 1 is a spike that
 settles the format description (dec3 cookie, multi-frame packets) on tvOS and macOS first.
+
+**Spike result (task 1.1, macOS 27 and tvOS 27 simulator, AC-3 and E-AC-3 5.1 test clips):**
+- One `CMSampleBuffer` per demuxed packet with one packet description, `mFramesPerPacket` 1536.
+  `AVSampleBufferAudioRenderer` plays it (status rendering, no error, the synchronizer runs), and
+  `AVAudioConverter` decodes it to the same channel order as FFmpeg (L R C LFE Ls Rs).
+- A 5.1 stream needs no magic cookie. With one, CoreAudio takes only the whole box (32-bit size,
+  `dac3`/`dec3`, payload), not the bare payload (`fmt?`), and `kAudioFormatProperty_FormatList`
+  then reports the format, 6 channels and the AC-3 layout tag `0x7B0006`. The session builds that
+  box from the first packet (`ffs_dolby_info`, the fields libavformat's `movenc` writes, JOC flag
+  and complexity index for Atmos) and takes the layout from the format list, so the system sees
+  dependent substreams (7.1) and the Atmos extension as an MP4 file would show them.
+- Samples per packet come from the header (256 per audio block of the independent frames), not a
+  constant: E-AC-3 may carry fewer than 6 blocks per frame.
+- `AC3HeaderInfo` is private to libavcodec: the shim keeps a copy pinned to the FFmpeg version of
+  `scripts/build-ffmpeg.sh`; a unit test checks the parsed values against the test clips.
 
 Rejected:
 - **Always handing the system the undecoded track:**
@@ -135,6 +152,6 @@ This row is also the diagnosis for the user's Apple TV.
   item (KSPlayer #618). Accepted: out of the app's hands; the technical information makes it
   visible.
 - **No Atmos content to test with.** jellyfin-ffmpeg cannot encode JOC. Atmos is checked by the
-  user on the Apple TV with own content; the tests cover AC-3 5.1 and E-AC-3 7.1.
+  user on the Apple TV with own content; the tests cover AC-3 5.1 and E-AC-3 5.1 (FFmpeg's Dolby encoders stop at 5.1) and 7.1 PCM order with a FLAC 7.1 clip.
 - **Lip sync with the bitstream.** The system's decoder adds latency the synchronizer accounts for;
   checked with the test clips' sync markers by eye.

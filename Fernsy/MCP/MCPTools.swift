@@ -722,6 +722,7 @@ final class MCPTools {
                 "duplicates_dropped": s.duplicatesDropped, "startup_seconds": (s.startupTime * 100).rounded() / 100,
                 "video_codec": s.videoCodec, "resolution": s.resolution, "frame_rate": (s.frameRate * 100).rounded() / 100,
                 "decoder": s.decoder, "dynamic_range": s.dynamicRange, "audio": s.audio, "container": s.container,
+                "audio_output": StreamInfo.audioOutput(s),
             ]
             if let reason = s.lastReconnectReason { stats["last_reconnect_reason"] = reason }
             if let at = s.lastReconnectAt { stats["last_reconnect_at"] = AssistantTools.iso(at) }

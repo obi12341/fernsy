@@ -101,6 +101,36 @@
         }
       }
     },
+    "Dolby Atmos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolby Atmos"
+          }
+        }
+      }
+    },
+    "Dolby Audio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolby Audio"
+          }
+        }
+      }
+    },
+    "Dolby bitstream (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolby-Bitstream (%@)"
+          }
+        }
+      }
+    },
     "Dolby Vision %@ is not supported on this Mac": {
       "localizations": {
         "de": {
@@ -271,6 +301,26 @@
         }
       }
     },
+    "Spatial Audio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D-Audio"
+          }
+        }
+      }
+    },
+    "Stereo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stereo"
+          }
+        }
+      }
+    },
     "Stop “%@” and Record": {
       "localizations": {
         "de": {
@@ -317,6 +367,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Untertitel konnten nicht geladen werden: %@"
+          }
+        }
+      }
+    },
+    "Surround": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surround"
           }
         }
       }

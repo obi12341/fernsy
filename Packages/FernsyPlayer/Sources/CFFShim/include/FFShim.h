@@ -131,9 +131,26 @@ void ffs_deint_free(FFSDeint **d);
 typedef struct FFSResampler FFSResampler;
 FFSResampler *ffs_resampler_alloc(void);
 void ffs_resampler_free(FFSResampler **r);
-/// Channel count the renderer should receive for a given source (2 or 6).
-int ffs_output_channels(int in_channels);
+/// Channel count the renderer should receive for a source on an output with `out_max` channels
+/// (2, 6 or 8). 8 channels come in kAudioChannelLayoutTag_MPEG_7_1_C order.
+int ffs_output_channels(int in_channels, int out_max);
 /// Returns the number of output frames; *out stays valid until the next call.
 int ffs_resample(FFSResampler *r, const AVFrame *frame, int out_channels, const uint8_t **out);
+
+// MARK: - Dolby bitstream (AC-3 / E-AC-3 handed to the system undecoded)
+
+typedef struct {
+    int sample_rate;
+    int channels;            ///< all substreams, LFE included
+    int samples;             ///< per packet (256 per audio block of the independent frames)
+    int frames;              ///< independent sync frames in the packet
+    int atmos;               ///< E-AC-3 with the JOC extension (Dolby Atmos)
+    uint8_t cookie[16];      ///< dac3 / dec3 box payload
+    int cookie_size;
+} FFSDolbyInfo;
+
+/// Parses the sync frames of one AC-3 or E-AC-3 packet. Returns 0, or a negative value when the
+/// packet is not a clean Dolby bitstream.
+int ffs_dolby_info(const uint8_t *data, int size, FFSDolbyInfo *out);
 
 #endif

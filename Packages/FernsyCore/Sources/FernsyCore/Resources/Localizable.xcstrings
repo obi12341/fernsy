@@ -221,6 +221,16 @@
         }
       }
     },
+    "Audio output": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tonausgabe"
+          }
+        }
+      }
+    },
     "Bit rate": {
       "localizations": {
         "de": {
@@ -247,6 +257,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erledigt."
+          }
+        }
+      }
+    },
+    "output %lld ch": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgang %lld Kanäle"
           }
         }
       }

@@ -1,4 +1,3 @@
-import AVFoundation
 import FernsyCore
 import FernsyPlayer
 import SwiftUI
@@ -17,8 +16,6 @@ struct FernsyiOSApp: App {
     #endif
 
     init() {
-        // Playback keeps its sound in Picture in Picture and on AirPlay (ios-app design 5, 6).
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
         #if DEBUG
         Self.debugServer.startIfRequested(model: TVModel.shared)
         #endif

@@ -244,6 +244,20 @@ Audio reaches `AVSampleBufferAudioRenderer` in blocks of at least 20 ms: TrueHD 
 logs peak levels and the renderer state per second, `IPTV_TESTAUDIO=<at s>:<track>,…` switches
 audio tracks in a debug run.
 
+Surround (apple-tv-surround): AC-3 and E-AC-3 go to the system undecoded, one compressed
+`CMSampleBuffer` per packet with the `dac3`/`dec3` box as magic cookie (`ffs_dolby_info` in the
+shim parses the Dolby headers with libavcodec's private `AC3HeaderInfo`, copied there and pinned
+to the FFmpeg version of `scripts/build-ffmpeg.sh`). Everything else is decoded by FFmpeg and
+output as stereo, 5.1 or 7.1 as source and output allow (`AudioOutput`: the audio session on
+Apple TV, iPhone and iPad, the default output device on the Mac); 7.1 is written in
+`MPEG_7_1_C` order (sides before backs). A bitstream the system does not play falls back to
+FFmpeg; a failed renderer is replaced, since a flush does not reset it. The technical
+information's "Audio output" row shows the path, the output's channels and the rendering mode.
+`IPTV_AUDIOPASSTHROUGH=0` decodes AC-3/E-AC-3 with FFmpeg too, `IPTV_TESTBITSTREAM=unplayable`
+gives the bitstream a format without a decoder to try the fallback. The level meter measures
+PCM only. Tests: `SurroundAudioTests` (FernsyPlayer) on the clips of
+`scripts/jellyfin-test-server.sh` (`build/jellyfin-test/surround`, skipped without them).
+
 ## Development
 
 Debug builds read `IPTV_SERVER`, `IPTV_USER` and `IPTV_PASS` from the environment and then
@@ -781,7 +795,9 @@ pinning), guide, player and strip, recordings, settings, Start, grids, film and 
 Jellyfin, search. Tests that need the local test Jellyfin skip without it (CI has none): start it
 with `scripts/jellyfin-test-server.sh` (Docker; container `fernsy-jf-fixtures` on 127.0.0.1:8097,
 user `fixture`, an 8-minute film resuming at 2:30 and three 2-minute episodes, the first two
-watched) and remove it afterwards with
+watched; `--surround` adds a library "Surround" with three one-minute films with one tone per
+channel, AC-3 5.1, E-AC-3 5.1 and FLAC 7.1, as FFmpeg's Dolby encoders stop at 5.1, which the UI
+tests do not expect) and remove it afterwards with
 `docker rm -f fernsy-jf-fixtures`. Jellyfin keeps no resume position for items under 5 minutes and
 the demo films are under a minute, so resume tests use the fixture film or `IPTV_TESTRESUME`. Further arguments go to `xcodebuild`, e.g.
 `scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"`. `--shard 2/3` runs only one

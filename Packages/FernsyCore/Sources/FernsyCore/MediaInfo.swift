@@ -51,6 +51,11 @@ public struct PlaybackStats: Equatable, Sendable {
     public var deinterlace = ""
     public var dynamicRange = ""
     public var audio = ""
+    /// What reaches the output: "Dolby bitstream (E-AC-3 5.1)" or "PCM 5.1" (set by the
+    /// session), the output's channels and the system's rendering mode (set by PlayerEngine).
+    public var audioOutput = ""
+    public var outputChannels = 0
+    public var renderingMode: String?
     public var bufferSeconds = 0.0
     public var bitrateMbps = 0.0
     public var droppedFrames = 0
