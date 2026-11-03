@@ -704,6 +704,19 @@ static void ffs_put_bits(FFSBits *b, int n, unsigned value) {
         if ((value >> i) & 1) b->buf[b->bit / 8] |= 0x80 >> (b->bit % 8);
 }
 
+// Channels a dependent substream (E-AC-3 7.1) adds to the independent one. Its channel map
+// lists every channel it carries, also those that replace the independent one's (Ls Rs); only
+// the locations after Ls/Rs in libavcodec's ff_eac3_custom_channel_map_locations are new.
+static int ffs_dependent_new_channels(const FFSAC3Header *hdr, int base) {
+    if (!hdr->channel_map_present) return hdr->channels > base ? hdr->channels - base : 0;
+    // Index 5..14 (Lc/Rc, Lrs/Rrs, Cs, Ts, Lsd/Rsd, Lw/Rw, Lvh/Rvh, Cvh, Lts/Rts, LFE2).
+    static const int width[16] = { 0, 0, 0, 0, 0, 2, 2, 1, 1, 2, 2, 2, 1, 2, 1, 0 };
+    int added = 0;
+    for (int i = 0; i < 16; i++)
+        if (hdr->channel_map & (1 << (15 - i))) added += width[i];
+    return added;
+}
+
 int ffs_dolby_info(const uint8_t *data, int size, FFSDolbyInfo *out) {
     memset(out, 0, sizeof(*out));
     FFSAC3Header *hdr = NULL;
@@ -735,7 +748,7 @@ int ffs_dolby_info(const uint8_t *data, int size, FFSDolbyInfo *out) {
         } else if (!independent && out->frames == 1) {
             dep++;
             chan_loc |= hdr->channel_map_present ? (hdr->channel_map >> 5) & 0x1f : hdr->channel_mode;
-            out->channels += hdr->channels - (hdr->lfe_on && lfeon);
+            out->channels += ffs_dependent_new_channels(hdr, out->channels);
         }
         offset += hdr->frame_size;
     }
