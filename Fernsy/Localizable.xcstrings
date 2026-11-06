@@ -1782,12 +1782,52 @@
         }
       }
     },
+    "on your favorites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auf deinen Favoriten"
+          }
+        }
+      }
+    },
+    "Play Channel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sender abspielen"
+          }
+        }
+      }
+    },
+    "Record “%@”?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ aufnehmen?"
+          }
+        }
+      }
+    },
     "Remove the scheduled recording of “%@” (%@)?": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Geplante Aufnahme von „%1$@“ (%2$@) entfernen?"
+          }
+        }
+      }
+    },
+    "Shows": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sendungen"
           }
         }
       }

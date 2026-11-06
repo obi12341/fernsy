@@ -254,7 +254,12 @@ struct LibraryView: View {
     private var detail: some View {
         let category = categoryBySection[section] ?? allCategoryID
         if !query.trimmingCharacters(in: .whitespaces).isEmpty && !editFilter {
-            SearchResultsView(results: search.results)
+            SearchResultsView(results: search.results, showInGuide: {
+                query = ""
+                section = .live
+                categoryBySection[.live] = favoriteChannelsID
+                liveMode = .guide
+            })
         } else {
             switch section {
             case .start:
