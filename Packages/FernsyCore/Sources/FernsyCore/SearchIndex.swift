@@ -57,3 +57,42 @@ public struct SearchIndex: Sendable {
 private extension Character {
     var isLetterOrDigit: Bool { isLetter || isNumber }
 }
+
+/// Live TV shows in the toolbar search (search-favorite-shows): the loaded guides of the
+/// favourite channels, as folded titles, built when the guides or the favourites change. A query
+/// only compares strings over a few thousand shows.
+public struct ShowSearch: Sendable {
+    /// The favourite channels searched, at most.
+    public static let channelLimit = 50
+
+    public struct Hit: Sendable {
+        public let entry: EPGEntry
+        public let channel: LiveChannel
+    }
+
+    private let shows: [(key: String, hit: Hit)]
+
+    /// `channels` are the visible favourites in their order; `guides` the loaded entries per
+    /// channel id (missing or empty when not loaded).
+    public init(channels: [LiveChannel], guides: [Int: [EPGEntry]]) {
+        var shows: [(key: String, hit: Hit)] = []
+        for channel in channels.prefix(Self.channelLimit) {
+            for entry in guides[channel.id] ?? [] {
+                shows.append((makeSearchKey(entry.title), Hit(entry: entry, channel: channel)))
+            }
+        }
+        self.shows = shows
+    }
+
+    /// Shows that run now or later whose title contains `needle` (folded with `makeSearchKey`):
+    /// running ones first, then by start.
+    public func search(_ needle: String, now: Date = Date()) -> [Hit] {
+        guard !needle.isEmpty else { return [] }
+        return shows.filter { $0.hit.entry.end > now && $0.key.contains(needle) }
+            .map(\.hit)
+            .sorted { a, b in
+                let aRuns = a.entry.start <= now, bRuns = b.entry.start <= now
+                return aRuns != bRuns ? aRuns : a.entry.start < b.entry.start
+            }
+    }
+}

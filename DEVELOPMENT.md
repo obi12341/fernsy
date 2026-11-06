@@ -451,10 +451,15 @@ refills the audio. Test switches:
 - `IPTV_TESTDECODEFAIL=<n>` reports n failed frames after 5 s.
 
 The toolbar search searches everything at once – channels, films, series, recordings and the
-Jellyfin libraries – from a local index (`Fernsy/App/SearchIndex.swift`, rebuilt in the
+Jellyfin libraries – from a local index (`Packages/FernsyCore/Sources/FernsyCore/SearchIndex.swift`, rebuilt in the
 background when a source changes; about 20 ms per query for 50,000 entries). Only Live TV's Edit
-mode keeps it as a filter of the channel list. `IPTV_TESTSEARCH=<query>[|<query>…]` types
-queries once the catalog is loaded, one every 4 s.
+mode keeps it as a filter of the channel list. It also lists shows on the favourite channels (at
+most 50) that run now or later, by title (`ShowSearch` in FernsyCore, beside the index because
+guides change all the time); the first query of a search loads the favourites' full guides in
+the background and searches again when they are in. `IPTV_TESTSEARCH=<query>[|<query>…]` types
+queries once the catalog is loaded, one every 4 s; `IPTV_TESTSHOWSELECT=running|later` then
+selects the first running or later show hit as a click does (a later one is recorded). The search
+log line counts the shows and favourites.
 
 The player window moves when the picture is dragged (`VideoSurfaceView.mouseDown` hands single
 clicks to `performDrag`); a click still shows the controls, a double-click toggles full screen.
