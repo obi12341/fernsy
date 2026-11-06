@@ -41,9 +41,15 @@ final class AutoSignInUITests: FernsyUITestCase {
         // steps are checked off before the screen fades; then the signed-in app below is the proof.
         XCTAssertTrue(wait(20) { !screen.exists || channels.exists && channels.value as? String == "done" },
                       "the channels step is not checked off:\n\(app.debugDescription)")
-        if screen.exists {
+        // One snapshot of the screen: it can fade between two separate queries (CI, Nov 2026).
+        if screen.exists, let snapshot = try? screen.snapshot() {
+            func value(_ id: String, in node: XCUIElementSnapshot) -> String? {
+                if node.identifier == id { return node.value as? String }
+                for child in node.children { if let found = value(id, in: child) { return found } }
+                return nil
+            }
             for step in ["found", "provider"] {
-                XCTAssertEqual(app.descendants(matching: .any)["icloud.step.\(step)"].value as? String, "done", "\(step) is not checked off")
+                XCTAssertEqual(value("icloud.step.\(step)", in: snapshot), "done", "\(step) is not checked off")
             }
             // At once: shot() waits a second, and the screen fades soon after the last checkmark.
             let steps = XCTAttachment(screenshot: app.screenshot())

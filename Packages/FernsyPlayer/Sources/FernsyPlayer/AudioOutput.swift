@@ -23,27 +23,38 @@ public final class AudioOutput: ObservableObject {
     }
 
     private var observers: [NSObjectProtocol] = []
-    private var isActive = false
+    /// The audio session's calls block (activation can take a moment, longer on a busy
+    /// simulator): they run here, never on the main thread. Results go to the main thread.
+    private let queue = DispatchQueue(label: "player.audio-session", qos: .userInitiated)
+    private var isActive = false // queue only
 
     private init() {
         #if os(iOS) || os(tvOS)
-        // Playback keeps its sound in Picture in Picture and on AirPlay (ios-app design 5, 6).
-        #if os(iOS)
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
-        #else
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
-        #endif
+        queue.async {
+            // Playback keeps its sound in Picture in Picture and on AirPlay (ios-app design 5, 6).
+            #if os(iOS)
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
+            #else
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            #endif
+        }
         let center = NotificationCenter.default
         for name in [AVAudioSession.routeChangeNotification, AVAudioSession.renderingCapabilitiesChangeNotification,
                      AVAudioSession.renderingModeChangeNotification] {
-            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.refresh() })
+            observers.append(center.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                self?.queue.async { self?.refresh() }
+            })
         }
         #endif
     }
 
-    /// Before a playback starts (main thread): activates the session (iOS, tvOS) and reads the
-    /// output again. Not at launch, which would stop other apps' sound on an iPhone.
+    /// Before a playback starts: activates the session (iOS, tvOS) and reads the output again,
+    /// in the background. Not at launch, which would stop other apps' sound on an iPhone.
     func prepare() {
+        queue.async { self.activateAndRefresh() }
+    }
+
+    private func activateAndRefresh() {
         #if os(iOS) || os(tvOS)
         if !isActive {
             let session = AVAudioSession.sharedInstance()
@@ -77,9 +88,11 @@ public final class AudioOutput: ObservableObject {
         Self.lock.lock()
         Self.channelsNow = Int32(Self.pcmChannels(channels))
         Self.lock.unlock()
-        if channels != self.channels || mode != renderingMode { AppLog.info(.player, "audio \(log)") }
-        if self.channels != channels { self.channels = channels }
-        if renderingMode != mode { renderingMode = mode }
+        DispatchQueue.main.async { [self] in
+            if channels != self.channels || mode != renderingMode { AppLog.info(.player, "audio \(log)") }
+            if self.channels != channels { self.channels = channels }
+            if renderingMode != mode { renderingMode = mode }
+        }
     }
 
     /// The PCM channel count worth sending to an output with `maximum` channels.
