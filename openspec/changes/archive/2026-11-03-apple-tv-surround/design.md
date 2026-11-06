@@ -71,6 +71,10 @@ again which channel counts the output takes, from `supportedOutputChannelLayouts
 `maximumOutputNumberOfChannels`. `FernsyiOSApp` drops its own category call. The renderer gets
 `allowedAudioSpatializationFormats = .monoStereoAndMultichannel`, so AirPods spatialise 5.1/7.1.
 
+The session calls block (activation can take seconds on a busy simulator): they run on their own
+queue, never on the main thread. On the main thread at every playback start they made Apple TV
+UI tests on CI run past their 120 s limit (fix/tv-ci-hangs, Nov 6, 2026).
+
 Rejected:
 - **Per-app session code:** two copies of the same rules.
 - **Judging by `outputNumberOfChannels`:** it reports 2 after a stereo item, as KSPlayer found.
