@@ -21,4 +21,4 @@
 
 ## 4. Wrap-up
 
-- [ ] 4.1 DEVELOPMENT.md (search covers the favourites' shows); `openspec validate --all --strict`; archive, merge into `main`, push (with the user's consent)
+- [x] 4.1 DEVELOPMENT.md (search covers the favourites' shows); `openspec validate --all --strict`; archive, merge into `main`, push (with the user's consent)
