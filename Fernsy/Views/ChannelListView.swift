@@ -308,6 +308,12 @@ enum LiveClock {
 
     static func now(_ date: Date = Date()) -> Date { date.addingTimeInterval(offset) }
 
+    /// Seconds until the next full minute of `now()`, for work that follows the clock.
+    static func secondsToNextMinute() -> Double {
+        let seconds = now().timeIntervalSince1970
+        return max(1, (seconds / 60).rounded(.down) * 60 + 60 - seconds)
+    }
+
     /// Every full minute, counted in seconds rather than by the calendar: `.everyMinute`
     /// stalls in the hour that repeats when daylight saving time ends.
     static var everyMinute: PeriodicTimelineSchedule {

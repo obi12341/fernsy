@@ -357,10 +357,12 @@ struct RecordingMark: View {
 struct ShowProgress: View {
     let show: EPGEntry
     var focused = false
+    /// Start's live cards pass their clock (start-live-clock).
+    var now = Date()
 
     var body: some View {
         let total = show.end.timeIntervalSince(show.start)
-        let done = total > 0 ? min(1, max(0, Date().timeIntervalSince(show.start) / total)) : 0
+        let done = total > 0 ? min(1, max(0, now.timeIntervalSince(show.start) / total)) : 0
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(focused ? Color.black.opacity(0.15) : Color.white.opacity(0.18))

@@ -317,7 +317,12 @@ info, `IPTV_LIVEMODE=list|guide` picks the Live TV view for one run.
 Live TV: `IPTV_SELECT=<id>` selects a channel (detail pane), `IPTV_TESTSCHEDULE=1` then
 schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog refresh fail
 (the provider-unreachable notice over the cached list). `IPTV_CLOCKOFFSET=<s>` shifts "now" in
-the rows and the detail pane only (to see a show change without waiting for one);
+the rows, the detail pane and Start's live rows only (to see a show change without waiting for
+one; also on Apple TV and iPhone/iPad, `FernsyTV/Support/LiveClock.swift`). Start follows the
+clock on all three: the On Now cards redraw every minute, its channels' guides stay fresh
+(`EPGStore.keepFresh`) and Tonight is worked out again each minute (start-live-clock);
+`StartClockUITests` (Apple TV, iOS) read the next title change on channel 101 from the demo
+server and set the clock 60 s before it, with `IPTV_EPGSTALE=1` (a cached table can differ);
 `IPTV_EPGRECHECK=<s>` sets how often a visible row checks its programme (default 5 min) and
 `IPTV_EPGSTALE=1` treats every programme as stale, so each check downloads it again. `IPTV_TESTEPGDELAY=<s>` makes listings arrive that much later (loading rows in the guide's UI tests).
 Player channel list: `IPTV_TESTCHANNELLIST=<s>[:<key>,…]` opens it after s seconds and feeds the
