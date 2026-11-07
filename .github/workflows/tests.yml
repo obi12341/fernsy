@@ -212,6 +212,13 @@ jobs:
               > "app-logs/system-$device.log" 2>&1 || true
             grep -iE "termination request|terminat.*fernsy|crash|jetsam|signal" "app-logs/system-$device.log" | tail -40 || true
           done
+          # The simulator itself was shut down and booted again mid-test (launchd_sim, PineBoard
+          # restarted); who asked for it is in the host's CoreSimulator logs.
+          tail -n 20000 ~/Library/Logs/CoreSimulator/CoreSimulator.log > app-logs/CoreSimulator.log 2>/dev/null || true
+          /usr/bin/log show --last 90m --style compact \
+            --predicate 'subsystem BEGINSWITH "com.apple.CoreSimulator" OR process BEGINSWITH "CoreSimulator" OR process == "simctl" OR process == "xcodebuild"' \
+            > app-logs/host-coresimulator.log 2>&1 || true
+          grep -ihE "shutdown|shutting down|reboot|boot|kill|terminat|memory|jetsam|crash" app-logs/CoreSimulator.log app-logs/host-coresimulator.log | tail -60 || true
       - name: Upload the app logs
         if: failure()
         uses: actions/upload-artifact@v7
