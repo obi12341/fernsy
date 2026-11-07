@@ -31,12 +31,14 @@ public final class AudioOutput: ObservableObject {
     private init() {
         #if os(iOS) || os(tvOS)
         queue.async {
+            let started = Date()
             // Playback keeps its sound in Picture in Picture and on AirPlay (ios-app design 5, 6).
             #if os(iOS)
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
             #else
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
             #endif
+            Self.logDuration("setCategory", since: started)
         }
         let center = NotificationCenter.default
         for name in [AVAudioSession.routeChangeNotification, AVAudioSession.renderingCapabilitiesChangeNotification,
@@ -58,6 +60,8 @@ public final class AudioOutput: ObservableObject {
         #if os(iOS) || os(tvOS)
         if !isActive {
             let session = AVAudioSession.sharedInstance()
+            let started = Date()
+            defer { Self.logDuration("setActive", since: started) }
             do {
                 try session.setActive(true)
                 isActive = true
@@ -70,6 +74,8 @@ public final class AudioOutput: ObservableObject {
     }
 
     private func refresh() {
+        let started = Date()
+        defer { Self.logDuration("output refresh", since: started) }
         #if os(iOS) || os(tvOS)
         let session = AVAudioSession.sharedInstance()
         // Not outputNumberOfChannels: it reports 2 after a stereo item (KSPlayer).
@@ -93,6 +99,14 @@ public final class AudioOutput: ObservableObject {
             if self.channels != channels { self.channels = channels }
             if renderingMode != mode { renderingMode = mode }
         }
+    }
+
+    /// The session's calls are timed: on CI simulators without audio hardware they were
+    /// suspected of blocking (fix/tv-ci-hang-diagnostics). Slow ones are info, the rest detail.
+    private static func logDuration(_ call: String, since started: Date) {
+        let ms = Int(-started.timeIntervalSinceNow * 1000)
+        if ms >= 500 { AppLog.info(.player, "audio session \(call) took \(ms) ms") }
+        else { AppLog.detail(.player, "audio session \(call) took \(ms) ms") }
     }
 
     /// The PCM channel count worth sending to an output with `maximum` channels.
