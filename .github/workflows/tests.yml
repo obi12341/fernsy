@@ -196,6 +196,22 @@ jobs:
             cp -R "$logs" "app-logs/$n"
           done < <(find ~/Library/Developer/CoreSimulator/Devices -maxdepth 10 -type d -path '*/Library/Caches/Fernsy/logs' 2>/dev/null)
           grep -rh "main thread\|audio session" app-logs || true
+          # Crash reports of the app and the test runner, and each simulator's system log: who
+          # ended a test after about 60 s (a crash, runningboardd, XCTest), and what the runner
+          # did meanwhile (fix/tv-ci-crash-logs).
+          mkdir -p app-logs/crashes
+          find ~/Library/Logs/DiagnosticReports -maxdepth 2 -newermt '-2 hours' \( -iname '*fernsy*' -o -iname '*runner*' \) \
+            -exec cp {} app-logs/crashes/ \; 2>/dev/null || true
+          ls app-logs/crashes
+          for dir in ~/Library/Developer/CoreSimulator/Devices/*/; do
+            device="$(basename "$dir")"
+            [ -n "$(find "$dir/data/Containers/Data/Application" -maxdepth 4 -type d -path '*/Library/Caches/Fernsy' 2>/dev/null | head -1)" ] || continue
+            xcrun simctl boot "$device" 2>/dev/null || true
+            xcrun simctl spawn "$device" log show --last 90m --style compact \
+              --predicate 'process CONTAINS "Fernsy" OR eventMessage CONTAINS[c] "de.mobilistics.fernsy"' \
+              > "app-logs/system-$device.log" 2>&1 || true
+            grep -iE "termination request|terminat.*fernsy|crash|jetsam|signal" "app-logs/system-$device.log" | tail -40 || true
+          done
       - name: Upload the app logs
         if: failure()
         uses: actions/upload-artifact@v7
