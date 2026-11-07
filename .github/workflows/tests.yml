@@ -211,6 +211,12 @@ jobs:
               --predicate 'process CONTAINS "Fernsy" OR eventMessage CONTAINS[c] "de.mobilistics.fernsy"' \
               > "app-logs/system-$device.log" 2>&1 || true
             grep -iE "termination request|terminat.*fernsy|crash|jetsam|signal" "app-logs/system-$device.log" | tail -40 || true
+            # The simulator's own system processes and every error or fault: what made
+            # launchd_sim exit (a watchdog, a crashed system service).
+            xcrun simctl spawn "$device" log show --last 90m --style compact \
+              --predicate 'process IN {"launchd_sim", "PineBoard", "HeadBoard", "backboardd", "watchdogd", "runningboardd", "CoreSimulatorBridge", "testmanagerd"} OR messageType == fault OR (messageType == error AND NOT process CONTAINS "Fernsy")' \
+              > "app-logs/simulator-system-$device.log" 2>&1 || true
+            grep -iE "watchdog|shutdown|reboot|exiting|crash|fault" "app-logs/simulator-system-$device.log" | tail -40 || true
           done
           # The simulator itself was shut down and booted again mid-test (launchd_sim, PineBoard
           # restarted); who asked for it is in the host's CoreSimulator logs.

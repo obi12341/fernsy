@@ -10,6 +10,9 @@
 #   scripts/tv-uitest.sh --parallel 3 # three simulator clones at once (about half the time locally)
 #   scripts/tv-uitest.sh "-only-testing:Fernsy TV UITests/PlayerUITests"   # further xcodebuild arguments
 #
+# On CI (CI=true) a failing test runs once more: the tvOS simulator on the runners sometimes
+# shuts down mid-test (launchd_sim exits, fix/tv-ci-retry-and-sim-logs); a test that fails twice
+# still fails the run.
 # On a failure xcodebuild would otherwise run `simctl diagnose`, which takes many minutes;
 # -collect-test-diagnostics never skips it. A test that hangs is stopped after 2 minutes.
 set -euo pipefail
@@ -93,6 +96,7 @@ echo "▸ UI tests on $DEVICE_NAME ($DEVICE)"
 RESULT="$DD/Logs/uitest-$(date +%Y%m%d-%H%M%S).xcresult"
 if ! xcodebuild test-without-building "${ARGS[@]}" -quiet -collect-test-diagnostics never -resultBundlePath "$RESULT" \
     -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 120 \
+    ${CI:+-retry-tests-on-failure -test-iterations 2} \
     ${PARALLEL:+-parallel-testing-enabled YES -parallel-testing-worker-count "$PARALLEL"} \
     "${ONLY[@]+"${ONLY[@]}"}" "$@"; then
     # -quiet leaves out why a test failed: print the failure messages (first lines) from the bundle.
