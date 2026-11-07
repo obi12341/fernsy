@@ -11,6 +11,10 @@ extension XCUIApplication {
     /// Launches with this test process's debug MCP port.
     func launchForTest() {
         launchEnvironment["IPTV_MCPPORT"] = String(URLForTest.port)
+        // Diagnostics for tests stopped after their time limit on CI (fix/tv-ci-hang-diagnostics):
+        // every launch's log is kept, and a blocked main thread is logged.
+        launchEnvironment["IPTV_LOGARCHIVE"] = "1"
+        launchEnvironment["IPTV_HANGWATCH"] = "1"
         launch()
     }
 }

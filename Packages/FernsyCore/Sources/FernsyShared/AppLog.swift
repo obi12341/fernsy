@@ -95,6 +95,17 @@ public final class AppLog: @unchecked Sendable {
         try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
         // The last run becomes the previous one.
         if fm.fileExists(atPath: currentURL.path) {
+            #if DEBUG
+            // IPTV_LOGARCHIVE=1 (UI tests): every launch's log is also kept in logs/launches, so
+            // CI can upload the log of a test that was stopped after its time limit.
+            if ProcessInfo.processInfo.environment["IPTV_LOGARCHIVE"] == "1" {
+                let launches = folder.appendingPathComponent("launches", isDirectory: true)
+                try? fm.createDirectory(at: launches, withIntermediateDirectories: true)
+                let stamp = (try? fm.attributesOfItem(atPath: currentURL.path)[.modificationDate] as? Date) ?? Date()
+                let name = "launch-\(Int(stamp.timeIntervalSince1970)).log"
+                try? fm.copyItem(at: currentURL, to: launches.appendingPathComponent(name))
+            }
+            #endif
             try? fm.removeItem(at: previousURL)
             try? fm.moveItem(at: currentURL, to: previousURL)
         }

@@ -182,6 +182,29 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # The app's own logs, one per launch (IPTV_LOGARCHIVE): a test stopped after its time limit
+      # leaves no result attachment, but its launch log shows where the app was and whether the
+      # main thread was blocked (IPTV_HANGWATCH; fix/tv-ci-hang-diagnostics).
+      - name: Collect the app logs
+        if: failure()
+        run: |
+          # From the simulators' data folders: xcodebuild shuts the simulator down after the run.
+          mkdir -p app-logs
+          n=0
+          while IFS= read -r logs; do
+            n=$((n + 1))
+            cp -R "$logs" "app-logs/$n"
+          done < <(find ~/Library/Developer/CoreSimulator/Devices -maxdepth 10 -type d -path '*/Library/Caches/Fernsy/logs' 2>/dev/null)
+          grep -rh "main thread\|audio session" app-logs || true
+      - name: Upload the app logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: apple-tv-app-logs-${{ matrix.shard }}
+          path: app-logs
+          if-no-files-found: ignore
+          retention-days: 14
+
       # The result bundle (failure messages with the element tree, screenshots, the screen
       # recording and the app log) for a failing UI test; the log shows only the first lines.
       - name: Upload the UI test results
