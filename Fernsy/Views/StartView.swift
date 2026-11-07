@@ -57,10 +57,23 @@ struct StartView: View {
         .task { await jellyfin.refreshHome() }
         .onAppear(perform: refreshPersonal)
         .onChange(of: personalInputs) { refreshPersonal() }
-        // The live rows' guides, then tonight's shows on those channels.
+        // The live rows' guides, then tonight's shows on those channels. While Start is shown
+        // the guides stay fresh and tonight's row follows the clock (start-live-clock).
         .task(id: rows.live.channels.map(\.id)) {
-            for channel in rows.live.channels { await app.epg.load(channel.id, client: app.client) }
-            rows.tonight = StartBuilder.tonight(on: rows.live.channels, guide: { app.epg.guide($0).entries ?? [] })
+            let channels = rows.live.channels
+            for channel in channels { await app.epg.load(channel.id, client: app.client) }
+            refreshTonight()
+            await withTaskGroup(of: Void.self) { group in
+                for channel in channels {
+                    group.addTask { @MainActor in await app.epg.keepFresh(channel.id, client: app.client) }
+                }
+                group.addTask { @MainActor in
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(LiveClock.secondsToNextMinute()))
+                        if !Task.isCancelled { refreshTonight() }
+                    }
+                }
+            }
         }
         .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                             presenting: asked) { item in
@@ -104,6 +117,10 @@ struct StartView: View {
         rows.live = StartBuilder.liveChannels(favorites: app.filteredChannels(categoryID: favoriteChannelsID, query: ""),
                                               recent: app.filteredChannels(categoryID: recentChannelsID, query: ""),
                                               all: app.filteredChannels(categoryID: allCategoryID, query: ""))
+    }
+
+    private func refreshTonight() {
+        rows.tonight = StartBuilder.tonight(on: rows.live.channels, guide: { app.epg.guide($0).entries ?? [] }, now: LiveClock.now())
     }
 
     private var liveNote: Text? {
@@ -375,14 +392,20 @@ private struct StartLiveCard: View {
     @ObservedObject var guide: ChannelGuide
 
     var body: some View {
-        let now = Date()
+        // Redrawn every full minute, so the card moves on to the next show while Start stays open.
+        TimelineView(LiveClock.everyMinute) { context in
+            card(now: LiveClock.now(context.date))
+        }
+    }
+
+    private func card(now: Date) -> some View {
         let show = guide.entries?.first { $0.start <= now && $0.end > now }
-        HStack(spacing: 12) {
+        return HStack(spacing: 12) {
             LogoTile(url: channel.icon, name: channel.displayName, width: 64)
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: channel.displayName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Text(verbatim: show?.title ?? "–").font(.callout.weight(.medium)).lineLimit(1)
-                if let show { ProgressBar(value: show.progress, height: 3).frame(maxWidth: 160) }
+                if let show { ProgressBar(value: show.progress(at: now), height: 3).frame(maxWidth: 160) }
             }
             Spacer(minLength: 0)
         }
@@ -390,6 +413,9 @@ private struct StartLiveCard: View {
         .frame(width: 300, height: 88)
         .background(.fill.quinary, in: RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
+        #if DEBUG
+        .onChange(of: show?.id, initial: true) { _, _ in debugLog("[test] start live \(channel.id): \(show?.title ?? "–")") }
+        #endif
     }
 }
 

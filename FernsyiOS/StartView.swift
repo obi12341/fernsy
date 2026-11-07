@@ -121,8 +121,22 @@ struct StartView: View {
         .onChange(of: resumeInputs) { refreshResume() }
         .onChange(of: liveInputs) { refreshLive() }
         .task(id: live.channels.map(\.id)) {
-            for channel in live.channels { await model.loadGuide(for: channel) }
-            rows.tonight = model.tonight(on: rows.live.channels)
+            // While Start is shown the guides stay fresh and tonight's row follows the clock
+            // (start-live-clock).
+            let channels = live.channels
+            for channel in channels { await model.loadGuide(for: channel) }
+            rows.tonight = model.tonight(on: rows.live.channels, now: LiveClock.now())
+            await withTaskGroup(of: Void.self) { group in
+                for channel in channels {
+                    group.addTask { @MainActor in await model.guide.keepFresh(channel.id, client: model.client) }
+                }
+                group.addTask { @MainActor in
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(LiveClock.secondsToNextMinute()))
+                        if !Task.isCancelled { rows.tonight = model.tonight(on: rows.live.channels, now: LiveClock.now()) }
+                    }
+                }
+            }
         }
         .sheet(isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } })) {
             if let asked { ShowDetailSheet(show: asked.show, channel: asked.channel) }
@@ -141,7 +155,7 @@ struct StartView: View {
 
     private func refreshLive() {
         rows.live = model.startChannels
-        rows.tonight = model.tonight(on: rows.live.channels)
+        rows.tonight = model.tonight(on: rows.live.channels, now: LiveClock.now())
     }
 
     /// A running show plays its channel; a later one shows its details (no recording on iOS).
@@ -291,13 +305,20 @@ private struct LiveCard: View {
     @ObservedObject var guide: ChannelGuide
 
     var body: some View {
-        let show = model.currentShow(on: channel)
-        HStack(spacing: 10) {
+        // Redrawn every full minute, so the card moves on to the next show while Start stays.
+        TimelineView(LiveClock.everyMinute) { context in
+            card(now: LiveClock.now(context.date))
+        }
+    }
+
+    private func card(now: Date) -> some View {
+        let show = model.currentShow(on: channel, at: now)
+        return HStack(spacing: 10) {
             ChannelLogo(channel: channel).frame(width: 64, height: 40)
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: channel.displayName).font(.caption).foregroundStyle(TVTheme.secondary).lineLimit(1)
                 Text(verbatim: show?.title ?? String(localized: "No program information")).font(.subheadline.weight(.semibold)).lineLimit(1)
-                if let show { ShowProgress(show: show).frame(width: 90, height: 3) }
+                if let show { ShowProgress(show: show, now: now).frame(width: 90, height: 3) }
             }
             Spacer(minLength: 0)
         }
@@ -305,6 +326,7 @@ private struct LiveCard: View {
         .frame(width: 250, height: 74, alignment: .leading)
         .background(TVTheme.tile, in: .rect(cornerRadius: 14))
         .contentShape(.rect)
+        .accessibilityValue(show?.title ?? "")
     }
 }
 
