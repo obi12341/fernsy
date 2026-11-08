@@ -150,6 +150,25 @@ jobs:
           if ! xcrun simctl list runtimes | grep -q 'tvOS 27'; then
             xcodebuild -downloadPlatform tvOS
           fi
+          # The runner image has each runtime twice: a classic disk image under
+          # /Library/Developer/CoreSimulator/Volumes and a cryptex variant. simdiskimaged prefers
+          # the cryptex one and ejects the classic image about 7.5 min later - with the booted
+          # simulator on it, which then shuts down mid-test (fix/tv-ci-duplicate-runtimes). Eject
+          # the classic copies before booting, so the simulator runs from the cryptex variant.
+          for volume in /Library/Developer/CoreSimulator/Volumes/*/; do
+            [ -d "$volume" ] || continue
+            echo "Ejecting duplicate runtime image $volume"
+            sudo diskutil unmount force "$volume" || true
+          done
+          for _ in $(seq 1 30); do
+            xcrun simctl list runtimes | grep 'tvOS 27' | grep -vq unavailable && break
+            sleep 2
+          done
+          xcrun simctl list runtimes
+          if ! xcrun simctl list runtimes | grep 'tvOS 27' | grep -vq unavailable; then
+            echo "::error::No tvOS 27 runtime after ejecting the duplicate runtime images"
+            exit 1
+          fi
           if ! xcrun simctl list devices available | grep -q 'Apple TV 4K (3rd generation) ('; then
             RUNTIME="$(xcrun simctl list runtimes | grep -oE 'com.apple.CoreSimulator.SimRuntime.tvOS-27[-0-9]*' | tail -1)"
             xcrun simctl create "Apple TV 4K (3rd generation)" \
