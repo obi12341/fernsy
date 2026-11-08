@@ -224,6 +224,14 @@ jobs:
           /usr/bin/log show --last 90m --style compact \
             --predicate 'subsystem BEGINSWITH "com.apple.CoreSimulator" OR process BEGINSWITH "CoreSimulator" OR process == "simctl" OR process == "xcodebuild"' \
             > app-logs/host-coresimulator.log 2>&1 || true
+          # The simulator shuts down about 7.5 min after it boots, without a request from
+          # xcodebuild or CoreSimulator. The tvOS runtime runs from a mounted disk image: the
+          # services that mount and check it, and the mounts now (fix/tv-ci-runtime-image-logs).
+          /usr/bin/log show --last 90m --style compact \
+            --predicate 'process IN {"simdiskimaged", "cryptexd", "diskimagesiod", "diskarbitrationd", "mobileassetd", "launchd"} OR subsystem BEGINSWITH "com.apple.security.cryptex" OR subsystem BEGINSWITH "com.apple.DiskImages"' \
+            > app-logs/host-runtime-images.log 2>&1 || true
+          { mount | grep -iE "simruntime|cryptex|tvOS" ; echo; xcrun simctl runtime list; } > app-logs/runtime-mounts.txt 2>&1 || true
+          grep -iE "unmount|mount|eject|detach|tvOS_|simruntime" app-logs/host-runtime-images.log | tail -40 || true
           grep -ihE "shutdown|shutting down|reboot|boot|kill|terminat|memory|jetsam|crash" app-logs/CoreSimulator.log app-logs/host-coresimulator.log | tail -60 || true
       - name: Upload the app logs
         if: failure()
