@@ -35,7 +35,11 @@ struct GuideView: View {
         let start = reach > 0 ? Calendar.current.startOfDay(for: Date().addingTimeInterval(-Double(reach) * 86_400)) : Self.defaultStart()
         let end = Date().addingTimeInterval(Self.ahead)
         let width = CGFloat(end.timeIntervalSince(start) / 3600) * Self.hourWidth
-        let window = max(start, start.addingTimeInterval(Double(hours.lowerBound) * 3600))...min(end, start.addingTimeInterval(Double(hours.upperBound) * 3600))
+        // `hours` was measured on the axis shown before: after switching to a source with a
+        // shorter axis (no archive) it can lie past `end` until the scroll position reports
+        // again. Clamped, so the range is never inverted (crashed when switching categories quickly).
+        let from = min(end, max(start, start.addingTimeInterval(Double(hours.lowerBound) * 3600)))
+        let window = from...max(from, min(end, start.addingTimeInterval(Double(hours.upperBound) * 3600)))
         // Sideways outside, up and down inside (ios-guide-performance): the inner scroll view has
         // the screen's height, so its lazy stack builds only the rows on screen, which load their
         // listings then; each row draws only `window`. (A vertical scroll view outside, or one
