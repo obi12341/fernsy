@@ -8,6 +8,8 @@ extension TVModel {
     /// it was suspended, which the path monitor then never reports).
     func appBecameActive() {
         if signIn == .offline { Task { await retrySignIn() } }
+        // The paired server's state may have changed meanwhile (headless-recorder design 3).
+        if CloudFeature.isEnabled { Task { await cloud.refreshServer() } }
     }
 
     func retrySignIn() async {

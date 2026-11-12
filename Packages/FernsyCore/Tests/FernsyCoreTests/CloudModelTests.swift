@@ -86,7 +86,41 @@ struct CloudModelTests {
         config.protocolClasses = [Server.self]
         let client = CloudClient(baseURL: URL(string: "https://cloud.test")!, urlSession: URLSession(configuration: config), credential: .none)
         let keys = CloudKeyStore(backing: nil, loadLocal: { memory.key }, saveLocal: { memory.key = $0 }, macOverride: .known)
-        return CloudModel(client: client, keys: keys, store: store)
+        return CloudModel(client: client, keys: keys, store: store, server: Self.server(FakeControl(), key: nil, keys))
+    }
+
+    /// Fernsy Server's model on a fake control service, without iCloud; `key` is the control key
+    /// of a user who paired a server.
+    static func server(_ control: FakeControl, key: ControlKey?, _ keys: CloudKeyStore) -> ServerModel {
+        ServerModel(api: control, keys: ControlKeyStore(backing: nil, loadLocal: { key }, saveLocal: { _ in }), cloudKeys: keys)
+    }
+
+    /// Launch reads the paired server's state, so "Record on Server" shows before Recordings or
+    /// the server's settings were opened; without a cloud account it asks nothing.
+    @Test func launchReadsTheServersState() async throws {
+        Server.reset()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [Server.self]
+        let control = FakeControl(), controlKey = ControlKey()
+        _ = try await control.put(ControlServerStatus(lastContact: Date(), version: "test"), kind: .server, id: "status", key: controlKey)
+        func cloud(_ memory: Memory) -> CloudModel {
+            let client = CloudClient(baseURL: URL(string: "https://cloud.test")!, urlSession: URLSession(configuration: config), credential: .none)
+            let keys = CloudKeyStore(backing: nil, loadLocal: { memory.key }, saveLocal: { memory.key = $0 }, macOverride: .known)
+            return CloudModel(client: client, keys: keys, store: FakeStore(), server: Self.server(control, key: controlKey, keys))
+        }
+        let without = cloud(Memory())
+        await without.start()
+        #expect(!without.server.isPaired)
+        #expect(control.reads == 0)
+        let memory = Memory()
+        memory.key = CloudAccountKey()
+        let with = cloud(memory)
+        await with.start()
+        #expect(with.server.isPaired)
+        #expect(control.reads == 1)
+        // Coming to the front right after launch asks nothing again.
+        await with.refreshServer()
+        #expect(control.reads == 1)
     }
 
     @Test func purchaseRegistersFirstAndCarriesTheToken() async throws {
@@ -255,7 +289,8 @@ struct CloudModelTests {
         let client = CloudClient(baseURL: URL(string: "https://cloud.test")!, urlSession: URLSession(configuration: config), credential: .none)
         let keys = CloudKeyStore(backing: nil, loadLocal: { memory.key }, saveLocal: { memory.key = $0 }, macOverride: .known)
         let model = CloudModel(client: client, keys: keys, store: WebCloudStore(client: client, checkoutPage: { URL(string: "https://www.fernsy.app/cloud.html")! },
-                                                                                  open: { opened.urls.append($0) }))
+                                                                                  open: { opened.urls.append($0) }),
+                               server: Self.server(FakeControl(), key: nil, keys))
         model.checkoutPoll = (.milliseconds(50), .seconds(5))
         return model
     }

@@ -41,6 +41,11 @@ public enum ServerText {
         return String(localized: "Offline since \(time)", bundle: .module)
     }
 
+    /// For a show ordered while the server is away: the order waits in Fernsy Control.
+    public static var offline: String {
+        String(localized: "The server has not reported for a while; it records once it is back.", bundle: .module)
+    }
+
     public static func pairing(_ failure: ServerModel.PairingFailure) -> String {
         switch failure {
         case .badCode: String(localized: "The code has ten letters and digits, like 7K3Q-ABCDEF.", bundle: .module)

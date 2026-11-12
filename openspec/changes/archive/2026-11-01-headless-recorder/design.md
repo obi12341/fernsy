@@ -80,6 +80,14 @@ not know about subscriptions:
   One writer per kind keeps app and server edits from conflicting.
 - **Polling.** The server polls every 30 seconds; the apps poll while a recordings list or the
   server settings are open and when they come to the foreground.
+  Pitfall (fixed 12 Nov 2026): up to 2.4.1 the apps read only while those screens were open,
+  not at launch or in the foreground. `ServerModel.isPaired` is false until the first read, so
+  after a launch the Mac and the Apple TV offered no "Record on Server", the settings said "Not
+  Set Up" and the stream limit ignored the server's recordings, until Recordings or the server's
+  settings had been opened once. Now `CloudModel.start()` and coming to the front read once
+  (`refreshServer`, at most one request per poll interval, only with a cloud account). Anything
+  that shows the server's online state outside a polling screen has to read first: a state from
+  the last look goes "offline" by itself after 10 minutes.
 - **Limits instead of a subscription.** Per space at most 500 items of 8 KB and 120 requests a
   minute, at most 10 new spaces per IP and hour; deleted items stay as tombstones for 30 days, so
   a device that was away for less than that catches up (one away longer reads from change 0 and

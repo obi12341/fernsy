@@ -108,7 +108,16 @@ struct ServerDialogButtons: View {
                     let order = ControlOrder(channelId: channel.id, channelName: channel.displayName, title: show.title,
                                              showStart: show.start, showEnd: show.end, padBefore: padding.before, padAfter: padding.after,
                                              createdBy: "Apple TV")
-                    Task { try? await server.schedule(order) }
+                    Task {
+                        do {
+                            try await server.schedule(order)
+                            // The order waits in Fernsy Control; say so when the server is away right now.
+                            await server.refresh()
+                            if !server.isOnline() { model.notice = ServerText.offline }
+                        } catch {
+                            model.notice = ServerText.pairing(.network("\(error)"))
+                        }
+                    }
                 }
             }
         }

@@ -114,6 +114,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LoginItem.detectLaunch()
     }
 
+    /// Coming to the front: the paired server's state may have changed meanwhile
+    /// (headless-recorder design 3).
+    @MainActor
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard CloudFeature.isEnabled, let app = Self.app else { return }
+        Task { await app.cloud.refreshServer() }
+    }
+
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: [MenuBarSupport.enabledKey: true])

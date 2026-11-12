@@ -57,6 +57,8 @@ public final class ServerModel {
     @ObservationIgnored private var removedAt: Date?
     @ObservationIgnored private var polling: Task<Void, Never>?
     @ObservationIgnored private var pollers = 0
+    /// When Fernsy Control last answered (or iCloud said there is no control key).
+    @ObservationIgnored private var refreshedAt: ContinuousClock.Instant?
     @ObservationIgnored public var pollInterval: Duration = .seconds(30)
     @ObservationIgnored public var pairingPoll: Duration = .seconds(3)
 
@@ -101,6 +103,7 @@ public final class ServerModel {
         guard let key = await keys.key() else {
             status = nil
             orders = []
+            refreshedAt = .now
             return
         }
         do {
@@ -109,10 +112,21 @@ public final class ServerModel {
             self.change = change
             publish()
             lastError = nil
+            refreshedAt = .now
         } catch {
             lastError = "\(error)"
             AppLog.warning(.recordings, "Fernsy Server: no answer from Fernsy Control: \(error)")
         }
+    }
+
+    /// One look at launch and when the app comes to the front (design 3, "Polling"), so that
+    /// `isPaired` and the server's recordings are known before a screen polls. Nothing when the
+    /// last answer is younger than a poll.
+    public func refreshIfStale() async {
+        if let refreshedAt, ContinuousClock.now - refreshedAt < pollInterval { return }
+        let known = status != nil
+        await refresh()
+        if !known, let status { AppLog.info(.recordings, "Fernsy Server: paired server found (\(status.isOnline() ? "online" : "offline"))") }
     }
 
     private func apply(_ item: ControlClient.Item, key: ControlKey) {
@@ -228,7 +242,12 @@ public final class ServerModel {
     public func schedule(_ order: ControlOrder) async throws -> String {
         guard let key = await keys.key() else { throw ControlKeyStore.Locked() }
         let id = UUID().uuidString
-        try await api.put(order, kind: .order, id: id, key: key)
+        do {
+            try await api.put(order, kind: .order, id: id, key: key)
+        } catch {
+            AppLog.warning(.recordings, "Fernsy Server: could not schedule \(order.title): \(error)")
+            throw error
+        }
         orderValues[id] = order
         publish()
         AppLog.info(.recordings, "Fernsy Server: scheduled \(order.title)")

@@ -152,7 +152,7 @@ struct ServerRecordButton: View {
                 }
                 if let failure { Text(verbatim: failure).foregroundStyle(TVTheme.warning) }
                 if !server.isOnline() {
-                    Text("The server has not reported for a while; it records once it is back.").font(.footnote).foregroundStyle(TVTheme.secondary)
+                    Text(verbatim: ServerText.offline).font(.footnote).foregroundStyle(TVTheme.secondary)
                 }
             }
         }

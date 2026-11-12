@@ -39,6 +39,8 @@ struct FernsyTVApp: App {
                 // The Home Screen shows the Top Shelf next: what was just watched belongs in it.
                 model.writeTopShelfNow()
             }
+            // The paired server's state may have changed meanwhile (headless-recorder design 3).
+            if phase == .active, CloudFeature.isEnabled { Task { await model.cloud.refreshServer() } }
         }
     }
 }
