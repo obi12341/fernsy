@@ -66,7 +66,8 @@ extension AppModel {
         }
         // IPTV_TESTINTENT=<step>[|<step>…]: runs Siri's actions once the catalog is loaded, as the
         // system does, one step every 4 s, and logs the answer. Steps: query:<text>, play:<id>,
-        // whatson, find:<text>, record[:<id>], recordshow:<channel>:<epoch>, stop.
+        // whatson, find:<text>, record[:<id>], recordshow:<channel>:<epoch>,
+        // recordshowserver:<channel>:<epoch> ("Record Show" with "On Fernsy Server"), stop.
         if let steps = env["IPTV_TESTINTENT"]?.split(separator: "|").map(String.init) {
             Task {
                 while channels.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
@@ -90,6 +91,7 @@ extension AppModel {
                         line = answer.text + " | shows: " + answer.shows.prefix(3).map(\.id).joined(separator: ",")
                     case "record": line = await IntentActions.recordNow(channelId: Int(arg)).text
                     case "recordshow": line = await IntentActions.record(showId: arg).text
+                    case "recordshowserver": line = await IntentActions.record(showId: arg, onServer: true).text
                     case "stop": line = await IntentActions.stop().text
                     case "open": line = await IntentActions.play(channelId: Int(arg) ?? 0).text
                     case "search": line = IntentActions.search(arg).text
