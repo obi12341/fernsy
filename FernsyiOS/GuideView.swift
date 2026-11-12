@@ -119,7 +119,16 @@ struct GuideView: View {
             }
         }
         .frame(width: CGFloat(end.timeIntervalSince(start) / 3600) * Self.hourWidth, height: Self.hourBar, alignment: .topLeading)
-        .overlay(alignment: .topLeading) { NowLine(start: start) }
+        .overlay(alignment: .topLeading) {
+            TimelineView(LiveClock.everyMinute) { context in
+                let now = LiveClock.minute(context.date)
+                NowLine(start: start, now: now)
+                    // The time the guide stands at (also what the UI test of the clock reads).
+                    .accessibilityElement()
+                    .accessibilityIdentifier("guide.now")
+                    .accessibilityValue(Text(now, format: .dateTime.hour().minute()))
+            }
+        }
         .background(TVTheme.background)
     }
 
@@ -160,14 +169,34 @@ private struct GuideRow: View, Equatable {
     let play: () -> Void
 
     var body: some View {
+        // Redrawn every full minute, with the same minute in every row: the now line and the
+        // running show's tint stood at the time of each row's last redraw (rows redraw one by
+        // one, when their listings arrive or they scroll into view), so the line broke apart.
+        TimelineView(LiveClock.everyMinute) { context in
+            cells(now: LiveClock.minute(context.date))
+        }
+        .frame(height: GuideView.rowHeight, alignment: .topLeading)
+        #if DEBUG
+        // Counted by the guide scrolling test (ios-guide-performance): rows built, not only shown.
+        .onAppear { AppLog.detail(.guide, "guide row \(channel.id) appears") }
+        #endif
+        .task(id: channel.id) { await model.loadGuide(for: channel) }
+        .task(id: "\(channel.id).\(Int(window.lowerBound.timeIntervalSince1970 / 86_400))") {
+            // An archive channel's past days, once scrolled to: their programme from back then (catch-up).
+            guard channel.archiveDays > 0, window.lowerBound < Date().addingTimeInterval(-3 * 3600) else { return }
+            await model.guide.loadPast(channel.id, client: model.client, from: window.lowerBound)
+        }
+    }
+
+    private func cells(now: Date) -> some View {
         let entries = listings
         let shows = (entries ?? []).filter { $0.end > window.lowerBound && $0.start < window.upperBound }
         let gaps = entries == nil ? [window] : GuideGaps.free(shows: shows, window: window)
-        ZStack(alignment: .topLeading) {
+        return ZStack(alignment: .topLeading) {
             ForEach(shows, id: \.start) { show in
                 Button { select(show) } label: {
-                    GuideCell(show: show, onServer: model.isOnServer(show, on: channel),
-                              archived: show.end <= Date() && Archive.isPlayable(show, on: channel))
+                    GuideCell(show: show, now: now, onServer: model.isOnServer(show, on: channel),
+                              archived: show.end <= now && Archive.isPlayable(show, on: channel))
                 }
                 .buttonStyle(.plain)
                 .modifier(Placement(from: show.start, to: show.end, start: start, end: end))
@@ -187,19 +216,9 @@ private struct GuideRow: View, Equatable {
                 .modifier(Placement(from: gap.lowerBound, to: gap.upperBound, start: start, end: end))
                 .accessibilityIdentifier("guide.\(channel.id).gap.\(Int(gap.lowerBound.timeIntervalSince1970))")
             }
-            NowLine(start: start)
+            NowLine(start: start, now: now)
         }
         .frame(height: GuideView.rowHeight, alignment: .topLeading)
-        #if DEBUG
-        // Counted by the guide scrolling test (ios-guide-performance): rows built, not only shown.
-        .onAppear { AppLog.detail(.guide, "guide row \(channel.id) appears") }
-        #endif
-        .task(id: channel.id) { await model.loadGuide(for: channel) }
-        .task(id: "\(channel.id).\(Int(window.lowerBound.timeIntervalSince1970 / 86_400))") {
-            // An archive channel's past days, once scrolled to: their programme from back then (catch-up).
-            guard channel.archiveDays > 0, window.lowerBound < Date().addingTimeInterval(-3 * 3600) else { return }
-            await model.guide.loadPast(channel.id, client: model.client, from: window.lowerBound)
-        }
     }
 
     /// The channel's listings; none for `IPTV_TESTNOEPG=<channel id>` (debug), as on the Mac.
@@ -227,14 +246,17 @@ private struct PinnedColumn<Content: View>: View {
     }
 }
 
-/// The current time on the axis.
+/// The current time on the axis: `now` comes from the guide's minute clock, the same in the
+/// ruler and in every row.
 private struct NowLine: View {
     let start: Date
+    let now: Date
 
     var body: some View {
-        let offset = Date().timeIntervalSince(start)
+        let offset = now.timeIntervalSince(start)
         if offset > 0 {
-            Capsule().fill(Color(hex: 0xFF4D45))
+            // Square ends: the rows' pieces join into one line (round ones left a notch per row).
+            Rectangle().fill(Color(hex: 0xFF4D45))
                 .frame(width: 2)
                 .frame(maxHeight: .infinity)
                 .offset(x: CGFloat(offset / 3600) * GuideView.hourWidth)
@@ -257,12 +279,13 @@ private struct Placement: ViewModifier {
 
 private struct GuideCell: View {
     let show: EPGEntry
+    /// The guide's minute (see GuideRow).
+    let now: Date
     /// Fernsy Server has an order for the show (server-recording-everywhere).
     var onServer = false
     var archived = false
 
     var body: some View {
-        let now = Date()
         let running = show.start <= now && now < show.end
         let past = show.end <= now
         VStack(alignment: .leading, spacing: 2) {

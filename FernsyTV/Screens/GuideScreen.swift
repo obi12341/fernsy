@@ -212,13 +212,17 @@ struct GuideScreen: View {
         .frame(width: Self.axisWidth, height: 30, alignment: .topLeading)
     }
 
-    @ViewBuilder private var nowLine: some View {
-        let offset = Date().timeIntervalSince(windowStart)
-        if offset > 0 && offset < Self.span {
-            Capsule().fill(Color(hex: 0xFF4D45))
-                .frame(width: 3)
-                .offset(x: Self.channelColumn + CGFloat(offset / Self.span) * Self.axisWidth)
-                .allowsHitTesting(false)
+    /// Moves on every full minute: the guide stays open for hours on Apple TV, and nothing else
+    /// redraws it while the remote rests.
+    private var nowLine: some View {
+        TimelineView(LiveClock.everyMinute) { context in
+            let offset = LiveClock.minute(context.date).timeIntervalSince(windowStart)
+            if offset > 0 && offset < Self.span {
+                Capsule().fill(Color(hex: 0xFF4D45))
+                    .frame(width: 3)
+                    .offset(x: Self.channelColumn + CGFloat(offset / Self.span) * Self.axisWidth)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -279,8 +283,7 @@ private struct GuideRow: View {
                 ForEach(shows, id: \.start) { show in
                     Button { select(show) } label: {
                         GuideCell(show: show, recorded: model.isScheduled(show, on: channel) || isRecordedNow(show),
-                                  onServer: model.isOnServer(show, on: channel),
-                                  archived: show.end <= Date() && Archive.isPlayable(show, on: channel))
+                                  onServer: model.isOnServer(show, on: channel), channel: channel)
                     }
                     .buttonStyle(GuideCellStyle())
                     .focused($focused, equals: show.start)
@@ -431,15 +434,23 @@ private struct GuideCell: View {
     let recorded: Bool
     /// Fernsy Server has an order for the show (server-recording-everywhere).
     var onServer = false
-    /// A past show in the channel's archive: it can be played (catch-up).
-    var archived = false
+    /// The show's channel: a past show in its archive can be played (catch-up).
+    let channel: LiveChannel
     @Environment(\.isFocused) private var focused
 
     var body: some View {
-        let now = Date()
+        // Redrawn every full minute, so a show that ends recedes and the next one takes the tint
+        // of the running show while the guide stays open (with the now line, see GuideScreen).
+        TimelineView(LiveClock.everyMinute) { context in
+            cell(now: LiveClock.minute(context.date))
+        }
+    }
+
+    private func cell(now: Date) -> some View {
         let running = show.start <= now && now < show.end
         let past = show.end <= now
-        VStack(alignment: .leading, spacing: 6) {
+        let archived = past && Archive.isPlayable(show, on: channel, now: now)
+        return VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: show.title).font(.system(size: 23, weight: .semibold)).lineLimit(1)
             HStack(spacing: 8) {
                 if recorded { Circle().fill(Color(hex: 0xFF4D45)).frame(width: 10, height: 10) }
