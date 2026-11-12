@@ -340,7 +340,13 @@ IPTV films and series (Settings › Konten), in memory only: `IPTV_SHOWMOVIES=0|
 flips them s seconds after the live catalog loaded, as the Settings switches do.
 Guide: `IPTV_TESTNOEPG=<id>` gives that channel no listings, `IPTV_GUIDEDAY=<n>` and
 `IPTV_GUIDETIME=<hh:mm>` jump to a day and time, `IPTV_GUIDESELECT=<id>:<n>` selects that
-channel's n-th upcoming show.
+channel's n-th upcoming show. `IPTV_TESTEPGOVERLAP=<id>` gives that channel's downloaded listings
+the overlaps some providers send (every show a second time ten minutes later and a placeholder
+across the three shows from now on) and skips its disk cache, so they pass the clean-up, which
+keeps one show at a time (guide-overlapping-listings; the log line "channel <id>: … overlapping
+dropped" counts what went). `FERNSY_EPG_SAMPLE=<directory>` (`TEST_RUNNER_FERNSY_EPG_SAMPLE` with
+xcodebuild) runs the same clean-up over programme files in the disk cache's format in
+`EPGOverlapTests` and prints how many listings were dropped.
 Films and series: resume positions and watched flags stay in memory in keychain-less test
 runs; `IPTV_TESTRESUME=<key>:<pos s>:<dur s>,…` and `IPTV_TESTWATCHED=<key>,…` (keys like
 `movie.500`, `episode.00100`) set them for one run.

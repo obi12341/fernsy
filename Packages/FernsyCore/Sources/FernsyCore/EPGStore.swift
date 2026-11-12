@@ -51,7 +51,7 @@ public final class EPGStore {
             pruned = true
             Task.detached(priority: .background) { Self.prune(file.deletingLastPathComponent()) }
         }
-        if guide.fetchedAt == nil, !Self.debugDelayed, diskChecked.insert(channelId).inserted {
+        if guide.fetchedAt == nil, !Self.debugDelayed, !Self.debugOverlaps(channelId), diskChecked.insert(channelId).inserted {
             let generation = generation, keepDays = keepDays(channelId)
             if let cached = await Self.read(file, keepDays: keepDays), generation == self.generation, guide.fetchedAt == nil {
                 guide.entries = cached.entries
@@ -104,17 +104,21 @@ public final class EPGStore {
             try? await Task.sleep(for: .seconds(delay))
         }
         #endif
-        if guide.entries == nil, let quick = try? await client.shortEPG(channelId, limit: 10),
+        if guide.entries == nil, var quick = try? await client.shortEPG(channelId, limit: 10),
            !Task.isCancelled, generation == self.generation {
+            if Self.debugOverlaps(channelId) { quick = Self.overlapping(quick) }
             guide.entries = Self.clean(quick, keepDays: keepDays(channelId))
         }
 
         guard await tableSlots.acquire() else { return }
         defer { tableSlots.release() }
-        guard !Task.isCancelled, let table = try? await client.epgTable(channelId),
+        guard !Task.isCancelled, var table = try? await client.epgTable(channelId),
               !Task.isCancelled, generation == self.generation else { return }
-        let entries = Self.clean(table, keepDays: keepDays(channelId))
-        AppLog.detail(.guide, "channel \(channelId): \(table.count) entries, \(entries.count) kept")
+        if Self.debugOverlaps(channelId) { table = Self.overlapping(table) }
+        let resolved = Self.withoutOverlaps(table)
+        let entries = Self.kept(resolved, keepDays: keepDays(channelId))
+        // "overlapping dropped": what the provider listed for a time another show has (one show at a time).
+        AppLog.detail(.guide, "channel \(channelId): \(table.count) entries, \(entries.count) kept, \(table.count(where: { $0.end > $0.start }) - resolved.count) overlapping dropped")
         if !entries.isEmpty || guide.entries == nil { guide.entries = entries }
         guide.fetchedAt = Date()
         let file = Self.cacheFile(channelId, client: client), cached = CachedGuide(guide.entries ?? [], fetchedAt: Date())
@@ -139,6 +143,31 @@ public final class EPGStore {
         #else
         false
         #endif
+    }
+
+    /// IPTV_TESTEPGOVERLAP=<channel id> (debug): that channel's downloaded listings overlap the way
+    /// some providers send them, and its disk cache is skipped, so they pass the clean-up.
+    nonisolated private static func debugOverlaps(_ channelId: Int) -> Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["IPTV_TESTEPGOVERLAP"] == String(channelId)
+        #else
+        false
+        #endif
+    }
+
+    /// `list` with what such a provider adds: every show a second time ten minutes later (another
+    /// version of the schedule) and a placeholder across the three shows from now on.
+    nonisolated static func overlapping(_ list: [EPGEntry], now: Date = Date()) -> [EPGEntry] {
+        var out = list + list.map {
+            EPGEntry(id: $0.id + "b", title: $0.title, description: $0.description,
+                     start: $0.start.addingTimeInterval(600), end: $0.end.addingTimeInterval(600))
+        }
+        let around = list.sorted { $0.start < $1.start }.filter { $0.end > now }.prefix(3)
+        if let first = around.first, let last = around.last {
+            out.append(EPGEntry(id: "tbc", title: "Fußball: TBC - TBC", description: "",
+                                start: first.start.addingTimeInterval(300), end: last.end.addingTimeInterval(300)))
+        }
+        return out
     }
 
     private func keepDays(_ channelId: Int) -> Int { min(archiveDays[channelId] ?? 0, Archive.maxDays) }
@@ -178,7 +207,11 @@ public final class EPGStore {
 
     /// The show on now and the next one (from the loaded programme).
     public func nowAndNext(_ channelId: Int, at now: Date = Date()) -> (now: EPGEntry?, next: EPGEntry?) {
-        let list = (guide(channelId).entries ?? []).filter { $0.end > now }.sorted { $0.start < $1.start }
+        Self.nowAndNext(in: guide(channelId).entries ?? [], at: now)
+    }
+
+    nonisolated static func nowAndNext(in entries: [EPGEntry], at now: Date) -> (now: EPGEntry?, next: EPGEntry?) {
+        let list = entries.filter { $0.end > now }.sorted { $0.start < $1.start }
         return (list.first { $0.start <= now }, list.first { $0.start > now })
     }
 
@@ -258,15 +291,38 @@ public final class EPGStore {
         }
     }
 
-    /// Sorted, without duplicates, from shortly before now (the guide starts two hours back,
+    /// Sorted, one show at a time, from shortly before now (the guide starts two hours back,
     /// see GuideLayout), or `keepDays` back for a channel with an archive. The table reaches
     /// several days ahead; keeping that is what lets a cached channel stay valid for half a day.
     nonisolated static func clean(_ list: [EPGEntry], keepDays: Int = 0, now: Date = Date()) -> [EPGEntry] {
+        kept(withoutOverlaps(list), keepDays: keepDays, now: now)
+    }
+
+    /// The part of a programme in the kept range. Overlaps are resolved before this cut: after
+    /// it, a listing that lost against one that has left the range since would come back.
+    nonisolated static func kept(_ list: [EPGEntry], keepDays: Int = 0, now: Date = Date()) -> [EPGEntry] {
         let back: TimeInterval = keepDays > 0 ? Double(keepDays) * 86_400 : 3 * 3600
         let from = now.addingTimeInterval(-back), to = now.addingTimeInterval(4 * 86400)
-        var seen = Set<Date>()
-        return list.sorted { $0.start < $1.start }
-            .filter { $0.end > $0.start && $0.end > from && $0.start < to && seen.insert($0.start).inserted }
+        return list.filter { $0.end > from && $0.start < to }
+    }
+
+    /// Consecutive shows that overlap by no more than this are both kept.
+    nonisolated static let overlapTolerance: TimeInterval = 120
+
+    /// One show at a time (guide-overlapping-listings): some providers list a second version of
+    /// the schedule a few minutes later, placeholders across the real shows, or a show twice.
+    /// Kept is the largest set of listings that do not overlap – the one that ends first wins –
+    /// sorted by start. A show that runs up to `overlapTolerance` into the next one ends there.
+    nonisolated static func withoutOverlaps(_ list: [EPGEntry]) -> [EPGEntry] {
+        var kept: [EPGEntry] = []
+        let byEnd = list.filter { $0.end > $0.start }.sorted { $0.end != $1.end ? $0.end < $1.end : $0.start < $1.start }
+        for entry in byEnd {
+            guard let last = kept.last, entry.start < last.end else { kept.append(entry); continue }
+            guard entry.start > last.start, last.end.timeIntervalSince(entry.start) <= overlapTolerance else { continue }
+            kept[kept.count - 1] = EPGEntry(id: last.id, title: last.title, description: last.description, start: last.start, end: entry.start)
+            kept.append(entry)
+        }
+        return kept
     }
 }
 
