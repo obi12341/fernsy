@@ -376,7 +376,7 @@ final class TVModel: ObservableObject {
     }
 
     private func apply(_ catalog: CatalogCache) {
-        categories = (try? JSONDecoder().decode([XCategory].self, from: catalog.categories)) ?? []
+        categories = (try? JSONDecoder().decode([XCategory].self, from: Self.debugEnlargedCategories(catalog.categories))) ?? []
         channels = (try? JSONDecoder().decode([LiveChannel].self, from: Self.debugEnlargedChannels(catalog.channels))) ?? []
         // Archive channels keep their past programme (catch-up design 5).
         guide.archiveDays = Dictionary(channels.filter { $0.archiveDays > 0 }.map { ($0.id, $0.archiveDays) }, uniquingKeysWith: { a, _ in a })
@@ -389,6 +389,17 @@ final class TVModel: ObservableObject {
         #if DEBUG
         guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGLIVE"].flatMap(Int.init) else { return data }
         return DebugEnv.enlarged(data, to: target, id: "stream_id")
+        #else
+        return data
+        #endif
+    }
+
+    /// IPTV_TESTBIGCATEGORIES=<n> (debug): the live categories repeated with new ids up to n, in
+    /// memory, so All Categories has enough tiles to scroll. Copies have no channels.
+    private static func debugEnlargedCategories(_ data: Data) -> Data {
+        #if DEBUG
+        guard let target = ProcessInfo.processInfo.environment["IPTV_TESTBIGCATEGORIES"].flatMap(Int.init) else { return data }
+        return DebugEnv.enlarged(data, to: target, id: "category_id")
         #else
         return data
         #endif

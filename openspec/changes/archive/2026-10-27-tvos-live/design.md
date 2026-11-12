@@ -133,3 +133,17 @@ strip, hiding a channel and scheduling a recording.
 
 The Mac's stored favourites, history, pins and visibility keep their keys and format, so
 nothing is migrated. The Apple TV app has no data from earlier builds worth keeping.
+
+## Pitfalls found later
+
+- **All Categories: the grid drew through the chips and the hints (12 Nov 2026,
+  `fix/tv-categories-overlap`).** The grid's scroll view is not clipped
+  (`scrollClipDisabled()`), so the focused tile keeps its scale and shadow at the edges. With a
+  provider's number of categories the grid scrolls, and its tiles then showed through
+  everything above and below it: the filter chips and the title, and the line of hints at the
+  bottom ("Click: Open Category · Hold: Pin, Hide · Back: Live TV"). The demo server has eight
+  categories, which never scroll, so it did not show in tests. Now the grid is masked at its top
+  edge only (open at the sides and the bottom, where it runs off the screen), and the hints are
+  gone: they repeated what the remote does everywhere on Apple TV. `IPTV_TESTBIGCATEGORIES=<n>`
+  gives the demo account enough categories; `AllCategoriesUITests.testTilesStayBelowTheChips`
+  compares the screen above the grid before and after scrolling.

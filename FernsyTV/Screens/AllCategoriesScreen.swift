@@ -92,17 +92,12 @@ struct AllCategoriesScreen: View {
                 }
                 .padding(.vertical, 20)
             }
+            // Not clipped at the sides and the bottom, so the focused tile keeps its scale and
+            // shadow and the grid runs off the screen; cut at the top, or the tiles scroll
+            // through the chips and the title.
             .scrollClipDisabled()
+            .mask { Rectangle().padding(.horizontal, -90).padding(.bottom, -200) }
             .focusSection()
-
-            HStack(spacing: 34) {
-                Text("Click: Open Category")
-                Text("Hold: Pin, Hide")
-                Text("Back: Live TV")
-            }
-            .font(.system(size: 20))
-            .foregroundStyle(TVTheme.text.opacity(0.55))
-            .padding(.bottom, 44)
         }
         .padding(.horizontal, 90)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
