@@ -90,3 +90,15 @@ films, episodes and Jellyfin ids.
 ## Migration Plan
 
 None: stored Mac data keeps its keys; the Apple TV app's library data is new.
+
+## Pitfalls found later
+
+- **The favourite star vanished on the focused button (12 Nov 2026,
+  `fix/tv-favorite-star-focus`).** `ActionButtonStyle` colors its label dark on a white pill
+  while the button has focus. The star of the film and series pages set its own color (the
+  light text color, or gold for a favourite), which wins over the style's: with focus the star
+  was light on white and could not be seen, or gold on white. A label inside these buttons must
+  not set a color that ignores focus. The star now takes the button's color while the button
+  has focus (the filled star alone says "favourite" there) and is gold only for a favourite
+  without focus; no further color was added on purpose. `FavoriteStarUITests` counts dark and
+  gold pixels in the middle of the button.
