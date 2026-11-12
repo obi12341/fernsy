@@ -48,9 +48,7 @@ struct FilmScreen: View {
                             .buttonStyle(ActionButtonStyle())
                             .accessibilityIdentifier("film.fromStart")
                     }
-                    Button { toggleFavorite() } label: {
-                        Image(systemName: isFavorite ? "star.fill" : "star").foregroundStyle(isFavorite ? Color(hex: 0xFFC940) : TVTheme.text)
-                    }
+                    Button { toggleFavorite() } label: { FavoriteStar(isFavorite: isFavorite) }
                     .buttonStyle(ActionButtonStyle(round: true))
                     .accessibilityIdentifier("film.favorite")
                     .accessibilityValue(isFavorite ? "favorite" : "")
@@ -212,10 +210,10 @@ struct SeriesScreen: View {
                                 .buttonStyle(ActionButtonStyle())
                                 .accessibilityIdentifier("series.next")
                         }
-                        Button { toggleFavorite() } label: {
-                            Image(systemName: isFavorite ? "star.fill" : "star").foregroundStyle(isFavorite ? Color(hex: 0xFFC940) : TVTheme.text)
-                        }
+                        Button { toggleFavorite() } label: { FavoriteStar(isFavorite: isFavorite) }
                         .buttonStyle(ActionButtonStyle(round: true))
+                        .accessibilityIdentifier("series.favorite")
+                        .accessibilityValue(isFavorite ? "favorite" : "")
                     }
                     .padding(.top, 14)
                     .focusSection()
@@ -353,6 +351,23 @@ struct SeriesScreen: View {
     }
 
     private func play(_ episode: EpisodeEntry) { model.play(episode.item) }
+}
+
+/// The star of a favourite button: gold for a favourite, and in the button's own color while
+/// the button has focus. On the focused button's white pill neither gold nor the light text
+/// color shows; there the filled star alone says that it is a favourite.
+private struct FavoriteStar: View {
+    let isFavorite: Bool
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        let star = Image(systemName: isFavorite ? "star.fill" : "star")
+        if isFavorite && !focused {
+            star.foregroundStyle(Color(hex: 0xFFC940))
+        } else {
+            star
+        }
+    }
 }
 
 private struct SeasonStyle: ButtonStyle {
