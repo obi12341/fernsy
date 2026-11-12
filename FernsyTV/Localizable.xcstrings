@@ -533,16 +533,6 @@
         }
       }
     },
-    "Back: Live TV": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zurück: Live TV"
-          }
-        }
-      }
-    },
     "Before %lld · After %lld min": {
       "localizations": {
         "de": {
@@ -669,16 +659,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicken: zu Live"
-          }
-        }
-      }
-    },
-    "Click: Open Category": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Klicken: Kategorie öffnen"
           }
         }
       }
@@ -1089,16 +1069,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Halte in Live TV die Taste auf einem Sender gedrückt oder wähle im Programm eine Sendung, um sie aufzunehmen. Fernsy nimmt auf, solange es auf diesem Apple TV geöffnet ist; tvOS kann Aufnahmen löschen, wenn der Speicher knapp wird."
-          }
-        }
-      }
-    },
-    "Hold: Pin, Hide": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gedrückt halten: Anheften, Ausblenden"
           }
         }
       }

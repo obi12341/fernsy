@@ -129,4 +129,64 @@ final class AllCategoriesUITests: XCTestCase {
         XCTAssertTrue(app.buttons["live.category.\(id)"].waitForExistence(timeout: 5),
                       "the pinned category is not in the column:\n\(app.debugDescription)")
     }
+
+    /// With a provider's number of categories the grid scrolls (fix/tv-categories-overlap): its
+    /// tiles went through the chips and the title above it, and through a line of hints below.
+    /// The screen above the grid looks the same before and after scrolling down.
+    func testTilesStayBelowTheChips() {
+        let app = XCUIApplication()
+        app.launchEnvironment = [
+            "FERNSY_NO_KEYCHAIN": "1",
+            "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
+            "IPTV_USER": "demo",
+            "IPTV_PASS": "demo",
+            "IPTV_TESTBIGCATEGORIES": "60",
+        ]
+        app.launchForTest()
+        let remote = XCUIRemote.shared
+        showTab("Live TV", app)
+        let all = app.buttons["live.allCategories"]
+        XCTAssertTrue(all.waitForExistence(timeout: 30))
+        remote.press(.down)
+        for _ in 0..<3 { remote.press(.left); Thread.sleep(forTimeInterval: 0.3) }
+        for _ in 0..<6 where !all.hasFocus { remote.press(.down); Thread.sleep(forTimeInterval: 0.4) }
+        XCTAssertTrue(all.hasFocus, "All Categories has no focus:\n\(app.debugDescription)")
+        remote.press(.select)
+
+        let tiles = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'category.'"))
+        XCTAssertTrue(tiles.firstMatch.waitForExistence(timeout: 10), "no category tiles")
+        for _ in 0..<4 where !tiles.firstMatch.hasFocus { remote.press(.down); Thread.sleep(forTimeInterval: 0.4) }
+        XCTAssertTrue(tiles.firstMatch.hasFocus, "the first tile has no focus:\n\(app.debugDescription)")
+        let chip = app.buttons["categories.chip.all"]
+        XCTAssertTrue(chip.exists, "no chips:\n\(app.debugDescription)")
+        let band = chip.frame.maxY
+        Thread.sleep(forTimeInterval: 1)
+        let before = pixels(above: band)
+        attach("all-categories-top", app)
+
+        // Down six rows: the first rows have scrolled away upwards.
+        for _ in 0..<6 { remote.press(.down); Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertFalse(tiles.firstMatch.hasFocus, "focus did not move down the grid")
+        Thread.sleep(forTimeInterval: 1)
+        attach("all-categories-scrolled", app)
+        XCTAssertEqual(pixels(above: band), before, "the screen above the grid changed while scrolling: tiles show through the chips or the title")
+        for hint in ["Click: Open Category", "Hold: Pin, Hide", "Back: Live TV"] {
+            XCTAssertFalse(app.staticTexts[hint].exists, "the hint \"\(hint)\" is back")
+        }
+    }
+
+    /// The screen from its top down to `y` (points), as raw pixels.
+    private func pixels(above y: CGFloat) -> Data {
+        let image = XCUIScreen.main.screenshot().image
+        let crop = CGRect(x: 0, y: 0, width: image.size.width * image.scale, height: y * image.scale)
+        guard let part = image.cgImage?.cropping(to: crop), let data = part.dataProvider?.data else { return Data() }
+        return data as Data
+    }
+
+    private func attach(_ name: String, _ app: XCUIApplication) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
 }
