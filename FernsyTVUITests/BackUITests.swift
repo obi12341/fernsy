@@ -9,6 +9,8 @@ final class BackUITests: FernsyUITestCase {
         let remote = XCUIRemote.shared
         let state = app.descendants(matching: .any)["player.state"]
         let timeline = app.staticTexts["vod.remaining"]
+        // The films load a moment after the channels; before that the app knows no movie:500.
+        XCTAssertTrue(waitForLog(" films, ", timeout: 30), "the films did not load")
         _ = mcpCall("play_item", #"{"item_id":"movie:500","from_start":true}"#)
         XCTAssertTrue(wait(30) { state.value as? String == "playing" }, "the film does not play")
         XCTAssertTrue(waitForPlayerFocus(app), "the player did not take focus:\n\(app.debugDescription)")
