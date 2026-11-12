@@ -82,6 +82,43 @@ final class ServerUITests: XCTestCase {
         XCTAssertTrue(order.waitForNonExistence(timeout: 20), "the order stayed:\n\(app.debugDescription)")
     }
 
+    /// The guide marks a show while the server has its order: ordered in the show's sheet, the
+    /// cell carries the mark, and loses it when the order is taken back.
+    func testGuideMarksAServerOrder() throws {
+        guard let env = Self.pairedEnv else { throw XCTSkip("no paired Fernsy Server and dev services in the test environment") }
+        let app = launch(env.merging(["IPTV_LIVEVIEW": "guide"]) { $1 }, tab: "live")
+        let later = Int(Date().addingTimeInterval(1800).timeIntervalSince1970)
+        let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.101.' AND NOT (identifier CONTAINS '.gap.')"))
+        XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 30), "no listings in the guide:\n\(app.debugDescription)")
+        let future = cells.allElementsBoundByIndex.first { Int($0.identifier.split(separator: ".").last ?? "") ?? 0 > later }
+        let show = try XCTUnwrap(future, "no later show of channel 101")
+        let window = app.windows.firstMatch
+        for _ in 0..<4 where !window.frame.contains(CGPoint(x: show.frame.minX + 30, y: show.frame.midY)) {
+            let y = show.frame.midY / window.frame.height
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: y))
+                .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: y)))
+        }
+        show.tap()
+        let record = app.buttons["server.record"]
+        XCTAssertTrue(record.waitForExistence(timeout: 20), "no Record on Fernsy Server:\n\(app.debugDescription)")
+        record.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["server.orderState"].waitForExistence(timeout: 20), "not ordered:\n\(app.debugDescription)")
+        app.buttons["Done"].firstMatch.tap()
+        let marked = NSPredicate(format: "value == 'server'")
+        expectation(for: marked, evaluatedWith: show)
+        waitForExpectations(timeout: 15)
+        shot("server-guide-mark", app)
+        // Taking it back in the sheet removes the mark.
+        show.tap()
+        let cancel = app.buttons["Cancel Recording"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 20), "no Cancel Recording:\n\(app.debugDescription)")
+        cancel.tap()
+        XCTAssertTrue(record.waitForExistence(timeout: 20), "the order stayed:\n\(app.debugDescription)")
+        app.buttons["Done"].firstMatch.tap()
+        expectation(for: NSPredicate(format: "value != 'server'"), evaluatedWith: show)
+        waitForExpectations(timeout: 15)
+    }
+
     /// Without a paired server (a fresh, empty control space) the assistant schedules nothing
     /// and says what records instead.
     func testAssistantWithoutAServerSaysWhatRecords() throws {

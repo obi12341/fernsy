@@ -52,7 +52,7 @@ struct StartView: View {
                         CardRow {
                             ForEach(tonight.shows, id: \.channel.id) { item in
                                 Button { pick(item.show, on: item.channel) } label: {
-                                    ShowCard(show: item.show, channel: item.channel)
+                                    ShowCard(show: item.show, channel: item.channel, onServer: model.isOnServer(item.show, on: item.channel))
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("start.tonight.\(item.channel.id)")
@@ -334,12 +334,15 @@ private struct LiveCard: View {
 private struct ShowCard: View {
     let show: EPGEntry
     let channel: LiveChannel
+    /// Fernsy Server has an order for the show (server-recording-everywhere).
+    var onServer = false
 
     var body: some View {
         HStack(spacing: 10) {
             ChannelLogo(channel: channel).frame(width: 56, height: 35)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
+                    if onServer { Image(systemName: "server.rack").font(.caption).foregroundStyle(Color(hex: 0xFF4D45)).accessibilityHidden(true) }
                     Text(show.start, format: .dateTime.hour().minute()).font(.caption.weight(.bold).monospacedDigit())
                     Text(verbatim: channel.displayName).font(.caption).foregroundStyle(TVTheme.tertiary).lineLimit(1)
                 }

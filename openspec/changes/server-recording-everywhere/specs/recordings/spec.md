@@ -24,6 +24,37 @@ SHALL offer to remove it from the server there instead.
 - **WHEN** no server is paired
 - **THEN** none of these places mentions the server
 
+### Requirement: Server orders marked in the guides
+The guides of the Mac, Apple TV, iPhone and iPad SHALL mark a show Fernsy Server has an order
+for, so that it reads as recorded by the server, and Start SHALL mark it among tonight's shows.
+An order that failed or was refused SHALL mark nothing. The mark SHALL appear as soon as the
+show is ordered on the device, and for an order from another device when the guide is opened or
+the app comes to the front.
+
+#### Scenario: Ordered from the Mac's context menu
+- **WHEN** the user chooses "Record on Server" for a later show in the Mac's guide
+- **THEN** the show's cell gets the recording frame and reads "On Server" with its times
+
+#### Scenario: Ordered on another device
+- **WHEN** the show was ordered on the Mac and the user opens the guide on the iPhone
+- **THEN** the show's cell carries the server mark there too
+
+#### Scenario: Apple TV
+- **WHEN** the user chooses "Record on Fernsy Server" in a show's dialog on the Apple TV
+- **THEN** the show's cell in the guide shows the server mark
+
+#### Scenario: Removed
+- **WHEN** the user removes the order from the server
+- **THEN** the mark goes away
+
+### Requirement: Server orders shown as planned on the Mac
+The Mac's search results and channel pane SHALL show a show with an unfinished server order as
+planned, as they do for the Mac's own planned recordings.
+
+#### Scenario: Search
+- **WHEN** the user searches for a show that is ordered on the server
+- **THEN** its row carries the planned mark
+
 ### Requirement: One server order per show
 Ordering a show on the server SHALL first take the server's current orders into account: when an
 unfinished order for the same channel and start exists, from any device, no second order SHALL be

@@ -133,6 +133,22 @@ struct ServerRecordButton: View {
     }
 }
 
+/// How the guide marks a show Fernsy Server has an order for (server-recording-everywhere):
+/// ordered, recording now, or recorded. A failed or refused order marks nothing.
+enum ServerMark {
+    case ordered, recording, recorded
+
+    init?(_ order: ServerModel.Order?) {
+        guard let order else { return nil }
+        switch order.state?.phase {
+        case nil, .scheduled?: self = .ordered
+        case .recording?: self = .recording
+        case .uploading?, .done?: self = .recorded
+        case .failed?, .refused?: return nil
+        }
+    }
+}
+
 /// "Record on Server" or, for a show the server has an unfinished order for, "Remove from
 /// Server": the second action beside every "Record" in menus and record questions
 /// (server-recording-everywhere design 2). Nothing without a paired server or for a show that

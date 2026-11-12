@@ -96,6 +96,8 @@ struct GuideView: View {
             position.scrollTo(x: CGFloat(Self.defaultStart().timeIntervalSince(start) / 3600) * Self.hourWidth)
         }
         .background(TVTheme.background.ignoresSafeArea())
+        // The marks of server orders: what other devices ordered since the last look.
+        .task { await model.cloud.refreshServer() }
         .sheet(isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } })) {
             if let asked { ShowDetailSheet(show: asked.show, channel: asked.channel) }
         }
@@ -164,11 +166,13 @@ private struct GuideRow: View, Equatable {
         ZStack(alignment: .topLeading) {
             ForEach(shows, id: \.start) { show in
                 Button { select(show) } label: {
-                    GuideCell(show: show, archived: show.end <= Date() && Archive.isPlayable(show, on: channel))
+                    GuideCell(show: show, onServer: model.isOnServer(show, on: channel),
+                              archived: show.end <= Date() && Archive.isPlayable(show, on: channel))
                 }
                 .buttonStyle(.plain)
                 .modifier(Placement(from: show.start, to: show.end, start: start, end: end))
                 .accessibilityIdentifier("guide.\(channel.id).\(Int(show.start.timeIntervalSince1970))")
+                .accessibilityValue(model.isOnServer(show, on: channel) ? "server" : "")
             }
             ForEach(gaps, id: \.lowerBound) { gap in
                 Button(action: play) {
@@ -253,6 +257,8 @@ private struct Placement: ViewModifier {
 
 private struct GuideCell: View {
     let show: EPGEntry
+    /// Fernsy Server has an order for the show (server-recording-everywhere).
+    var onServer = false
     var archived = false
 
     var body: some View {
@@ -262,10 +268,11 @@ private struct GuideCell: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(verbatim: show.title).font(.footnote.weight(.semibold)).lineLimit(1)
             HStack(spacing: 4) {
+                if onServer { Image(systemName: "server.rack").foregroundStyle(Color(hex: 0xFF4D45)).accessibilityHidden(true) }
                 if archived { Image(systemName: "play.circle.fill").accessibilityHidden(true) }
                 Text(show.start, format: .dateTime.hour().minute())
             }
-            .font(.caption2).opacity(0.62).lineLimit(1)
+            .font(.caption2).opacity(onServer ? 1 : 0.62).lineLimit(1)
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

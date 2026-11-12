@@ -75,7 +75,11 @@ struct GuideScreen: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { followNow() } else if hiddenSince == nil { hiddenSince = Date() }
         }
-        .onAppear { followNow() }
+        .onAppear {
+            followNow()
+            // The marks of server orders: what other devices ordered since the last look.
+            Task { await model.cloud.refreshServer() }
+        }
         .onDisappear { hiddenSince = hiddenSince ?? Date() }
         .disabled(columnOpen)
         .overlay { if columnOpen { Color.black.opacity(0.5).padding(-40).allowsHitTesting(false) } }
@@ -275,6 +279,7 @@ private struct GuideRow: View {
                 ForEach(shows, id: \.start) { show in
                     Button { select(show) } label: {
                         GuideCell(show: show, recorded: model.isScheduled(show, on: channel) || isRecordedNow(show),
+                                  onServer: model.isOnServer(show, on: channel),
                                   archived: show.end <= Date() && Archive.isPlayable(show, on: channel))
                     }
                     .buttonStyle(GuideCellStyle())
@@ -282,7 +287,7 @@ private struct GuideRow: View {
                     .modifier(GuidePlacement(from: show.start, to: show.end, windowStart: windowStart, windowEnd: windowEnd))
                     .onMoveCommand { direction in page(direction, start: show.start, end: show.end, windowEnd: windowEnd) }
                     .accessibilityIdentifier("guide.\(channel.id).\(Int(show.start.timeIntervalSince1970))")
-                    .accessibilityValue(model.isScheduled(show, on: channel) ? "scheduled" : "")
+                    .accessibilityValue(model.isScheduled(show, on: channel) ? "scheduled" : model.isOnServer(show, on: channel) ? "server" : "")
                 }
                 // Without listings (or still loading) and in gaps: bars that play the channel, so
                 // focus reaches every row (tvos-guide-empty-channels).
@@ -424,6 +429,8 @@ private struct GuideCellStyle: ButtonStyle {
 private struct GuideCell: View {
     let show: EPGEntry
     let recorded: Bool
+    /// Fernsy Server has an order for the show (server-recording-everywhere).
+    var onServer = false
     /// A past show in the channel's archive: it can be played (catch-up).
     var archived = false
     @Environment(\.isFocused) private var focused
@@ -436,6 +443,7 @@ private struct GuideCell: View {
             Text(verbatim: show.title).font(.system(size: 23, weight: .semibold)).lineLimit(1)
             HStack(spacing: 8) {
                 if recorded { Circle().fill(Color(hex: 0xFF4D45)).frame(width: 10, height: 10) }
+                if onServer { Image(systemName: "server.rack").foregroundStyle(Color(hex: 0xFF4D45)).accessibilityHidden(true) }
                 if archived { Image(systemName: "play.circle.fill").accessibilityHidden(true) }
                 Text(focused ? TimeSpan.of(show) : show.start.formatted(.dateTime.hour().minute()))
             }

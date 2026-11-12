@@ -28,6 +28,11 @@ a paired server.
   `list_recordings` also lists the server's orders, and `cancel_recording` can remove a server
   order that has not started.
 - **Shortcuts (Mac).** The "Record Show" action gets an "On Fernsy Server" switch.
+- **Server orders marked where shows are listed.** The guides of the Mac, Apple TV, iPhone and
+  iPad mark a show the server will record, records or has recorded, and Start marks it among
+  tonight's shows; on the Mac the search and the channel pane show it as planned. (Added on
+  12 Nov 2026 after the user tried the menus: ordering a show and seeing nothing change in the
+  guide read as "nothing happened".)
 
 Out of scope:
 
@@ -35,8 +40,8 @@ Out of scope:
   messages for the existing buttons on Mac and Apple TV, and the "Not Set Up" label before the
   first load: these are fixes to behaviour the headless-recorder design already describes and
   are done separately, without a change.
-- Marking server orders in the guide grid, the search rows or Start (they stay listed in
-  Recordings).
+- Marking server orders in the search results of iPhone, iPad and Apple TV and in their channel
+  lists (they mark no recordings there today).
 - The player's "record now" (R) and the Shortcuts action "Record Current Show": they record the
   stream that plays and stay on the device.
 - New buttons on iPhone, iPad and Apple TV: their guide, search and Start already offer the server.

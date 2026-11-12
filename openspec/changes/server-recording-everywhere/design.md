@@ -236,3 +236,16 @@ Assumptions made while the user was away; to be confirmed or corrected in review
   dev app takes no clicks, and the Mac has no UI test target); they use the same
   `ServerRecordItem` as the search's question, which was captured in English and German. The
   relay check with a real model (task 3.4) needs Cloudflare credentials for the dev worker.
+- **Marks (added after the user's check, 12 Nov).** Marking server orders was a non-goal; the
+  user ordered a show from the guide's context menu, saw no change in the grid and took it for
+  "not recorded". The Mac now marks them: `ServerModel.markingOrder` (any order that has not
+  failed or been refused), `ServerMark` in the guide cell with the recording frame and its own
+  text (the Mac's own recording comes first when both exist), planned marks in the search and on
+  Start through `pendingOrder`, a server glyph in the channel pane's upcoming rows. The guide
+  reads the server when it appears (`refreshServer`, at most once per poll interval) and does not
+  poll: an order from another device shows after the next look. Rejected: polling while the guide
+  is open (the guide is the app's main screen; that would be the always-on polling design 3 of
+  headless-recorder avoids). The guides of Apple TV, iPhone and iPad followed the same day at the user's wish
+  (`TVModel.isOnServer`): a red server glyph in the cell and on Start's tonight cards, no text,
+  because those cells show only the time; the cell's accessibility value is "server" (the tests
+  read it; "scheduled" stays the Apple TV's own recording).

@@ -45,9 +45,15 @@ final class ServerUITests: FernsyUITestCase {
         guard let env = Self.serverEnv else { throw XCTSkip("no paired Fernsy Server and dev services in the test environment") }
         let app = launchDemo(env)
         focusLaterShow(app)
+        let cell = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.' AND hasFocus == true")).firstMatch
+        let id = cell.identifier
         choose("Record on Fernsy Server", app, shot: "server-dialog")
         XCTAssertTrue(waitForLog("Fernsy Server: scheduled"), "the order was not written")
+        // The guide marks the show while the server has its order.
+        XCTAssertTrue(wait(10) { app.buttons[id].value as? String == "server" }, "\(id) is not marked as on the server")
+        shot("server-guide-mark", app)
         choose("Remove from Server", app, shot: "server-dialog-ordered")
+        XCTAssertTrue(wait(10) { app.buttons[id].value as? String != "server" }, "\(id) is still marked")
         remote.press(.select)
         XCTAssertTrue(app.sheets.buttons["Record on Fernsy Server"].firstMatch.waitForExistence(timeout: 10),
                       "the order was not taken back:\n\(app.debugDescription)")

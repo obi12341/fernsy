@@ -215,6 +215,7 @@ struct StartView: View {
 
     private func isScheduled(_ item: TonightItem) -> Bool {
         recorder.recording(channelId: item.channel.id, entry: item.show)?.isUpcomingOrRunning == true
+            || app.cloud.server.pendingOrder(channelId: item.channel.id, start: item.show.start) != nil
     }
 
     private func rating(_ entry: LibraryEntry) -> Double? {

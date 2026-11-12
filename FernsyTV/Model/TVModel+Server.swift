@@ -16,6 +16,12 @@ extension TVModel {
         #endif
     }
 
+    /// Fernsy Server will record this show, records it or has recorded it: the guides and Start
+    /// mark it. An order that failed or was refused marks nothing.
+    func isOnServer(_ show: EPGEntry, on channel: LiveChannel) -> Bool {
+        cloud.server.markingOrder(channelId: channel.id, start: show.start) != nil
+    }
+
     /// Orders a show on the server through the shared step (design 1): no second order for a
     /// show the server already has, none that would start now without a free stream.
     func orderOnServer(_ show: EPGEntry, on channel: LiveChannel) async throws(ServerModel.OrderFailure) -> (order: ServerModel.Order, isNew: Bool) {

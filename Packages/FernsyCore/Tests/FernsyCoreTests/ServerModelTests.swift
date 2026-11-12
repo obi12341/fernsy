@@ -161,8 +161,14 @@ struct ServerModelTests {
         #expect(other.isNew)
         #expect(model.pendingOrder(channelId: 7, start: now + 10800)?.id == other.order.id)
         #expect(control.orderCount(key) == 2)
-        // The server gave up on the first: it can be ordered anew.
+        // Guides mark both shows.
+        #expect(model.markingOrder(channelId: 7, start: now + 7200)?.id == "tv")
+        #expect(model.markingOrder(channelId: 7, start: now + 10800) != nil)
+        #expect(model.markingOrder(channelId: 8, start: now + 7200) == nil)
+        // The server gave up on the first: it can be ordered anew, and marks nothing until then.
         _ = try await control.put(ControlOrderState(phase: .failed, reason: .noStream), kind: .state, id: "tv", key: key)
+        await model.refresh()
+        #expect(model.markingOrder(channelId: 7, start: now + 7200) == nil)
         let anew = try await model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
         #expect(anew.isNew)
         #expect(control.orderCount(key) == 3)

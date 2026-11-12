@@ -5722,6 +5722,36 @@
         }
       }
     },
+    "● On Server · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Auf Server · %@"
+          }
+        }
+      }
+    },
+    "● Server Recording · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Server nimmt auf · %@"
+          }
+        }
+      }
+    },
+    "● Recorded on Server · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● Auf Server aufgenommen · %@"
+          }
+        }
+      }
+    },
     "On Fernsy Server": {
       "localizations": {
         "de": {

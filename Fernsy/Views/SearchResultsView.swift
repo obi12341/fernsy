@@ -307,7 +307,7 @@ struct SearchResultsView: View {
             ForEach(showsExpanded ? shows : Array(shows.prefix(Self.rowLimit)), id: \.entry.id) { hit in
                 let plan = planned(hit)
                 Button { select(hit) } label: {
-                    ShowHitRow(hit: hit, isPlanned: plan != nil)
+                    ShowHitRow(hit: hit, isPlanned: plan != nil || app.cloud.server.pendingOrder(channelId: hit.channel.id, start: hit.entry.start) != nil)
                         .padding(.horizontal, 10).padding(.vertical, 4)
                         .contentShape(Rectangle())
                 }

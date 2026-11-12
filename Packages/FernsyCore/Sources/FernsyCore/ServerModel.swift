@@ -326,6 +326,15 @@ public final class ServerModel {
         orders.first { $0.order.channelId == channelId && abs($0.order.showStart.timeIntervalSince(start)) < 1 }
     }
 
+    /// The order that marks this show in a guide: the server will record it, records it or has
+    /// recorded it. One that failed or was refused marks nothing.
+    public func markingOrder(channelId: Int, start: Date) -> Order? {
+        orders.first {
+            $0.order.channelId == channelId && abs($0.order.showStart.timeIntervalSince(start)) < 1
+                && $0.state?.phase != .failed && $0.state?.phase != .refused
+        }
+    }
+
     /// The order of this show that the server has not finished: it will record it or records now.
     public func pendingOrder(channelId: Int, start: Date) -> Order? {
         pending.first { $0.order.channelId == channelId && abs($0.order.showStart.timeIntervalSince(start)) < 1 }

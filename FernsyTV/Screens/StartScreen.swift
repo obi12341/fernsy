@@ -75,7 +75,7 @@ struct StartScreen: View {
                                 ForEach(tonight.shows, id: \.channel.id) { item in
                                     Button { pick(item.show, on: item.channel) } label: {
                                         StartShowCard(show: item.show, channel: item.channel,
-                                                      scheduled: model.isScheduled(item.show, on: item.channel))
+                                                      scheduled: model.isScheduled(item.show, on: item.channel) || model.isOnServer(item.show, on: item.channel))
                                     }
                                     .buttonStyle(TVTileStyle(radius: 20, scale: 1.05))
                                     .accessibilityIdentifier("start.tonight.\(item.channel.id)")

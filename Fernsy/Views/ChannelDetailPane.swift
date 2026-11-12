@@ -175,6 +175,13 @@ private struct UpcomingRow: View {
                 }
             }
             Spacer(minLength: 4)
+            if let order = app.cloud.server.pendingOrder(channelId: channel.id, start: entry.start) {
+                Image(systemName: "server.rack")
+                    .font(.caption)
+                    .foregroundStyle(Theme.record)
+                    .help(ServerText.describe(order.state))
+                    .accessibilityLabel(Text(verbatim: ServerText.describe(order.state)))
+            }
             RecordCapsule(channel: channel, entry: entry, large: false)
         }
         .contentShape(Rectangle())
