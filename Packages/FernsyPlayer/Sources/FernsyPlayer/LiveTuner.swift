@@ -210,6 +210,9 @@ public final class TunerPool: ObservableObject {
 
     public func tuner(_ channelId: Int) -> LiveTuner? { tuners[channelId] }
 
+    /// Provider connections this device holds now: tuned channels and an archive playback.
+    public var connectionsInUse: Int { owners.count }
+
     public func acquire(_ channelId: Int, url: URL, owner: Owner) -> LiveTuner {
         if let tuner = tuners[channelId], tuner.isActive || tuner.state == .unsupported {
             owners[channelId, default: []].insert(owner)

@@ -24,4 +24,13 @@ struct ServerTextTests {
         // A refused login of the server itself wins over an older accepted update.
         #expect(ServerText.loginNote(status(refused: true, result: .accepted), checking: false)?.contains("refuses") == true)
     }
+
+    /// Every reason an order fails has its own sentence; the stream reason names the limit.
+    @Test func orderFailures() {
+        let texts = [ServerModel.OrderFailure.notPaired, .streamsInUse(limit: 1), .locked, .network("timeout")].map(ServerText.order)
+        #expect(Set(texts).count == 4)
+        #expect(texts.allSatisfy { !$0.isEmpty })
+        #expect(ServerText.order(.streamsInUse(limit: 3)).contains("3"))
+        #expect(!ServerText.order(.network("https://user:secret@example")).contains("secret"))
+    }
 }

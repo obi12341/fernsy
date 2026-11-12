@@ -54,7 +54,11 @@ struct GuideView: View {
                 scroll.update(rect)
             }
         }
-        .onAppear { scrollToNow() }
+        .onAppear {
+            scrollToNow()
+            // The marks of server orders: what other devices ordered since the last look.
+            Task { await app.cloud.refreshServer() }
+        }
         #if DEBUG
         // IPTV_GUIDESCROLL=x,y: scroll there after loading (layout checks of the sticky parts).
         .onChange(of: reach, initial: true) { _, value in archiveReach = value }
@@ -378,13 +382,15 @@ private struct GuideRow: View {
                         let archived = entry.end <= now && Archive.isPlayable(entry, on: channel, now: now)
                         GuideCell(entry: entry, now: now, width: x1 - x0,
                                   selected: selection == GuideView.Selection(channelId: channel.id, entry: entry),
-                                  recording: recorder.recording(channelId: channel.id, entry: entry)?.status, archived: archived)
+                                  recording: recorder.recording(channelId: channel.id, entry: entry)?.status, archived: archived,
+                                  server: ServerMark(app.cloud.server.markingOrder(channelId: channel.id, start: entry.start)))
                             .onTapGesture(count: 2) { if archived { app.playArchive(entry, on: channel) } else { app.play(channel) } }
                             .onTapGesture { selection = GuideView.Selection(channelId: channel.id, entry: entry) }
                             .contextMenu {
                                 if archived { Button("Play from Start") { app.playArchive(entry, on: channel) } }
                                 Button("Play") { app.play(channel) }
                                 RecordButton(channel: channel, entry: entry)
+                                ServerRecordItem(app: app, entry: entry, channel: channel)
                             }
                             .padding(.leading, GuideLayout.channelWidth + x0)
                     }
@@ -506,11 +512,14 @@ private struct GuideCell: View {
     let recording: Recording.Status?
     /// A past show in the channel's archive: it can be played from its start (catch-up).
     var archived = false
+    /// Fernsy Server has an order for the show; the Mac's own recording comes first in the text.
+    var server: ServerMark?
 
     var body: some View {
         let running = entry.start <= now && entry.end > now
         let past = entry.end <= now
         let mark = recording.flatMap { $0 == .skipped || $0 == .missed ? nil : $0 }
+        let marked = mark != nil || server != nil
         VStack(alignment: .leading, spacing: 1) {
             if width > 28 {
                 HStack(spacing: 3) {
@@ -523,9 +532,9 @@ private struct GuideCell: View {
                 if width > 58 {
                     Text(secondLine(mark))
                         .font(.caption)
-                        .fontWeight(mark == nil ? .regular : .semibold)
+                        .fontWeight(marked ? .semibold : .regular)
                         .monospacedDigit()
-                        .foregroundStyle(mark != nil ? AnyShapeStyle(Theme.record) : past ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(marked ? AnyShapeStyle(Theme.record) : past ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
                 }
             }
         }
@@ -551,9 +560,9 @@ private struct GuideCell: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
         }
         .overlay {
-            if let mark {
+            if marked {
                 RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.record, lineWidth: 1.5)
-                if mark == .scheduled {
+                if mark == .scheduled || (mark == nil && server == .ordered) {
                     // Planned, not yet recording: a second, inner line.
                     RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.record.opacity(0.55), lineWidth: 1).padding(3)
                 }
@@ -578,7 +587,13 @@ private struct GuideCell: View {
         case .scheduled?: return String(localized: "● Scheduled · \(times)")
         case .recording?: return String(localized: "● Recording · \(times)")
         case .done?, .failed?: return String(localized: "● Recorded · \(times)")
-        default: return times
+        default: break
+        }
+        switch server {
+        case .ordered?: return String(localized: "● On Server · \(times)")
+        case .recording?: return String(localized: "● Server Recording · \(times)")
+        case .recorded?: return String(localized: "● Recorded on Server · \(times)")
+        case nil: return times
         }
     }
 

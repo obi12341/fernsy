@@ -14,12 +14,20 @@ final class FakeControl: ServerControlAPI, @unchecked Sendable {
     var answers: [String: (message: Data, tag: Data)] = [:]
     /// How often an app asked for items.
     private(set) var reads = 0
+    /// Reading fails as without network.
+    var offline = false
 
     func items(_ key: ControlKey, since: Int) async throws -> (items: [ControlClient.Item], change: Int) {
-        lock.withLock {
+        try lock.withLock {
+            if offline { throw URLError(.notConnectedToInternet) }
             reads += 1
             return (items.values.filter { $0.change > since }.sorted { $0.change < $1.change }, change)
         }
+    }
+
+    /// The orders in the space that are not deleted.
+    func orderCount(_ key: ControlKey) -> Int {
+        lock.withLock { items.values.filter { $0.kind == ControlKind.order.rawValue && $0.deleted != true }.count }
     }
 
     func put<Value: Encodable>(_ value: Value, kind: ControlKind, id: String, key: ControlKey) async throws -> Int {
@@ -122,6 +130,106 @@ struct ServerModelTests {
         model.pollInterval = .zero
         await model.refreshIfStale()
         #expect(control.reads == 2)
+    }
+
+    /// A paired server and an order for a show that starts `startsIn` seconds from `now`.
+    func paired(_ control: FakeControl) async throws -> (ServerModel, ControlKey) {
+        let (model, keys) = model(control)
+        let key = try await keys.createIfMissing()
+        _ = try await control.put(ControlServerStatus(lastContact: Date(), version: "test"), kind: .server, id: "status", key: key)
+        return (model, key)
+    }
+
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    func show(startsIn: TimeInterval, channel: Int = 7, by device: String = "Mac") -> ControlOrder {
+        ControlOrder(channelId: channel, channelName: "Seven", title: "News", showStart: now + startsIn, showEnd: now + startsIn + 1800,
+                     padBefore: 600, padAfter: 600, createdBy: device)
+    }
+
+    /// Ordering looks at the server's orders first: a show another device ordered is not
+    /// ordered again, a failed order does not stand in the way.
+    @Test func orderingAShowTwiceKeepsOneOrder() async throws {
+        let control = FakeControl()
+        let (model, key) = try await paired(control)
+        _ = try await control.put(show(startsIn: 7200, by: "Apple TV"), kind: .order, id: "tv", key: key)
+        let again = try await model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+        #expect(again.isNew == false)
+        #expect(again.order.id == "tv")
+        #expect(control.orderCount(key) == 1)
+        // Another show is new, and listed without a second look.
+        let other = try await model.place(show(startsIn: 10800), streamsInUse: 0, limit: 1, now: now)
+        #expect(other.isNew)
+        #expect(model.pendingOrder(channelId: 7, start: now + 10800)?.id == other.order.id)
+        #expect(control.orderCount(key) == 2)
+        // Guides mark both shows.
+        #expect(model.markingOrder(channelId: 7, start: now + 7200)?.id == "tv")
+        #expect(model.markingOrder(channelId: 7, start: now + 10800) != nil)
+        #expect(model.markingOrder(channelId: 8, start: now + 7200) == nil)
+        // The server gave up on the first: it can be ordered anew, and marks nothing until then.
+        _ = try await control.put(ControlOrderState(phase: .failed, reason: .noStream), kind: .state, id: "tv", key: key)
+        await model.refresh()
+        #expect(model.markingOrder(channelId: 7, start: now + 7200) == nil)
+        let anew = try await model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+        #expect(anew.isNew)
+        #expect(control.orderCount(key) == 3)
+    }
+
+    /// Two clicks on the same show at once (seen with Fernsy Dev's debug order, which ran twice):
+    /// the second waits for the first and finds its order.
+    @Test func orderingTheSameShowAtOnceKeepsOneOrder() async throws {
+        let control = FakeControl()
+        let (model, key) = try await paired(control)
+        async let first = model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+        async let second = model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+        async let third = model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+        let results = try await [first, second, third]
+        #expect(results.filter(\.isNew).count == 1)
+        #expect(Set(results.map(\.order.id)).count == 1)
+        #expect(control.orderCount(key) == 1)
+    }
+
+    /// An order that would start now needs a free stream; one for later is not checked.
+    @Test func orderThatStartsNowNeedsAFreeStream() async throws {
+        let control = FakeControl()
+        let (model, key) = try await paired(control)
+        // The show runs, and this device plays on a single-stream account.
+        await #expect(throws: ServerModel.OrderFailure.streamsInUse(limit: 1)) {
+            try await model.place(show(startsIn: -300), streamsInUse: 1, limit: 1, now: now)
+        }
+        // Inside the lead time counts as now.
+        await #expect(throws: ServerModel.OrderFailure.streamsInUse(limit: 1)) {
+            try await model.place(show(startsIn: 300), streamsInUse: 1, limit: 1, now: now)
+        }
+        #expect(control.orderCount(key) == 0)
+        // Later shows are the server's business at their start.
+        #expect(try await model.place(show(startsIn: 7200), streamsInUse: 1, limit: 1, now: now).isNew)
+        // Room for the server: two streams, one in use here.
+        #expect(try await model.place(show(startsIn: -300), streamsInUse: 1, limit: 2, now: now).isNew)
+        // The server's own running recording takes that room.
+        let running = try #require(model.pendingOrder(channelId: 7, start: now - 300))
+        _ = try await control.put(ControlOrderState(phase: .recording), kind: .state, id: running.id, key: key)
+        await #expect(throws: ServerModel.OrderFailure.streamsInUse(limit: 2)) {
+            try await model.place(show(startsIn: -200, channel: 9), streamsInUse: 1, limit: 2, now: now)
+        }
+        #expect(control.orderCount(key) == 2)
+    }
+
+    @Test func orderingWithoutAServerOrWithoutAnAnswer() async throws {
+        let control = FakeControl()
+        let (unpaired, _) = model(control)
+        await #expect(throws: ServerModel.OrderFailure.notPaired) {
+            try await unpaired.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+        }
+        let (model, key) = try await paired(control)
+        await model.refresh()
+        control.offline = true
+        do {
+            _ = try await model.place(show(startsIn: 7200), streamsInUse: 0, limit: 1, now: now)
+            Issue.record("ordered without an answer from Fernsy Control")
+        } catch {
+            guard case .network = error else { Issue.record("\(error)"); return }
+        }
+        #expect(control.orderCount(key) == 0)
     }
 
     @Test func ordersAndStatesFromBothSides() async throws {

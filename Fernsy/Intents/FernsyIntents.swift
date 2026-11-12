@@ -119,7 +119,7 @@ enum IntentActions {
         return answer(result, title: show?.title ?? channel.displayName)
     }
 
-    static func record(showId: String) async -> IntentAnswer {
+    static func record(showId: String, onServer: Bool = false) async -> IntentAnswer {
         guard let app = await IntentSupport.app(), app.credentials != nil else { return notSignedIn }
         let actions = FernsyActions(app: app)
         let parts = showId.split(separator: ":")
@@ -131,7 +131,15 @@ enum IntentActions {
         guard let entry = actions.entries(channelId).first(where: { abs($0.start.timeIntervalSince1970 - epoch) < 60 }), entry.end > Date() else {
             return IntentAnswer(text: String(localized: "I can't find this show in the guide any more."))
         }
-        return answer(actions.schedule(entry, on: channel), title: entry.title)
+        guard onServer else { return answer(actions.schedule(entry, on: channel), title: entry.title) }
+        do {
+            _ = try await actions.orderOnServer(entry, on: channel)
+            let recorded = String(localized: "Fernsy Server records \"\(entry.title)\", \(IntentSupport.when(entry.start)) to \(IntentSupport.time(entry.end)).")
+            // Its state was just read: an order for a server that is away waits until it is back.
+            return IntentAnswer(text: app.cloud.server.isOnline() ? recorded : recorded + " " + ServerText.offline)
+        } catch {
+            return IntentAnswer(text: ServerText.order(caught: error))
+        }
     }
 
     private static func answer(_ result: FernsyActions.ScheduleResult, title: String) -> IntentAnswer {
@@ -255,9 +263,13 @@ struct RecordShowIntent: AppIntent {
     @Parameter(title: "Show")
     var show: ShowEntity
 
+    /// On: a paired Fernsy Server records the show instead of this Mac (server-recording-everywhere).
+    @Parameter(title: "On Fernsy Server", default: false)
+    var onServer: Bool
+
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: IntentDialog(stringLiteral: await IntentActions.record(showId: show.id).text))
+        .result(dialog: IntentDialog(stringLiteral: await IntentActions.record(showId: show.id, onServer: onServer).text))
     }
 }
 

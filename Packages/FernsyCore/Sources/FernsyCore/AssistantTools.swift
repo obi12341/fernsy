@@ -33,15 +33,16 @@ public enum AssistantTools {
                 "to": ["type": "string", "format": "date-time"],
             ], required: ["query"], readOnly: true),
             tool("recently_watched", "Recently watched live channels, IPTV films in progress, and Jellyfin Continue Watching and Next Up.", [:], readOnly: true),
-            tool("list_recordings", "Running, scheduled and finished recordings.", [
+            tool("list_recordings", "Running, scheduled and finished recordings of this device, and the orders of a paired Fernsy Server that are not in Fernsy Cloud yet (where: server, recording_id server:<id>).", [
                 "status": ["type": "string", "enum": ["all", "scheduled", "recording", "done", "failed"]],
             ], readOnly: true),
-            tool("schedule_recording", "Schedule a recording of a show from the guide, with the app's padding and stream-limit rules.", [
+            tool("schedule_recording", "Schedule a recording of a show from the guide. On this device it follows the app's padding and stream-limit rules. With where: server a paired Fernsy Server records it, also while this device is off: pass that only when the user names the server or says this device will be off or asleep then. iPhone and iPad do not record themselves and use the server when where is missing. The result's where says where the show was scheduled (a result without where: on the device); say it in your answer.", [
                 "show_id": ["type": "string", "description": "From get_program, whats_on or search_program"],
                 "channel_id": ["type": "integer", "description": "With start, instead of show_id"],
                 "start": ["type": "string", "format": "date-time"],
+                "where": ["type": "string", "enum": ["device", "server"], "description": "Where to record; without it the device decides"],
             ], readOnly: false),
-            tool("cancel_recording", "Remove a scheduled recording. Running and finished recordings and their files are not touched.", [
+            tool("cancel_recording", "Remove a scheduled recording, or a Fernsy Server order that has not started (recording_id server:<id>). Running and finished recordings and their files are not touched.", [
                 "recording_id": ["type": "string"],
             ], required: ["recording_id"], readOnly: false),
             tool("play", "Play an item in Fernsy's player: live:<channel id> (switches channels), movie:<id>, episode:<series id>:<episode id>, jellyfin:<item id>, recording:<id> or cloud:<Fernsy Cloud id>. Never ends a running recording.", [

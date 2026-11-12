@@ -126,7 +126,7 @@ export default [
   },
   {
     "function" : {
-      "description" : "Running, scheduled and finished recordings.",
+      "description" : "Running, scheduled and finished recordings of this device, and the orders of a paired Fernsy Server that are not in Fernsy Cloud yet (where: server, recording_id server:<id>).",
       "name" : "list_recordings",
       "parameters" : {
         "additionalProperties" : false,
@@ -149,7 +149,7 @@ export default [
   },
   {
     "function" : {
-      "description" : "Schedule a recording of a show from the guide, with the app's padding and stream-limit rules.",
+      "description" : "Schedule a recording of a show from the guide. On this device it follows the app's padding and stream-limit rules. With where: server a paired Fernsy Server records it, also while this device is off: pass that only when the user names the server or says this device will be off or asleep then. iPhone and iPad do not record themselves and use the server when where is missing. The result's where says where the show was scheduled (a result without where: on the device); say it in your answer.",
       "name" : "schedule_recording",
       "parameters" : {
         "additionalProperties" : false,
@@ -165,6 +165,14 @@ export default [
           "start" : {
             "format" : "date-time",
             "type" : "string"
+          },
+          "where" : {
+            "description" : "Where to record; without it the device decides",
+            "enum" : [
+              "device",
+              "server"
+            ],
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -174,7 +182,7 @@ export default [
   },
   {
     "function" : {
-      "description" : "Remove a scheduled recording. Running and finished recordings and their files are not touched.",
+      "description" : "Remove a scheduled recording, or a Fernsy Server order that has not started (recording_id server:<id>). Running and finished recordings and their files are not touched.",
       "name" : "cancel_recording",
       "parameters" : {
         "additionalProperties" : false,

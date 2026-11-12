@@ -46,6 +46,22 @@ public enum ServerText {
         String(localized: "The server has not reported for a while; it records once it is back.", bundle: .module)
     }
 
+    /// Why a show was not ordered (server-recording-everywhere), the same on every device.
+    public static func order(_ failure: ServerModel.OrderFailure) -> String {
+        switch failure {
+        case .notPaired: String(localized: "No Fernsy Server is paired. You can pair one in Fernsy’s settings.", bundle: .module)
+        case .streamsInUse(let limit):
+            String(localized: "Your account’s \(limit) stream(s) are in use on this device, so Fernsy Server cannot record this right now.", bundle: .module)
+        case .locked: String(localized: "iCloud is not available right now, so Fernsy cannot reach your Fernsy Server. Try again later.", bundle: .module)
+        case .network: pairing(.network(""))
+        }
+    }
+
+    /// The same for what a `catch` holds after ordering.
+    public static func order(caught error: Error) -> String {
+        order(error as? ServerModel.OrderFailure ?? .network("\(error)"))
+    }
+
     public static func pairing(_ failure: ServerModel.PairingFailure) -> String {
         switch failure {
         case .badCode: String(localized: "The code has ten letters and digits, like 7K3Q-ABCDEF.", bundle: .module)

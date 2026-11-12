@@ -161,12 +161,8 @@ struct ServerRecordButton: View {
     private func schedule(_ server: ServerModel) {
         busy = true
         failure = nil
-        let padding = Recorder.padding
-        let order = ControlOrder(channelId: channel.id, channelName: channel.displayName, title: show.title,
-                                 showStart: show.start, showEnd: show.end, padBefore: padding.before, padAfter: padding.after,
-                                 createdBy: UIDevice.current.name)
         Task {
-            do { try await server.schedule(order) } catch { failure = ServerText.pairing(.network("\(error)")) }
+            do { _ = try await model.orderOnServer(show, on: channel) } catch { failure = ServerText.order(caught: error) }
             busy = false
         }
     }

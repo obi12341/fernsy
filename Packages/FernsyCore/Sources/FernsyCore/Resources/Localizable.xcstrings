@@ -1201,6 +1201,46 @@
           }
         }
       }
+    },
+    "No Fernsy Server is paired. You can pair one in Fernsy’s settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es ist kein Fernsy Server gekoppelt. Du kannst einen in den Einstellungen von Fernsy koppeln."
+          }
+        }
+      }
+    },
+    "Your account’s %lld stream(s) are in use on this device, so Fernsy Server cannot record this right now.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die %lld Stream(s) deines Zugangs sind auf diesem Gerät in Benutzung, deshalb kann Fernsy Server das gerade nicht aufnehmen."
+          }
+        }
+      }
+    },
+    "iCloud is not available right now, so Fernsy cannot reach your Fernsy Server. Try again later.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud ist gerade nicht verfügbar, deshalb erreicht Fernsy deinen Fernsy Server nicht. Versuch es später noch mal."
+          }
+        }
+      }
+    },
+    "Remove the recording of “%@” (%@) from Fernsy Server?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Aufnahme von „%1$@“ (%2$@) von Fernsy Server entfernen?"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

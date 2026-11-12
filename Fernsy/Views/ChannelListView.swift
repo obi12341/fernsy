@@ -92,12 +92,15 @@ struct ChannelListView: View {
             // Screenshot runs: IPTV_SELECT=<channel id> shows that channel's programme panel.
             if let id = ProcessInfo.processInfo.environment["IPTV_SELECT"].flatMap(Int.init) {
                 selection = id
-                // IPTV_TESTSCHEDULE=1: schedules the selected channel's second upcoming show.
-                if ProcessInfo.processInfo.environment["IPTV_TESTSCHEDULE"] != nil {
+                // IPTV_TESTSCHEDULE=1: schedules the selected channel's second upcoming show;
+                // =server orders it on Fernsy Server as "Record on Server" does.
+                if let mode = ProcessInfo.processInfo.environment["IPTV_TESTSCHEDULE"] {
                     while app.channel(id) == nil { try? await Task.sleep(for: .milliseconds(200)) }
                     await app.epg.load(id, client: app.client)
                     let upcoming = (app.epg.guide(id).entries ?? []).filter { $0.start > Date() }
-                    if upcoming.count > 1, let channel = app.channel(id) { recorder.schedule(upcoming[1], on: channel).present() }
+                    if upcoming.count > 1, let channel = app.channel(id) {
+                        if mode == "server" { app.recordOnServer(upcoming[1], on: channel) } else { recorder.schedule(upcoming[1], on: channel).present() }
+                    }
                 }
             }
             // IPTV_TESTINFO=<channel id> opens that channel's "Senderinfo".
@@ -395,10 +398,16 @@ struct EPGPanel: View {
             }
             if let now = entries.first(where: { $0.start <= Date() && $0.end > Date() }) ?? entries.first {
                 EPGLine(entry: now, highlight: true)
-                    .contextMenu { RecordButton(channel: channel, entry: now) }
+                    .contextMenu {
+                        RecordButton(channel: channel, entry: now)
+                        ServerRecordItem(app: app, entry: now, channel: channel)
+                    }
                 ForEach(entries.filter { $0.start >= now.end }.prefix(2)) { entry in
                     EPGLine(entry: entry, highlight: false)
-                        .contextMenu { RecordButton(channel: channel, entry: entry) }
+                        .contextMenu {
+                            RecordButton(channel: channel, entry: entry)
+                            ServerRecordItem(app: app, entry: entry, channel: channel)
+                        }
                 }
             } else if loaded {
                 Text("No program information").foregroundStyle(.secondary).font(.callout)

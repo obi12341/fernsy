@@ -104,18 +104,13 @@ struct ServerDialogButtons: View {
                 Button("Remove from Server", role: .destructive) { Task { try? await server.cancel(order.id) } }
             } else {
                 Button("Record on Fernsy Server") {
-                    let padding = Recorder.padding
-                    let order = ControlOrder(channelId: channel.id, channelName: channel.displayName, title: show.title,
-                                             showStart: show.start, showEnd: show.end, padBefore: padding.before, padAfter: padding.after,
-                                             createdBy: "Apple TV")
                     Task {
                         do {
-                            try await server.schedule(order)
-                            // The order waits in Fernsy Control; say so when the server is away right now.
-                            await server.refresh()
+                            _ = try await model.orderOnServer(show, on: channel)
+                            // Its state was just read: say so when the server is away right now.
                             if !server.isOnline() { model.notice = ServerText.offline }
                         } catch {
-                            model.notice = ServerText.pairing(.network("\(error)"))
+                            model.notice = ServerText.order(caught: error)
                         }
                     }
                 }
