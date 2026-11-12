@@ -385,6 +385,7 @@ private struct GuideRow: View {
                                 if archived { Button("Play from Start") { app.playArchive(entry, on: channel) } }
                                 Button("Play") { app.play(channel) }
                                 RecordButton(channel: channel, entry: entry)
+                                ServerRecordItem(app: app, entry: entry, channel: channel)
                             }
                             .padding(.leading, GuideLayout.channelWidth + x0)
                     }

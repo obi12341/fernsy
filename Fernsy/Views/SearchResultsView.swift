@@ -247,6 +247,7 @@ struct SearchResultsView: View {
         .confirmationDialog(asked.map { recordQuestion($0) } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                             presenting: asked) { hit in
             Button("Record") { recorder.schedule(hit.entry, on: hit.channel).present() }
+            ServerRecordItem(app: app, entry: hit.entry, channel: hit.channel)
             Button("Cancel", role: .cancel) {}
         } message: { hit in
             Text(verbatim: ShowHitRow.caption(hit))
@@ -255,14 +256,15 @@ struct SearchResultsView: View {
     }
 
     #if DEBUG
-    /// IPTV_TESTSHOWSELECT=running|later: selects the first running or later show hit as a click
-    /// does; for a later one it then answers "Record" (the Mac app has no UI test target).
+    /// IPTV_TESTSHOWSELECT=running|later|ask: selects the first running or later show hit as a
+    /// click does; for a later one it then answers "Record", with `ask` it leaves the record
+    /// question open for a screenshot (the Mac app has no UI test target).
     private func debugSelectShow() {
         guard let mode = ProcessInfo.processInfo.environment["IPTV_TESTSHOWSELECT"], let shows = results?.shows,
               let hit = shows.first(where: { ($0.entry.start <= Date()) == (mode == "running") }) else { return }
         debugLog("[test] selecting show \"\(hit.entry.title)\" on \(hit.channel.id) (\(mode))")
         select(hit)
-        if asked != nil {
+        if asked != nil, mode != "ask" {
             debugLog("[test] asked: \(recordQuestion(hit)) – answering Record")
             recorder.schedule(hit.entry, on: hit.channel).present()
             asked = nil
@@ -318,6 +320,7 @@ struct SearchResultsView: View {
                     } else {
                         Button("Record") { recorder.schedule(hit.entry, on: hit.channel).present() }
                     }
+                    ServerRecordItem(app: app, entry: hit.entry, channel: hit.channel)
                     Button("Show in Guide", action: showInGuide)
                 }
             }

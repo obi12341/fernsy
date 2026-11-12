@@ -5712,6 +5712,36 @@
         }
       }
     },
+    "On Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Server"
+          }
+        }
+      }
+    },
+    "On Fernsy Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Fernsy Server"
+          }
+        }
+      }
+    },
+    "Fernsy Server records \"%@\", %@ to %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy Server nimmt „%1$@“ auf, %2$@ bis %3$@."
+          }
+        }
+      }
+    },
     "Fernsy Server records it, also while this Mac is off": {
       "localizations": {
         "de": {

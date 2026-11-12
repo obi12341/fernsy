@@ -11,6 +11,9 @@ struct StartView: View {
     /// Rows kept in state and rebuilt when their inputs change, never while drawing (design 7).
     @State private var rows = StartRows()
     @State private var asked: TonightItem?
+    #if DEBUG
+    private static var debugAsked = false
+    #endif
 
     var body: some View {
         let hero = rows.resume.first ?? rows.spotlight
@@ -78,6 +81,7 @@ struct StartView: View {
         .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                             presenting: asked) { item in
             Button("Record") { recorder.schedule(item.show, on: item.channel).present() }
+            ServerRecordItem(app: app, entry: item.show, channel: item.channel)
             Button("Watch Live") { app.play(item.channel) }
         } message: { item in
             Text(verbatim: "\(item.channel.displayName) · \(item.show.start.formatted(date: .omitted, time: .shortened))–\(item.show.end.formatted(date: .omitted, time: .shortened))")
@@ -121,6 +125,16 @@ struct StartView: View {
 
     private func refreshTonight() {
         rows.tonight = StartBuilder.tonight(on: rows.live.channels, guide: { app.epg.guide($0).entries ?? [] }, now: LiveClock.now())
+        #if DEBUG
+        // IPTV_TESTSTARTASK=1: opens the record question of tonight's first later show once, for a
+        // screenshot (the Mac app has no UI test target).
+        if ProcessInfo.processInfo.environment["IPTV_TESTSTARTASK"] != nil, !Self.debugAsked,
+           let item = rows.tonight.shows.map(TonightItem.init).first(where: { $0.show.start > Date() }) {
+            Self.debugAsked = true
+            // Later: a question asked while the window is still opening is not shown.
+            Task { try? await Task.sleep(for: .seconds(3)); asked = item }
+        }
+        #endif
     }
 
     private var liveNote: Text? {

@@ -146,7 +146,10 @@ private struct NowCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(4)
             }
-            RecordCapsule(channel: channel, entry: entry, large: true)
+            HStack(spacing: 8) {
+                RecordCapsule(channel: channel, entry: entry, large: true)
+                ServerRecordCapsule(channel: channel, entry: entry)
+            }
         }
         .padding(14)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
@@ -154,6 +157,7 @@ private struct NowCard: View {
 }
 
 private struct UpcomingRow: View {
+    @EnvironmentObject private var app: AppModel
     let channel: LiveChannel
     let entry: EPGEntry
 
@@ -173,6 +177,8 @@ private struct UpcomingRow: View {
             Spacer(minLength: 4)
             RecordCapsule(channel: channel, entry: entry, large: false)
         }
+        .contentShape(Rectangle())
+        .contextMenu { ServerRecordItem(app: app, entry: entry, channel: channel) }
     }
 }
 
