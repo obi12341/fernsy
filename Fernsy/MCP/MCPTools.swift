@@ -20,7 +20,10 @@ final class MCPTools {
         time zone. Find channel ids with find_channels; shows have a show_id ("<channel>:<start \
         epoch>") that schedule_recording takes. The guide is loaded per channel, so search_program \
         searches favourites and recently watched channels unless you pass channel_ids (at most 50). \
-        Recordings follow the account's stream limit: a refused result explains why. After a \
+        Recordings follow the account's stream limit: a refused result explains why. With a paired \
+        Fernsy Server, schedule_recording takes where: "server" (it records while this Mac is off), \
+        list_recordings also lists the server's orders, and cancel_recording removes one that has \
+        not started. After a \
         Jellyfin episode ends, now_playing names the next one and when it starts by itself; \
         item_info and list_episodes give episode ids to play. To find a scene: get_subtitles when \
         it is described by what is said (Jellyfin), otherwise frames coarse to fine, then seek, and \
@@ -45,9 +48,9 @@ final class MCPTools {
         case "get_program": return try await program(args)
         case "search_program": return try await searchProgram(args)
         case "recently_watched": return recentlyWatched()
-        case "list_recordings": return listRecordings(args)
+        case "list_recordings": return await listRecordings(args)
         case "schedule_recording": return try await scheduleRecording(args)
-        case "cancel_recording": return try cancelRecording(args)
+        case "cancel_recording": return try await cancelRecording(args)
         case "play": return try await play(args)
         case "now_playing": return nowPlaying()
         case "item_info": return try await itemInfo(args)
@@ -208,12 +211,13 @@ final class MCPTools {
         return value
     }
 
-    private func listRecordings(_ args: [String: Any]) -> [String: Any] {
+    /// The Mac's recordings, then a paired Fernsy Server's orders (server-recording-everywhere).
+    private func listRecordings(_ args: [String: Any]) async -> [String: Any] {
         let status = args["status"] as? String ?? "all"
         let list = app.recorder.recordings
             .filter { status == "all" || $0.status.rawValue == status }
             .sorted { $0.recordStart < $1.recordStart }
-        return ["recordings": list.map(recordingJSON)]
+        return ["recordings": list.map(recordingJSON) + (await AssistantTools.serverRecordings(app.cloud.server, status: status))]
     }
 
     private func scheduleRecording(_ args: [String: Any]) async throws -> [String: Any] {
@@ -224,18 +228,28 @@ final class MCPTools {
             throw ToolError("No show on \(channel.displayName) starts at \(AssistantTools.iso(start)); check get_program.")
         }
         guard entry.end > Date() else { throw ToolError("„\(entry.title)“ has already ended.") }
+        // Without `where` the Mac records itself.
+        if try AssistantTools.place(args) == .server {
+            return try await AssistantTools.orderOnServer(app.cloud.server) { () async throws(ServerModel.OrderFailure) -> (order: ServerModel.Order, isNew: Bool) in
+                try await self.actions.orderOnServer(entry, on: channel)
+            }
+        }
         switch actions.schedule(entry, on: channel) {
         case .refused(let reason):
-            return ["result": "refused", "reason": reason]
+            return ["result": "refused", "where": "device", "reason": reason]
         case .planned(let recording, let notice):
-            var value: [String: Any] = ["result": notice == nil ? "planned" : "planned_with_shortened_padding"]
+            var value: [String: Any] = ["result": notice == nil ? "planned" : "planned_with_shortened_padding", "where": "device"]
             if let notice { value["notice"] = notice }
             if let recording { value["recording"] = recordingJSON(recording) }
             return value
         }
     }
 
-    private func cancelRecording(_ args: [String: Any]) throws -> [String: Any] {
+    private func cancelRecording(_ args: [String: Any]) async throws -> [String: Any] {
+        // A server order: the in-app assistant has asked before (AppModel+Assistant), MCP clients ask themselves.
+        if let orderId = (args["recording_id"] as? String).flatMap(AssistantTools.serverOrderID) {
+            return try await AssistantTools.cancelServerOrder(orderId, server: app.cloud.server) { _ in true }
+        }
         guard let text = args["recording_id"] as? String, let id = UUID(uuidString: text),
               let recording = app.recorder.recordings.first(where: { $0.id == id }) else { throw ToolError("No recording with this id") }
         guard recording.status == .scheduled else {

@@ -10,6 +10,10 @@ extension AppModel {
         weak var asking: AssistantModel?
         let assistant = AssistantModel(cloud: cloud, platform: "Mac") { [weak self] name, args in
             guard AssistantTools.assistantNames.contains(name) else { throw AssistantTools.ToolError("\(name) is not available to the assistant.") }
+            // A server order is removed only after the question too (server-recording-everywhere design 4).
+            if name == "cancel_recording", let orderId = (args["recording_id"] as? String).flatMap(AssistantTools.serverOrderID), let server = self?.cloud.server {
+                return try await AssistantTools.cancelServerOrder(orderId, server: server) { question in await asking?.confirm(question) == true }
+            }
             if name == "cancel_recording", let question = self?.cancelQuestion(args) {
                 guard await asking?.confirm(question) == true else {
                     return ["result": "kept", "recording_id": args["recording_id"] ?? "", "reason": "The user did not confirm; the recording stays scheduled."]

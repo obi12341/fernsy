@@ -48,7 +48,7 @@ final class AssistantToolRunner {
         case "get_program": return try await program(args)
         case "search_program": return try await searchProgram(args)
         case "recently_watched": return recentlyWatched()
-        case "list_recordings": return try listRecordings(args)
+        case "list_recordings": return try await listRecordings(args)
         case "schedule_recording": return try await scheduleRecording(args)
         case "cancel_recording": return try await cancelRecording(args)
         case "play": return try await play(args)
@@ -197,11 +197,20 @@ final class AssistantToolRunner {
 
     // MARK: Recordings
 
-    /// iPad and iPhone do not record (ios-app: no recordings on iPhone and iPad).
-    private func requireRecorder() throws {
+    /// iPad and iPhone do not record (ios-app: no recordings on iPhone and iPad); a paired
+    /// Fernsy Server records for them (server-recording-everywhere design 4).
+    private var recordsItself: Bool {
         #if os(iOS)
-        throw ToolError("Recordings are made on the Mac or the Apple TV; Fernsy on iPhone and iPad does not record.")
+        false
+        #else
+        true
         #endif
+    }
+
+    private static let noRecorder = "Recordings are made on the Mac, the Apple TV or a Fernsy Server; Fernsy on iPhone and iPad does not record, and no Fernsy Server is paired."
+
+    private func requireRecorder() throws {
+        if !recordsItself { throw ToolError(Self.noRecorder) }
     }
 
     private func recordingJSON(_ recording: Recording) -> [String: Any] {
@@ -216,17 +225,24 @@ final class AssistantToolRunner {
         return value
     }
 
-    private func listRecordings(_ args: [String: Any]) throws -> [String: Any] {
-        try requireRecorder()
+    /// The device's recordings, then the server's orders; iPad and iPhone list only those.
+    private func listRecordings(_ args: [String: Any]) async throws -> [String: Any] {
         let status = args["status"] as? String ?? "all"
+        let server = await AssistantTools.serverRecordings(model.cloud.server, status: status)
+        guard recordsItself else {
+            if !model.cloud.server.isPaired { throw ToolError(Self.noRecorder) }
+            return ["recordings": server]
+        }
         let list = model.recorder.recordings
             .filter { status == "all" || $0.status.rawValue == status }
             .sorted { $0.recordStart < $1.recordStart }
-        return ["recordings": list.map(recordingJSON)]
+        return ["recordings": list.map(recordingJSON) + server]
     }
 
     private func scheduleRecording(_ args: [String: Any]) async throws -> [String: Any] {
-        try requireRecorder()
+        // Without `where` a device that records uses itself, iPad and iPhone the server.
+        let place = try AssistantTools.place(args) ?? (recordsItself ? .device : .server)
+        if place == .device { try requireRecorder() }
         let (channelId, start) = try AssistantTools.show(args)
         let channel = try visibleChannel(channelId)
         await loadGuides([channelId])
@@ -234,11 +250,22 @@ final class AssistantToolRunner {
             throw ToolError("No show on \(channel.displayName) starts at \(AssistantTools.iso(start)); check get_program.")
         }
         guard entry.end > Date() else { throw ToolError("„\(entry.title)“ has already ended.") }
+        if place == .server {
+            do {
+                return try await AssistantTools.orderOnServer(model.cloud.server) { () async throws(ServerModel.OrderFailure) -> (order: ServerModel.Order, isNew: Bool) in
+                    try await self.model.orderOnServer(entry, on: channel)
+                }
+            } catch {
+                // iPad and iPhone without a server: say what records instead.
+                if !recordsItself, !model.cloud.server.isPaired { throw ToolError(Self.noRecorder) }
+                throw error
+            }
+        }
         switch model.recorder.schedule(entry, on: channel) {
         case .refused(let reason):
-            return ["result": "refused", "reason": reason]
+            return ["result": "refused", "where": "device", "reason": reason]
         case .planned(let notice):
-            var value: [String: Any] = ["result": notice == nil ? "planned" : "planned_with_shortened_padding"]
+            var value: [String: Any] = ["result": notice == nil ? "planned" : "planned_with_shortened_padding", "where": "device"]
             if let notice { value["notice"] = notice }
             if let recording = model.recorder.recordings.first(where: { $0.matches(channelId: channel.id, entry: entry) && $0.isUpcomingOrRunning }) {
                 value["recording"] = recordingJSON(recording)
@@ -248,6 +275,9 @@ final class AssistantToolRunner {
     }
 
     private func cancelRecording(_ args: [String: Any]) async throws -> [String: Any] {
+        if let orderId = (args["recording_id"] as? String).flatMap(AssistantTools.serverOrderID) {
+            return try await AssistantTools.cancelServerOrder(orderId, server: model.cloud.server, confirm: confirm)
+        }
         try requireRecorder()
         guard let text = args["recording_id"] as? String, let id = UUID(uuidString: text),
               let recording = model.recorder.recordings.first(where: { $0.id == id }) else { throw ToolError("No recording with this id") }

@@ -165,7 +165,9 @@ public final class AssistantModel {
 
 #if DEBUG
 /// Answers deterministically without the relay (`IPTV_ASSISTANT_STUB=1`): a request naming ZDF or
-/// the demo's first channel plays `live:101`, then answers; anything else gets a fixed answer.
+/// the demo's first channel plays `live:101`, then answers; one naming a recording schedules the
+/// next later show of channel 101 without saying where ("on the server": with `where: server`)
+/// and answers with the tool's result and place; anything else gets a fixed answer.
 struct AssistantStub: AssistantTransport {
     func assistant(messages: [AssistantMessage], context: AssistantContext) async throws -> AssistantReply {
         try await Task.sleep(for: .milliseconds(300))
@@ -173,7 +175,9 @@ struct AssistantStub: AssistantTransport {
                                    renewsAt: Calendar.current.date(byAdding: .month, value: 1, to: .now) ?? .now)
         let request = (messages.last { $0.role == "user" }?.content ?? "").lowercased()
         let message: AssistantMessage
-        if messages.last?.role == "tool" {
+        if request.contains("record") {
+            message = Self.recording(request, after: messages.last)
+        } else if messages.last?.role == "tool" {
             message = AssistantMessage(role: "assistant", content: "Nordlicht 1 HD is playing.")
         } else if request.contains("zdf") || request.contains("nordlicht") {
             message = AssistantMessage(role: "assistant", content: nil, toolCalls: [
@@ -183,6 +187,31 @@ struct AssistantStub: AssistantTransport {
             message = AssistantMessage(role: "assistant", content: "I help with Fernsy: channels, the guide, movies, series and recordings.")
         }
         return AssistantReply(message: message, usage: usage)
+    }
+
+    /// The guide of channel 101, then `schedule_recording` for its first show that starts in
+    /// more than half an hour, then "Recording <result> on <where>." from the tool's answer.
+    private static func recording(_ request: String, after last: AssistantMessage?) -> AssistantMessage {
+        let result = last?.role == "tool" ? (last?.content).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] } : nil
+        switch last?.toolCallId {
+        case "stub-program"?:
+            let later = Date().addingTimeInterval(1800).timeIntervalSince1970
+            let ids = (result?["shows"] as? [[String: Any]] ?? []).compactMap { $0["show_id"] as? String }
+            guard let show = ids.first(where: { Double($0.split(separator: ":").last ?? "") ?? 0 > later }) else {
+                return AssistantMessage(role: "assistant", content: "No later show on channel 101.")
+            }
+            let place = request.contains("on the server") ? #","where":"server""# : ""
+            return AssistantMessage(role: "assistant", content: nil, toolCalls: [
+                .init(id: "stub-schedule", function: .init(name: "schedule_recording", arguments: #"{"show_id":"\#(show)"\#(place)}"#)),
+            ])
+        case "stub-schedule"?:
+            let outcome = result?["result"] as? String ?? result?["error"] as? String ?? last?.content ?? "failed"
+            return AssistantMessage(role: "assistant", content: "Recording \(outcome) on \(result?["where"] as? String ?? "nothing").")
+        default:
+            return AssistantMessage(role: "assistant", content: nil, toolCalls: [
+                .init(id: "stub-program", function: .init(name: "get_program", arguments: #"{"channel_id":101}"#)),
+            ])
+        }
     }
 }
 #endif

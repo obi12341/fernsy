@@ -66,6 +66,12 @@ struct FernsyActions {
         }
     }
 
+    /// Orders a show on a paired Fernsy Server, as "Record on Server" does
+    /// (server-recording-everywhere design 1).
+    func orderOnServer(_ entry: EPGEntry, on channel: LiveChannel) async throws(ServerModel.OrderFailure) -> (order: ServerModel.Order, isNew: Bool) {
+        try await app.orderOnServer(entry, on: channel)
+    }
+
     /// Records the show on now on `channel` (as the player's record button does).
     func recordNow(_ channel: LiveChannel) async -> (result: ScheduleResult, show: EPGEntry?) {
         await loadGuides([channel.id], timeout: 8)
