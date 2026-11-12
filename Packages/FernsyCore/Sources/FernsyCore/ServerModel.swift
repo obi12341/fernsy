@@ -57,6 +57,8 @@ public final class ServerModel {
     @ObservationIgnored private var removedAt: Date?
     @ObservationIgnored private var polling: Task<Void, Never>?
     @ObservationIgnored private var pollers = 0
+    /// Ends when the order being placed is through (`place` takes them one at a time).
+    @ObservationIgnored private var ordering: Task<Void, Never>?
     /// When Fernsy Control last answered (or iCloud said there is no control key).
     @ObservationIgnored private var refreshedAt: ContinuousClock.Instant?
     @ObservationIgnored public var pollInterval: Duration = .seconds(30)
@@ -98,13 +100,15 @@ public final class ServerModel {
 
     // MARK: Reading
 
-    /// Reads what changed since the last call (everything on the first).
-    public func refresh() async {
+    /// Reads what changed since the last call (everything on the first); false when Fernsy
+    /// Control did not answer and the picture is the one from before.
+    @discardableResult
+    public func refresh() async -> Bool {
         guard let key = await keys.key() else {
             status = nil
             orders = []
             refreshedAt = .now
-            return
+            return true
         }
         do {
             let (items, change) = try await api.items(key, since: self.change)
@@ -113,9 +117,11 @@ public final class ServerModel {
             publish()
             lastError = nil
             refreshedAt = .now
+            return true
         } catch {
             lastError = "\(error)"
             AppLog.warning(.recordings, "Fernsy Server: no answer from Fernsy Control: \(error)")
+            return false
         }
     }
 
@@ -237,7 +243,60 @@ public final class ServerModel {
 
     // MARK: Orders
 
-    /// Schedules a show on the server; returns the order's id.
+    /// Why a show could not be ordered (server-recording-everywhere design 1, 3).
+    public enum OrderFailure: Error, Equatable {
+        /// No server is paired (any more).
+        case notPaired
+        /// The recording would start now, and this device and the server's running recordings
+        /// use all `limit` streams of the account.
+        case streamsInUse(limit: Int)
+        /// iCloud cannot hand out the control key right now.
+        case locked
+        /// Fernsy Control did not answer.
+        case network(String)
+    }
+
+    /// Orders a show on the server, the one way every button and tool does it
+    /// (server-recording-everywhere design 1): looks at the server's current orders first, hands
+    /// back an unfinished order for the same show instead of writing a second one (`isNew`
+    /// false), and refuses an order that would start now without a free stream (design 3).
+    /// `streamsInUse` are the provider connections this device holds, `limit` the account's.
+    public func order(_ show: EPGEntry, on channel: LiveChannel, padding: (before: TimeInterval, after: TimeInterval),
+                      createdBy: String, streamsInUse: Int, limit: Int, now: Date = .now) async throws(OrderFailure) -> (order: Order, isNew: Bool) {
+        try await place(ControlOrder(channelId: channel.id, channelName: channel.displayName, title: show.title, showStart: show.start,
+                                     showEnd: show.end, padBefore: padding.before, padAfter: padding.after, createdBy: createdBy),
+                        streamsInUse: streamsInUse, limit: limit, now: now)
+    }
+
+    func place(_ order: ControlOrder, streamsInUse: Int, limit: Int, now: Date = .now) async throws(OrderFailure) -> (order: Order, isNew: Bool) {
+        // One at a time: two clicks on the same show would both look before either has written.
+        let earlier = ordering
+        let (gate, open) = AsyncStream<Void>.makeStream()
+        ordering = Task { for await _ in gate {} }
+        defer { open.finish() }
+        await earlier?.value
+        // A picture from before could hide an order from another device: rather no order than two.
+        guard await refresh() else { throw .network(lastError ?? "") }
+        guard isPaired else { throw .notPaired }
+        if let existing = pendingOrder(channelId: order.channelId, start: order.showStart) {
+            AppLog.info(.recordings, "Fernsy Server: \(order.title) is ordered already")
+            return (existing, false)
+        }
+        if now >= order.showStart.addingTimeInterval(-order.padBefore), streamsInUse + runningChannels.count >= limit {
+            AppLog.info(.recordings, "Fernsy Server: \(order.title) not ordered, all \(limit) stream(s) are in use")
+            throw .streamsInUse(limit: limit)
+        }
+        do {
+            let id = try await schedule(order)
+            return (Order(id: id, order: order, state: nil), true)
+        } catch is ControlKeyStore.Locked {
+            throw .locked
+        } catch {
+            throw .network("\(error)")
+        }
+    }
+
+    /// Writes an order as it is; the apps order through `order(_:on:…)`.
     @discardableResult
     public func schedule(_ order: ControlOrder) async throws -> String {
         guard let key = await keys.key() else { throw ControlKeyStore.Locked() }
@@ -265,5 +324,10 @@ public final class ServerModel {
     /// The order of this show on this channel, if the server has one.
     public func order(channelId: Int, start: Date) -> Order? {
         orders.first { $0.order.channelId == channelId && abs($0.order.showStart.timeIntervalSince(start)) < 1 }
+    }
+
+    /// The order of this show that the server has not finished: it will record it or records now.
+    public func pendingOrder(channelId: Int, start: Date) -> Order? {
+        pending.first { $0.order.channelId == channelId && abs($0.order.showStart.timeIntervalSince(start)) < 1 }
     }
 }

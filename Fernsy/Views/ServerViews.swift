@@ -108,7 +108,7 @@ struct ServerRecordButton: View {
         if server.isPaired, entry.end > Date() {
             if let order = server.order(channelId: channel.id, start: entry.start) {
                 Button {
-                    Task { try? await server.cancel(order.id) }
+                    app.removeFromServer(order)
                 } label: {
                     Text("Remove from Server").frame(maxWidth: .infinity)
                 }
@@ -121,20 +121,7 @@ struct ServerRecordButton: View {
                     .accessibilityIdentifier("server.orderState")
             } else {
                 Button {
-                    let padding = Recorder.padding
-                    let order = ControlOrder(channelId: channel.id, channelName: channel.displayName, title: entry.title,
-                                             showStart: entry.start, showEnd: entry.end, padBefore: padding.before, padAfter: padding.after,
-                                             createdBy: Host.current().localizedName ?? "Mac")
-                    Task {
-                        do {
-                            try await server.schedule(order)
-                            // The order waits in Fernsy Control; say so when the server is away right now.
-                            await server.refresh()
-                            if !server.isOnline() { Prompt.inform(title: String(localized: "Recording on Fernsy Server"), message: ServerText.offline) }
-                        } catch {
-                            Prompt.inform(title: String(localized: "Can’t Record"), message: ServerText.pairing(.network("\(error)")))
-                        }
-                    }
+                    app.recordOnServer(entry, on: channel)
                 } label: {
                     Text("Record on Server").frame(maxWidth: .infinity)
                 }
@@ -142,6 +129,60 @@ struct ServerRecordButton: View {
                 .help("Fernsy Server records it, also while this Mac is off")
                 .accessibilityIdentifier("server.record")
             }
+        }
+    }
+}
+
+/// "Record on Server" or, for a show the server has an unfinished order for, "Remove from
+/// Server": the second action beside every "Record" in menus and record questions
+/// (server-recording-everywhere design 2). Nothing without a paired server or for a show that
+/// is over. It gets the model handed in, because a record question's buttons have no environment.
+struct ServerRecordItem: View {
+    let app: AppModel
+    let entry: EPGEntry
+    let channel: LiveChannel
+
+    var body: some View {
+        let server = app.cloud.server
+        if server.isPaired, entry.end > Date() {
+            if let order = server.pendingOrder(channelId: channel.id, start: entry.start) {
+                Button("Remove from Server", systemImage: "xmark.circle") { app.removeFromServer(order) }
+                    .help(ServerText.describe(order.state))
+            } else {
+                Button("Record on Server", systemImage: "server.rack") { app.recordOnServer(entry, on: channel) }
+                    .help("Fernsy Server records it, also while this Mac is off")
+            }
+        }
+    }
+}
+
+/// The same beside the channel pane's record capsule: "On Server", or the order's state once
+/// the server has it; clicking again takes the order back.
+struct ServerRecordCapsule: View {
+    @EnvironmentObject private var app: AppModel
+    let channel: LiveChannel
+    let entry: EPGEntry
+
+    var body: some View {
+        let server = app.cloud.server
+        if server.isPaired, entry.end > Date() {
+            let order = server.pendingOrder(channelId: channel.id, start: entry.start)
+            Button {
+                if let order { app.removeFromServer(order) } else { app.recordOnServer(entry, on: channel) }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "server.rack").font(.caption2)
+                    if let order { Text(verbatim: ServerText.phase(order.state)) } else { Text("On Server") }
+                }
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(order == nil ? Color.secondary : .white)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .background(order == nil ? AnyShapeStyle(.quaternary) : AnyShapeStyle(Color.accentColor), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(order == nil ? LocalizedStringKey("Fernsy Server records it, also while this Mac is off") : LocalizedStringKey("Remove from Server"))
+            .accessibilityIdentifier("server.capsule")
         }
     }
 }
