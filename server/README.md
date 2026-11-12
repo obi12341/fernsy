@@ -19,9 +19,13 @@ or `docker compose up -d` with [compose.yaml](compose.yaml).
 
 1. Open `http://<host>:8080` (or read `docker logs fernsy-server`): the server shows a code like
    `7K3Q-ABCDEF`, valid 15 minutes, then a new one.
-2. In Fernsy on the Mac, iPhone, iPad or Apple TV: Settings › Fernsy Cloud › Server, enter the
-   code and choose the IPTV login the server records with.
-3. Done: when scheduling a show, choose the server. The status page lists what it records.
+2. In Fernsy, enter the code: on iPhone, iPad and Apple TV under Settings › Fernsy Cloud › Fernsy
+   Server, on the Mac under Settings › Recordings › Fernsy Server. The section shows with an
+   active Fernsy Cloud subscription. The server records with the IPTV login of that device.
+3. Done: wherever Fernsy offers to record a show, "Record on Server" (on iPhone, iPad and Apple
+   TV "Record on Fernsy Server") orders it on the server, and so does the assistant when you ask
+   it to record on the server. On iPhone and iPad the assistant uses the server by itself, because
+   they do not record. The status page and Recordings in the apps list what the server records.
 
 When your IPTV password changes (or you move to another account), sign in with the new login on
 one of your devices and choose "Use This Login" in the server's settings there. The server checks

@@ -315,7 +315,10 @@ quality tags, decoration removed; the delivered name stays in "Senderinfo" and i
 key; its examples are `ChannelNameTests`), `IPTV_TESTINFO=<channel id>` opens a channel's
 info, `IPTV_LIVEMODE=list|guide` picks the Live TV view for one run.
 Live TV: `IPTV_SELECT=<id>` selects a channel (detail pane), `IPTV_TESTSCHEDULE=1` then
-schedules its second upcoming show, `IPTV_TESTCATALOGFAIL=1` makes the catalog refresh fail
+schedules its second upcoming show (`IPTV_TESTSCHEDULE=server`: orders it on a paired Fernsy
+Server as "Record on Server" does; needs the list view, `IPTV_LIVEMODE=list`),
+`IPTV_TESTSTARTASK=1` opens the record question of Start's first later "Tonight" show,
+`IPTV_TESTCATALOGFAIL=1` makes the catalog refresh fail
 (the provider-unreachable notice over the cached list). `IPTV_CLOCKOFFSET=<s>` shifts "now" in
 the rows, the detail pane and Start's live rows only (to see a show change without waiting for
 one; also on Apple TV and iPhone/iPad, `FernsyTV/Support/LiveClock.swift`). Start follows the
@@ -428,7 +431,8 @@ phrases in code and German ones in `Fernsy/AppShortcuts.xcstrings`; the actions 
 `FernsyActions`, shared with the MCP tools. Debug builds neither index nor donate unless
 `IPTV_SIRIINDEX=1`. `IPTV_TESTINTENT=<step>|…` runs the intents' actions once the catalog is
 loaded and logs the answers (`query:<text>`, `suggested`, `play:<id>`, `whatson`, `find:<text>`,
-`record[:<id>]`, `recordshow:<channel>:<epoch>`, `stop`, `open:<id>`, `search:<text>`).
+`record[:<id>]`, `recordshow:<channel>:<epoch>`, `recordshowserver:<channel>:<epoch>` ("Record
+Show" with "On Fernsy Server"), `stop`, `open:<id>`, `search:<text>`).
 Siri AI (macOS 27) ignores App Shortcut phrases by voice and only uses schema intents: Fernsy has
 `OpenChannelIntent` (`.system.open`, opening a channel plays it) and `SearchFernsyIntent`
 (`.system.searchInApp`, fills the library's search). Everything else is for MCP, Shortcuts and
@@ -462,8 +466,9 @@ mode keeps it as a filter of the channel list. It also lists shows on the favour
 most 50) that run now or later, by title (`ShowSearch` in FernsyCore, beside the index because
 guides change all the time); the first query of a search loads the favourites' full guides in
 the background and searches again when they are in. `IPTV_TESTSEARCH=<query>[|<query>…]` types
-queries once the catalog is loaded, one every 4 s; `IPTV_TESTSHOWSELECT=running|later` then
-selects the first running or later show hit as a click does (a later one is recorded). The search
+queries once the catalog is loaded, one every 4 s; `IPTV_TESTSHOWSELECT=running|later|ask` then
+selects the first running or later show hit as a click does (a later one is recorded; `ask`
+leaves its record question open for a screenshot). The search
 log line counts the shows and favourites.
 
 The player window moves when the picture is dragged (`VideoSurfaceView.mouseDown` hands single
@@ -608,8 +613,10 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   usage, the question before `cancel_recording`); the Mac's window `AssistantView` runs the tools
   through `MCPTools` (`AppModel+Assistant.swift`), the Apple TV's `AssistantOverlay` and iOS's
   `AssistantSheet` through `AssistantToolRunner`. Debug switches: `IPTV_ASSISTANT_STUB=1` answers
-  without the relay (a request with "ZDF" or "Nordlicht" plays `live:101`, anything else gets a
-  fixed answer) and counts as subscribed; `IPTV_ASSISTANT_CONSENT=1` agrees for the run, `=0`
+  without the relay (a request with "ZDF" or "Nordlicht" plays `live:101`; one with "record"
+  reads channel 101's guide and schedules its next show that starts in more than half an hour,
+  with `where: server` only when it says "on the server", and answers "Recording <result> on
+  <where>."; anything else gets a fixed answer) and counts as subscribed; `IPTV_ASSISTANT_CONSENT=1` agrees for the run, `=0`
   forgets the stored consent. The UI tests `AssistantUITests` (Apple TV, iOS) use both with
   `IPTV_CLOUD=http://127.0.0.1:9` (Fernsy Cloud shown, nothing reaches a server). The relay is
   `POST /v1/assistant` on the Fernsy Cloud worker (`cloud-server/README.md`): it needs the
@@ -655,6 +662,32 @@ that records for one user in Docker and uploads to Fernsy Cloud. It depends only
   that finds a server logs "Fernsy Server: paired server found (online|offline)". To run an app
   against the stand-in's server: `IPTV_CONTROLKEY=$(base64 < /tmp/dev-app.json)` with
   `IPTV_CONTROL`, `IPTV_CLOUD` and `IPTV_CLOUDTOKEN`.
+- **Ordering** (server-recording-everywhere). Every button and tool orders through
+  `ServerModel.order(_:on:padding:createdBy:streamsInUse:limit:)`: it reads first, hands back an
+  unfinished order for the same channel and start instead of writing a second one, refuses an
+  order whose recording would begin now while this device's connections (`TunerPool
+  .connectionsInUse`) and the server's running recordings use the account's limit, and takes one
+  order at a time (two calls at once would both look before either has written). The Mac calls
+  it through `AppModel.orderOnServer` / `recordOnServer` (`Recording/MacServer.swift`), Apple TV
+  and iOS through `TVModel.orderOnServer`. The Mac offers it as `ServerRecordItem` (menus, the
+  record questions of the search and Start) and `ServerRecordCapsule` (channel pane) beside the
+  guide detail's button. Texts for failures: `ServerText.order`.
+- **Tools.** `schedule_recording` takes `where` (`device`, `server`; without it the Mac and the
+  Apple TV record themselves, iPhone and iPad use the server), `list_recordings` appends the
+  server's orders that are not done (`recording_id` `server:<order id>`, `where: server`), and
+  `cancel_recording` removes such an order while it has not started. The shared parts are in
+  `FernsyCore/AssistantToolServer.swift`; the in-app assistants ask before removing, the MCP
+  server does not (as for the Mac's own recordings). Try it against Fernsy Dev's debug MCP
+  server (`IPTV_MCP=1`, `IPTV_MCPTOKEN=test`, port 52324):
+  ```
+  curl -s -X POST http://127.0.0.1:52324/mcp -H "Authorization: Bearer test" -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"schedule_recording","arguments":{"show_id":"101:<start epoch>","where":"server"}}}'
+  ```
+  The UI tests `ServerUITests` (Apple TV: the record dialog right after launch, and with
+  `TEST_RUNNER_FERNSY_SERVER_AWAY=1` the note for a server that is away; iOS:
+  `testAssistantOrdersOnTheServer` with the stand-in relay) take a paired space's key as
+  `TEST_RUNNER_IPTV_CONTROLKEY`. `IPTV_CONTROLKEY=local` is not "no server" in Fernsy Dev when an
+  earlier run left a key in its store: use a fresh random key for an empty space.
 - **Server code.** `Planner` (pure: schedule, refuse, miss, start, stop, with `RecordingPlan`),
   `StreamRecorder` (stream copy, reconnect, gaps), `Uploader` (as the Mac's queue), `Server` (the
   loop), `StatusPage` (port 8080, `/` and `/status.json`). `swift test` in `server/`.

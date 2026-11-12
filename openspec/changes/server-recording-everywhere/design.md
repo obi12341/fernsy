@@ -198,3 +198,41 @@ the same thing; a switch reads better in a shortcut).
    production worker (`cloud-server/deploy.sh --prod`, with the user's agreement).
 4. Rollback: the worker's previous tool list can be redeployed at any time; apps then schedule
    with their defaults.
+
+## Notes from implementing (12 Nov 2026)
+
+Assumptions made while the user was away; to be confirmed or corrected in review.
+
+- **Names.** The shared step is `ServerModel.order(_:on:padding:createdBy:streamsInUse:limit:)`
+  and returns `(order, isNew)`; the tools need to tell "ordered" from "already_ordered". The
+  UI's "already ordered" test is `pendingOrder(channelId:start:)` (unfinished orders only), so
+  a show whose order failed can be ordered anew; the guide detail keeps showing any order's
+  state through `order(channelId:start:)`, as before.
+- **Pitfall: two orders at once.** Fernsy Dev's debug order ran twice (its `.task` runs twice)
+  and wrote two orders for one show: both calls had looked before either had written. `place`
+  now takes one order at a time (the second waits and finds the first's order); a double click
+  would have done the same. Across devices the look-first rule stays the only guard.
+- **Pitfall: typed throws.** The project does not infer the error type in `do`/`catch`, so
+  `ServerText.order(caught:)` takes what a `catch` holds, and closures that order spell out
+  `throws(ServerModel.OrderFailure)`.
+- **Record questions have no environment.** `ServerRecordItem` gets the model handed in
+  (`app:`) instead of reading it from the environment, so it works inside `confirmationDialog`
+  buttons as well as in menus.
+- **The channel pane's capsule** reads "On Server" and, once ordered, the order's phase ("Sent
+  to the server", "Scheduled on the server"); the pane does not poll, so the phase is the one
+  from the last look.
+- **Tools.** `list_recordings` maps its filter: "scheduled" also takes orders the server has
+  not seen yet ("sent"), "failed" also "refused". A result for a server that is away carries a
+  `notice`. The Mac's in-app assistant removes a server order in `AppModel+Assistant` (it has
+  to ask first); `MCPTools` removes it without a question, as it does for the Mac's own
+  recordings.
+- **Shortcuts.** The answer with the switch on is "Fernsy Server records …, <day> <start> to
+  <end>" with the show's times (the server applies the lead and follow-up time itself), plus
+  the away note when the server has not reported for ten minutes.
+- **server/README.md** now names where the server is paired on each device (the Mac: Settings ›
+  Recordings) and that the section needs an active subscription: the customer report that
+  started this work was about not finding it.
+- **Not checked by hand:** the Mac's context menus and Start's record question (the background
+  dev app takes no clicks, and the Mac has no UI test target); they use the same
+  `ServerRecordItem` as the search's question, which was captured in English and German. The
+  relay check with a real model (task 3.4) needs Cloudflare credentials for the dev worker.
