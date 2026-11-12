@@ -165,12 +165,13 @@ public final class CloudModel {
     @ObservationIgnored private let store: CloudStore
     @ObservationIgnored private var updates: Task<Void, Never>?
 
-    public init(client: CloudClient = .live(), keys: CloudKeyStore = .live(), store: CloudStore = AppStoreCloudStore()) {
+    public init(client: CloudClient = .live(), keys: CloudKeyStore = .live(), store: CloudStore = AppStoreCloudStore(),
+                server: ServerModel? = nil) {
         self.client = client
         self.keys = keys
         self.store = store
         self.library = CloudLibrary(source: client, keys: keys)
-        self.server = ServerModel.live(cloudKeys: keys)
+        self.server = server ?? ServerModel.live(cloudKeys: keys)
     }
 
     public var hasKey: Bool { if case .found = keyState { true } else { false } }
@@ -208,6 +209,15 @@ public final class CloudModel {
         await refreshSubscription()
         if hasAccount && (hasSubscription || client.isDevelopment) { await refresh() }
         if hasSubscription, !client.isDevelopment, account?.state != .active { await linkSubscription() }
+        await refreshServer()
+    }
+
+    /// The paired server's state at launch and when the app comes to the front (headless-recorder
+    /// design 3), so "Record on Server" and the stream limit do not wait for Recordings or the
+    /// server's settings to be opened. Without a cloud account no server can be paired.
+    public func refreshServer() async {
+        guard hasAccount else { return }
+        await server.refreshIfStale()
     }
 
     /// Looks up the key (never creates one) and hands it to the client.

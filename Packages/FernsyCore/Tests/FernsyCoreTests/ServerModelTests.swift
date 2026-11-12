@@ -12,9 +12,14 @@ final class FakeControl: ServerControlAPI, @unchecked Sendable {
     private var change = 0
     var mailboxes: [String: (publicKey: Data, tag: Data)] = [:]
     var answers: [String: (message: Data, tag: Data)] = [:]
+    /// How often an app asked for items.
+    private(set) var reads = 0
 
     func items(_ key: ControlKey, since: Int) async throws -> (items: [ControlClient.Item], change: Int) {
-        lock.withLock { (items.values.filter { $0.change > since }.sorted { $0.change < $1.change }, change) }
+        lock.withLock {
+            reads += 1
+            return (items.values.filter { $0.change > since }.sorted { $0.change < $1.change }, change)
+        }
     }
 
     func put<Value: Encodable>(_ value: Value, kind: ControlKind, id: String, key: ControlKey) async throws -> Int {
@@ -98,6 +103,25 @@ struct ServerModelTests {
         let code = PairingCode()
         control.mailboxes[code.mailbox] = (Data(repeating: 1, count: 32), Data(repeating: 2, count: 32))
         await #expect(throws: ServerModel.PairingFailure.wrongCode) { try await model.pair(code: code.value, login: login, rounds: 1000) }
+    }
+
+    /// Launch and coming to the front: one look makes the server known, and a second one right
+    /// after it asks nothing.
+    @Test func aLookAtLaunchMakesTheServerKnown() async throws {
+        let control = FakeControl()
+        let (model, keys) = model(control)
+        let key = try await keys.createIfMissing()
+        _ = try await control.put(ControlServerStatus(lastContact: Date(), version: "test"), kind: .server, id: "status", key: key)
+        #expect(!model.isPaired)
+        await model.refreshIfStale()
+        #expect(model.isPaired)
+        #expect(control.reads == 1)
+        await model.refreshIfStale()
+        #expect(control.reads == 1)
+        // Older than a poll: it asks again.
+        model.pollInterval = .zero
+        await model.refreshIfStale()
+        #expect(control.reads == 2)
     }
 
     @Test func ordersAndStatesFromBothSides() async throws {

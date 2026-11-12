@@ -3693,16 +3693,6 @@
         }
       }
     },
-    "The server has not reported for a while; it records once it is back.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Server hat sich länger nicht gemeldet; er nimmt auf, sobald er wieder da ist."
-          }
-        }
-      }
-    },
     "Paired": {
       "localizations": {
         "de": {

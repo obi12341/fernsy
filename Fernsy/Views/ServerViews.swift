@@ -125,7 +125,16 @@ struct ServerRecordButton: View {
                     let order = ControlOrder(channelId: channel.id, channelName: channel.displayName, title: entry.title,
                                              showStart: entry.start, showEnd: entry.end, padBefore: padding.before, padAfter: padding.after,
                                              createdBy: Host.current().localizedName ?? "Mac")
-                    Task { try? await server.schedule(order) }
+                    Task {
+                        do {
+                            try await server.schedule(order)
+                            // The order waits in Fernsy Control; say so when the server is away right now.
+                            await server.refresh()
+                            if !server.isOnline() { Prompt.inform(title: String(localized: "Recording on Fernsy Server"), message: ServerText.offline) }
+                        } catch {
+                            Prompt.inform(title: String(localized: "Can’t Record"), message: ServerText.pairing(.network("\(error)")))
+                        }
+                    }
                 } label: {
                     Text("Record on Server").frame(maxWidth: .infinity)
                 }

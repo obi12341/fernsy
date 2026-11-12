@@ -647,6 +647,14 @@ that records for one user in Docker and uploads to Fernsy Cloud. It depends only
   refused, retries an unreachable provider for an hour, and reports the login (`user @ host`)
   and the outcome in its status. Running recordings switch on their next reconnect. Try it with
   `FernsyServer app-login demo wrong` (refused) and `app-login demo demo` (accepted).
+- **When the apps read.** `ServerModel` knows a paired server only after its first read
+  (`isPaired`). The apps read once at launch (`CloudModel.start()`) and when they come to the
+  front (`CloudModel.refreshServer()`: the Mac's `applicationDidBecomeActive`, the scene phase on
+  Apple TV and iOS), only with a cloud account and at most once per poll interval, and every
+  30 s while Recordings, the server's settings or iOS's show sheet are open. The first read
+  that finds a server logs "Fernsy Server: paired server found (online|offline)". To run an app
+  against the stand-in's server: `IPTV_CONTROLKEY=$(base64 < /tmp/dev-app.json)` with
+  `IPTV_CONTROL`, `IPTV_CLOUD` and `IPTV_CLOUDTOKEN`.
 - **Server code.** `Planner` (pure: schedule, refuse, miss, start, stop, with `RecordingPlan`),
   `StreamRecorder` (stream copy, reconnect, gaps), `Uploader` (as the Mac's queue), `Server` (the
   loop), `StatusPage` (port 8080, `/` and `/status.json`). `swift test` in `server/`.
