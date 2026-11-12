@@ -13,6 +13,11 @@ enum LiveClock {
 
     static func now(_ date: Date = Date()) -> Date { date.addingTimeInterval(offset) }
 
+    /// `now()` at its full minute: views drawn at different seconds of a minute show the same time.
+    static func minute(_ date: Date = Date()) -> Date {
+        Date(timeIntervalSince1970: (now(date).timeIntervalSince1970 / 60).rounded(.down) * 60)
+    }
+
     /// Every full minute, counted in seconds rather than by the calendar: `.everyMinute`
     /// stalls in the hour that repeats when daylight saving time ends.
     static var everyMinute: PeriodicTimelineSchedule {

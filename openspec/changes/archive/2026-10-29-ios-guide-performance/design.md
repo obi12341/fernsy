@@ -86,3 +86,18 @@ while frames are late; the Apple TV scrolling tests already read it.
   touched).
 - **Offset-driven channel column** re-renders the logo cells while scrolling sideways; they are
   small (an image and a frame), and only the visible rows have one.
+
+## Pitfalls found later
+
+- **The now line and the running show's tint need a clock (12 Nov 2026, `fix/guide-now-line`).**
+  Each row drew its own now line and tint with `Date()` in its body. Rows are compared by channel
+  and span and observe only their own listings, so they redraw one by one (listings arrive, a
+  row scrolls into view) and nothing redraws them as time passes: after a few minutes the line
+  stood at a different time in every other row and the tint stayed on a show that had ended.
+  Rows and the ruler now take the time from one `TimelineView(LiveClock.everyMinute)` each, cut
+  to the full minute (`LiveClock.minute`), so views drawn at different seconds agree. The clock
+  sits inside the row, not around the guide: around it, every tick would re-evaluate the axis
+  start, which without archive channels moves each half hour and scrolls the guide back to now.
+  The line's pieces are rectangles; capsules left a notch at every row. On Apple TV the line is
+  one overlay, but it and the cells stood still the same way while the remote rested; both
+  follow the same clock there now (the cell's label, so the focusable buttons are not rebuilt).
