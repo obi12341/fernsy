@@ -272,7 +272,12 @@ private struct GuideRow: View {
         HStack(spacing: 16) {
             HStack(spacing: 16) {
                 ChannelLogo(channel: channel).frame(width: 116, height: 72)
-                Text(verbatim: channel.displayName).font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                // A name too long for the column slides while the row has focus, so it can be read
+                // in full (tvos-guide-name-ticker).
+                TickerText(text: channel.displayName, font: .system(size: 22, weight: .semibold), active: focused != nil) {
+                    AppLog.detail(.app, "guide row \(channel.id): name ticker started")
+                }
+                .accessibilityIdentifier("guide.name.\(channel.id)")
                 if channel.archiveDays > 0 { ArchiveMark(channel: channel) }
             }
             .frame(width: GuideScreen.channelColumn - 16, alignment: .leading)

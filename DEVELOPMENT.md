@@ -808,7 +808,9 @@ Jellyfin films, series and Recently Added up to n each (in memory, placeholder a
 `IPTV_TESTNOSPACE=1` refuses
 recordings as if space were short, `IPTV_TESTBIGCATALOG=<n>` repeats the films and series with new
 ids up to n each (a provider-sized catalog from the demo server), `IPTV_TESTBIGCATEGORIES=<n>`
-repeats the live categories up to n (copies without channels, so All Categories scrolls), `IPTV_FRAMESTATS=1` logs late
+repeats the live categories up to n (copies without channels, so All Categories scrolls),
+`IPTV_TESTREDUCEMOTION=1` keeps a long channel name in the guide shortened as with Reduce Motion on
+(a UI test cannot switch the setting), `IPTV_FRAMESTATS=1` logs late
 frames once per second while any are late ("frames: 7 late of 60"), `IPTV_PLAYERMODE=info|strip` opens the player with that
 overlay (screenshots without a remote), `IPTV_KEEPLIVE=1` keeps Live TV's source and view
 (List/Guide) across launches in keychain-less runs (otherwise they stay in memory). The
