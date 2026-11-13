@@ -67,6 +67,8 @@ enum IntentActions {
         guard let channel = actions.visibleChannel(channelId) else {
             return IntentAnswer(text: String(localized: "Fernsy doesn't have this channel."))
         }
+        // "IPTV only with VPN": say so, instead of opening a player that fails.
+        guard ProviderGate.shared.isOpen else { return IntentAnswer(text: ProviderGateError.vpnRequired.localizedDescription) }
         switch actions.playChannel(channel) {
         case .playing:
             return IntentAnswer(text: String(localized: "Fernsy is now showing \(channel.displayName)."))

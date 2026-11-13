@@ -28,9 +28,17 @@ public enum CatalogAction: String, CaseIterable, Sendable {
 
 public struct XtreamClient: Sendable {
     public let credentials: XtreamCredentials
+    /// "IPTV only with VPN": asked before every request (vpn-guard).
+    let gate: ProviderGate
 
     public init(credentials: XtreamCredentials) {
+        self.init(credentials: credentials, gate: .shared)
+    }
+
+    /// Tests give the client a gate of their own.
+    init(credentials: XtreamCredentials, gate: ProviderGate) {
         self.credentials = credentials
+        self.gate = gate
     }
 
     /// Tests replace it with a session whose protocol answers from recorded examples.
@@ -60,7 +68,9 @@ public struct XtreamClient: Sendable {
     }
 
     public func data(_ action: String?, _ params: [String: String] = [:]) async throws -> Data {
-        let (data, response) = try await Self.session.data(from: try apiURL(action, params))
+        let url = try apiURL(action, params)
+        try gate.check("provider request \(action ?? "account")")
+        let (data, response) = try await Self.session.data(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw XtreamError.http(http.statusCode)
         }

@@ -46,6 +46,7 @@ struct SettingsView: View {
 private struct AccountsSettings: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var jellyfin: JellyfinStore
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
     @State private var addingAccount: AccountKind?
 
     var body: some View {
@@ -83,6 +84,22 @@ private struct AccountsSettings: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // "IPTV only with VPN" (vpn-guard): per Mac, and the line below says what Fernsy sees
+            // also while it is off, so the detection can be checked first.
+            Section {
+                Toggle("IPTV only with VPN", isOn: Binding(get: { vpnGuard.isEnabled }, set: { vpnGuard.setEnabled($0) }))
+                LabeledContent("VPN on this Mac") {
+                    Label(vpnGuard.isVPNConnected ? "Connected" : "Not connected",
+                          systemImage: vpnGuard.isVPNConnected ? "lock.shield.fill" : "lock.open")
+                        .foregroundStyle(vpnGuard.isVPNConnected ? AnyShapeStyle(.green) : AnyShapeStyle(vpnGuard.isEnabled ? Theme.warning : Color.secondary))
+                }
+            } footer: {
+                Text("Fernsy contacts your IPTV provider only while this Mac's internet traffic runs through a VPN. Any VPN that carries all traffic counts; a VPN on your router, or one set to leave Fernsy out, cannot be seen. Jellyfin and Fernsy Cloud are not affected.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .onAppear { vpnGuard.watch(true) }
+            .onDisappear { vpnGuard.watch(false) }
             Section("Jellyfin") {
                 if let session = jellyfin.session {
                     LabeledContent("Server", value: "\(session.serverName) (Jellyfin \(session.version))")

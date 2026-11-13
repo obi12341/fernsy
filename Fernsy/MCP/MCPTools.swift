@@ -265,6 +265,8 @@ final class MCPTools {
     private func play(_ args: [String: Any]) async throws -> [String: Any] {
         guard let itemId = args["item_id"] as? String else { throw ToolError("item_id is required") }
         let parts = itemId.split(separator: ":", maxSplits: 2).map(String.init)
+        // "IPTV only with VPN": say so, instead of opening a player that fails.
+        if ["live", "movie", "episode"].contains(parts.first ?? "") { try ProviderGate.shared.check("play \(parts.first ?? "")") }
         switch (parts.first, parts.count) {
         case ("live", 2):
             guard let id = Int(parts[1]) else { throw ToolError("Bad channel id") }

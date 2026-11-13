@@ -27,6 +27,13 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     public let url: URL
     public let isLive: Bool
+    /// "IPTV only with VPN" (vpn-guard): set for streams of the IPTV provider, nil for Jellyfin.
+    /// Asked before every request: the first one is refused without a VPN, a stream that already
+    /// ran waits for the VPN instead (design 4).
+    private let gate: ProviderGate?
+    /// A request of a running stream waits for the VPN; none is out meanwhile.
+    private(set) var heldForVPN = false
+    private var gateCheckedAt = Date.distantPast
 
     let cond = NSCondition()
     private var session: URLSession!
@@ -67,7 +74,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     // appended to the same buffer, so FFmpeg and the decoders never notice beyond a short gap.
     private var streaming = false
     private var reconnecting = false
-    private var reconnectAttempts = 0
+    private(set) var reconnectAttempts = 0
     private var incidentAttempts = 0
     /// Where the load balancer sent the current connection. Edge servers stamp the same
     /// channel with different clocks, so reconnecting to the same edge keeps timestamps
@@ -121,6 +128,8 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         /// No data for as long as the stall rule waits (bursts with shorter pauses are fine).
         case silent
         case reconnecting(loadBalancer: Bool)
+        /// "IPTV only with VPN": the VPN is gone and the stream waits for it (vpn-guard).
+        case waitingForVPN
     }
 
     /// The slow-delivery rule (FernsyCore), sampled by the watchdog.
@@ -170,9 +179,13 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     var debugCleanClose = false
     #endif
 
-    public init(url: URL, isLive: Bool) {
+    /// Tests: the protocol classes of the sources' sessions (a stubbed provider).
+    nonisolated(unsafe) static var testProtocolClasses: [AnyClass]?
+
+    public init(url: URL, isLive: Bool, gate: ProviderGate? = nil) {
         self.url = url
         self.isLive = isLive
+        self.gate = gate
         var timeout: TimeInterval = isLive ? 12 : 30
         var water = (high: 24 << 20, low: 8 << 20)
         #if DEBUG
@@ -193,6 +206,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         config.timeoutIntervalForResource = .infinity
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
+        if let classes = Self.testProtocolClasses { config.protocolClasses = classes }
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 1
         queue.qualityOfService = .userInitiated
@@ -244,6 +258,9 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                 return
             } catch SourceError.cancelled {
                 throw SourceError.cancelled
+            } catch let error as ProviderGateError {
+                // Not the server's doing: trying again changes nothing.
+                throw error
             } catch {
                 lastError = error
             }
@@ -286,7 +303,8 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
                 }
             }
             let now = buffer.count - readIndex
-            if now > available { deadline = Date().addingTimeInterval(timeout) }
+            // Waiting for the VPN is not a timeout of the server.
+            if now > available || heldForVPN { deadline = Date().addingTimeInterval(timeout) }
             available = now
         }
 
@@ -402,6 +420,16 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private func connect(at offset: Int64) throws {
         cond.lock()
         if cancelled { cond.unlock(); throw SourceError.cancelled }
+        if let gate {
+            if finalURL == nil {
+                // The first connection is refused, so the user sees why nothing starts.
+                do { try gate.check("stream") } catch { cond.unlock(); throw error }
+            } else {
+                // A seek in a film that already ran waits for the VPN like its download does.
+                while !cancelled && !vpnGateIsOpen(gate) { cond.wait(until: Date().addingTimeInterval(1)) }
+                if cancelled { cond.unlock(); throw SourceError.cancelled }
+            }
+        }
         task?.cancel()
         taskGeneration += 1
         streaming = false
@@ -469,6 +497,10 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         cond.lock()
         guard streaming, !cancelled, failure == nil else { cond.unlock(); return }
         let now = Date()
+        // The VPN went away under a running connection: nothing more comes or goes without it.
+        if let gate, !heldForVPN, !vpnGateIsOpen(gate) {
+            liveReconnect(reason: "no VPN", immediate: true, counts: false)
+        }
         // Content delivered over the full window (nil until the connection has one), and
         // whether delivery is slower than real time right now.
         let reading = reconnecting ? .none : delivery.sample(at: now, content: content)
@@ -522,7 +554,8 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             }
         }
         if let started = proving?.since, now.timeIntervalSince(started) > 20 { proving = nil }
-        let newHealth: Health = reconnecting ? .reconnecting(loadBalancer: !attemptToEdge)
+        let newHealth: Health = heldForVPN ? .waitingForVPN
+            : reconnecting ? .reconnecting(loadBalancer: !attemptToEdge)
             : idle >= stallTimeout ? .silent
             : proving.map { .reconnecting(loadBalancer: $0.loadBalancer) } ?? (reading.slow ? .slow : .ok)
         let changed = newHealth != health
@@ -547,8 +580,9 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
 
     /// Replaces the current connection; the caller holds `cond`. `immediate`: no backoff (the
     /// edge rejected us, the load balancer is a different server). `slow`: the connection
-    /// delivered too little, so its edge is skipped.
-    private func liveReconnect(reason: String, immediate: Bool = false, slow: Bool = false) {
+    /// delivered too little, so its edge is skipped. `counts`: false when the connection was cut
+    /// for a missing VPN, which is not an attempt the server failed.
+    private func liveReconnect(reason: String, immediate: Bool = false, slow: Bool = false, counts: Bool = true) {
         task?.cancel()
         task = nil
         taskGeneration += 1
@@ -556,13 +590,15 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         #if DEBUG
         debugTrickleEnd()
         #endif
-        guard reconnectAttempts < maxReconnectAttempts else {
-            AppLog.error(.network, "giving up after \(reconnectAttempts) reconnects (\(reason))")
-            failure = SourceError.timeout
-            cond.broadcast()
-            return
+        if counts {
+            guard reconnectAttempts < maxReconnectAttempts else {
+                AppLog.error(.network, "giving up after \(reconnectAttempts) reconnects (\(reason))")
+                failure = SourceError.timeout
+                cond.broadcast()
+                return
+            }
+            reconnectAttempts += 1
         }
-        reconnectAttempts += 1
         if !reconnecting {
             logConnectionSummary()
             reconnecting = true
@@ -605,16 +641,53 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             self.cond.lock()
             defer { self.cond.unlock() }
             guard !self.cancelled, self.taskGeneration == generation, self.failure == nil else { return }
-            var request = URLRequest(url: target)
-            request.setValue("*/*", forHTTPHeaderField: "Accept")
-            request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-            let newTask = self.session.dataTask(with: request)
-            newTask.taskDescription = String(generation)
-            self.task = newTask
-            self.reconnectStartedAt = Date()
-            self.requestStartedAt = Date()
-            newTask.resume()
+            let start = { [unowned self] in
+                var request = URLRequest(url: target)
+                request.setValue("*/*", forHTTPHeaderField: "Accept")
+                request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+                let newTask = self.session.dataTask(with: request)
+                newTask.taskDescription = String(generation)
+                self.task = newTask
+                self.reconnectStartedAt = Date()
+                self.requestStartedAt = Date()
+                newTask.resume()
+            }
+            if !self.holdForVPN(generation: generation, start) { start() }
         }
+    }
+
+    // MARK: IPTV only with VPN
+
+    /// Asks the gate; when it is open again after a wait, the wait is over. The caller holds `cond`.
+    private func vpnGateIsOpen(_ gate: ProviderGate) -> Bool {
+        gateCheckedAt = Date()
+        guard gate.isOpen else {
+            if !heldForVPN {
+                heldForVPN = true
+                AppLog.warning(.network, "vpn guard: no VPN, the stream waits for it")
+            }
+            return false
+        }
+        if heldForVPN {
+            heldForVPN = false
+            AppLog.info(.network, "vpn guard: the VPN is back, the stream goes on")
+        }
+        return true
+    }
+
+    /// No request to the provider without a VPN: true while the gate is closed. `start` then
+    /// runs when it opens (asked again every second), unless the source was cancelled or went on
+    /// to another request meanwhile. Waiting spends no reconnect attempt. The caller holds `cond`.
+    private func holdForVPN(generation: Int, _ start: @escaping () -> Void) -> Bool {
+        guard let gate, !vpnGateIsOpen(gate) else { return false }
+        watchdogQueue.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self else { return }
+            self.cond.lock()
+            defer { self.cond.broadcast(); self.cond.unlock() }
+            guard !self.cancelled, self.taskGeneration == generation, self.failure == nil else { return }
+            if !self.holdForVPN(generation: generation, start) { start() }
+        }
+        return true
     }
 
     private func compactIfNeeded() {
@@ -784,6 +857,18 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         buffer.append(data)
         bytesReceivedTotal += Int64(data.count)
         continueAttempts = 0
+        // A film's download: the VPN went away under it (live streams are watched by the
+        // watchdog). Cut it here and take the rest when the VPN is back; nothing to cut when
+        // this was the file's last part.
+        let received = bufferBase + Int64(buffer.count)
+        if let gate, !streaming, contentLength <= 0 || received < contentLength,
+           Date().timeIntervalSince(gateCheckedAt) >= 1, !vpnGateIsOpen(gate) {
+            dataTask.cancel()
+            task = nil
+            continueDownload(at: received, reason: "no VPN", counts: false)
+            cond.broadcast()
+            return
+        }
         if streaming && !reconnecting { delivery.notePause(Date().timeIntervalSince(lastDataAt)) }
         lastDataAt = Date()
         // Attempts count per incident: a connection that ran stable for a while ends it. A server
@@ -831,32 +916,44 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     }
 
     /// Requests the rest of the file from `offset`, keeping what is buffered (`connect(at:)`
-    /// starts over). Called with `cond` locked.
-    private func continueDownload(at offset: Int64, reason: String) {
+    /// starts over). Called with `cond` locked. `counts`: false when the download was cut for a
+    /// missing VPN, which is not an attempt the server failed.
+    private func continueDownload(at offset: Int64, reason: String, counts: Bool = true) {
         #if DEBUG
         if ProcessInfo.processInfo.environment["IPTV_TESTNOCONTINUE"] == "1" {
             finished = true  // the old behaviour, to test the plausibility check of the end
             return
         }
         #endif
-        guard supportsRanges, continueAttempts < 5 else {
-            failure = SourceError.connectionLost
+        guard supportsRanges, !counts || continueAttempts < 5 else {
+            failure = counts ? SourceError.connectionLost : ProviderGateError.vpnRequired
             return
         }
-        let delay = [0.5, 1, 2, 4, 4][continueAttempts]
-        continueAttempts += 1
-        AppLog.warning(.network, "download interrupted at \(offset) of \(contentLength) (\(reason)), continuing (attempt \(continueAttempts))")
+        let delay = counts ? [0.5, 1, 2, 4, 4][continueAttempts] : 0
+        if counts { continueAttempts += 1 }
+        AppLog.warning(.network, "download interrupted at \(offset) of \(contentLength) (\(reason)), continuing\(counts ? " (attempt \(continueAttempts))" : "")")
         taskGeneration += 1
+        let generation = taskGeneration
         responseReceived = false
         suspended = false
-        var request = URLRequest(url: url)
-        request.setValue("*/*", forHTTPHeaderField: "Accept")
-        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-        request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range")
-        let newTask = session.dataTask(with: request)
-        newTask.taskDescription = String(taskGeneration)
-        task = newTask
-        requestStartedAt = Date()
-        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { newTask.resume() }
+        let start = { [unowned self] in
+            var request = URLRequest(url: url)
+            request.setValue("*/*", forHTTPHeaderField: "Accept")
+            request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+            request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range")
+            let newTask = session.dataTask(with: request)
+            newTask.taskDescription = String(generation)
+            task = newTask
+            requestStartedAt = Date()
+            newTask.resume()
+        }
+        // The request is made after the wait, not before it: the VPN may be gone by then.
+        watchdogQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            cond.lock()
+            defer { cond.unlock() }
+            guard !cancelled, taskGeneration == generation, failure == nil else { return }
+            if !holdForVPN(generation: generation, start) { start() }
+        }
     }
 }

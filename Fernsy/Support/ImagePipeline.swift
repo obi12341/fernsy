@@ -1,4 +1,5 @@
 import AppKit
+import FernsyCore
 import ImageIO
 import SwiftUI
 
@@ -28,7 +29,10 @@ final class ImagePipeline {
     func image(_ url: URL, maxPixel: Int) async -> NSImage? {
         let key = "\(maxPixel)|\(url.absoluteString)" as NSString
         if let hit = cache.object(forKey: key) { return hit }
-        guard let (data, _) = try? await session.data(from: url) else { return nil }
+        // "IPTV only with VPN": without a VPN only what the session has cached, no request.
+        var request = URLRequest(url: url)
+        if !ProviderGate.shared.allowsDownload(from: url) { request.cachePolicy = .returnCacheDataDontLoad }
+        guard let (data, _) = try? await session.data(for: request) else { return nil }
         let (image, tone) = await Task.detached(priority: .utility) { () -> (NSImage?, LogoTone?) in
             let image = Self.downsample(data, maxPixel: maxPixel)
             return (image, image.flatMap { Self.measureTone($0) })

@@ -245,7 +245,8 @@ struct RecordingRow: View {
             let cause = recording.error.map { " · \($0)" } ?? ""
             return ("exclamationmark.triangle.fill", String(localized: "failed") + cause, true)
         case .missed:
-            return ("minus.circle", String(localized: "missed · Fernsy was not open"), false)
+            // With a cause when Fernsy was open: no VPN while "IPTV only with VPN" is on.
+            return ("minus.circle", recording.error.map { String(localized: "missed · \($0)") } ?? String(localized: "missed · Fernsy was not open"), false)
         case .skipped:
             return ("minus.circle", String(localized: "skipped"), false)
         case .done where recording.error != nil:

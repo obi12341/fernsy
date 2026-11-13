@@ -122,8 +122,10 @@ public final class LiveTuner: ObservableObject {
             } else {
                 AppLog.error(.tuner, "channel \(channelId) failed: \(message)")
             }
+            // "IPTV only with VPN" refused the connection: not the provider's doing.
+            let noVPN = message == ProviderGateError.vpnRequired.localizedDescription
             // Not retryable and still muxable: the provider's offline placeholder.
-            if !retry && !writer.isFailed { onOffline?(true) }
+            if !retry && !writer.isFailed && !noVPN { onOffline?(true) }
             if writer.isFailed {
                 state = .unsupported
                 stopSession()
@@ -132,7 +134,7 @@ public final class LiveTuner: ObservableObject {
             } else if keepTrying {
                 // Offline at the provider: a recording waits for the channel until its window
                 // ends, asking calmly (the player alone gives up below).
-                restart(reason: message, after: 30)
+                restart(reason: message, after: noVPN ? 5 : 30)
             } else {
                 state = .failed(message)
                 stopSession()

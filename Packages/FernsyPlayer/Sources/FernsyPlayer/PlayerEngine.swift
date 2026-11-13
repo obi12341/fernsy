@@ -104,6 +104,9 @@ public final class PlayerEngine: ObservableObject {
     private var tunerRecovery: AnyCancellable?
     /// Live: how the tuner's connection delivers (the status card names the provider only
     /// when it is slow, silent or being replaced).
+    /// The current item streams from the IPTV provider (not Jellyfin, a file or Fernsy Cloud),
+    /// so "IPTV only with VPN" applies to it.
+    public private(set) var contactsProvider = false
     @Published public private(set) var connectionHealth: HTTPByteSource.Health = .ok {
         didSet { noteUnhealthyStall() }
     }
@@ -367,9 +370,15 @@ public final class PlayerEngine: ObservableObject {
         currentURL = url
         let isLive: Bool
         switch mode {
-        case .network(let live): isLive = live
-        case .buffer, .tuner: isLive = true
-        case .file: isLive = false
+        case .network(let live):
+            isLive = live
+            contactsProvider = external?.contactsProvider ?? true
+        case .buffer, .tuner:
+            isLive = true
+            contactsProvider = true
+        case .file:
+            isLive = false
+            contactsProvider = false
         }
         currentIsLive = isLive
         audioReplacements = 0
@@ -397,6 +406,7 @@ public final class PlayerEngine: ObservableObject {
         let videoSink = videoSink
         let audioSink = audioSink
         let tracks = trackRequest
+        let guarded = external?.contactsProvider ?? true
         let synchronizer = synchronizer
         let loadingCard = loadingCard
         let lastPicture = lastPicture
@@ -409,7 +419,7 @@ public final class PlayerEngine: ObservableObject {
             videoSink.flush()
             audioSink.flush()
             let session = PlaybackSession(
-                url: url, mode: mode, startPosition: startAt, tracks: tracks,
+                url: url, mode: mode, startPosition: startAt, tracks: tracks, guarded: guarded,
                 videoSink: videoSink, audioSink: audioSink, synchronizer: synchronizer
             ) { [weak self] event in
                 self?.handle(event, generation: gen)

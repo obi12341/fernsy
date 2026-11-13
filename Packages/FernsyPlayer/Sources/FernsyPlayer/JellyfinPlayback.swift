@@ -160,6 +160,7 @@ public final class JellyfinPlayback: ObservableObject {
         #endif
         method = .direct
         var external = ExternalPlayback()
+        external.contactsProvider = false
         external.methodLabel = String(localized: "Direct (original file)", bundle: .module)
         external.onFailedBeforeStart = { [weak self] message in
             guard let self, !self.fellBack else { return false }
@@ -206,6 +207,7 @@ public final class JellyfinPlayback: ObservableObject {
                 }
                 playSessionId = result.playSessionId
                 var external = ExternalPlayback(timelineOffset: position, duration: duration)
+                external.contactsProvider = false
                 external.methodLabel = String(localized: "Transcoding (Jellyfin)", bundle: .module)
                 external.restartAt = { [weak self] target in self?.startTranscode(at: target) }
                 external.selectAudio = { [weak self] track in

@@ -74,6 +74,8 @@ struct TVTools {
              ["recording_id": ["type": "string"], "delete": ["type": "boolean"]], required: ["recording_id"]),
         tool("set_offline", "Simulate having no network (IPTV_TESTOFFLINE): on: true fails every request of the app, false brings the network back. report_path: false changes only the requests, not the network path (as when the network came back while the app was suspended).",
              ["on": ["type": "boolean"], "report_path": ["type": "boolean"]], required: ["on"]),
+        tool("set_vpn", "Simulate a VPN for \"IPTV only with VPN\" (IPTV_TESTVPN): on: true as if a VPN carried the device's traffic, false as if none did. guard: true/false also switches the setting itself.",
+             ["on": ["type": "boolean"], "guard": ["type": "boolean"]], required: ["on"]),
     ]
 
     private static func tool(_ name: String, _ description: String, _ properties: [String: Any], required: [String] = []) -> [String: Any] {
@@ -95,6 +97,12 @@ struct TVTools {
             TestOffline.isOn = on
             if args["report_path"] as? Bool ?? true { model.networkChanged(!on) }
             return ["offline": on, "sign_in": "\(model.signIn)"]
+        case "set_vpn":
+            VPNProbe.testAnswer = args["on"] as? Bool ?? true
+            if let on = args["guard"] as? Bool { VPNGuardState.shared.setEnabled(on) }
+            VPNGuardState.shared.update()
+            return ["vpn": VPNGuardState.shared.isVPNConnected, "guard": VPNGuardState.shared.isEnabled,
+                    "blocking": VPNGuardState.shared.isBlocking, "sign_in": "\(model.signIn)"]
         case "stop_playback":
             model.stop()
             return ["result": "stopped"]

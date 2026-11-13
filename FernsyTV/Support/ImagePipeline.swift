@@ -58,6 +58,9 @@ final class ImagePipeline: @unchecked Sendable {
                 memory.setObject(image, forKey: name as NSString)
                 return image
             }
+            // "IPTV only with VPN": without a VPN only the images on disk, no request. Not
+            // remembered as failed: the view asks again when it shows the next time.
+            guard ProviderGate.shared.allowsDownload(from: url) else { return nil }
             guard let (data, response) = try? await URLSession.shared.data(from: url),
                   (response as? HTTPURLResponse)?.statusCode ?? 200 < 400,
                   let image = Self.downsample(data, maxPixel: maxPixel) else { return nil }

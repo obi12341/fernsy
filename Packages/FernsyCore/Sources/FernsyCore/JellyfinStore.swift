@@ -8,7 +8,10 @@ import Foundation
 /// refresh, like the IPTV catalog.
 @MainActor
 public final class JellyfinStore: ObservableObject {
-    @Published public private(set) var session: JFSession?
+    @Published public private(set) var session: JFSession? {
+        // Its artwork is not the IPTV provider's ("IPTV only with VPN").
+        didSet { ProviderGate.shared.setOwnHost(session.flatMap { URL(string: $0.server)?.host }) }
+    }
     /// The server rejected the token (session ended in the dashboard, password changed).
     @Published public private(set) var isExpired = false
     /// The last refresh could not reach the server; the cached library is shown.
@@ -75,6 +78,8 @@ public final class JellyfinStore: ObservableObject {
         #if DEBUG
         debugSignIn()
         #endif
+        // Observers do not run inside init: the restored session's host.
+        ProviderGate.shared.setOwnHost(session.flatMap { URL(string: $0.server)?.host })
     }
 
     public var client: JellyfinClient? {

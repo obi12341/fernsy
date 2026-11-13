@@ -84,6 +84,8 @@ struct XtreamDecodingTests {
 /// picks a failure: "http401", "noauth", "badjson".
 final class XtreamStub: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var unexpected: [URL] = []
+    /// The user names of all requests that arrived (vpn-guard: a refused one must not).
+    nonisolated(unsafe) static var users: [String] = []
     static let lock = NSLock()
 
     static let session: URLSession = {
@@ -101,6 +103,7 @@ final class XtreamStub: URLProtocol, @unchecked Sendable {
         let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         let user = query.first { $0.name == "username" }?.value
         let action = query.first { $0.name == "action" }?.value
+        Self.lock.lock(); Self.users.append(user ?? ""); Self.lock.unlock()
         var status = 200
         var body = Data()
         switch (user, action) {
@@ -140,6 +143,21 @@ struct XtreamClientTests {
         #expect(!(try await client.shortEPG(101)).isEmpty)
         #expect(!(try await client.seriesInfo(1)).seasons.isEmpty)
         #expect(XtreamStub.unexpected.isEmpty, "requests outside the stub: \(XtreamStub.unexpected)")
+    }
+
+    /// "IPTV only with VPN" (vpn-guard 2.3): without a VPN nothing reaches the provider.
+    @Test func noRequestWithoutAVPN() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "xtream-gate-\(UUID().uuidString)"))
+        defaults.set(true, forKey: ProviderGate.enabledKey)
+        nonisolated(unsafe) var vpn = false
+        let gate = ProviderGate(defaults: defaults) { VPNProbe.current(faked: vpn) }
+        let client = XtreamClient(credentials: XtreamCredentials(server: "https://demo.test", username: "gated", password: "s3cr3t-Pass"), gate: gate)
+        await #expect(throws: ProviderGateError.self) { try await client.catalog(.liveStreams) }
+        await #expect(throws: ProviderGateError.self) { try await client.account() }
+        #expect(!XtreamStub.users.contains("gated"))
+        vpn = true
+        #expect(try await client.account().maxConnections == 5)
+        #expect(XtreamStub.users.contains("gated"))
     }
 
     @Test func requestURL() throws {

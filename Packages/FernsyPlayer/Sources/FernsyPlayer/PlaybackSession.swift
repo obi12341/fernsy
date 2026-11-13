@@ -187,8 +187,10 @@ public final class PlaybackSession {
     public var startHold: StartHold?
     var sentVideo = false
 
+    /// `guarded`: the URL is the IPTV provider's, so "IPTV only with VPN" applies to its
+    /// connections (vpn-guard); false for Jellyfin.
     public init(url: URL, mode: Mode, startPosition: Double, tracks: TrackRequest = .preferences(TrackPreferences()),
-         videoSink: VideoSink?, audioSink: AudioSink?,
+         guarded: Bool = true, videoSink: VideoSink?, audioSink: AudioSink?,
          synchronizer: AVSampleBufferRenderSynchronizer, onEvent: @escaping (Event) -> Void) {
         self.url = url
         self.trackRequest = tracks
@@ -204,13 +206,13 @@ public final class PlaybackSession {
             liveTimeline = live
             tunerOutput = nil
             timeshift = nil
-            source = HTTPByteSource(url: url, isLive: live)
+            source = HTTPByteSource(url: url, isLive: live, gate: guarded ? .shared : nil)
         case .tuner(let output):
             isLive = true
             liveTimeline = true
             tunerOutput = output
             timeshift = nil
-            let http = HTTPByteSource(url: url, isLive: true)
+            let http = HTTPByteSource(url: url, isLive: true, gate: guarded ? .shared : nil)
             http.contentClock = { [weak output] in output?.contentTime }
             source = http
         case .buffer(let buffer):
@@ -343,7 +345,7 @@ public final class PlaybackSession {
             if !isStopped {
                 let retry: Bool
                 switch error {
-                case PlayerError.offline, PlayerError.unsupported, PlayerError.debugRealProvider: retry = false
+                case PlayerError.offline, PlayerError.unsupported, PlayerError.debugRealProvider, is ProviderGateError: retry = false
                 default: retry = true
                 }
                 emit(.failed(error.localizedDescription, retry: retry))

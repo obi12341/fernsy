@@ -145,6 +145,10 @@ public final class Recorder: ObservableObject {
     private var gapTrackers: [UUID: GapTracker] = [:]
     private var gapTimer: Timer?
     private var starting: Set<UUID> = []
+    /// "IPTV only with VPN" (vpn-guard design 5): asked before a planned recording connects.
+    public var gate = ProviderGate.shared
+    /// Planned recordings that were due while no VPN was connected.
+    private var waitedForVPN: Set<UUID> = []
     private var timer: Timer?
     private var activityReason: String?
 
@@ -433,12 +437,16 @@ public final class Recorder: ObservableObject {
 
     // MARK: Running
 
-    private func tick() {
+    func tick() {
         let now = Date()
         for recording in recordings {
             switch recording.status {
             case .scheduled where now >= recording.recordEnd:
-                update(recording.id) { $0.status = .missed }
+                let noVPN = waitedForVPN.remove(recording.id) != nil
+                update(recording.id) {
+                    $0.status = .missed
+                    if noVPN { $0.error = ProviderGateError.vpnRequired.localizedDescription }
+                }
             case .scheduled where now >= recording.recordStart.addingTimeInterval(-Self.tuneAhead):
                 begin(recording)
             case .recording where now >= recording.recordEnd:
@@ -459,6 +467,15 @@ public final class Recorder: ObservableObject {
 
     private func begin(_ recording: Recording) {
         guard let host, let folder, !starting.contains(recording.id), let url = host.liveURL(recording.channelId) else { return }
+        // Without a VPN the recording stays planned: the next tick asks again, and the show's
+        // end marks it as missed.
+        guard gate.isOpen else {
+            if waitedForVPN.insert(recording.id).inserted {
+                AppLog.warning(.recordings, "\(recording.title) on \(recording.channelName) waits for the VPN")
+            }
+            return
+        }
+        waitedForVPN.remove(recording.id)
         starting.insert(recording.id)
         Task {
             defer { starting.remove(recording.id) }

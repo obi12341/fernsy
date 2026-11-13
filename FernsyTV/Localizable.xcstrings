@@ -663,12 +663,62 @@
         }
       }
     },
+    "Connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden"
+          }
+        }
+      }
+    },
+    "Fernsy contacts your IPTV provider only while this Apple TV's internet traffic runs through a VPN. Any VPN app that carries all traffic counts; a VPN on your router, or one set to leave Fernsy out, cannot be seen. Jellyfin and Fernsy Cloud are not affected.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy verbindet sich nur mit deinem IPTV-Anbieter, solange der Internetverkehr dieses Apple TV durch ein VPN läuft. Jede VPN-App zählt, die den gesamten Verkehr leitet; ein VPN auf deinem Router oder eines, das Fernsy ausnimmt, ist nicht zu erkennen. Jellyfin und Fernsy Cloud sind nicht betroffen."
+          }
+        }
+      }
+    },
+    "Fernsy contacts your IPTV provider only while this device's internet traffic runs through a VPN. Any VPN app that carries all traffic counts; a VPN on your router, or one set to leave Fernsy out, cannot be seen. Jellyfin and Fernsy Cloud are not affected.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy verbindet sich nur mit deinem IPTV-Anbieter, solange der Internetverkehr dieses Geräts durch ein VPN läuft. Jede VPN-App zählt, die den gesamten Verkehr leitet; ein VPN auf deinem Router oder eines, das Fernsy ausnimmt, ist nicht zu erkennen. Jellyfin und Fernsy Cloud sind nicht betroffen."
+          }
+        }
+      }
+    },
+    "Fernsy continues as soon as the VPN is back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy spielt weiter, sobald das VPN zurück ist."
+          }
+        }
+      }
+    },
     "For live TV, catch-up, movies, series and recordings. Switching the TV takes a few seconds of black picture, also when you change channels. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Für Live-TV, Catch-up, Filme, Serien und Aufnahmen. Das Umschalten zeigt einige Sekunden Schwarzbild, auch beim Senderwechsel. Der Fernseher schaltet nur um, wenn „Inhalt anpassen“ in den Einstellungen des Apple TV unter „Video und Audio“ eingeschaltet ist."
+          }
+        }
+      }
+    },
+    "IPTV only with VPN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV nur mit VPN"
           }
         }
       }
@@ -693,6 +743,16 @@
         }
       }
     },
+    "Missed · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verpasst · %@"
+          }
+        }
+      }
+    },
     "New Conversation": {
       "localizations": {
         "de": {
@@ -703,12 +763,32 @@
         }
       }
     },
+    "No VPN connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine VPN-Verbindung"
+          }
+        }
+      }
+    },
     "Not Now": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Jetzt nicht"
+          }
+        }
+      }
+    },
+    "Not connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verbunden"
           }
         }
       }
@@ -759,6 +839,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Assistent gehört zu Fernsy Cloud."
+          }
+        }
+      }
+    },
+    "VPN is not connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN ist nicht verbunden"
+          }
+        }
+      }
+    },
+    "VPN on this Apple TV": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN auf diesem Apple TV"
+          }
+        }
+      }
+    },
+    "VPN on this device": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN auf diesem Gerät"
           }
         }
       }

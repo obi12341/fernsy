@@ -487,6 +487,8 @@ struct ChannelInfoView: View {
 /// The catalog refresh failed while the cached list is shown.
 private struct ProviderUnreachableBanner: View {
     @EnvironmentObject private var app: AppModel
+    /// "IPTV only with VPN": the reason is the missing VPN, not the provider.
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
     let error: String
 
     var body: some View {
@@ -495,7 +497,7 @@ private struct ProviderUnreachableBanner: View {
                 .font(.title3)
                 .foregroundStyle(Theme.warning)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Provider Not Reachable").font(.callout.weight(.semibold))
+                Text(vpnGuard.isBlocking ? "No VPN Connection" : "Provider Not Reachable").font(.callout.weight(.semibold))
                 Group {
                     if let updated = app.lastUpdated {
                         Text("You are seeing the channel list from \(updated.formatted(date: .abbreviated, time: .shortened)).")
@@ -507,8 +509,11 @@ private struct ProviderUnreachableBanner: View {
                 .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Try Again") { Task { await app.loadCatalog(forceRefresh: true) } }
-                .disabled(app.isLoading)
+            // Without a VPN there is nothing to try: the catalog loads by itself when it connects.
+            if !vpnGuard.isBlocking {
+                Button("Try Again") { Task { await app.loadCatalog(forceRefresh: true) } }
+                    .disabled(app.isLoading)
+            }
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .background(Theme.warning.opacity(0.13), in: RoundedRectangle(cornerRadius: 10))

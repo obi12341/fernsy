@@ -168,6 +168,37 @@ private struct ChoiceRow: View {
     }
 }
 
+/// "IPTV only with VPN" (vpn-guard): per device, with what Fernsy sees of a VPN right now, also
+/// while it is off, so the detection can be checked first.
+private struct VPNGuardRows: View {
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
+
+    var body: some View {
+        ChoiceRow(title: Text("IPTV only with VPN"), chosen: vpnGuard.isEnabled) { vpnGuard.setEnabled(!vpnGuard.isEnabled) }
+            .accessibilityIdentifier("settings.vpnGuard")
+            .accessibilityValue(vpnGuard.isEnabled ? "on" : "off")
+            .padding(.top, 24)
+        // Not a `SettingsRow`: nothing opens from it, so no chevron.
+        HStack(spacing: 16) {
+            Circle().fill(vpnGuard.isVPNConnected ? TVTheme.accent : vpnGuard.isEnabled ? TVTheme.warning : TVTheme.secondary)
+                .frame(width: 12, height: 12)
+            Text("VPN on this Apple TV").fontWeight(.medium)
+            Spacer()
+            (vpnGuard.isVPNConnected ? Text("Connected") : Text("Not connected")).opacity(0.6)
+        }
+        .font(.system(size: 26))
+        .padding(.horizontal, 28)
+        .frame(height: 76)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settings.vpnStatus")
+        .accessibilityValue(vpnGuard.isVPNConnected ? "connected" : "not connected")
+        Text("Fernsy contacts your IPTV provider only while this Apple TV's internet traffic runs through a VPN. Any VPN app that carries all traffic counts; a VPN on your router, or one set to leave Fernsy out, cannot be seen. Jellyfin and Fernsy Cloud are not affected.")
+            .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
+            .onAppear { vpnGuard.watch(true) }
+            .onDisappear { vpnGuard.watch(false) }
+    }
+}
+
 private struct AccountScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var confirm = false
@@ -190,6 +221,7 @@ private struct AccountScreen: View {
                     .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
                 MatchDisplayModeRow(id: "settings.iptvMatchDisplayMode", on: $matchDisplayMode,
                                     note: Text("For live TV, catch-up, movies, series and recordings. Switching the TV takes a few seconds of black picture, also when you change channels. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio."))
+                VPNGuardRows()
             }
             Button { confirm = true } label: {
                 Text("Sign Out").font(.system(size: 26, weight: .semibold)).foregroundStyle(TVTheme.live)

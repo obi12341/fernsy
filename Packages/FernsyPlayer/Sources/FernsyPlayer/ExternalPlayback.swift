@@ -25,6 +25,9 @@ public struct ExternalPlayback {
     public var onOpened: (() -> Void)?
     /// "Direct play" / "Transcode", shown in the info overlay.
     public var methodLabel: String?
+    /// The stream comes from the IPTV provider (an archived show), so "IPTV only with VPN"
+    /// applies to it; false for Jellyfin (vpn-guard).
+    public var contactsProvider = true
 
     public init(timelineOffset: Double = 0, duration: Double? = nil, restartAt: ((Double) -> Void)? = nil, onFailedBeforeStart: ((String) -> Bool)? = nil, onFailedAfterStart: ((String) -> Bool)? = nil, selectAudio: ((MediaTrack) -> Bool)? = nil, selectSubtitle: ((MediaTrack?) -> Bool)? = nil, tracks: TrackRequest? = nil, onOpened: (() -> Void)? = nil, methodLabel: String? = nil) {
         self.timelineOffset = timelineOffset
