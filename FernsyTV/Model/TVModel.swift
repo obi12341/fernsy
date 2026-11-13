@@ -138,6 +138,9 @@ final class TVModel: ObservableObject {
     /// (tvos-player-status design 4, as `AppModel.isNetworkAvailable` on the Mac).
     @Published private(set) var isNetworkAvailable = true
     private let pathMonitor = NWPathMonitor()
+    /// "IPTV only with VPN" refused this sign-in: it runs when the VPN connects (vpn-guard design 8).
+    private(set) var refusedSignIn: (credentials: XtreamCredentials, remember: Bool)?
+    private var vpnGuardReopened: AnyCancellable?
     let guide = EPGStore()
     let tuners = TunerPool()
     let recorder = Recorder()
@@ -217,6 +220,7 @@ final class TVModel: ObservableObject {
         if let downloads { Task { await downloads.resume() } }
         #endif
         startPathMonitor()
+        startVPNGuard()
         #if os(tvOS)
         displayMode = DisplayModeController(model: self)
         // Start's inputs are the model's (and the recorder's and Jellyfin's) changes.
@@ -243,10 +247,33 @@ final class TVModel: ObservableObject {
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let available = path.status == .satisfied
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.networkChanged(available) }
+                MainActor.assumeIsolated {
+                    // A VPN that connects or drops changes the path too.
+                    VPNGuardState.shared.update()
+                    self?.networkChanged(available)
+                }
             }
         }
         pathMonitor.start(queue: DispatchQueue(label: "tv.path"))
+    }
+
+    /// "IPTV only with VPN": the sign-in the guard refused runs when the VPN connects.
+    private func startVPNGuard() {
+        vpnGuardReopened = VPNGuardState.shared.reopened.sink { [weak self] in
+            Task {
+                guard let self else { return }
+                #if os(iOS)
+                if self.signIn == .offline {
+                    AppLog.info(.app, "the VPN is connected, signing in")
+                    await self.retrySignIn()
+                    return
+                }
+                #endif
+                guard let login = self.refusedSignIn else { return }
+                AppLog.info(.app, "the VPN is connected, signing in")
+                await self.signIn(login.credentials, remember: login.remember)
+            }
+        }
     }
 
     func networkChanged(_ available: Bool) {
@@ -269,6 +296,8 @@ final class TVModel: ObservableObject {
 
     /// No connection, as opposed to a server that answers with an error.
     static func isConnectionFailure(_ error: Error) -> Bool {
+        // "IPTV only with VPN" held the request back: the provider was not asked.
+        if error is ProviderGateError { return true }
         guard let error = error as? URLError else { return false }
         return [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost,
                 .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff].contains(error.code)
@@ -277,6 +306,7 @@ final class TVModel: ObservableObject {
     // MARK: Account
 
     func signIn(_ credentials: XtreamCredentials, remember: Bool = true) async {
+        refusedSignIn = nil
         signIn = .signingIn
         let client = XtreamClient(credentials: credentials)
         // Restoring the stored account (`remember` false): the cached catalog shows at once and the
@@ -333,6 +363,7 @@ final class TVModel: ObservableObject {
             testRecord()
             #endif
         } catch {
+            if error is ProviderGateError { refusedSignIn = (credentials, remember) }
             #if os(iOS)
             // The stored account without a connection: keep it and open the tabs anyway (design F).
             if !remember, Self.isConnectionFailure(error) || !isNetworkAvailable {

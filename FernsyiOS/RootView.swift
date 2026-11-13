@@ -50,6 +50,7 @@ struct MainTabView: View {
     enum Tab: Hashable { case start, live, films, series, jellyfin, recordings, search, settings }
 
     @EnvironmentObject private var model: TVModel
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
     @SceneStorage("tab") private var selection: Tab = .start
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -101,7 +102,16 @@ struct MainTabView: View {
         .accessibilityIdentifier("tabs")
         // Opened without a connection (ios-app "Opening without a connection").
         .overlay(alignment: .bottom) {
-            if model.signIn == .offline || !model.isNetworkAvailable {
+            if vpnGuard.isBlocking, model.isNetworkAvailable, model.credentials != nil {
+                // "IPTV only with VPN": the reason is the missing VPN, not the connection.
+                Label("No VPN connection", systemImage: "lock.open")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 16).padding(.vertical, 9)
+                    .background(.thinMaterial, in: Capsule())
+                    .padding(.bottom, sizeClass == .compact ? 64 : 24)
+                    .accessibilityIdentifier("vpn.note")
+                    .allowsHitTesting(false)
+            } else if model.signIn == .offline || !model.isNetworkAvailable {
                 Label("No connection", systemImage: "wifi.slash")
                     .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 16).padding(.vertical, 9)

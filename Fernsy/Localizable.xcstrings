@@ -1412,6 +1412,26 @@
         }
       }
     },
+    "Fernsy contacts your IPTV provider only while this Mac's internet traffic runs through a VPN. Any VPN that carries all traffic counts; a VPN on your router, or one set to leave Fernsy out, cannot be seen. Jellyfin and Fernsy Cloud are not affected.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy verbindet sich nur mit deinem IPTV-Anbieter, solange der Internetverkehr dieses Macs durch ein VPN läuft. Jedes VPN zählt, das den gesamten Verkehr leitet; ein VPN auf deinem Router oder eines, das Fernsy ausnimmt, ist nicht zu erkennen. Jellyfin und Fernsy Cloud sind nicht betroffen."
+          }
+        }
+      }
+    },
+    "Fernsy continues as soon as the VPN is back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fernsy spielt weiter, sobald das VPN zurück ist."
+          }
+        }
+      }
+    },
     "Fernsy continues as soon as the network is back.": {
       "localizations": {
         "de": {
@@ -1518,6 +1538,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fernsy – Aufnahme läuft"
+          }
+        }
+      }
+    },
+    "IPTV only with VPN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IPTV nur mit VPN"
           }
         }
       }
@@ -1772,12 +1802,62 @@
         }
       }
     },
+    "No VPN Connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine VPN-Verbindung"
+          }
+        }
+      }
+    },
     "Not Now": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Jetzt nicht"
+          }
+        }
+      }
+    },
+    "Not connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verbunden"
+          }
+        }
+      }
+    },
+    "VPN is not connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN ist nicht verbunden"
+          }
+        }
+      }
+    },
+    "VPN on this Mac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN auf diesem Mac"
+          }
+        }
+      }
+    },
+    "missed · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verpasst · %@"
           }
         }
       }

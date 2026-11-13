@@ -586,6 +586,20 @@ and `SettingsScreen`, iOS's `CloudViews.swift`.
   `IPTV_TESTOFFLINE=requests` fails only the requests while the path says there is network.
   `IPTV_FRESHCATALOG=1` empties Caches at launch, as iOS may do
   (catalog, guide, artwork, cloud details; downloads stay).
+- **IPTV only with VPN (vpn-guard).** `ProviderGate` (FernsyShared) holds the setting and asks
+  `VPNProbe` at each check which interface carries internet traffic; `XtreamClient`, provider
+  streams (`HTTPByteSource` with a gate) and the image pipelines ask it, and `VPNGuardState`
+  (FernsyCore) follows it for the views. `IPTV_TESTVPN=on|off` (debug) replaces the probe's
+  answer, so the guard can be tested without a VPN; further steps change it during the run
+  (`IPTV_TESTVPN=on,20:off,50:on`: off after 20 s, on again after 50 s – the Mac has no debug
+  tools). `IPTV_TESTVPNGUARD=1` (debug) switches the setting on for the run without storing it.
+  On the Apple TV, iPhone and iPad the debug MCP tool `set_vpn {"on": false}` changes the faked
+  answer (`"guard": true|false` also switches the stored setting). The log (category network)
+  has a line per change (`vpn guard on: no VPN (IPv4 en0, IPv6 en0)`), per refused request and
+  when a stream waits for the VPN and goes on. A film that is still downloading when the VPN
+  goes needs a slow server: the demo film is buffered whole within seconds
+  (`IPTV_PLAYURL=http://127.0.0.1:<port>/movie/demo/demo/500.mp4` against a local server that
+  sends about 330 kB/s shows it).
 - **Website purchase in the DMG (stripe-cloud-subscription).** The DMG ("Fernsy Direct",
   `DIRECT_DISTRIBUTION`) has no StoreKit purchases; `AppModel` gives `CloudModel` a
   `WebCloudStore` that asks the worker for a checkout token (`POST /v1/checkout`) and opens

@@ -1,3 +1,4 @@
+import FernsyCore
 import SwiftUI
 
 /// The app's frame: the welcome screen and sign-in without an account, the tab bar with one.
@@ -5,6 +6,7 @@ import SwiftUI
 /// (DEVELOPMENT.md › Apple TV).
 struct RootScreen: View {
     @EnvironmentObject private var model: TVModel
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
 
     var body: some View {
         Group {
@@ -22,6 +24,22 @@ struct RootScreen: View {
         }
         .animation(.easeInOut(duration: 0.4), value: model.signingInFromICloud)
         .background(TVTheme.background.ignoresSafeArea())
+        // "IPTV only with VPN": why the channels are the cached ones and nothing loads.
+        // In the corner: the screens' columns and rows end left of it.
+        .overlay(alignment: .bottomTrailing) {
+            if vpnGuard.isBlocking, model.credentials != nil || model.refusedSignIn != nil {
+                Label("No VPN connection", systemImage: "lock.open")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(TVTheme.text)
+                    .padding(.horizontal, 28).padding(.vertical, 14)
+                    .background(PlayerStatusLayer.plate, in: .capsule)
+                    .padding(.bottom, 50).padding(.trailing, 60)
+                    .accessibilityIdentifier("vpn.note")
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: vpnGuard.isBlocking)
         .fullScreenCover(isPresented: Binding(get: { model.playing != nil || model.playingRecording != nil || model.playingVOD != nil },
                                               set: { if !$0 { model.stop() } })) {
             if model.playingRecording != nil { RecordingPlayerScreen() } else if model.playingVOD != nil { VODPlayerScreen() } else { PlayerScreen() }

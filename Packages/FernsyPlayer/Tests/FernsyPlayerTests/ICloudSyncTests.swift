@@ -16,6 +16,12 @@ struct ICloudSyncTests {
 
     struct Value: Codable, Equatable { var text: String }
 
+    /// "IPTV only with VPN" is a setting of the device: a device behind a VPN router cannot see
+    /// that VPN and keeps it off (vpn-guard design 7).
+    @Test func theVPNSettingIsNotSynced() {
+        #expect(!ICloudSync.syncedKeys.contains(ProviderGate.enabledKey))
+    }
+
     @Test func arrivedReadsOnlyTheNamedValues() {
         let defaults = UserDefaults(suiteName: "ICloudSyncTests.\(UUID().uuidString)")!
         defaults.set(["live:1"], forKey: LiveRules.favoritesKey)

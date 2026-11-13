@@ -104,6 +104,7 @@ enum LanguageChoice {
 
 private struct AccountView: View {
     @EnvironmentObject private var model: TVModel
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
     @State private var confirm = false
 
     var body: some View {
@@ -120,6 +121,24 @@ private struct AccountView: View {
                 } footer: {
                     Text("Sections that are switched off are not loaded or searched. Favorites and resume positions are kept.")
                 }
+                // "IPTV only with VPN" (vpn-guard): per device, with what Fernsy sees of a VPN
+                // right now, also while it is off.
+                Section {
+                    Toggle("IPTV only with VPN", isOn: Binding(get: { vpnGuard.isEnabled }, set: { vpnGuard.setEnabled($0) }))
+                        .accessibilityIdentifier("settings.vpnGuard")
+                    LabeledContent("VPN on this device") {
+                        Label(vpnGuard.isVPNConnected ? "Connected" : "Not connected",
+                              systemImage: vpnGuard.isVPNConnected ? "lock.shield.fill" : "lock.open")
+                            .foregroundStyle(vpnGuard.isVPNConnected ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("settings.vpnStatus")
+                    .accessibilityValue(vpnGuard.isVPNConnected ? "connected" : "not connected")
+                } footer: {
+                    Text("Fernsy contacts your IPTV provider only while this device's internet traffic runs through a VPN. Any VPN app that carries all traffic counts; a VPN on your router, or one set to leave Fernsy out, cannot be seen. Jellyfin and Fernsy Cloud are not affected.")
+                }
+                .onAppear { vpnGuard.watch(true) }
+                .onDisappear { vpnGuard.watch(false) }
             }
             Section {
                 Button("Sign Out", role: .destructive) { confirm = true }.accessibilityIdentifier("settings.signOut")

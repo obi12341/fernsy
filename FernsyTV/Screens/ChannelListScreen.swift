@@ -383,11 +383,8 @@ struct ChannelLogo: View {
         ZStack {
             RoundedRectangle(cornerRadius: radius).fill(plate)
             if let icon = channel.icon, let url = URL(string: icon) {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFit().padding(logoPadding)
-                } placeholder: {
-                    initials
-                }
+                // Through the pipeline (disk cache, and "IPTV only with VPN" holds its downloads).
+                RemoteImage(url: url, maxPixel: 400, fit: true) { initials }.padding(logoPadding)
             } else {
                 initials
             }

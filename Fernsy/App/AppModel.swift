@@ -90,6 +90,8 @@ final class AppModel: ObservableObject {
     /// instead of naming the provider.
     @Published private(set) var isNetworkAvailable = true
     private let pathMonitor = NWPathMonitor()
+    /// "IPTV only with VPN": the VPN is connected again (vpn-guard design 8).
+    private var vpnGuardReopened: AnyCancellable?
     static let recentLimit = LiveRules.recentLimit
     /// Hidden live categories and channels of the signed-in account.
     @Published var visibility = ChannelVisibility() {
@@ -298,6 +300,7 @@ final class AppModel: ObservableObject {
         #endif
         Task { @MainActor in _ = self.mcp }
         startPathMonitor()
+        startVPNGuard()
         loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
@@ -318,6 +321,8 @@ final class AppModel: ObservableObject {
             let available = path.status == .satisfied
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
+                    // A VPN that connects or drops changes the path too.
+                    VPNGuardState.shared.update()
                     guard let self, self.isNetworkAvailable != available else { return }
                     AppLog.info(.network, available ? "network available" : "no network path")
                     self.isNetworkAvailable = available
@@ -325,6 +330,15 @@ final class AppModel: ObservableObject {
             }
         }
         pathMonitor.start(queue: DispatchQueue(label: "app.path"))
+    }
+
+    /// "IPTV only with VPN": what the guard refused is loaded when the VPN connects.
+    private func startVPNGuard() {
+        vpnGuardReopened = VPNGuardState.shared.reopened.sink { [weak self] in
+            guard let self, self.credentials != nil else { return }
+            AppLog.info(.catalog, "the VPN is connected, loading the catalog")
+            Task { await self.loadCatalog(forceRefresh: true) }
+        }
     }
 
     func applyTimeshiftSetting() {

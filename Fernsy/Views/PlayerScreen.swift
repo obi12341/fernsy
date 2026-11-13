@@ -23,6 +23,7 @@ struct PlayerScreen: View {
     @State private var loadedItem: PlayItem?
     /// Live playback has been buffering for a second (short stalls stay a plain spinner).
     @State private var stallCardVisible = false
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
     @EnvironmentObject private var jellyfin: JellyfinStore
     /// The Jellyfin item playing (direct/transcode, progress reports, next episode).
     @State private var jellyfinPlayback: JellyfinPlayback?
@@ -607,6 +608,8 @@ struct PlayerScreen: View {
         switch engine.connectionHealth {
         case .ok:
             return nil
+        case .waitingForVPN:
+            return Self.vpnCard
         case .reconnecting(loadBalancer: true):
             return ("tortoise", String(localized: "The channel arrives too slowly from the provider"),
                     String(localized: "Fernsy is switching to another server of the provider …"))
@@ -614,6 +617,15 @@ struct PlayerScreen: View {
             return ("tortoise", String(localized: "The channel arrives too slowly from the provider"),
                     String(localized: "Fernsy is waiting for data …"))
         }
+    }
+
+    private static let vpnCard = (symbol: "lock.open", title: String(localized: "VPN is not connected"),
+                                  detail: String(localized: "Fernsy continues as soon as the VPN is back."))
+
+    /// "IPTV only with VPN": the item is the provider's and waits for the VPN (live, films,
+    /// episodes and archived shows; at once, without the stall card's delay).
+    private var waitsForVPN: Bool {
+        engine.contactsProvider && (vpnGuard.isBlocking || engine.connectionHealth == .waitingForVPN)
     }
 
     @ViewBuilder
@@ -631,7 +643,7 @@ struct PlayerScreen: View {
             }
             .allowsHitTesting(false)
         case .loading, .buffering:
-            if engine.isReconnecting || engine.reconnectAttempt > 0 {
+            if !waitsForVPN, engine.isReconnecting || engine.reconnectAttempt > 0 {
                 VStack(spacing: 10) {
                     ProgressView().controlSize(.regular).tint(.white)
                     Text("Reconnecting…").font(.callout.weight(.semibold))
@@ -646,7 +658,7 @@ struct PlayerScreen: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .environment(\.colorScheme, .dark)
                 .allowsHitTesting(false)
-            } else if stallCardVisible, let card = stallCard {
+            } else if let card = waitsForVPN ? Self.vpnCard : stallCardVisible ? stallCard : nil {
                 VStack(spacing: 10) {
                     Image(systemName: card.symbol).font(.system(size: 22, weight: .semibold))
                     Text(card.title).font(.callout.weight(.semibold))

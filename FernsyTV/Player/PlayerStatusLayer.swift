@@ -26,12 +26,13 @@ struct PlayerStatusLayer: View {
 
     /// Live playback has been buffering for a second (short stalls stay a plain spinner).
     @State private var stallVisible = false
+    @ObservedObject private var vpnGuard = VPNGuardState.shared
     @FocusState private var focus: Action?
 
     enum Action: Hashable { case retry, next }
 
     enum Kind: Equatable {
-        case none, loading, spinner, reconnecting, stall, offline, failed(String)
+        case none, loading, spinner, reconnecting, stall, vpn, offline, failed(String)
 
         var marker: String {
             switch self {
@@ -40,6 +41,7 @@ struct PlayerStatusLayer: View {
             case .spinner: "spinner"
             case .reconnecting: "reconnecting"
             case .stall: "stall"
+            case .vpn: "vpn"
             case .offline: "offline"
             case .failed: "failed"
             }
@@ -73,8 +75,8 @@ struct PlayerStatusLayer: View {
                             .font(.system(size: 24)).foregroundStyle(.white.opacity(0.65))
                     }
                 }
-            case .stall:
-                if let cause = stallCause {
+            case .stall, .vpn:
+                if let cause = kind == .vpn ? Self.vpnCause : stallCause {
                     card {
                         Image(systemName: cause.symbol).font(.system(size: 40, weight: .semibold))
                         Text(cause.title).font(.system(size: 32, weight: .semibold))
@@ -129,6 +131,7 @@ struct PlayerStatusLayer: View {
         case .loading where !engine.isReconnecting:
             return .loading
         case .loading, .buffering:
+            if waitsForVPN { return .vpn }
             if engine.isReconnecting || engine.reconnectAttempt > 0 { return .reconnecting }
             if stallVisible, stallCause != nil { return .stall }
             return .spinner
@@ -141,6 +144,15 @@ struct PlayerStatusLayer: View {
 
     /// Why live playback stalls, when Fernsy has evidence for it: no network, or the channel's
     /// connection delivers too slowly, nothing, or is being replaced. Nil while it is healthy.
+    private static let vpnCause = (symbol: "lock.open", title: String(localized: "VPN is not connected"),
+                                   detail: String(localized: "Fernsy continues as soon as the VPN is back."))
+
+    /// "IPTV only with VPN": the item is the provider's and waits for the VPN (live, films,
+    /// episodes and archived shows; at once, without the stall card's delay).
+    private var waitsForVPN: Bool {
+        engine.contactsProvider && (vpnGuard.isBlocking || engine.connectionHealth == .waitingForVPN)
+    }
+
     private var stallCause: (symbol: String, title: String, detail: String)? {
         guard channel != nil else { return nil }
         if !model.isNetworkAvailable {
@@ -150,6 +162,8 @@ struct PlayerStatusLayer: View {
         switch engine.connectionHealth {
         case .ok:
             return nil
+        case .waitingForVPN:
+            return Self.vpnCause
         case .reconnecting(loadBalancer: true):
             return ("tortoise", String(localized: "The channel arrives too slowly from the provider"),
                     String(localized: "Fernsy is switching to another server of the provider …"))

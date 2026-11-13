@@ -213,7 +213,7 @@ private struct RecordingCard: View {
         switch recording.status {
         case .recording: return String(localized: "\(recording.channelName) · until \(recording.recordEnd.formatted(.dateTime.hour().minute()))")
         case .scheduled: return "\(time) · \(recording.channelName)"
-        case .missed: return String(localized: "Missed · Fernsy was not open")
+        case .missed: return recording.error.map { String(localized: "Missed · \($0)") } ?? String(localized: "Missed · Fernsy was not open")
         case .failed: return String(localized: "Failed · \(recording.error ?? "")")
         default:
             let minutes = Int(recording.recordEnd.timeIntervalSince(recording.recordStart) / 60)
