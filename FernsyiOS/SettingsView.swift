@@ -126,10 +126,16 @@ private struct AccountView: View {
                 Section {
                     Toggle("IPTV only with VPN", isOn: Binding(get: { vpnGuard.isEnabled }, set: { vpnGuard.setEnabled($0) }))
                         .accessibilityIdentifier("settings.vpnGuard")
-                    LabeledContent("VPN on this device") {
-                        Label(vpnGuard.isVPNConnected ? "Connected" : "Not connected",
-                              systemImage: vpnGuard.isVPNConnected ? "lock.shield.fill" : "lock.open")
-                            .foregroundStyle(vpnGuard.isVPNConnected ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                    // A plain row: as the value of a LabeledContent, the Label made the row
+                    // several lines tall on iOS 27.
+                    HStack {
+                        Text("VPN on this device")
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Image(systemName: vpnGuard.isVPNConnected ? "lock.shield.fill" : "lock.open")
+                            Text(vpnGuard.isVPNConnected ? "Connected" : "Not connected")
+                        }
+                        .foregroundStyle(vpnGuard.isVPNConnected ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("settings.vpnStatus")
