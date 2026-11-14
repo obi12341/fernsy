@@ -167,6 +167,9 @@ final class TVModel: ObservableObject {
 
     private var recorderChanges: AnyCancellable?
     private var jellyfinChanges: AnyCancellable?
+    #if DEBUG
+    private var testSubtitleTracks: AnyCancellable?
+    #endif
     #if os(tvOS)
     /// Asks tvOS for the shown video's frame rate and dynamic range (tvos-match-content).
     private var displayMode: DisplayModeController?
@@ -369,6 +372,7 @@ final class TVModel: ObservableObject {
             #if DEBUG
             autoplay()
             testRecord()
+            addTestSubtitleTracks()
             #endif
         } catch {
             if error is ProviderGateError { refusedSignIn = (credentials, remember) }
@@ -591,6 +595,17 @@ final class TVModel: ObservableObject {
         guard let spec = ProcessInfo.processInfo.environment["IPTV_AUTOPLAY"], spec.hasPrefix("live:"),
               let id = Int(spec.dropFirst(5)), let channel = channels.first(where: { $0.id == id }), playing == nil else { return }
         play(channel)
+    }
+
+    /// IPTV_TESTSUBTRACKS=<n>: every item gets n extra subtitle tracks ("Test 1" …) in its menu,
+    /// for long track lists (the demo server's films have few).
+    private func addTestSubtitleTracks() {
+        guard testSubtitleTracks == nil, let count = ProcessInfo.processInfo.environment["IPTV_TESTSUBTRACKS"].flatMap(Int.init) else { return }
+        let tracks = (1...max(1, count)).map { MediaTrack(id: Int32(9000 + $0), title: "Test \($0)") }
+        testSubtitleTracks = engine.$media.compactMap { $0 }
+            .filter { media in !media.subtitleTracks.contains { $0.id == tracks[0].id } }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.engine.addSubtitleTracks(tracks) }
     }
     #endif
 }

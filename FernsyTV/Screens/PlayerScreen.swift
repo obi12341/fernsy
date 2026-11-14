@@ -88,7 +88,7 @@ struct PlayerScreen: View {
                 case .info, .tabs:
                     InfoOverlay(channel: channel, engine: model.engine, progress: model.engine.progress, selectedTab: selectedTab)
                 case .tracks(let tab):
-                    TrackPanel(tab: tab, engine: model.engine) { mode = .info }
+                    TrackPanel(audio: tab == .audio, engine: model.engine, emptyAudioNote: "This channel has one audio track.") { mode = .info }
                 case .strip:
                     ChannelStrip { channel in
                         mode = .hidden
@@ -350,28 +350,57 @@ private struct Timeline: View {
 
 // MARK: Tracks
 
-/// Subtitles or audio tracks of the playing channel, to choose one (design: Untertitel, Ton).
-private struct TrackPanel: View {
-    let tab: PlayerScreen.Tab
+/// Subtitles or audio tracks of the playing item, to choose one (design: Untertitel, Ton); the
+/// live and the on-demand player share it. Long lists (Jellyfin films often have dozens of
+/// subtitle tracks) scroll, and the panel opens on the track in use.
+struct TrackPanel: View {
+    let audio: Bool
     @ObservedObject var engine: PlayerEngine
+    /// Shown under an empty audio list (the live player's channels).
+    var emptyAudioNote: LocalizedStringKey?
     let done: () -> Void
+
+    private enum Row: Hashable { case off, track(Int32) }
+    @FocusState private var focused: Row?
+
+    /// Row height plus spacing; the list shows at most `visibleRows` before it scrolls.
+    private static let rowPitch: CGFloat = 80
+    private static let visibleRows = 8
 
     var body: some View {
         let media = engine.media
-        let tracks = tab == .audio ? media?.audioTracks ?? [] : media?.subtitleTracks ?? []
-        let selected = tab == .audio ? media?.selectedAudio : media?.selectedSubtitle
+        let tracks = audio ? media?.audioTracks ?? [] : media?.subtitleTracks ?? []
+        let selected = audio ? media?.selectedAudio : media?.selectedSubtitle
+        let rows = tracks.count + (audio ? 0 : 1)
         VStack(alignment: .leading, spacing: 16) {
-            Text(tab.title).font(.system(size: 34, weight: .bold))
-            if tab == .subtitles {
-                trackButton(title: Text("Off"), on: selected == nil) { engine.selectSubtitle(nil) }
-            }
-            ForEach(tracks, id: \.id) { track in
-                trackButton(title: Text(verbatim: track.title), on: selected == track.id) {
-                    if tab == .audio { engine.selectAudio(track) } else { engine.selectSubtitle(track) }
+            Text(audio ? "Audio" : "Subtitles").font(.system(size: 34, weight: .bold))
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(spacing: 16) {
+                        if !audio {
+                            trackButton(title: Text("Off"), on: selected == nil, row: .off) { engine.selectSubtitle(nil) }
+                        }
+                        ForEach(tracks, id: \.id) { track in
+                            trackButton(title: Text(verbatim: track.title), on: selected == track.id, row: .track(track.id)) {
+                                if audio { engine.selectAudio(track) } else { engine.selectSubtitle(track) }
+                            }
+                        }
+                    }
+                    // Room for the focused row's scale, which the scroll view clips.
+                    .padding(.horizontal, 10).padding(.vertical, 12)
+                }
+                .scrollIndicators(.hidden)
+                .frame(height: CGFloat(min(rows, Self.visibleRows)) * Self.rowPitch - 16 + 24)
+                .padding(.horizontal, -10)
+                .onAppear {
+                    let row: Row = if let selected, tracks.contains(where: { $0.id == selected }) { .track(selected) }
+                        else if audio, let first = tracks.first { .track(first.id) } else { .off }
+                    proxy.scrollTo(row, anchor: .center)
+                    focused = row
                 }
             }
-            if tracks.isEmpty && tab == .audio {
-                Text("This channel has one audio track.").font(.system(size: 22)).opacity(0.7)
+            if tracks.isEmpty && audio, let emptyAudioNote {
+                Text(emptyAudioNote).font(.system(size: 22)).opacity(0.7)
             }
         }
         .padding(40)
@@ -381,7 +410,7 @@ private struct TrackPanel: View {
         .focusSection()
     }
 
-    private func trackButton(title: Text, on: Bool, action: @escaping () -> Void) -> some View {
+    private func trackButton(title: Text, on: Bool, row: Row, action: @escaping () -> Void) -> some View {
         Button { action(); done() } label: {
             HStack {
                 title
@@ -393,6 +422,8 @@ private struct TrackPanel: View {
             .frame(height: 64)
         }
         .buttonStyle(TVTileStyle(rest: .white.opacity(0.08), radius: 16, scale: 1.03))
+        .focused($focused, equals: row)
+        .id(row)
     }
 }
 

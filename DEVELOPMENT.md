@@ -821,7 +821,9 @@ xcrun simctl io <device> screenshot shot.png    # screenshot of the simulator on
 Debug builds behave like the Mac dev build: `IPTV_SERVER`, `IPTV_USER`, `IPTV_PASS` sign in
 without the keychain (`FERNSY_NO_KEYCHAIN=1` keeps it out entirely); they start muted
 (`IPTV_SOUND=1` for sound); streams only from the demo worker, `127.0.0.1` or `localhost` unless
-`IPTV_ALLOWREAL=1`; `IPTV_AUTOPLAY=live:<id>` plays a channel once the catalog is loaded. An
+`IPTV_ALLOWREAL=1`; `IPTV_AUTOPLAY=live:<id>` plays a channel once the catalog is loaded;
+`IPTV_TESTSUBTRACKS=<n>` adds n subtitle tracks ("Test 1" …) to every item's menu (long track
+lists, `TrackPanelUITests`). An
 empty `IPTV_SERVER=` starts without an account (welcome screen). To start a UI test where it
 tests: `IPTV_OPEN=<fernsy:// link>` opens or plays an item at launch as a Top Shelf tile does
 (`fernsy-dev://open?item=episode:800:00100` opens series 800, `…play?item=live:101`; ids as in `play_item`), and
