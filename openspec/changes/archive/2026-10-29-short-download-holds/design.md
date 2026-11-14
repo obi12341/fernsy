@@ -95,3 +95,16 @@ after the fix. Holds and resumes are logged at detail level (`download held at â
   existing continue path still covers it, as it does today.
 - [A long pause or a player far ahead beyond the ceiling] â†’ The hold may time out as before.
   The existing continue path covers it, with a seam.
+
+## Notes after release
+
+- **A hold that does not hold (2026-11-14).** `URLSessionDataTask.suspend()` does not stop every
+  connection: with the user's Jellyfin, a film kept arriving while held. The keep-alive then
+  gave up silently above its ceiling, and the whole film (3.7 GB) ended up in memory. Shrinking
+  that `Data` below 2 GB in `compactIfNeeded` (`removeSubrange`) hit a Foundation trap in
+  `Data._Representation.replaceSubrange` (a range above `Int32.max` converted back to an inline
+  slice), and Fernsy 2.4.1 crashed after two hours of the film. Now a film's connection that still
+  delivers while held is closed once more than the keep-alive ceiling is buffered ahead, and the
+  rest comes with a range request (`continueDownload`) when the buffer is down to the low mark;
+  compaction copies the kept bytes instead of removing the front. The `HeldDownloadTests` stub
+  server ignores `suspend()`, which URLProtocol does as well.
