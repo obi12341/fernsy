@@ -60,6 +60,37 @@ final class PlayerUITests: XCTestCase {
         remote.press(.menu)
     }
 
+    /// With Now Playing on (now-playing-controls 3.2), the Siri Remote's play/pause still
+    /// toggles exactly once per press.
+    func testPlayPauseTogglesOnce() {
+        let app = XCUIApplication()
+        app.launchEnvironment = [
+            "FERNSY_NO_KEYCHAIN": "1",
+            "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
+            "IPTV_USER": "demo",
+            "IPTV_PASS": "demo",
+            "IPTV_MCP": "1",
+            "IPTV_MCPTOKEN": "test",
+        ]
+        app.launchForTest()
+        let remote = XCUIRemote.shared
+        _ = focusFirstLiveChannel(app)
+        remote.press(.select)
+        let state = app.descendants(matching: .any)["player.state"]
+        XCTAssertTrue(wait(30) { state.value as? String == "playing" }, "not playing")
+        XCTAssertTrue(waitForPlayerFocus(app), "the player did not take focus:\n\(app.debugDescription)")
+
+        remote.press(.playPause)
+        XCTAssertTrue(wait(5) { state.value as? String == "paused" }, "play/pause did not pause")
+        // A second toggle (the same press also arriving as a system command) would resume it.
+        Thread.sleep(forTimeInterval: 3)
+        XCTAssertEqual(state.value as? String, "paused", "one press toggled twice")
+        remote.press(.playPause)
+        XCTAssertTrue(wait(10) { state.value as? String == "playing" }, "play/pause did not resume")
+        Thread.sleep(forTimeInterval: 3)
+        XCTAssertEqual(state.value as? String, "playing", "one press toggled twice")
+    }
+
     /// On failure: the app's log from its debug MCP server (port 52325), as an attachment.
     override func record(_ issue: XCTIssue) {
         attachLog()

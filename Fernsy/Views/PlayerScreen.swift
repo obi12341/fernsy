@@ -155,6 +155,7 @@ struct PlayerScreen: View {
         .navigationTitle(app.nowPlaying?.title ?? "Playback")
         .onAppear {
             app.playerEngine = engine
+            NowPlaying.shared.attach(engine)
             PlayerWindow.appeared()
             setUpPictureInPicture()
             load(app.nowPlaying)
@@ -177,9 +178,12 @@ struct PlayerScreen: View {
             saveResume()
             stopJellyfin()
             engine.stop()
+            NowPlaying.shared.clear()
             loadedItem = nil
             app.nowPlaying = nil
         }
+        // Now Playing (AirPods, Control Center, media keys): the item and, live, its current show.
+        .onChange(of: currentEPG?.title) { _, _ in showNowPlaying() }
         .onReceive(resumeTimer) { _ in
             if engine.status == .playing { saveResume() }
         }
@@ -250,8 +254,10 @@ struct PlayerScreen: View {
         loadedItem = item
         guard let item else {
             engine.stop()
+            NowPlaying.shared.clear()
             return
         }
+        showNowPlaying()
         // The PiP window would keep the previous item's last picture while this one loads.
         if app.isPictureInPictureActive {
             if case .live(let id, _) = item.kind, let channel = app.channel(id) {
@@ -341,6 +347,11 @@ struct PlayerScreen: View {
 
     private var currentEPG: EPGEntry? {
         epg.first { $0.start <= Date() && $0.end > Date() }
+    }
+
+    private func showNowPlaying() {
+        guard let item = loadedItem else { return }
+        NowPlaying.shared.show(title: item.title, subtitle: item.subtitle ?? (item.isLive ? currentEPG?.title : nil))
     }
 
     private func refreshEPG() async {
