@@ -145,7 +145,9 @@ struct XtreamClientTests {
         #expect(XtreamStub.unexpected.isEmpty, "requests outside the stub: \(XtreamStub.unexpected)")
     }
 
-    /// "IPTV only with VPN" (vpn-guard 2.3): without a VPN nothing reaches the provider.
+    #if canImport(Darwin)
+    /// "IPTV only with VPN" (vpn-guard 2.3): without a VPN nothing reaches the provider (the
+    /// gate is always open on Linux).
     @Test func noRequestWithoutAVPN() async throws {
         let defaults = try #require(UserDefaults(suiteName: "xtream-gate-\(UUID().uuidString)"))
         defaults.set(true, forKey: ProviderGate.enabledKey)
@@ -159,6 +161,7 @@ struct XtreamClientTests {
         #expect(try await client.account().maxConnections == 5)
         #expect(XtreamStub.users.contains("gated"))
     }
+    #endif
 
     @Test func requestURL() throws {
         let url = try Self.client().apiURL("get_short_epg", ["stream_id": "101"])
