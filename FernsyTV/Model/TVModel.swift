@@ -167,6 +167,7 @@ final class TVModel: ObservableObject {
 
     private var recorderChanges: AnyCancellable?
     private var jellyfinChanges: AnyCancellable?
+    private var nowPlayingChanges: AnyCancellable?
     #if DEBUG
     private var testSubtitleTracks: AnyCancellable?
     #endif
@@ -219,6 +220,12 @@ final class TVModel: ObservableObject {
         // Screens observe the model: the recorder's list changes are the model's changes too.
         recorderChanges = recorder.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         jellyfinChanges = jellyfin.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        NowPlaying.shared.attach(engine)
+        // Every 30 s too: live, the second line is the show on now.
+        nowPlayingChanges = Publishers.CombineLatest3($playing, $playingRecording, $playingVOD).map { _ in }
+            .merge(with: Timer.publish(every: 30, on: .main, in: .common).autoconnect().map { _ in })
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.showNowPlaying() }
         if let credentials = Self.debugCredentials ?? (Self.skipKeychain ? nil : CredentialStore.load()) {
             startedWithAccount = true
             Task { await signIn(credentials, remember: false) }
@@ -587,6 +594,20 @@ final class TVModel: ObservableObject {
         #else
         nil
         #endif
+    }
+
+    /// Now Playing (now-playing-controls): the player's channel, recording or on-demand item with
+    /// the second line the assistant's now_playing uses; not the Live TV preview.
+    private func showNowPlaying() {
+        if let channel = playing {
+            NowPlaying.shared.show(title: channel.displayName, subtitle: currentShow(on: channel)?.title)
+        } else if let recording = playingRecording {
+            NowPlaying.shared.show(title: recording.title, subtitle: ItemText.channelAndTime(recording.channelName, recording.start))
+        } else if let item = playingVOD {
+            NowPlaying.shared.show(title: item.title, subtitle: item.subtitle)
+        } else {
+            NowPlaying.shared.clear()
+        }
     }
 
     #if DEBUG
