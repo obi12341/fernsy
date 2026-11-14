@@ -29,6 +29,7 @@ struct ProviderGateTests {
         #expect(gate.isOpen)
     }
 
+    #if canImport(Darwin)
     @Test func onWithoutAVPNRefuses() throws {
         let (gate, _, _) = try gate(enabled: true)
         #expect(!gate.isOpen)
@@ -102,6 +103,16 @@ struct ProviderGateTests {
         #expect(changes == 3)
         #expect(offMain == 0)
     }
+
+    #else
+    /// The Fernsy Server on Linux talks to the provider for its recordings: the gate stays open.
+    @Test func alwaysOpenOnLinux() throws {
+        let (gate, _, _) = try gate(enabled: true, forced: true)
+        #expect(!gate.isEnabled)
+        #expect(gate.isOpen)
+        try gate.check("test")
+    }
+    #endif
 
     @Test func theErrorNamesTheVPN() {
         #expect(ProviderGateError.vpnRequired.localizedDescription.contains("VPN"))
