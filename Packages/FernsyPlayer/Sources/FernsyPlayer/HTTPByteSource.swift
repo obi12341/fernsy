@@ -56,6 +56,9 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     }
     private var heldSince: Date?
     private var holdGeneration = 0
+    /// A film's held download that kept delivering was closed above `keepAliveCeiling`; it
+    /// continues with a range request once read down to `lowWater` (`suspended` stays set).
+    private var parked = false
 
     public private(set) var contentLength: Int64 = -1
     public private(set) var supportsRanges = false
@@ -182,12 +185,15 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     /// Tests: the protocol classes of the sources' sessions (a stubbed provider).
     nonisolated(unsafe) static var testProtocolClasses: [AnyClass]?
 
-    public init(url: URL, isLive: Bool, gate: ProviderGate? = nil) {
+    /// `testWater`, `testProtocols`: a test's hold marks (bytes, instead of 24 and 8 MB) and
+    /// stubbed servers for this source alone.
+    public init(url: URL, isLive: Bool, gate: ProviderGate? = nil,
+                testWater: (high: Int, low: Int)? = nil, testProtocols: [AnyClass]? = nil) {
         self.url = url
         self.isLive = isLive
         self.gate = gate
         var timeout: TimeInterval = isLive ? 12 : 30
-        var water = (high: 24 << 20, low: 8 << 20)
+        var water = testWater ?? (high: 24 << 20, low: 8 << 20)
         #if DEBUG
         // IPTV_TESTWATER=<high KB>:<low KB>[:<timeout s>]: small marks (and a short timeout), so
         // the demo server's film (52 s, 14.6 MB) is held long enough to time out.
@@ -206,7 +212,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         config.timeoutIntervalForResource = .infinity
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
-        if let classes = Self.testProtocolClasses { config.protocolClasses = classes }
+        if let classes = testProtocols ?? Self.testProtocolClasses { config.protocolClasses = classes }
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 1
         queue.qualityOfService = .userInitiated
@@ -387,7 +393,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         if target > bufferEnd && target - bufferEnd < 2 << 20 && !finished && failure == nil {
             let deadline = Date().addingTimeInterval(readTimeout)
             while bufferBase + Int64(buffer.count) < target && !finished && failure == nil && !cancelled {
-                if suspended { task?.resume(); suspended = false }
+                if parked { continueParked() } else if suspended { task?.resume(); suspended = false }
                 if !cond.wait(until: deadline) { break }
             }
             if target <= bufferBase + Int64(buffer.count) {
@@ -443,6 +449,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         finished = false
         failure = nil
         suspended = false
+        parked = false
 
         var request = URLRequest(url: url)
         request.setValue("*/*", forHTTPHeaderField: "Accept")
@@ -693,7 +700,9 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
     private func compactIfNeeded() {
         guard readIndex > 8 << 20 else { return }
         let drop = readIndex - keepBehind
-        buffer.removeSubrange(0..<drop)
+        // A copy instead of `removeSubrange`: Foundation traps when that shrinks a Data of more
+        // than 2 GB below 2 GB (macOS 27.2, seen with a film buffered far ahead).
+        buffer = Data(buffer[drop...])
         bufferBase += Int64(drop)
         readIndex -= drop
     }
@@ -702,9 +711,37 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         guard suspended, let heldSince else { return }
         if buffer.count - readIndex < lowWater {
             AppLog.detail(.network, String(format: "download resumed after %.1f s", Date().timeIntervalSince(heldSince)))
-            suspended = false
-            task?.resume()
+            if parked {
+                continueParked()
+            } else {
+                suspended = false
+                task?.resume()
+            }
         }
+    }
+
+    /// A held film's connection that keeps delivering anyway (seen with a Jellyfin server: the
+    /// whole film ended up in memory) is closed; the rest comes with a range request later.
+    /// The caller holds `cond`.
+    private func parkIfStillDelivering(_ dataTask: URLSessionDataTask) {
+        guard !streaming, suspended, !parked, supportsRanges, buffer.count - readIndex > keepAliveCeiling else { return }
+        AppLog.warning(.network, "download kept coming while held, \((buffer.count - readIndex) >> 10) KB ahead: closed until \(lowWater >> 10) KB are left")
+        parked = true
+        dataTask.cancel()
+        task = nil
+        taskGeneration += 1
+    }
+
+    /// The caller holds `cond`.
+    private func continueParked() {
+        parked = false
+        let received = bufferBase + Int64(buffer.count)
+        guard contentLength <= 0 || received < contentLength else {
+            suspended = false
+            finished = true
+            return
+        }
+        continueDownload(at: received, reason: "held download closed", counts: false)
     }
 
     /// Lets a held download run again before the request timeout, read or not: below
@@ -717,7 +754,7 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
         DispatchQueue.global().asyncAfter(deadline: .now() + readTimeout / 2) { [weak self] in
             guard let self else { return }
             cond.lock(); defer { cond.unlock() }
-            guard suspended, holdGeneration == generation, !cancelled, buffer.count - readIndex < keepAliveCeiling else { return }
+            guard suspended, !parked, holdGeneration == generation, !cancelled, buffer.count - readIndex < keepAliveCeiling else { return }
             AppLog.detail(.network, "download kept alive, \((buffer.count - readIndex) >> 10) KB ahead")
             suspended = false
             task?.resume()
@@ -879,6 +916,8 @@ public final class HTTPByteSource: NSObject, URLSessionDataDelegate {
             suspended = true
             dataTask.suspend()
             scheduleKeepAlive()
+        } else if suspended {
+            parkIfStillDelivering(dataTask)
         }
         cond.broadcast()
     }
