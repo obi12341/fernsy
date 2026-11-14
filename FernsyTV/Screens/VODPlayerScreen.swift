@@ -52,7 +52,7 @@ struct VODPlayerScreen: View {
                         .padding(.trailing, 90).padding(.bottom, 70)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 } else if let tracks {
-                    VODTrackPanel(kind: tracks, engine: model.engine) { self.tracks = nil; focused = true }
+                    TrackPanel(audio: tracks == .audio, engine: model.engine) { self.tracks = nil; focused = true }
                 } else if showsOverlay {
                     VODOverlay(item: item, progress: model.engine.progress)
                 }
@@ -188,40 +188,6 @@ private struct NextEpisodeCard: View {
         .padding(30)
         .frame(width: 640, alignment: .leading)
         .background(.ultraThinMaterial, in: .rect(cornerRadius: 28))
-    }
-}
-
-private struct VODTrackPanel: View {
-    let kind: VODPlayerScreen.TrackKind
-    @ObservedObject var engine: PlayerEngine
-    let done: () -> Void
-
-    var body: some View {
-        let media = engine.media
-        let list = kind == .audio ? media?.audioTracks ?? [] : media?.subtitleTracks ?? []
-        let selected = kind == .audio ? media?.selectedAudio : media?.selectedSubtitle
-        VStack(alignment: .leading, spacing: 14) {
-            Text(kind == .audio ? "Audio" : "Subtitles").font(.system(size: 34, weight: .bold))
-            if kind == .subtitles { row(Text("Off"), on: selected == nil) { engine.selectSubtitle(nil) } }
-            ForEach(list, id: \.id) { track in
-                row(Text(verbatim: track.title), on: selected == track.id) {
-                    if kind == .audio { engine.selectAudio(track) } else { engine.selectSubtitle(track) }
-                }
-            }
-        }
-        .padding(40)
-        .frame(width: 620, alignment: .leading)
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 28))
-        .padding(.leading, 90).padding(.bottom, 80)
-        .focusSection()
-    }
-
-    private func row(_ title: Text, on: Bool, action: @escaping () -> Void) -> some View {
-        Button { action(); done() } label: {
-            HStack { title; Spacer(); if on { Image(systemName: "checkmark") } }
-                .font(.system(size: 24, weight: .medium)).padding(.horizontal, 24).frame(height: 64)
-        }
-        .buttonStyle(TVTileStyle(rest: .white.opacity(0.08), radius: 16, scale: 1.03))
     }
 }
 
