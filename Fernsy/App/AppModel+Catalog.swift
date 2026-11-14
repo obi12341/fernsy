@@ -45,6 +45,8 @@ extension AppModel {
     func loadCatalog(forceRefresh: Bool) async {
         guard let client, let dir = cacheDirectory else { return }
         loadError = nil
+        // Afterwards: the episode lists Start needs for started episodes (continue-watching-fresh).
+        defer { Task { await loadStartedSeries() } }
 
         if channels.isEmpty && movies.isEmpty && series.isEmpty {
             await loadFromCache(dir)
@@ -158,6 +160,11 @@ extension AppModel {
         AppLog.info(.catalog, "\(section == .movies ? "films" : "series") switched \(on ? "on" : "off")")
         guard on else {
             apply(section == .movies ? .movies([], []) : .series([], []))
+            if section == .series {
+                seriesInfoStore?.removeAll()
+                seriesInfos = [:]
+                freshSeriesInfo = []
+            }
             if let dir = cacheDirectory {
                 for action in section.actions { try? FileManager.default.removeItem(at: dir.appendingPathComponent(action.rawValue + ".json")) }
             }

@@ -235,7 +235,8 @@ final class AppModel: ObservableObject {
 
     // iCloud sync (icloud-sync, FernsyCore SyncStore and LoginSync): settings and choices in
     // the key-value store, logins in CloudKit. Keychain-less runs sync only with IPTV_SYNC=1.
-    let sync = SyncStore(backing: AppModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil, keys: AppModel.syncedKeys)
+    let sync = SyncStore(backing: TestSync.backing ?? (AppModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil),
+                         defaults: TestSync.defaults ?? .standard, keys: AppModel.syncedKeys)
     let logins = AppModel.makeLogins()
     /// Logins found in iCloud while this Mac has none: the login screen offers them.
     @Published var syncedXtream: XtreamCredentials?
@@ -301,6 +302,7 @@ final class AppModel: ObservableObject {
         Task { @MainActor in _ = self.mcp }
         startPathMonitor()
         startVPNGuard()
+        startActivationWatch()
         loadSavedConnectionLimit()
         recorder.activate(accountKey: credentials?.accountKey)
         loadVisibility()
@@ -438,6 +440,9 @@ final class AppModel: ObservableObject {
 
     func logout() {
         AppLog.info(.app, "signed out of the IPTV account")
+        seriesInfoStore?.removeAll()
+        seriesInfos = [:]
+        freshSeriesInfo = []
         SiriIndex.clear()
         nowPlaying = nil
         tuners.stopAll()
@@ -631,6 +636,13 @@ final class AppModel: ObservableObject {
     /// Series details loaded on their pages, so Start can name started episodes (mac-start-pages;
     /// the Apple TV keeps them the same way).
     var seriesInfos: [Int: SeriesInfo] = [:]
+    /// Series whose episode list came from the provider in this run (continue-watching-fresh);
+    /// the others in `seriesInfos` came from the device.
+    var freshSeriesInfo: Set<Int> = []
+    var loadingStartedSeries = false
+    /// Jellyfin's rows on activation, which on the Mac is every switch between apps.
+    var jellyfinHomeThrottle = RefreshThrottle(interval: 60)
+    var activationObserver: NSObjectProtocol?
 
     /// Episodes of loaded series by id, for Start's Continue Watching.
     var episodeIndex: [String: (Episode, Series)] {
@@ -641,7 +653,7 @@ final class AppModel: ObservableObject {
 
     /// Resume positions and watched marks (FernsyCore). Test runs (no keychain) share the
     /// installed app's defaults, so they keep them in memory.
-    lazy var resume = ResumeStore(defaults: Self.skipKeychain ? nil : .standard)
+    lazy var resume = ResumeStore(defaults: TestSync.defaults ?? (Self.skipKeychain ? nil : .standard))
 
     func resumePosition(_ key: String) -> Double { resume.position(key) }
 
@@ -649,8 +661,10 @@ final class AppModel: ObservableObject {
     /// Continue Watching without reading every position on each redraw.
     @Published var resumeRevision = 0
 
-    func saveResume(_ key: String, position: Double, duration: Double) {
+    /// `series`: an episode's series, kept with its position (continue-watching-fresh design 2).
+    func saveResume(_ key: String, position: Double, duration: Double, series: Int? = nil) {
         if resume.save(key, position: position, duration: duration) { AppLog.detail(.player, "watched \(key)") }
+        if let series, key.hasPrefix("episode.") { resume.setSeries(series, forEpisode: String(key.dropFirst("episode.".count))) }
         resumeRevision += 1
     }
 

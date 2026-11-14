@@ -102,6 +102,27 @@ Alternatives considered:
 - **Asking the provider which series an episode belongs to.** Not possible: the API has no such
   request; trying every series would be thousands of requests.
 
+### 2a. Finished items reach the other devices
+
+Found while implementing (2026-11-13, reproduced with two stores on one backing): when an item is
+watched to its end, `ResumeStore.save` removes its position and date and sets `watched`.
+`ResumeEntry.read` then gives it the date `distantPast`, and `pushLocalChanges` sends only
+entries of the last 90 days, so the finished state is never sent. iCloud and the other devices
+keep the old position, and the item stays in their "Weiterschauen" for good. The merge rule
+"a finished item beats a position from a device that has not seen it finish" exists but never
+gets the finished entry.
+
+`pushLocalChanges` therefore also sends a finished local entry when iCloud holds a position for
+that key. The merge then turns iCloud's entry into the finished one, and the other devices take
+it like any newer value. Older versions decode it (position 0, watched) and apply the same rule.
+
+Alternatives considered:
+
+- **Sending every watched item.** Rejected: the 90-day rule keeps the store small; a library of
+  watched films would grow it without bound, and only items another device still lists matter.
+- **Keeping a date on finished items** (`resume.<key>.at` left in place). Rejected: `started`
+  and `fraction` read the `resume.` keys as positions, and older versions would too.
+
 ### 3. Episode lists on disk: `SeriesInfoStore`
 
 New in FernsyCore: `SeriesInfoStore(folder:)` keeps the provider's raw `get_series_info` answer
@@ -187,3 +208,51 @@ dictionary in UserDefaults; older versions ignore both.
 
 - Whether the release note should tell users that series started before the update appear only
   after they were opened once. Decided when the commit is written.
+
+## Notes from implementing
+
+- **Finished items (decision 2a)** were found and reproduced while writing the sync tests: two
+  stores on one backing, a film stopped at 20 min on one and watched to the end on the other –
+  the first kept 20 min, and iCloud too. Added with the user's agreement (2026-11-13).
+- **Where the lists are kept.** Apple TV, iPhone and iPad: `Caches/Fernsy/<account>/series-info/`,
+  as designed. Mac: `series-info/` in the account's folder in Application Support, where the Mac
+  keeps its catalog cache; the Mac has no Caches folder of its own for the account.
+- **Pages ask once per run.** `seriesDetails` returns the list in memory only when it came from
+  the provider in this run (`freshSeriesInfo`); a list taken from the device is asked for again
+  when its page opens, and the kept one is used when the provider does not answer. On the Mac the
+  series page goes through `AppModel.seriesDetails` now instead of the client directly.
+- **Offline.** The shared model's offline start (iPhone, iPad) also applies the cached films and
+  series now (`applyCachedLibrary`), which `loadStartedSeries` needs to name the series; the
+  Films and Series tabs show them offline too, as "Opening without a connection" asks for cached
+  content. The Apple TV has no offline start; the offline check of task 3.5 was done on the
+  iPhone (task 3.6) instead.
+- **Test hooks.** `TestSync` (FernsyCore) holds the suite and a stand-in for iCloud backed by a
+  second suite, so `memory-keep` keeps both over a relaunch. In the Apple TV simulator,
+  `XCUIApplication.open(URL)` relaunches the app, and the app's `state` stays
+  `runningForeground` after Home; the tests use `IPTV_OPEN` at launch and wait for the log line
+  "back in the front" instead. Leaving a series page opened by a link needs more than Menu, so
+  the old-position test checks the repaired position at the next launch.
+- **Log lines** for tests: "back in the front: asking iCloud and Jellyfin again" (app, detail),
+  "Start: episodes of series <id> from the device|provider" (app), "episodes of series <id>
+  loaded and kept" (catalog, detail), "Start's rows loaded again" (jellyfin, detail).
+- **Checked (2026-11-13).** Apple TV UI tests (host, demo server, test Jellyfin) and iPhone UI
+  test (VM) as in tasks 3.5–3.7; the Apple TV test (a) fails with the call in the scene-phase
+  handler removed. Mac (Fernsy Dev on the host, demo server): positions put in at 15 s were not
+  taken until the app was activated, then the film and the episode showed in Continue Watching
+  and the large entry; at a relaunch the episode came from the kept list; five activations
+  asked the test Jellyfin once.
+- **The whole suite (task 5.1, 2026-11-13).** FernsyCore package tests in the VM and FernsyPlayer
+  tests on the host: passed. Apple TV UI tests on the host with the test Jellyfin running: 89
+  tests, 78 passed, 9 skipped (Fernsy Cloud), 2 failed. `LibraryUITests.testFilmResumesAndStartsOver`
+  failed because the new Jellyfin test set the fixture film's position to 0 afterwards, and that
+  test relies on the position the previous run left; the new test now restores the earlier
+  position, and both pass in the suite's order. `JellyfinOverviewUITests.testNextPosterShowsAtTheEdge`
+  fails the same way on `main` (checked in a separate worktree), so it is not this change's.
+  iPhone UI tests in the VM: the seven playback tests and `StartClockUITests` failed there as
+  before; on the host `FernsyiOSUITests`, `AssistantUITests.testRequestPlaysItsChannel` and
+  `StartClockUITests` passed. No existing test sets `IPTV_TESTSYNC`.
+- **Real iCloud (task 5.2, 2026-11-14).** Release builds of this branch on the user's Mac (run
+  from the build folder) and Apple TV; the iPhone was not reachable for installing, so the
+  Apple TV took its place as the device coming back to the front. The user reported the
+  positions watched on the Mac showing up there as expected; how long iCloud took was not
+  measured.

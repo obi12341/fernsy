@@ -106,9 +106,8 @@ struct SeriesDetailView: View {
         .navigationTitle(series.name)
         .task(id: series.id) {
             do {
-                let loaded = try await app.client?.seriesInfo(series.id)
+                let loaded = try await app.seriesDetails(series.id)
                 info = loaded
-                if let loaded { app.seriesInfos[series.id] = loaded }
                 season = loaded.flatMap(nextEpisode)?.season ?? loaded?.seasons.keys.sorted().first
             } catch {
                 self.error = error.localizedDescription

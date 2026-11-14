@@ -6,7 +6,9 @@ Coming back to Fernsy on the iPhone after watching on the Mac, Start still shows
 "Weiterschauen" row and with it the old large entry. Three gaps cause it: nothing asks iCloud or
 Jellyfin again when the app comes back from the background; a started provider episode can only
 be listed while its series' episode list is in memory, which is gone after every relaunch; and
-for the same reason a series started on another device is never listed here at all.
+for the same reason a series started on another device is never listed here at all. A fourth
+gap was found while implementing: a provider film or episode watched to its end on one device
+stays in "Weiterschauen" on the others, because the finished state never reaches iCloud.
 
 ## What Changes
 
@@ -21,6 +23,8 @@ for the same reason a series started on another device is never listed here at a
   device, so they are there at the next launch, also without a connection.
 - Positions saved by older versions get their series as soon as an updated device has that
   series' episode list (its page was opened) or plays the episode again.
+- A provider film or episode watched to its end on one device leaves "Weiterschauen" on the
+  others: the finished state is sent while iCloud still holds a position for it.
 
 Out of scope:
 
@@ -30,7 +34,8 @@ Out of scope:
   no lookup from an episode to its series.
 - Jellyfin positions through iCloud (they live on the server), positions of recordings and Fernsy
   Cloud recordings on other devices, and Handoff.
-- Changing how positions are merged, the 90-day rule, or the format of the synced positions.
+- The format of the synced positions, and the rule which of two positions wins. Only which
+  local entries are sent changes (finished ones whose position iCloud still holds).
 - Start's other rows (Zuletzt hinzugefügt, categories, Bestbewertet) and the catalog refresh.
 
 ## Capabilities
@@ -42,7 +47,8 @@ None.
 ### Modified Capabilities
 
 - `icloud-sync`: changes from other devices are also taken when the app comes back to the front;
-  the series of a started episode is synced with its position.
+  the series of a started episode is synced with its position; an item finished on one device
+  is finished on the others.
 - `catalog`: "Weiterschauen" lists started provider episodes without their series having been
   opened on this device, also after a relaunch and without a connection.
 - `jellyfin-library`: Start's Jellyfin rows follow the server when the app comes back to the front.

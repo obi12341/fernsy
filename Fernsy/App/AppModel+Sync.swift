@@ -65,7 +65,11 @@ extension AppModel {
         let arrived = ICloudSync.arrived(names)
         if let value = arrived.favorites { favorites = value }
         if let value = arrived.recentChannels { recentChannels = value }
-        if arrived.resume { resumeRevision += 1 }
+        if arrived.resume || names.contains("resumeSeries") {
+            resumeRevision += 1
+            // Episodes started elsewhere: their series' lists (continue-watching-fresh design 4).
+            Task { await loadStartedSeries() }
+        }
         // Films or series switched on another device: as if switched here (drops or downloads).
         if let value = arrived.showsMovies { showsIPTVMovies = value }
         if let value = arrived.showsSeries { showsIPTVSeries = value }

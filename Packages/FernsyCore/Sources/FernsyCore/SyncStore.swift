@@ -19,6 +19,10 @@ extension NSUbiquitousKeyValueStore: SyncBacking {}
 /// - Resume positions and watched marks (ResumeStore's `resume.*` and `watched.*` keys) as one
 ///   entry `resume`, merged per item by its date, so two devices never undo each other's
 ///   progress; entries older than 90 days stay local.
+/// - The series of started provider episodes (ResumeStore's `episodeSeries`) as one entry
+///   `resumeSeries` = `{episode id: series id}`, kept beside `resume` so that versions which
+///   rewrite `resume` with the fields they know cannot drop it; a union on both sides, cut to
+///   episodes with a position (continue-watching-fresh design 2).
 /// - Codable values with their own `modifiedAt` (visibility, pinned categories), per account:
 ///   `push` and `pull`.
 ///
@@ -67,6 +71,15 @@ public final class SyncStore {
                 MainActor.assumeIsolated { self?.pullAll() }
             })
         }
+    }
+
+    /// The app came back to the front: takes what iCloud brought to this device meanwhile and
+    /// sends what is new here, as at launch, whether or not the change notification arrives
+    /// (continue-watching-fresh design 1).
+    public func refresh() {
+        backing?.synchronize()
+        pullAll()
+        pushLocalChanges()
     }
 
     // MARK: Codable values with their own date
@@ -134,11 +147,33 @@ public final class SyncStore {
         if resume != resumeSnapshot || backing.object(forKey: "resume") == nil && !resume.isEmpty {
             resumeSnapshot = resume
             let remote = ResumeEntry.decode(backing.object(forKey: "resume"))
-            let merged = ResumeEntry.merge(remote, resume.filter { $0.value.at > Date().addingTimeInterval(-90 * 86400) })
-            guard merged != remote else { return }
-            backing.set(ResumeEntry.encode(merged), forKey: "resume")
-            AppLog.detail(.app, "iCloud: sent \(merged.count) resume positions")
+            // A finished item has no date left, so the 90 days would never let it go out: it is
+            // sent while iCloud still holds a position for it (continue-watching-fresh design 2a).
+            let cutoff = Date().addingTimeInterval(-90 * 86400)
+            let sent = resume.filter { $0.value.at > cutoff || $0.value.isFinished && (remote[$0.key]?.position ?? 0) > 0 }
+            let merged = ResumeEntry.merge(remote, sent)
+            if merged != remote {
+                backing.set(ResumeEntry.encode(merged), forKey: "resume")
+                AppLog.detail(.app, "iCloud: sent \(merged.count) resume positions")
+            }
         }
+        pushEpisodeSeries(backing)
+    }
+
+    /// The union of this device's and iCloud's episode series, for episodes that have a position
+    /// in iCloud's `resume`; sent when it differs from what iCloud has.
+    private func pushEpisodeSeries(_ backing: SyncBacking) {
+        let remote = Self.episodeSeries(backing.object(forKey: "resumeSeries"))
+        let local = Self.episodeSeries(defaults.object(forKey: ResumeStore.episodeSeriesKey))
+        let positions = ResumeEntry.decode(backing.object(forKey: "resume"))
+        let merged = remote.merging(local) { _, mine in mine }.filter { (positions["episode." + $0.key]?.position ?? 0) > 0 }
+        guard merged != remote else { return }
+        backing.set(merged, forKey: "resumeSeries")
+        AppLog.detail(.app, "iCloud: sent the series of \(merged.count) episodes")
+    }
+
+    private static func episodeSeries(_ object: Any?) -> [String: Int] {
+        (object as? [String: Any])?.compactMapValues { ($0 as? Int) ?? ($0 as? NSNumber)?.intValue } ?? [:]
     }
 
     /// Remote values newer than the local ones: written to UserDefaults, named in `onChange`.
@@ -164,6 +199,12 @@ public final class SyncStore {
             applyingDefaults { ResumeEntry.write(merged, over: local, to: defaults) }
             resumeSnapshot = merged
             changed.insert("resume")
+        }
+        let localSeries = Self.episodeSeries(defaults.object(forKey: ResumeStore.episodeSeriesKey))
+        let series = localSeries.merging(Self.episodeSeries(backing.object(forKey: "resumeSeries"))) { mine, _ in mine }
+        if series != localSeries {
+            applyingDefaults { defaults.set(series, forKey: ResumeStore.episodeSeriesKey) }
+            changed.insert("resumeSeries")
         }
         if !changed.isEmpty { AppLog.info(.app, "iCloud: took \(changed.sorted().joined(separator: ", ")) from another device") }
         onChange?(changed)

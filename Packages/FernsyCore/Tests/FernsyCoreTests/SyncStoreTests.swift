@@ -155,3 +155,177 @@ struct SyncStoreTests {
         #expect(ResumeEntry.merge(["m": finished], ["m": position])["m"]?.position == 600)
     }
 }
+
+/// Coming back to the front and the series of started episodes (continue-watching-fresh 1.1–1.3).
+@MainActor
+struct SyncRefreshAndSeriesTests {
+    typealias FakeStore = SyncStoreTests.FakeStore
+
+    private func device(_ name: String, _ store: FakeStore) -> (SyncStore, UserDefaults, ResumeStore) {
+        let defaults = UserDefaults(suiteName: "SyncRefreshAndSeriesTests.\(name).\(UUID().uuidString)")!
+        return (SyncStore(backing: store, defaults: defaults, keys: []), defaults, ResumeStore(defaults: defaults))
+    }
+
+    @Test func refreshTakesWhatArrivedWithoutANotification() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        let (phone, _, phoneResume) = device("phone", store)
+        mac.start(notifications: NotificationCenter())
+        phone.start(notifications: NotificationCenter())
+        macResume.save("movie.500", position: 1200, duration: 3000)
+        mac.pushLocalChanges()
+        // No notification reaches the phone: it only knows after asking again.
+        #expect(phoneResume.position("movie.500") == 0)
+        var changed: Set<String> = []
+        phone.onChange = { changed = $0 }
+        phone.refresh()
+        #expect(phoneResume.position("movie.500") == 1200)
+        #expect(changed.contains("resume"))
+        phone.refresh()
+        #expect(changed.isEmpty, "a second refresh found something again: \(changed)")
+    }
+
+    @Test func refreshTakesNothingWithSyncOff() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        let (phone, _, phoneResume) = device("phone", store)
+        mac.start(notifications: NotificationCenter())
+        phone.start(notifications: NotificationCenter())
+        phone.isEnabled = false
+        macResume.save("movie.500", position: 1200, duration: 3000)
+        mac.pushLocalChanges()
+        phone.refresh()
+        #expect(phoneResume.position("movie.500") == 0)
+    }
+
+    @Test func theSeriesOfAnEpisodeIsKept() {
+        let resume = ResumeStore(defaults: UserDefaults(suiteName: "series.\(UUID().uuidString)")!)
+        #expect(resume.series(ofEpisode: "00101") == nil)
+        resume.setSeries(800, forEpisode: "00101")
+        #expect(resume.series(ofEpisode: "00101") == 800)
+        let memory = ResumeStore(defaults: nil)
+        memory.setSeries(800, forEpisode: "00101")
+        #expect(memory.series(ofEpisode: "00101") == 800)
+    }
+
+    /// A position saved by an older version gets its series when the series' list is loaded;
+    /// episodes never played do not.
+    @Test func aLoadedListGivesStartedEpisodesTheirSeries() {
+        let resume = ResumeStore(defaults: UserDefaults(suiteName: "adopt.\(UUID().uuidString)")!)
+        resume.save("episode.00101", position: 300, duration: 1500)
+        resume.save("episode.00102", position: 1490, duration: 1500)  // watched
+        #expect(resume.adoptSeries(800, episodes: ["00100", "00101", "00102"]) == 2)
+        #expect(resume.series(ofEpisode: "00101") == 800)
+        #expect(resume.series(ofEpisode: "00102") == 800)
+        #expect(resume.series(ofEpisode: "00100") == nil)
+        #expect(resume.adoptSeries(800, episodes: ["00101"]) == 0)
+    }
+
+    /// The new value is not read as a position.
+    @Test func positionsReadTheSameWithTheSeriesStored() {
+        let defaults = UserDefaults(suiteName: "read.\(UUID().uuidString)")!
+        let resume = ResumeStore(defaults: defaults)
+        resume.save("episode.00101", position: 300, duration: 1500)
+        resume.save("movie.500", position: 600, duration: 3000)
+        let before = (ResumeEntry.read(defaults), resume.started(prefix: "episode."), resume.started(prefix: ""))
+        resume.setSeries(800, forEpisode: "00101")
+        #expect(ResumeEntry.read(defaults) == before.0)
+        #expect(resume.started(prefix: "episode.") == before.1)
+        #expect(resume.started(prefix: "") == before.2)
+    }
+
+    @Test func theSeriesReachesTheOtherDevice() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        let (phone, _, phoneResume) = device("phone", store)
+        mac.start(notifications: NotificationCenter())
+        phone.start(notifications: NotificationCenter())
+        macResume.save("episode.00101", position: 300, duration: 1500)
+        macResume.setSeries(800, forEpisode: "00101")
+        mac.pushLocalChanges()
+        var changed: Set<String> = []
+        phone.onChange = { changed = $0 }
+        phone.refresh()
+        #expect(phoneResume.series(ofEpisode: "00101") == 800)
+        #expect(changed.contains("resumeSeries"))
+    }
+
+    /// A device on an older version decodes `resume` into its four fields, merges its own and
+    /// writes the whole value back; it never touches `resumeSeries`.
+    @Test func anOlderDeviceNeitherLosesPositionsNorTheSeries() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        mac.start(notifications: NotificationCenter())
+        macResume.save("episode.00101", position: 300, duration: 1500)
+        macResume.setSeries(800, forEpisode: "00101")
+        mac.pushLocalChanges()
+
+        // The older device: its own film, written back as it would.
+        var old = ResumeEntry.decode(store.values["resume"])
+        old = ResumeEntry.merge(old, ["movie.500": ResumeEntry(position: 900, duration: 3000, at: Date(), watched: false)])
+        store.values["resume"] = ResumeEntry.encode(old)
+
+        let (phone, _, phoneResume) = device("phone", store)
+        phone.start(notifications: NotificationCenter())
+        #expect(phoneResume.series(ofEpisode: "00101") == 800)
+        #expect(phoneResume.position("episode.00101") == 300)
+        #expect(phoneResume.position("movie.500") == 900)
+        #expect(ResumeEntry.decode(store.values["resume"])["movie.500"]?.position == 900)
+    }
+
+    /// Only episodes with a position in iCloud are sent: one that is only watched (or never
+    /// played) on this device keeps its series here alone.
+    @Test func onlyEpisodesWithAPositionAreSent() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        mac.start(notifications: NotificationCenter())
+        macResume.save("episode.00101", position: 300, duration: 1500)
+        macResume.save("episode.00102", position: 1490, duration: 1500)
+        macResume.setSeries(800, forEpisode: "00101")
+        macResume.setSeries(800, forEpisode: "00102")
+        macResume.setSeries(801, forEpisode: "00200")
+        mac.pushLocalChanges()
+        #expect(store.values["resumeSeries"] as? [String: Int] == ["00101": 800])
+    }
+
+    /// Watched to the end on one device: finished on the other, and gone from Continue Watching;
+    /// started again there, the new position wins everywhere (continue-watching-fresh 1.4).
+    @Test func finishedOnOneDeviceIsFinishedOnTheOther() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        let (phone, _, phoneResume) = device("phone", store)
+        mac.start(notifications: NotificationCenter())
+        phone.start(notifications: NotificationCenter())
+        phoneResume.save("movie.500", position: 1200, duration: 3000)
+        phone.pushLocalChanges()
+        mac.refresh()
+        #expect(macResume.position("movie.500") == 1200)
+
+        macResume.save("movie.500", position: 2990, duration: 3000)
+        mac.pushLocalChanges()
+        phone.refresh()
+        #expect(phoneResume.position("movie.500") == 0)
+        #expect(phoneResume.isWatched("movie.500"))
+        var builder = StartBuilder()
+        builder.movies = [try! JSONDecoder().decode(Movie.self, from: Data(#"{"stream_id": 500, "name": "Stardust", "container_extension": "mp4"}"#.utf8))]
+        builder.resume = phoneResume
+        #expect(builder.continueWatching().isEmpty)
+
+        phoneResume.save("movie.500", position: 300, duration: 3000)
+        phone.pushLocalChanges()
+        mac.refresh()
+        #expect(macResume.position("movie.500") == 300)
+        #expect(phoneResume.position("movie.500") == 300)
+    }
+
+    /// Finished long ago and not in iCloud: not sent.
+    @Test func anOldFinishedItemIsNotSent() {
+        let store = FakeStore()
+        let (mac, _, macResume) = device("mac", store)
+        mac.start(notifications: NotificationCenter())
+        macResume.save("movie.501", position: 2990, duration: 3000)
+        mac.pushLocalChanges()
+        #expect(ResumeEntry.decode(store.values["resume"])["movie.501"] == nil)
+    }
+}
+

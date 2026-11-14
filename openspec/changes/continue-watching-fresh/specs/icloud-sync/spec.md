@@ -42,3 +42,17 @@ or plays the episode.
 - **WHEN** an episode's position was saved by an older version, and the user opens that series'
   page on an updated Mac
 - **THEN** the series is added to the position and reaches the other devices
+
+### Requirement: Finished on one device, finished on all
+A provider film or episode watched to its end on one device SHALL count as watched on the user's
+other devices, with "Mit iCloud abgleichen" on, and SHALL leave their "Weiterschauen" and large
+entry, also when those devices still hold an older position for it. Starting it again afterwards
+on any device SHALL keep the new position.
+
+#### Scenario: Film finished on the Mac
+- **WHEN** the user stopped a provider film at 20 minutes on the iPhone and later watches it to its end on the Mac
+- **THEN** the iPhone no longer lists it in "Weiterschauen" and marks it as watched
+
+#### Scenario: Watched again
+- **WHEN** the film finished on the Mac is started again on the iPhone and stopped at 5 minutes
+- **THEN** "Weiterschauen" lists it at 5 minutes on the iPhone and on the Mac

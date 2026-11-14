@@ -525,6 +525,19 @@ of `iCloud.<bundle id>`; Jellyfin sessions never sync.
   debug builds: `IPTV_TESTICLOUDLOGIN=demo|demo-wrong|jellyfin` puts that login (demo server,
   demo server with a wrong password, local test Jellyfin) in memory as if found in iCloud, so a
   launch without an account signs in with it. The log notes what is sent and taken ("iCloud: …").
+- **Continue Watching across devices (continue-watching-fresh).** Coming to the front (Apple TV,
+  iPhone, iPad) or being activated (Mac) runs `refreshFromOtherDevices()`: `SyncStore.refresh()`,
+  Jellyfin's rows at most once a minute, and `loadStartedSeries()`, which loads the episode lists
+  of series with a started episode (kept per account in `series-info/` by `SeriesInfoStore`).
+  The series of an episode travels as the iCloud value `resumeSeries` beside `resume`.
+  `IPTV_TESTSYNC=memory` (debug) puts positions and the sync store into a suite of their own
+  (`fernsy.test.sync`) with a stand-in for iCloud, emptied at launch; `memory-keep` keeps both
+  for a relaunch. With it, the debug MCP tool `sync_from_other_device {"positions": [{"key":
+  "episode.00101", "position": 300, "duration": 2760, "series": 800}]}` (Apple TV, iPhone,
+  iPad) puts positions in as another device would, without telling the app; they arrive when it
+  comes back to the front. The Mac has no debug tools: `IPTV_TESTREMOTERESUME=<s>:<key>:<position>:<duration>[:<series id>],…`
+  does the same after `<s>` seconds. Log lines: "back in the front: …", "Start: episodes of
+  series <id> from the device|provider".
 - **Sign-in at launch.** Without an account, both apps look in iCloud for up to 10 s, showing
   "Signing in …", and sign in with what they find; the welcome or login screen shows only when
   nothing worked. Signing out offers the iCloud login on that screen for the rest of the session.
