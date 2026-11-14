@@ -62,3 +62,74 @@ extension TVModel {
         "\(favorites.sorted())|\(recentChannels).\(channels.count).\(visibility.modifiedAt.timeIntervalSince1970)"
     }
 }
+
+// MARK: Continue Watching from every device (continue-watching-fresh)
+
+extension TVModel {
+    /// Episode lists kept on the device for the signed-in account.
+    var seriesInfoStore: SeriesInfoStore? {
+        credentials.map {
+            SeriesInfoStore(folder: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("Fernsy/\($0.accountKey)/series-info", isDirectory: true))
+        }
+    }
+
+    /// An episode's position was saved: its series goes with it (design 2).
+    func noteSeries(of item: VODItem) {
+        guard case .episode(let episode, let show) = item else { return }
+        resume.setSeries(show.id, forEpisode: episode.id)
+    }
+
+    /// A series' episode list is here: Start can name its episodes, and positions saved without
+    /// their series (older versions) get it.
+    func keep(_ info: SeriesInfo, for seriesId: Int) {
+        seriesInfo[seriesId] = info
+        if resume.adoptSeries(seriesId, episodes: info.seasons.values.flatMap { $0 }.map(\.id)) > 0 { resumeRevision += 1 }
+    }
+
+    /// From the provider, kept on the device; nil when it does not answer.
+    func fetchSeriesInfo(_ seriesId: Int) async -> SeriesInfo? {
+        guard let data = try? await client?.seriesInfoData(seriesId),
+              let info = seriesInfoStore?.save(data, for: seriesId) ?? (try? JSONDecoder().decode(SeriesInfo.self, from: data)) else { return nil }
+        freshSeriesInfo.insert(seriesId)
+        keep(info, for: seriesId)
+        AppLog.detail(.catalog, "episodes of series \(seriesId) loaded and kept")
+        return info
+    }
+
+    /// The episode lists Start needs for the started episodes: kept ones first, then the provider,
+    /// one series after the other (design 4). A failed request is tried at the next trigger.
+    func loadStartedSeries() async {
+        guard showsIPTVSeries, !series.isEmpty, !loadingStartedSeries else { return }
+        let missing = StartedEpisodes.missingSeries(resume: resume, known: Set(seriesInfo.keys), catalog: Set(seriesByID.keys))
+        guard !missing.isEmpty else { return }
+        loadingStartedSeries = true
+        defer { loadingStartedSeries = false }
+        var fromProvider: [Int] = []
+        for id in missing {
+            if let kept = seriesInfoStore?.load(id) {
+                keep(kept, for: id)
+                AppLog.info(.app, "Start: episodes of series \(id) from the device")
+            } else {
+                fromProvider.append(id)
+            }
+        }
+        if fromProvider.count < missing.count { resumeRevision += 1 }
+        for id in fromProvider {
+            guard await fetchSeriesInfo(id) != nil else { continue }
+            AppLog.info(.app, "Start: episodes of series \(id) from the provider")
+            resumeRevision += 1
+        }
+    }
+
+    /// The app came back to the front: what the other devices did meanwhile (design 1).
+    func refreshFromOtherDevices() {
+        AppLog.detail(.app, "back in the front: asking iCloud and Jellyfin again")
+        sync.refresh()
+        if jellyfin.session != nil, jellyfinHomeThrottle.allow() {
+            AppLog.detail(.jellyfin, "Start's rows loaded again")
+            Task { await jellyfin.refreshHome() }
+        }
+        Task { await loadStartedSeries() }
+    }
+}

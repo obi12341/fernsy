@@ -67,6 +67,12 @@ final class TVModel: ObservableObject {
     @Published var resumeRevision = 0
     @Published var movieInfo: [Int: MovieDetails] = [:]
     @Published var seriesInfo: [Int: SeriesInfo] = [:]
+    /// Series whose episode list came from the provider in this run; the others in `seriesInfo`
+    /// came from the device and are asked for again when their page opens (continue-watching-fresh).
+    var freshSeriesInfo: Set<Int> = []
+    var loadingStartedSeries = false
+    /// Jellyfin's rows when the app comes to the front: at most once a minute.
+    var jellyfinHomeThrottle = RefreshThrottle(interval: 60)
     /// The provider's films and series (Settings › IPTV Account), app-wide with the Mac's keys
     /// and synced (tvos-vod-switch). Off: neither downloaded, cached nor shown; favourites and
     /// resume positions stay.
@@ -100,8 +106,9 @@ final class TVModel: ObservableObject {
     #endif
     var jellyfinPlayback: JellyfinPlayback?
     var archivePlayback: ArchivePlayback?
-    /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory.
-    let resume = ResumeStore(defaults: TVModel.skipKeychain ? nil : .standard)
+    /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory
+    /// (IPTV_TESTSYNC: in a suite of their own, synced with a stand-in for iCloud).
+    let resume = ResumeStore(defaults: TestSync.defaults ?? (TVModel.skipKeychain ? nil : .standard))
     /// Where the playing channel was started from: the player's channel strip zaps through it.
     var zapSource: LiveSource = .all
     /// The engine's mute state outside the preview (debug builds start muted).
@@ -120,7 +127,8 @@ final class TVModel: ObservableObject {
     @Published var liveView: LiveView = .list { didSet { storeLive(liveView.rawValue, as: "live.view") } }
 
     // iCloud sync (icloud-sync, FernsyCore SyncStore and LoginSync; TVModel+Sync.swift).
-    let sync = SyncStore(backing: TVModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil, keys: TVModel.syncedKeys)
+    let sync = SyncStore(backing: TestSync.backing ?? (TVModel.syncAllowed ? NSUbiquitousKeyValueStore.default : nil),
+                         defaults: TestSync.defaults ?? .standard, keys: TVModel.syncedKeys)
     let logins = TVModel.makeLogins()
     /// Logins found in iCloud while this Apple TV has none: the welcome screen offers them.
     @Published var syncedXtream: XtreamCredentials?
@@ -370,6 +378,9 @@ final class TVModel: ObservableObject {
                 self.client = client
                 self.credentials = credentials
                 loadLiveState()
+                // Films and series as last loaded, so Start can name started episodes offline.
+                applyCachedLibrary()
+                Task { await loadStartedSeries() }
                 signIn = .offline
                 AppLog.warning(.catalog, "no connection, opened with \(channels.count) cached channels: \(error.localizedDescription)")
                 retryWhileOffline()
@@ -383,6 +394,9 @@ final class TVModel: ObservableObject {
 
     func signOut() {
         stop()
+        seriesInfoStore?.removeAll()
+        seriesInfo = [:]
+        freshSeriesInfo = []
         recorder.activate(accountKey: nil)
         if !Self.skipKeychain { CredentialStore.delete() }
         client = nil
@@ -486,6 +500,7 @@ final class TVModel: ObservableObject {
         } else if let item = playingVOD {
             if let key = item.resumeKey, engine.progress.position > resume.position(key) {
                 resume.save(key, position: engine.progress.position, duration: engine.progress.duration)
+                noteSeries(of: item)
             }
             jellyfinPlayback?.stop()
             jellyfinPlayback = nil

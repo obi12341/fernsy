@@ -83,6 +83,15 @@ extension TVModel {
         } catch {
             AppLog.error(.catalog, "films and series failed: \(error.localizedDescription)")
         }
+        await loadStartedSeries()
+    }
+
+    /// Opened without a connection: the films and series as last loaded.
+    func applyCachedLibrary() {
+        guard movies.isEmpty, series.isEmpty, let credentials,
+              let data = try? Data(contentsOf: Self.libraryCacheURL(credentials.accountKey)),
+              let cache = try? JSONDecoder().decode(LibraryCache.self, from: data) else { return }
+        apply(cache)
     }
 
     /// Settings › IPTV Account, here or synced from another device. Off: the kind is emptied and
@@ -90,7 +99,12 @@ extension TVModel {
     func librarySwitched(movies kind: Bool, on: Bool) {
         AppLog.info(.catalog, "\(kind ? "films" : "series") switched \(on ? "on" : "off")")
         guard on else {
-            if kind { movieCategories = []; movies = []; movieInfo = [:] } else { seriesCategories = []; series = []; seriesInfo = [:] }
+            if kind {
+                movieCategories = []; movies = []; movieInfo = [:]
+            } else {
+                seriesCategories = []; series = []; seriesInfo = [:]; freshSeriesInfo = []
+                seriesInfoStore?.removeAll()
+            }
             updateLibraryCache { cache in
                 if kind { cache.movieCategories = LibraryCache.none; cache.movies = LibraryCache.none } else { cache.seriesCategories = LibraryCache.none; cache.series = LibraryCache.none }
             }
@@ -188,11 +202,15 @@ extension TVModel {
         return details
     }
 
+    /// The series' episode list: from the provider once per run (and kept on the device), the
+    /// kept one when the provider does not answer.
     func seriesDetails(_ series: Series) async -> SeriesInfo? {
-        if let cached = seriesInfo[series.id] { return cached }
-        guard let info = try? await client?.seriesInfo(series.id) else { return nil }
-        seriesInfo[series.id] = info
-        return info
+        if freshSeriesInfo.contains(series.id), let known = seriesInfo[series.id] { return known }
+        if let info = await fetchSeriesInfo(series.id) { return info }
+        if let known = seriesInfo[series.id] { return known }
+        guard let kept = seriesInfoStore?.load(series.id) else { return nil }
+        keep(kept, for: series.id)
+        return kept
     }
 
     // MARK: Favourites, resume, watched
@@ -259,6 +277,7 @@ extension TVModel {
             if resume.save(key, position: engine.progress.position, duration: engine.progress.duration) {
                 AppLog.detail(.player, "watched \(key)")
             }
+            noteSeries(of: item)
         }
         jellyfinPlayback?.stop()
         jellyfinPlayback = nil

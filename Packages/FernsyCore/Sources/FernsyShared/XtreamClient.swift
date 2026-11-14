@@ -88,7 +88,12 @@ public struct XtreamClient: Sendable {
     }
 
     public func seriesInfo(_ id: Int) async throws -> SeriesInfo {
-        try JSONDecoder().decode(SeriesInfo.self, from: try await data("get_series_info", ["series_id": String(id)]))
+        try JSONDecoder().decode(SeriesInfo.self, from: try await seriesInfoData(id))
+    }
+
+    /// The provider's answer as it came, to keep on the device (SeriesInfoStore).
+    public func seriesInfoData(_ id: Int) async throws -> Data {
+        try await data("get_series_info", ["series_id": String(id)])
     }
 
     public func movieDetails(_ id: Int) async throws -> MovieDetails {

@@ -327,7 +327,9 @@ struct PlayerScreen: View {
         let duration = engine.progress.duration
         guard duration > 0 else { return }
         let position = engine.status == .ended ? duration : engine.progress.position
-        app.saveResume(key, position: position, duration: duration)
+        var series: Int?
+        if case .episode(_, let seriesId) = item.kind { series = seriesId }
+        app.saveResume(key, position: position, duration: duration, series: series)
     }
 
     // MARK: EPG

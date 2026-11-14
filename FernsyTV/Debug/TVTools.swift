@@ -74,6 +74,8 @@ struct TVTools {
              ["recording_id": ["type": "string"], "delete": ["type": "boolean"]], required: ["recording_id"]),
         tool("set_offline", "Simulate having no network (IPTV_TESTOFFLINE): on: true fails every request of the app, false brings the network back. report_path: false changes only the requests, not the network path (as when the network came back while the app was suspended).",
              ["on": ["type": "boolean"], "report_path": ["type": "boolean"]], required: ["on"]),
+        tool("sync_from_other_device", "Put resume positions into the stand-in for iCloud (IPTV_TESTSYNC) as another device would, without telling the app: positions [{key: movie.<id>|episode.<id>, position, duration, series}]. They arrive when the app is asked again (coming back to the front).",
+             ["positions": ["type": "array", "items": ["type": "object"]]], required: ["positions"]),
         tool("set_vpn", "Simulate a VPN for \"IPTV only with VPN\" (IPTV_TESTVPN): on: true as if a VPN carried the device's traffic, false as if none did. guard: true/false also switches the setting itself.",
              ["on": ["type": "boolean"], "guard": ["type": "boolean"]], required: ["on"]),
     ]
@@ -97,6 +99,10 @@ struct TVTools {
             TestOffline.isOn = on
             if args["report_path"] as? Bool ?? true { model.networkChanged(!on) }
             return ["offline": on, "sign_in": "\(model.signIn)"]
+        case "sync_from_other_device":
+            let remotes = TestSync.remotes(args["positions"] as? [[String: Any]] ?? [])
+            guard TestSync.putFromOtherDevice(remotes) else { throw ToolError("IPTV_TESTSYNC is not set") }
+            return ["put": remotes.count]
         case "set_vpn":
             VPNProbe.testAnswer = args["on"] as? Bool ?? true
             if let on = args["guard"] as? Bool { VPNGuardState.shared.setEnabled(on) }

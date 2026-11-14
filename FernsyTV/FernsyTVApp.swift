@@ -41,6 +41,8 @@ struct FernsyTVApp: App {
             }
             // The paired server's state may have changed meanwhile (headless-recorder design 3).
             if phase == .active, CloudFeature.isEnabled { Task { await model.cloud.refreshServer() } }
+            // Positions and Jellyfin's rows from the other devices (continue-watching-fresh).
+            if phase == .active { model.refreshFromOtherDevices() }
         }
     }
 }

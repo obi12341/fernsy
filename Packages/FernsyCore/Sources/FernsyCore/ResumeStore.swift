@@ -9,6 +9,12 @@ public final class ResumeStore: @unchecked Sendable {
     private let defaults: UserDefaults?
     private var memory: [String: (position: Double, duration: Double, at: Date)] = [:]
     private var watchedInMemory: Set<String> = []
+    private var seriesInMemory: [String: Int] = [:]
+
+    /// Which series a provider episode belongs to (`[episode id: series id]`), so Start can list a
+    /// started episode without its series' page having been opened (continue-watching-fresh
+    /// design 2). Outside the `resume.` and `watched.` keys, which are read as positions.
+    public static let episodeSeriesKey = "episodeSeries"
     private let lock = NSLock()
 
     public init(defaults: UserDefaults?) {
@@ -83,6 +89,56 @@ public final class ResumeStore: @unchecked Sendable {
             }
             return keys.sorted { $0.1 > $1.1 }.map(\.0)
         }
+    }
+
+    /// The series of a provider episode, if known.
+    public func series(ofEpisode id: String) -> Int? {
+        lock.withLock { storedSeries[id] }
+    }
+
+    /// All episodes whose series is known.
+    public var episodeSeries: [String: Int] { lock.withLock { storedSeries } }
+
+    /// The caller holds `lock`.
+    private var storedSeries: [String: Int] {
+        guard let defaults else { return seriesInMemory }
+        return (defaults.dictionary(forKey: Self.episodeSeriesKey) as? [String: Int]) ?? [:]
+    }
+
+    /// Notes the series of an episode; nothing is written when it is known already.
+    public func setSeries(_ seriesId: Int, forEpisode id: String) {
+        lock.withLock { setSeries([id: seriesId]) }
+    }
+
+    /// A series' episode list was loaded: its episodes with a position or a watched mark and no
+    /// series yet get this one (positions saved by older versions). Returns how many.
+    @discardableResult
+    public func adoptSeries(_ seriesId: Int, episodes: [String]) -> Int {
+        lock.withLock {
+            let known = storedSeries
+            var added: [String: Int] = [:]
+            for id in episodes where known[id] == nil {
+                let key = Self.episodeKey(id)
+                let started: Bool
+                if let defaults {
+                    started = defaults.object(forKey: "resume." + key) != nil || defaults.bool(forKey: "watched." + key)
+                } else {
+                    started = memory[key] != nil || watchedInMemory.contains(key)
+                }
+                if started { added[id] = seriesId }
+            }
+            setSeries(added)
+            return added.count
+        }
+    }
+
+    /// The caller holds `lock`.
+    private func setSeries(_ entries: [String: Int]) {
+        let known = storedSeries
+        let new = entries.filter { known[$0.key] != $0.value }
+        guard !new.isEmpty else { return }
+        let merged = known.merging(new) { _, b in b }
+        if let defaults { defaults.set(merged, forKey: Self.episodeSeriesKey) } else { seriesInMemory = merged }
     }
 
     /// Debug runs: these items count as watched (in memory).

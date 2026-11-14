@@ -172,6 +172,14 @@ extension AppModel {
         markWatchedForTest(DebugEnv.watchedKeys)
         // IPTV_TESTRESUME: resume positions for this run.
         for item in DebugEnv.resumePositions { resume.save(item.key, position: item.position, duration: item.duration) }
+        // IPTV_TESTREMOTERESUME=<s>:<key>:<position>:<duration>[:<series id>],… (with IPTV_TESTSYNC):
+        // positions as another device would send them, after <s> s, without telling the app.
+        for spec in (env["IPTV_TESTREMOTERESUME"] ?? "").split(separator: ",") {
+            let p = spec.split(separator: ":").map(String.init)
+            guard p.count >= 4, let delay = Double(p[0]), let position = Double(p[2]), let duration = Double(p[3]) else { continue }
+            let remote = TestSync.Remote(key: p[1], position: position, duration: duration, series: p.count > 4 ? Int(p[4]) : nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { TestSync.putFromOtherDevice([remote]) }
+        }
         if let appearance = env["IPTV_APPEARANCE"] {
             // IPTV_APPEARANCE=light|dark: one run in that appearance, without touching the system setting.
             NSApp.appearance = NSAppearance(named: appearance == "light" ? .aqua : .darkAqua)
