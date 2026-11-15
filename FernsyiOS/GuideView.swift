@@ -8,6 +8,7 @@ import SwiftUI
 struct GuideView: View {
     @EnvironmentObject private var model: TVModel
     @State private var asked: (show: EPGEntry, channel: LiveChannel)?
+    @State private var orderFailure: String?
     @State private var position = ScrollPosition()
     /// The horizontal offset, for the channel column only: held, not observed (a @StateObject
     /// would redraw the whole guide on every frame of scrolling).
@@ -52,7 +53,9 @@ struct GuideView: View {
                         ZStack(alignment: .topLeading) {
                             GuideRow(channel: channel, guide: model.guide.guide(channel.id), start: start, end: end, window: window) { show in
                                 select(show, on: channel)
-                            } play: { play(channel) }
+                            } play: { play(channel) } act: { show, action in
+                                act(action, on: show, channel: channel)
+                            }
                             .equatable()
                             .padding(.leading, Self.channelColumn)
                             // The channel column stays at the left edge while the axis scrolls sideways.
@@ -101,6 +104,13 @@ struct GuideView: View {
         .sheet(isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } })) {
             if let asked { ShowDetailSheet(show: asked.show, channel: asked.channel) }
         }
+        // A server order from the menu that was refused or failed: the sheet's inline text is not
+        // on screen with a menu (guide-long-press-record design 2).
+        .alert(Text(verbatim: "Fernsy Server"), isPresented: Binding(get: { orderFailure != nil }, set: { if !$0 { orderFailure = nil } })) {
+            Button("OK") {}
+        } message: {
+            Text(verbatim: orderFailure ?? "")
+        }
         .accessibilityIdentifier("guide")
     }
 
@@ -148,6 +158,54 @@ struct GuideView: View {
             asked = (show, channel)
         }
     }
+
+    /// A choice from a show's long-press menu.
+    private func act(_ action: GuideMenuAction, on show: EPGEntry, channel: LiveChannel) {
+        switch action {
+        case .watch: play(channel)
+        case .playFromStart: Task { await model.playArchive(show, on: channel) }
+        case .details: asked = (show, channel)
+        case .recordOnServer:
+            Task { if let failure = await ServerShowOrder.order(show, on: channel, model: model) { orderFailure = failure } }
+        case .cancelOnServer(let order):
+            Task { await ServerShowOrder.cancel(order, server: model.cloud.server) }
+        }
+    }
+}
+
+enum GuideMenuAction {
+    case watch, playFromStart, details, recordOnServer
+    case cancelOnServer(ServerModel.Order)
+}
+
+/// A show's long-press menu (guide-long-press-record design 3): only what applies to it, on
+/// running, later and past shows alike; recording only through a paired Fernsy Server.
+private struct GuideShowMenu: View {
+    @EnvironmentObject private var model: TVModel
+    let show: EPGEntry
+    let channel: LiveChannel
+    let act: (GuideMenuAction) -> Void
+
+    var body: some View {
+        let now = Date()
+        if show.start <= now && now < show.end {
+            Button("Watch Channel", systemImage: "play.fill") { act(.watch) }
+        }
+        if show.end <= now && Archive.isPlayable(show, on: channel) {
+            Button("Play from Start", systemImage: "backward.end.fill") { act(.playFromStart) }
+        }
+        let server = model.cloud.server
+        if server.isPaired, show.end > now {
+            if let order = server.order(channelId: channel.id, start: show.start) {
+                if !(order.state?.isFinished ?? false) {
+                    Button("Cancel Recording", systemImage: "xmark", role: .destructive) { act(.cancelOnServer(order)) }
+                }
+            } else {
+                Button("Record on Fernsy Server", systemImage: "record.circle") { act(.recordOnServer) }
+            }
+        }
+        Button("Details", systemImage: "info.circle") { act(.details) }
+    }
 }
 
 /// Compared by channel and span only (the actions are the same for a channel): the guide redraws
@@ -167,6 +225,8 @@ private struct GuideRow: View, Equatable {
     let select: (EPGEntry) -> Void
     /// A bar without listings plays the channel.
     let play: () -> Void
+    /// A choice from a show's long-press menu.
+    let act: (EPGEntry, GuideMenuAction) -> Void
 
     var body: some View {
         // Redrawn every full minute, with the same minute in every row: the now line and the
@@ -199,6 +259,7 @@ private struct GuideRow: View, Equatable {
                               archived: show.end <= now && Archive.isPlayable(show, on: channel))
                 }
                 .buttonStyle(.plain)
+                .contextMenu { GuideShowMenu(show: show, channel: channel) { act(show, $0) } }
                 .modifier(Placement(from: show.start, to: show.end, start: start, end: end))
                 .accessibilityIdentifier("guide.\(channel.id).\(Int(show.start.timeIntervalSince1970))")
                 .accessibilityValue(model.isOnServer(show, on: channel) ? "server" : "")

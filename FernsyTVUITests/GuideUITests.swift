@@ -62,6 +62,125 @@ final class GuideUITests: XCTestCase {
         XCTAssertTrue(waitFor { app.buttons[id].value as? String != "scheduled" }, "\(id) is still scheduled")
     }
 
+    /// The long-press menu (guide-long-press-record 2.2): the running show is recorded from it,
+    /// listed as recording, and stopped from the same menu, which then lists it as done.
+    func testRecordTheRunningShowFromTheGuide() {
+        let app = XCUIApplication()
+        app.launchEnvironment = [
+            "FERNSY_NO_KEYCHAIN": "1",
+            "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
+            "IPTV_USER": "demo",
+            "IPTV_PASS": "demo",
+            "IPTV_FRESHRECORDINGS": "1",
+            "IPTV_MCP": "1",
+            "IPTV_MCPTOKEN": "test",
+        ]
+        app.launchForTest()
+        let remote = XCUIRemote.shared
+        showLiveView("live.view.guide", app)
+        let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
+        XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide cells:\n\(app.debugDescription)")
+        Thread.sleep(forTimeInterval: 2)
+        let focused = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.' AND hasFocus == true")).firstMatch
+        for direction in [XCUIRemote.Button.down, .right, .right] where !focused.exists {
+            remote.press(direction); Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTAssertTrue(focused.waitForExistence(timeout: 5), "no show has focus:\n\(app.debugDescription)")
+        var running = false
+        for _ in 0..<6 {
+            let start = Double(focused.identifier.split(separator: ".").last ?? "") ?? 0
+            if start <= Date().timeIntervalSince1970 && !isPastNext(focused, in: app) { running = true; break }
+            remote.press(start > Date().timeIntervalSince1970 ? .left : .right)
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTAssertTrue(running, "no running show found")
+        let id = focused.identifier
+        let cell = app.buttons[id]
+
+        pick("record.circle", app)
+        XCTAssertTrue(waitFor(10) { cell.value as? String == "scheduled" }, "\(id) is not marked as recorded")
+        XCTAssertTrue(waitFor(20) { self.recordings().range(of: #""status"\s*:\s*"recording""#, options: .regularExpression) != nil }, "Recordings does not list it as recording: \(recordings())")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "guide-recording"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        XCTAssertTrue(waitFor { focused.identifier == id }, "focus left \(id) for \(focused.identifier) after the menu")
+        pick("stop.circle", app)
+        XCTAssertTrue(waitFor(10) { cell.value as? String != "scheduled" }, "\(id) is still marked")
+        XCTAssertTrue(waitFor(10) { self.recordings().range(of: #""status"\s*:\s*"done""#, options: .regularExpression) != nil }, "Recordings does not list it as done: \(recordings())")
+    }
+
+    /// The menu in German on a running show, for the user (guide-long-press-record 3.2).
+    func testMenuInGerman() {
+        let app = XCUIApplication()
+        app.launchEnvironment = [
+            "FERNSY_NO_KEYCHAIN": "1",
+            "IPTV_SERVER": "https://fernsy-demo.mobilistics.workers.dev",
+            "IPTV_USER": "demo",
+            "IPTV_PASS": "demo",
+            "IPTV_FRESHRECORDINGS": "1",
+        ]
+        app.launchArguments = ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
+        app.launchForTest()
+        let remote = XCUIRemote.shared
+        showLiveView("live.view.guide", app)
+        let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
+        XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide cells:\n\(app.debugDescription)")
+        Thread.sleep(forTimeInterval: 2)
+        let focused = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.' AND hasFocus == true")).firstMatch
+        for direction in [XCUIRemote.Button.down, .right, .right] where !focused.exists {
+            remote.press(direction); Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTAssertTrue(focused.waitForExistence(timeout: 5), "no show has focus:\n\(app.debugDescription)")
+        for _ in 0..<6 {
+            let start = Double(focused.identifier.split(separator: ".").last ?? "") ?? 0
+            if start <= Date().timeIntervalSince1970 && !isPastNext(focused, in: app) { break }
+            remote.press(start > Date().timeIntervalSince1970 ? .left : .right)
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+        remote.press(.select, forDuration: 1.5)
+        let watch = app.cells.containing(NSPredicate(format: "label == %@", "Sender ansehen")).firstMatch
+        XCTAssertTrue(watch.waitForExistence(timeout: 5), "no German menu:\n\(app.debugDescription)")
+        XCTAssertTrue(app.cells.containing(NSPredicate(format: "label == %@", "Aufnehmen")).firstMatch.exists, "no Aufnehmen")
+        Thread.sleep(forTimeInterval: 1)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "menu-de"
+        shot.lifetime = .keepAlways
+        add(shot)
+        remote.press(.menu)
+    }
+
+    /// Long-presses the focused show and picks the menu entry with `symbol` (tvOS shows the
+    /// entries as cells holding their symbol, as in LiveTVUITests).
+    private func pick(_ symbol: String, _ app: XCUIApplication) {
+        XCUIRemote.shared.press(.select, forDuration: 1.5)
+        let entry = app.cells.containing(.any, identifier: symbol).firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 5), "no “\(symbol)” in the menu:\n\(app.debugDescription)")
+        for _ in 0..<6 where !entry.hasFocus { XCUIRemote.shared.press(.down); Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertTrue(entry.hasFocus, "“\(symbol)” has no focus:\n\(app.debugDescription)")
+        XCUIRemote.shared.press(.select)
+        XCTAssertTrue(waitFor { !entry.exists }, "the menu stayed open")
+    }
+
+    /// The `list_recordings` answer of the app's debug MCP server.
+    private func recordings() -> String {
+        var request = URLRequest(url: URLForTest.mcp)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer test", forHTTPHeaderField: "Authorization")
+        request.httpBody = Data(#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_recordings","arguments":{}}}"#.utf8)
+        let done = DispatchSemaphore(value: 0)
+        var text = ""
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            text = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            done.signal()
+        }.resume()
+        _ = done.wait(timeout: .now() + 5)
+        // The tool's JSON is embedded as a string: unescape its quotes.
+        return text.replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\n", with: "\n")
+    }
+
     /// Clicks the focused show and picks `title` in its dialog.
     private func choose(_ title: String, _ app: XCUIApplication) {
         XCUIRemote.shared.press(.select)
