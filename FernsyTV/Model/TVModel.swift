@@ -94,6 +94,10 @@ final class TVModel: ObservableObject {
     var libraryLoading = false
     /// The film, episode or Jellyfin item in the player, nil when none plays.
     @Published var playingVOD: VODItem?
+    /// Counts the player cover's dismissals, once it is fully gone: pages the library screens
+    /// open after playback are pushed then (a page pushed while the cover is up or still sliding
+    /// out is never built, tv-continue-to-series design 1).
+    @Published var playerDismissals = 0
     /// Fernsy Cloud (add-recording-cloud): subscription, account and cloud recordings.
     let cloud = CloudModel()
     /// The in-app assistant (cloud-assistant, TVModel+Assistant.swift).
@@ -214,6 +218,7 @@ final class TVModel: ObservableObject {
         #if DEBUG
         // IPTV_TESTRESUME: resume positions for this run, as on the Mac.
         for item in DebugEnv.resumePositions { resume.save(item.key, position: item.position, duration: item.duration) }
+        for (episode, series) in DebugEnv.resumeSeries { resume.setSeries(series, forEpisode: episode) }
         // IPTV_TESTWATCHED: watched items for this run, as on the Mac.
         resume.markWatched(DebugEnv.watchedKeys)
         #endif

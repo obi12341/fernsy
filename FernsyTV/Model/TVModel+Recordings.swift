@@ -119,8 +119,9 @@ extension TVModel: RecorderHost {
 
     // MARK: Playing recordings
 
-    /// Plays a recording (also one still being written), from where the user stopped.
-    func play(_ recording: Recording) {
+    /// Plays a recording (also one still being written), from where the user stopped unless
+    /// `fromStart`.
+    func play(_ recording: Recording, fromStart: Bool = false) {
         guard let url = recorder.fileURL(recording), FileManager.default.fileExists(atPath: url.path) else {
             #if os(tvOS)
             notice = String(localized: "The file of this recording is gone; tvOS may have removed it to free space.")
@@ -133,7 +134,7 @@ extension TVModel: RecorderHost {
         stopPreview()
         playingRecording = recording
         let id = recording.id
-        engine.load(file: url, isGrowing: { Recorder.isGrowing(id) }, startAt: resumePosition(recording))
+        engine.load(file: url, isGrowing: { Recorder.isGrowing(id) }, startAt: fromStart ? 0 : resumePosition(recording))
         AppLog.info(.player, "play recording \(recording.title)")
     }
 

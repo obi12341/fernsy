@@ -41,7 +41,8 @@ struct RootScreen: View {
         }
         .animation(.easeInOut(duration: 0.25), value: vpnGuard.isBlocking)
         .fullScreenCover(isPresented: Binding(get: { model.playing != nil || model.playingRecording != nil || model.playingVOD != nil },
-                                              set: { if !$0 { model.stop() } })) {
+                                              set: { if !$0 { model.stop() } }),
+                         onDismiss: { model.playerDismissals += 1 }) {
             if model.playingRecording != nil { RecordingPlayerScreen() } else if model.playingVOD != nil { VODPlayerScreen() } else { PlayerScreen() }
         }
         .alert(model.question?.title ?? "", isPresented: Binding(get: { model.question != nil }, set: { if !$0 { model.question?.answer(false) } }),

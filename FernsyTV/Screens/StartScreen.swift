@@ -9,6 +9,9 @@ import SwiftUI
 struct StartScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var path: [DetailTarget] = []
+    /// The series of the episode playing from Weiterschauen, Nächste Folge or the large entry,
+    /// opened when the player closes (tv-continue-to-series).
+    @State private var seriesAfterPlayback: DetailTarget?
     @State private var rows = StartRows()
     @State private var asked: (show: EPGEntry, channel: LiveChannel)?
     /// How far Start is scrolled, read only by the backdrop (tvos-start-scrolling design 1).
@@ -61,13 +64,13 @@ struct StartScreen: View {
                                                  logo: entry.source == .recording && entry.image != nil)
                                     }
                                     .buttonStyle(.borderless)
-                                    .contextMenu { if DetailTarget.of(entry.open) != nil { Button("Details", systemImage: "info.circle") { info(entry) } } }
+                                    .contextMenu { menu(entry) }
                                     .accessibilityIdentifier("start.resume.\(entry.id)")
                                 }
                             }
                         }
                     }
-                    wideRow("Next Up", note: "Jellyfin", id: "next", rows.nextUp)
+                    wideRow("Next Up", note: "Jellyfin", id: "next", rows.nextUp, menu: true)
                     if !tonight.shows.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
                             RowTitle(title: LocalizedStringKey(tonight.title))
@@ -113,6 +116,12 @@ struct StartScreen: View {
             .background { StartBackdrop(hero: hero, scroll: scroll) }
             .foregroundStyle(TVTheme.text)
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
+            .onChange(of: model.playerDismissals) {
+                if model.playingVOD == nil, let page = seriesAfterPlayback {
+                    seriesAfterPlayback = nil
+                    if path.last != page { path.append(page) }
+                }
+            }
             // A page from a deep link (tvos-top-shelf design 3), in place of what was open.
             .task(id: model.pageRequest?.id) {
                 guard let request = model.pageRequest else { return }
@@ -216,7 +225,7 @@ struct StartScreen: View {
         }
     }
 
-    @ViewBuilder private func wideRow(_ title: LocalizedStringKey, note: LocalizedStringKey?, id: String, _ entries: [LibraryEntry]) -> some View {
+    @ViewBuilder private func wideRow(_ title: LocalizedStringKey, note: LocalizedStringKey?, id: String, _ entries: [LibraryEntry], menu: Bool = false) -> some View {
         if !entries.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
                 RowTitle(title: title, note: note)
@@ -228,6 +237,7 @@ struct StartScreen: View {
                                      logo: entry.source == .recording && entry.image != nil)
                         }
                         .buttonStyle(.borderless)
+                        .contextMenu { if menu { self.menu(entry) } }
                         .accessibilityIdentifier("start.\(id).\(entry.id)")
                     }
                 }
@@ -238,23 +248,46 @@ struct StartScreen: View {
     static func sourceName(_ source: LibraryEntry.Source) -> String { LibraryText.sourceName(source) }
 
     /// Click resumes; films and series without a position open their page.
-    private func open(_ entry: LibraryEntry) {
-        switch entry.open {
-        case .movie(let movie): model.play(.movie(movie))
-        case .episode(let episode, let series): model.play(.episode(episode, series))
-        case .jellyfin(let item): model.play(.jellyfin(item))
-        case .recording(let id): if let recording = model.startRecording(id) { model.play(recording) }
-        case .series: info(entry)
+    private func open(_ entry: LibraryEntry) { play(entry.open) }
+
+    /// Plays from where the user stopped, or from the start; a series has nothing to play and
+    /// opens its page. An episode puts its series page beneath the player first, so closing the
+    /// player shows the series (tv-continue-to-series design 1).
+    private func play(_ target: LibraryEntry.Target, fromStart: Bool = false) {
+        if DetailTarget.isEpisode(target) { showSeriesBeneath(target) }
+        switch target {
+        case .movie(let movie): model.play(.movie(movie), fromStart: fromStart)
+        case .episode(let episode, let series): model.play(.episode(episode, series), fromStart: fromStart)
+        case .jellyfin(let item): model.play(.jellyfin(item), fromStart: fromStart)
+        case .recording(let id): if let recording = model.startRecording(id) { model.play(recording, fromStart: fromStart) }
+        case .series: info(target)
         }
+    }
+
+    /// Remembers the episode's series and opens it when the player closes (design 1): a page
+    /// pushed while the player's cover appears is never built.
+    private func showSeriesBeneath(_ target: LibraryEntry.Target) {
+        if let page = DetailTarget.series(for: target, jellyfin: model.jellyfin) {
+            seriesAfterPlayback = page
+        } else {
+            Task { if let page = await DetailTarget.loadSeries(for: target, jellyfin: model.jellyfin) { seriesAfterPlayback = page } }
+        }
+    }
+
+    /// The long-press menu of a card in Weiterschauen and Nächste Folge (tv-continue-to-series).
+    private func menu(_ entry: LibraryEntry) -> some View {
+        ContinueCardMenu(target: entry.open, started: (entry.progress ?? 0) > 0,
+                         play: { play(entry.open, fromStart: $0) }, page: { info(entry) })
     }
 
     private func info(_ entry: LibraryEntry) { info(entry.open) }
 
+    /// A film's page, or an episode's series (loaded first when needed, tv-continue-to-series design 2).
     private func info(_ open: LibraryEntry.Target) {
-        if case .jellyfin(let item) = open, item.type == "Episode", let seriesId = item.seriesId {
-            path.append(.jellyfin(model.jellyfin.series.first { $0.id == seriesId } ?? item))
-        } else if let target = DetailTarget.of(open) {
+        if let target = DetailTarget.series(for: open, jellyfin: model.jellyfin) ?? DetailTarget.of(open) {
             path.append(target)
+        } else if DetailTarget.isEpisode(open) {
+            Task { if let target = await DetailTarget.loadSeries(for: open, jellyfin: model.jellyfin) { path.append(target) } }
         }
     }
 }

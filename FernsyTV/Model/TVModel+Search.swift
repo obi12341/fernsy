@@ -16,6 +16,37 @@ enum DetailTarget: Hashable {
         case .recording: nil
         }
     }
+
+    /// The series page of an episode (tv-continue-to-series design 2), from what is loaded: the
+    /// IPTV series, or the Jellyfin series from the library list or a loaded detail. nil for
+    /// films and recordings, and for a Jellyfin series not loaded yet (see `loadSeries`).
+    @MainActor static func series(for target: LibraryEntry.Target, jellyfin: JellyfinStore) -> DetailTarget? {
+        switch target {
+        case .series(let series), .episode(_, let series): return .series(series)
+        case .jellyfin(let item):
+            guard item.type == "Episode", let id = item.seriesId else { return nil }
+            return (jellyfin.series.first { $0.id == id } ?? jellyfin.details[id]).map { .jellyfin($0) }
+        case .movie, .recording: return nil
+        }
+    }
+
+    /// As `series(for:jellyfin:)`, loading a Jellyfin series that is not in the lists yet; nil
+    /// when it cannot be loaded (offline, unknown series).
+    @MainActor static func loadSeries(for target: LibraryEntry.Target, jellyfin: JellyfinStore) async -> DetailTarget? {
+        if let found = series(for: target, jellyfin: jellyfin) { return found }
+        guard case .jellyfin(let item) = target, item.type == "Episode", let id = item.seriesId else { return nil }
+        await jellyfin.loadDetail(id)
+        return jellyfin.details[id].map { .jellyfin($0) }
+    }
+
+    /// The target an episode's menu offers "Zur Serie" for: an episode of a series.
+    static func isEpisode(_ target: LibraryEntry.Target) -> Bool {
+        switch target {
+        case .episode: true
+        case .jellyfin(let item): item.type == "Episode" && item.seriesId != nil
+        default: false
+        }
+    }
 }
 
 /// A film or series found by Suche.
