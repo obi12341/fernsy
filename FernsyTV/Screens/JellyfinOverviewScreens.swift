@@ -10,6 +10,8 @@ struct JellyfinOverviewPage: View {
     let overview: JellyfinOverview
     let spotlight: JFItem?
     let another: () -> Void
+    /// Opens the series of an episode (or a film's page); `beneath` for an episode about to play.
+    let showSeries: (_ item: JFItem, _ beneath: Bool) -> Void
 
     var body: some View {
         let store = model.jellyfin
@@ -26,12 +28,13 @@ struct JellyfinOverviewPage: View {
                     RowTitle(title: "Continue Watching")
                     CardRow {
                         ForEach(store.resume, id: \.id) { item in
-                            Button { model.play(.jellyfin(item)) } label: {
+                            Button { play(item) } label: {
                                 WideCard(title: item.seriesName ?? item.name, detail: VODItem.jellyfin(item).subtitle ?? remaining(item),
                                          image: store.thumbURL(item).flatMap(URL.init(string:)),
                                          progress: item.userData?.playedPercentage.map { $0 / 100 }, width: 360)
                             }
                             .buttonStyle(.borderless)
+                            .contextMenu { menu(item) }
                             .accessibilityIdentifier("jellyfin.resume.\(item.id)")
                         }
                     }
@@ -43,11 +46,12 @@ struct JellyfinOverviewPage: View {
                     RowTitle(title: "Next Up")
                     CardRow {
                         ForEach(store.nextUp, id: \.id) { item in
-                            Button { model.play(.jellyfin(item)) } label: {
+                            Button { play(item) } label: {
                                 WideCard(title: item.seriesName ?? item.name, detail: VODItem.jellyfin(item).subtitle ?? item.name,
                                          image: store.thumbURL(item).flatMap(URL.init(string:)), progress: nil, width: 360)
                             }
                             .buttonStyle(.borderless)
+                            .contextMenu { menu(item) }
                             .accessibilityIdentifier("jellyfin.next.\(item.id)")
                         }
                     }
@@ -129,6 +133,19 @@ struct JellyfinOverviewPage: View {
         case .genre(let name): name
         case .decade(let year): String(localized: "\(String(year))s")
         }
+    }
+
+    /// The long-press menu of a card in Weiterschauen and Nächste Folge (tv-continue-to-series).
+    private func menu(_ item: JFItem) -> some View {
+        ContinueCardMenu(target: .jellyfin(item), started: (item.userData?.playedPercentage ?? 0) > 0,
+                         play: { play(item, fromStart: $0) }, page: { showSeries(item, false) })
+    }
+
+    /// An episode puts its series page beneath the player, so closing the player shows the series
+    /// (tv-continue-to-series design 1); the rows sit on Übersicht's first page.
+    private func play(_ item: JFItem, fromStart: Bool = false) {
+        if DetailTarget.isEpisode(.jellyfin(item)) { showSeries(item, true) }
+        model.play(.jellyfin(item), fromStart: fromStart)
     }
 
     private func remaining(_ item: JFItem) -> String {

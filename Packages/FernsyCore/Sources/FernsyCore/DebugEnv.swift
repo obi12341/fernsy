@@ -13,14 +13,26 @@ public enum DebugEnv {
         return XtreamCredentials(server: server, username: user, password: pass)
     }
 
-    /// IPTV_TESTRESUME=<key>:<position s>:<duration s>,…: resume positions for this run (keys such
-    /// as movie.500, episode.<id>).
+    /// IPTV_TESTRESUME=<key>:<position s>:<duration s>[:<series id>],…: resume positions for this
+    /// run (keys such as movie.500, episode.<id>); an episode's series id lets Start list it
+    /// without its series having been opened.
     public static var resumePositions: [(key: String, position: Double, duration: Double)] {
         (env["IPTV_TESTRESUME"] ?? "").split(separator: ",").compactMap { item in
             let p = item.split(separator: ":")
-            guard p.count == 3, let position = Double(p[1]), let duration = Double(p[2]) else { return nil }
+            guard p.count == 3 || p.count == 4, let position = Double(p[1]), let duration = Double(p[2]) else { return nil }
             return (String(p[0]), position, duration)
         }
+    }
+
+    /// The series ids given in IPTV_TESTRESUME, by episode id.
+    public static var resumeSeries: [String: Int] {
+        var series: [String: Int] = [:]
+        for item in (env["IPTV_TESTRESUME"] ?? "").split(separator: ",") {
+            let p = item.split(separator: ":")
+            guard p.count == 4, p[0].hasPrefix("episode."), let id = Int(p[3]) else { continue }
+            series[String(p[0].dropFirst("episode.".count))] = id
+        }
+        return series
     }
 
     /// IPTV_TESTWATCHED=<key>,…: items that count as watched for this run (in memory).

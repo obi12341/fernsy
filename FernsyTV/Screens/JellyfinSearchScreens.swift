@@ -14,9 +14,13 @@ struct JellyfinScreen: View {
     @State private var overview = JellyfinOverview()
     @State private var spotlight: JFItem?
     @State private var recentSpotlights: [String] = []
+    /// Übersicht's pages: the series of an episode is pushed from its rows (tv-continue-to-series design 4).
+    @State private var path = NavigationPath()
+    /// The series of the episode playing from Übersicht's rows, opened when the player closes.
+    @State private var seriesAfterPlayback: DetailTarget?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             let store = model.jellyfin
             // The header scrolls with the content, as on the IPTV grids: nothing slides over the
             // view switcher, and the scroll view spans the screen so posters are dropped off-screen
@@ -55,7 +59,7 @@ struct JellyfinScreen: View {
                     }
                     VStack(alignment: .leading, spacing: 30) {
                         switch view {
-                        case .overview: JellyfinOverviewPage(overview: overview, spotlight: spotlight) { drawSpotlight() }
+                        case .overview: JellyfinOverviewPage(overview: overview, spotlight: spotlight, another: { drawSpotlight() }, showSeries: showSeries)
                         case .films: grid(store.films)
                         case .series: grid(store.series)
                         case .libraries:
@@ -75,6 +79,12 @@ struct JellyfinScreen: View {
             .navigationDestination(for: DetailTarget.self) { DetailScreen(target: $0) }
             .navigationDestination(for: JellyfinOverview.Tile.Kind.self) { kind in
                 JellyfinBrowseScreen(kind: kind, items: (overview.genres + overview.decades).first { $0.kind == kind }?.items ?? [])
+            }
+            .onChange(of: model.playerDismissals) {
+                if model.playingVOD == nil, let page = seriesAfterPlayback {
+                    seriesAfterPlayback = nil
+                    path.append(page)
+                }
             }
             .task { await store.loadLibrary(forceRefresh: false); await store.refreshHome() }
             .task(id: overviewInputs) {
@@ -96,6 +106,20 @@ struct JellyfinScreen: View {
 
     /// What Übersicht's rows read: the lists and the watched and favourite marks.
     private var overviewInputs: String { model.jellyfinOverviewInputs }
+
+    /// The series page of an episode in Übersicht's rows, or a film's page (loaded first when
+    /// needed). `beneath`: an episode is about to play; the page opens when the player closes
+    /// (tv-continue-to-series design 1: a page pushed while the player's cover appears is never
+    /// built, the path holds it and the screen does not show it).
+    private func showSeries(_ item: JFItem, beneath: Bool) {
+        let target = LibraryEntry.Target.jellyfin(item)
+        let open: (DetailTarget) -> Void = { page in if beneath { seriesAfterPlayback = page } else { path.append(page) } }
+        if let page = DetailTarget.series(for: target, jellyfin: model.jellyfin) ?? DetailTarget.of(target) {
+            open(page)
+        } else if DetailTarget.isEpisode(target) {
+            Task { if let page = await DetailTarget.loadSeries(for: target, jellyfin: model.jellyfin) { open(page) } }
+        }
+    }
 
     private func drawSpotlight() {
         spotlight = JellyfinOverview.pick(from: overview.spotlightCandidates, avoiding: recentSpotlights)

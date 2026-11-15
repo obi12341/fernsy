@@ -831,7 +831,7 @@ tests: `IPTV_OPEN=<fernsy:// link>` opens or plays an item at launch as a Top Sh
 `IPTV_MAXCONN=<n>` sets the stream limit (single-stream tests), `IPTV_TESTRECORD=<channel>:<starts
 in s>:<seconds>[:<before min>:<after min>],…` plans recordings as on the Mac,
 `IPTV_FRESHRECORDINGS=1` starts without earlier recordings, `IPTV_FRESHIMAGES=1` without cached
-images, `IPTV_TESTRESUME=<key>:<position s>:<duration s>,…` and `IPTV_TESTHIDE=category:<id>,channel:<id>`
+images, `IPTV_TESTRESUME=<key>:<position s>:<duration s>[:<series id>],…` (an episode with its series id shows on Start without opening the series) and `IPTV_TESTHIDE=category:<id>,channel:<id>`
 work as on the Mac (in memory), `JF_SERVER`/`JF_USER`/`JF_PASS` and `JF_CACHEONLY` as on the Mac, `JF_TESTMANY=<n>` repeats the
 Jellyfin films, series and Recently Added up to n each (in memory, placeholder art) to fill grids,
 `IPTV_TESTNOSPACE=1` refuses

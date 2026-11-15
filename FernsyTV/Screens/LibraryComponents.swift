@@ -15,6 +15,27 @@ struct DetailScreen: View {
     }
 }
 
+/// The long-press menu of a card in Weiterschauen and Nächste Folge, on Start and Übersicht
+/// (tv-continue-to-series design 3): play or resume, play from the start for a started item,
+/// the series of an episode or a film's page. Symbols let the UI tests find the entries.
+struct ContinueCardMenu: View {
+    let target: LibraryEntry.Target
+    let started: Bool
+    let play: (_ fromStart: Bool) -> Void
+    /// Opens the series of an episode or a film's page.
+    let page: () -> Void
+
+    var body: some View {
+        Button(started ? "Resume" : "Play", systemImage: "play.fill") { play(false) }
+        if started { Button("Play from Start", systemImage: "backward.end.fill") { play(true) } }
+        if DetailTarget.isEpisode(target) {
+            Button("Go to Series", systemImage: "rectangle.stack") { page() }
+        } else if DetailTarget.of(target) != nil {
+            Button("Details", systemImage: "info.circle") { page() }
+        }
+    }
+}
+
 /// A poster (200×300 in the design) with its title, a rating and the "Neu" mark.
 struct PosterCard: View {
     let title: String
