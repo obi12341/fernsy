@@ -1,6 +1,6 @@
 #!/bin/bash
 # jellyfin-test-server.sh: a throwaway Jellyfin for tests on 127.0.0.1:8097 (container fernsy-jf-fixtures, user
-# fixture / fixture-pass) with an 8-minute film and a series of three 2-minute episodes.
+# fixture / fixture-pass) with an 8-minute film (English subtitle file beside it) and a series of three 2-minute episodes.
 # --surround adds a library "Surround" with three one-minute films (AC-3 5.1, E-AC-3 5.1,
 # FLAC 7.1); the UI tests expect the library without it.
 # Remove it afterwards: docker rm -f fernsy-jf-fixtures
@@ -19,6 +19,13 @@ clip() { # out, seconds, title
         -c:v libx264 -preset veryfast -c:a aac -metadata:s:a:0 language=eng "/media/$1"
 }
 clip "movies/Fixture Film (2024)/Fixture Film (2024).mkv" 480 "Fixture Film"
+# An English subtitle file beside the film (SubtitleOverlayUITests): one cue every 20 s,
+# "Fixture subtitle 1" …, so text shows wherever the film starts.
+SRT="$M/movies/Fixture Film (2024)/Fixture Film (2024).en.srt"
+[ -f "$SRT" ] || for i in $(seq 1 24); do
+    s=$(( (i - 1) * 20 )); e=$(( i * 20 ))
+    printf '%d\n00:%02d:%02d,000 --> 00:%02d:%02d,000\nFixture subtitle %d\n\n' "$i" $((s / 60)) $((s % 60)) $((e / 60)) $((e % 60)) "$i"
+done > "$SRT"
 # Surround clips (apple-tv-surround): one tone per channel, each its own frequency, so channel
 # order and passthrough can be checked. Test content only; the app's FFmpeg stays LGPL without
 # encoders.

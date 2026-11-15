@@ -191,3 +191,22 @@ FFmpeg script keep working for macOS and tvOS with the extra slices.
 - Whether the App Store record needs anything beyond adding the iOS platform for the universal
   purchase (screenshots, privacy details for iOS). This is answered at the first TestFlight
   upload and does not affect the code.
+
+## Later fixes
+
+- **Subtitles were never drawn on iPhone, iPad and Apple TV (fixed 2026-11-15,
+  fix/subtitles-ios-tv).** The engine publishes the current cue (`subtitleText`,
+  `subtitleBitmap`); the app draws it over the picture, not the display layer. Only the Mac's
+  player screen did, so the iOS and tvOS track menus switched tracks, set the button to "on",
+  and nothing appeared. The overlay is now `SubtitleOverlay` in FernsyPlayer, used by all three
+  players with a size per device (Mac 30 pt, iPhone 20, iPad 28, Apple TV 48) and raised above
+  the controls while they show; on Apple TV it hides under the live info overlay and channel
+  strip. A new player screen must place it. Not covered: Picture in Picture shows only the
+  display layer's frames, so subtitles do not appear in the PiP window (would need them drawn
+  into the frames, like `PictureInPictureLoadingCard`). Tests: `SubtitleOverlayUITests` (iOS
+  and tvOS) against the test Jellyfin, whose film carries an English SRT file.
+- **Found with it:** the iOS track menu closed by itself when the controls hid 4 s after the
+  last input; the controls now stay while the menu is open. On Apple TV the film player's
+  remote handler also got the presses meant for the track panel and the countdown card: Up in
+  the subtitle panel switched to the audio panel, Left and Right skipped 10 s. It now ignores
+  them while either is open, as the live player already did.
