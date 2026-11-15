@@ -898,6 +898,11 @@ public final class PlaybackSession {
 
     private func applyTrackChanges(audio: Int32?, subtitle: Int32??) {
         guard let fmt else { return }
+        // Only the container's streams: a track id that is none of them (a controller's own,
+        // the debug switch IPTV_TESTSUBTRACKS) read past the stream list and crashed.
+        let streams = Int32(fmt.pointee.nb_streams)
+        let audio = audio.flatMap { $0 >= 0 && $0 < streams ? $0 : nil }
+        let subtitle = subtitle.map { index in index.flatMap { $0 >= 0 && $0 < streams ? $0 : nil } }
         if let audio {
             lock.lock()
             audioIndex = audio
