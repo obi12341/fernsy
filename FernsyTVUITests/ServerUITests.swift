@@ -79,6 +79,61 @@ final class ServerUITests: FernsyUITestCase {
         choose("Remove from Server", app, shot: "server-dialog-away-ordered")
     }
 
+    /// The guide's long-press menu (guide-long-press-record 2.3): the running show is ordered on
+    /// the server and marked, and the same menu takes the order back.
+    func testRunningShowOnTheServerFromTheMenu() throws {
+        guard let env = Self.serverEnv else { throw XCTSkip("no paired Fernsy Server and dev services in the test environment") }
+        let app = launchDemo(env)
+        focusRunningShow(app)
+        let cell = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.' AND hasFocus == true")).firstMatch
+        let id = cell.identifier
+        // The server's state is read a moment after launch.
+        Thread.sleep(forTimeInterval: 3)
+        pickInMenu("Record on Fernsy Server", app, shot: "server-menu-running")
+        XCTAssertTrue(waitForLog("Fernsy Server: scheduled"), "the order was not written")
+        XCTAssertTrue(wait(10) { app.buttons[id].value as? String == "server" }, "\(id) is not marked as on the server")
+        XCTAssertTrue(wait(5) { cell.identifier == id }, "focus left \(id) after the menu")
+        pickInMenu("Remove from Server", app, shot: "server-menu-running-ordered")
+        XCTAssertTrue(wait(10) { app.buttons[id].value as? String != "server" }, "\(id) is still marked")
+    }
+
+    /// The guide with focus on the show that runs now in the first row.
+    private func focusRunningShow(_ app: XCUIApplication) {
+        showLiveView("live.view.guide", app)
+        let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.'"))
+        XCTAssertTrue(cells.firstMatch.waitForExistence(timeout: 20), "no guide cells:\n\(app.debugDescription)")
+        let focused = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'guide.' AND hasFocus == true")).firstMatch
+        for direction in [XCUIRemote.Button.down, .right, .right] where !focused.exists {
+            remote.press(direction); Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTAssertTrue(focused.waitForExistence(timeout: 5), "no show has focus:\n\(app.debugDescription)")
+        let now = Date().timeIntervalSince1970
+        for _ in 0..<8 {
+            let parts = focused.identifier.split(separator: ".")
+            let start = Double(parts.last ?? "") ?? 0
+            let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "guide.\(parts.count > 1 ? parts[1] : "")."))
+                .allElementsBoundByIndex.compactMap { Double($0.identifier.split(separator: ".").last ?? "") }
+            let next = row.filter { $0 > start }.min() ?? .infinity
+            if start <= now && next > now { return }
+            remote.press(start > now ? .left : .right); Thread.sleep(forTimeInterval: 0.6)
+        }
+        XCTFail("no running show found:\n\(app.debugDescription)")
+    }
+
+    /// Long-presses the focused show and picks `title` in its menu (tvOS shows the entries as
+    /// cells; the server's have no symbol, so they are found by their label).
+    private func pickInMenu(_ title: String, _ app: XCUIApplication, shot name: String) {
+        remote.press(.select, forDuration: 1.5)
+        let entry = app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "no “\(title)” in the menu:\n\(app.debugDescription)")
+        for _ in 0..<6 where !entry.hasFocus { remote.press(.down); Thread.sleep(forTimeInterval: 0.5) }
+        XCTAssertTrue(entry.hasFocus, "“\(title)” has no focus:\n\(app.debugDescription)")
+        shot(name, app)
+        remote.press(.select)
+        XCTAssertTrue(wait(5) { !entry.exists }, "the menu stayed open")
+        Thread.sleep(forTimeInterval: 1)
+    }
+
     /// The guide with focus on a show that starts later.
     private func focusLaterShow(_ app: XCUIApplication) {
         showLiveView("live.view.guide", app)

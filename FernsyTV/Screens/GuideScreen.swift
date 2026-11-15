@@ -47,6 +47,8 @@ struct GuideScreen: View {
                             } play: {
                                 model.zapSource = model.liveSource
                                 model.play(channel)
+                            } details: { show in
+                                asked = (show, channel)
                             }
                         }
                     }
@@ -89,11 +91,7 @@ struct GuideScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .confirmationDialog(asked.map { $0.show.title } ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }),
                             presenting: asked) { item in
-            if model.isScheduled(item.show, on: item.channel) {
-                Button("Don’t Record", role: .destructive) { model.recorder.unschedule(channelId: item.channel.id, entry: item.show) }
-            } else {
-                Button("Record") { model.notice = model.schedule(item.show, on: item.channel) }
-            }
+            GuideRecordButtons(show: item.show, channel: item.channel)
             ServerDialogButtons(show: item.show, channel: item.channel)
         } message: { item in
             Text("\(item.channel.displayName) · \(TimeSpan.of(item.show)). Records only while Fernsy is open.")
@@ -240,6 +238,53 @@ struct GuideScreen: View {
     }
 }
 
+/// Recording a show on the Apple TV, in its dialog and its long-press menu
+/// (guide-long-press-record design 3): Record, or for a show being recorded Stop Recording and
+/// for a planned one Don't Record. Nothing for a show that is over.
+struct GuideRecordButtons: View {
+    @EnvironmentObject private var model: TVModel
+    let show: EPGEntry
+    let channel: LiveChannel
+
+    var body: some View {
+        if show.end > Date() {
+            let recording = model.recorder.recording(channelId: channel.id, entry: show)
+            if let recording, recording.status == .recording {
+                Button("Stop Recording", systemImage: "stop.circle") { model.recorder.stop(recording.id) }
+            } else if recording?.status == .scheduled {
+                Button("Don’t Record", systemImage: "xmark.circle", role: .destructive) {
+                    model.recorder.unschedule(channelId: channel.id, entry: show)
+                }
+            } else {
+                Button("Record", systemImage: "record.circle") { model.notice = model.schedule(show, on: channel) }
+            }
+        }
+    }
+}
+
+/// A show's long-press menu in the guide: only what applies to it, on running, later and past
+/// shows alike (guide-long-press-record design 1, 3).
+private struct GuideShowMenu: View {
+    @EnvironmentObject private var model: TVModel
+    let show: EPGEntry
+    let channel: LiveChannel
+    let play: () -> Void
+    let details: () -> Void
+
+    var body: some View {
+        let now = Date()
+        if show.start <= now && now < show.end {
+            Button("Watch Channel", systemImage: "play.fill", action: play)
+        }
+        if show.end <= now && Archive.isPlayable(show, on: channel) {
+            Button("Play from Start", systemImage: "backward.end.fill") { Task { await model.playArchive(show, on: channel) } }
+        }
+        GuideRecordButtons(show: show, channel: channel)
+        ServerDialogButtons(show: show, channel: channel)
+        Button("Details", systemImage: "info.circle", action: details)
+    }
+}
+
 /// "20:15–21:00".
 enum TimeSpan {
     static func of(_ show: EPGEntry) -> String { of(show.start, show.end) }
@@ -260,6 +305,8 @@ private struct GuideRow: View {
     let select: (EPGEntry) -> Void
     /// A bar without listings plays the channel (tvos-guide-empty-channels).
     let play: () -> Void
+    /// Opens a show's dialog (the long-press menu's Details).
+    let details: (EPGEntry) -> Void
     /// The cell with focus, by its start: paging back keeps focus on it instead of letting it
     /// escape to the rail on the left (catch-up).
     @FocusState private var focused: Date?
@@ -291,6 +338,7 @@ private struct GuideRow: View {
                                   onServer: model.isOnServer(show, on: channel), channel: channel)
                     }
                     .buttonStyle(GuideCellStyle())
+                    .contextMenu { GuideShowMenu(show: show, channel: channel, play: play) { details(show) } }
                     .focused($focused, equals: show.start)
                     .modifier(GuidePlacement(from: show.start, to: show.end, windowStart: windowStart, windowEnd: windowEnd))
                     .onMoveCommand { direction in page(direction, start: show.start, end: show.end, windowEnd: windowEnd) }

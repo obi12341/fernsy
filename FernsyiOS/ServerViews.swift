@@ -134,7 +134,7 @@ struct ServerRecordButton: View {
                         .accessibilityIdentifier("server.orderState")
                     if !(order.state?.isFinished ?? false) {
                         Button(role: .destructive) {
-                            Task { try? await server.cancel(order.id) }
+                            Task { await ServerShowOrder.cancel(order, server: server) }
                         } label: {
                             Label("Cancel Recording", systemImage: "xmark").frame(maxWidth: .infinity)
                         }
@@ -162,9 +162,28 @@ struct ServerRecordButton: View {
         busy = true
         failure = nil
         Task {
-            do { _ = try await model.orderOnServer(show, on: channel) } catch { failure = ServerText.order(caught: error) }
+            failure = await ServerShowOrder.order(show, on: channel, model: model)
             busy = false
         }
+    }
+}
+
+/// Ordering a show on the server and cancelling its order, for the show's sheet and the guide's
+/// long-press menu (guide-long-press-record design 4): one path, the same words on failure.
+enum ServerShowOrder {
+    /// Orders the show through `TVModel.orderOnServer` (stream limit included); the reason it was
+    /// refused or failed, nil when the server has the order.
+    @MainActor static func order(_ show: EPGEntry, on channel: LiveChannel, model: TVModel) async -> String? {
+        do {
+            _ = try await model.orderOnServer(show, on: channel)
+            return nil
+        } catch {
+            return ServerText.order(caught: error)
+        }
+    }
+
+    @MainActor static func cancel(_ order: ServerModel.Order, server: ServerModel) async {
+        try? await server.cancel(order.id)
     }
 }
 

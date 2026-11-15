@@ -1723,6 +1723,16 @@
         }
       }
     },
+    "Play from Start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von Anfang an"
+          }
+        }
+      }
+    },
     "Playback": {
       "localizations": {
         "de": {
