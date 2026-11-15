@@ -192,12 +192,7 @@ name, shows on a time axis with the time now marked, past shows dimmed, running 
 highlighted, recorded or scheduled ones marked. The category column SHALL narrow to a rail that
 opens it when clicked. A running show SHALL play the channel when clicked, a later one offer to
 record it. Rows without listings, loading, or with gaps SHALL show focusable bars there that
-play the channel. A long press on any show SHALL open a menu with what can be done with it:
-watch the channel (running show) or play it from its start (past show of an archive channel);
-for a running show record it on the Apple TV, or stop its recording when one runs; for a later
-show record it or, when scheduled, not record it; with a paired Fernsy Server record it there or
-remove the server's order; and show its details. Recording from the menu SHALL follow the
-account's stream limit as recording from the channel list does.
+play the channel.
 
 #### Scenario: Playing from the guide
 - **WHEN** the user clicks a show that is running now
@@ -206,18 +201,6 @@ account's stream limit as recording from the channel list does.
 #### Scenario: Scheduling from the guide
 - **WHEN** the user clicks a show that starts later and chooses "Aufnehmen"
 - **THEN** the show is scheduled and marked in the grid and in Aufnahmen
-
-#### Scenario: Recording a running show from the guide
-- **WHEN** the user long-presses a show that began ten minutes ago and chooses "Aufnehmen"
-- **THEN** the show is recorded with the padding, marked in the grid, and Aufnahmen lists it as running
-
-#### Scenario: Stopping from the guide
-- **WHEN** the running show is being recorded and the user long-presses it
-- **THEN** the menu offers "Aufnahme beenden" instead of "Aufnehmen", and choosing it stops and keeps the recording
-
-#### Scenario: Running show on the server
-- **WHEN** a Fernsy Server is paired and the user long-presses a running show and chooses "Record on Fernsy Server"
-- **THEN** the server gets an order for the show, or the reason it was refused is shown when the account's streams are all in use
 
 #### Scenario: Changing the category in the guide
 - **WHEN** the user moves left to the rail, clicks it and clicks "Favoriten"
@@ -238,6 +221,25 @@ account's stream limit as recording from the channel list does.
 #### Scenario: Scrolling fast through loading rows
 - **WHEN** the user presses Down quickly through rows whose programme is still loading, and it arrives while a row's loading bar has focus
 - **THEN** focus moves to that row's show at the same time and stays in the row, the guide does not jump to other rows
+
+### Requirement: Long-press menu in the guide on Apple TV
+A long press on any show in the guide SHALL open a menu with what can be done with it: watch the
+channel or play it from its start; record it on the Apple TV, stop its running recording or not
+record it when scheduled; with a paired Fernsy Server record it there or remove the order; and
+show its details. Recording from the menu SHALL follow the account's stream limit as recording
+from the channel list does.
+
+#### Scenario: Recording a running show from the guide
+- **WHEN** the user long-presses a show that began ten minutes ago and chooses "Aufnehmen"
+- **THEN** the show is recorded with the padding, marked in the grid, and Aufnahmen lists it as running
+
+#### Scenario: Stopping from the guide
+- **WHEN** the running show is being recorded and the user long-presses it
+- **THEN** the menu offers "Aufnahme beenden" instead of "Aufnehmen", and choosing it stops and keeps the recording
+
+#### Scenario: Running show on the server
+- **WHEN** a Fernsy Server is paired and the user long-presses a running show and chooses "Record on Fernsy Server"
+- **THEN** the server gets an order for the show, or the reason it was refused is shown when the account's streams are all in use
 
 ### Requirement: Long channel names in the Apple TV guide
 A channel name that does not fit the guide's channel column SHALL be shown shortened with an
