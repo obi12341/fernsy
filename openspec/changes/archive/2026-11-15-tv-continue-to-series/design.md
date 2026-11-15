@@ -73,3 +73,29 @@ push the series page itself; the genre and decade tiles keep their `NavigationLi
 - [Someone who wants the next card in "Weiterschauen" needs one more Back] → accepted (user's
   choice); the series page offers the next episode, which is what most people want after one.
 - [A Jellyfin series not loaded yet] → decision 2 loads it; until then the menu has no "Zur Serie".
+
+## Notes from implementing
+
+- Decision 1 did not hold. A page pushed while the player's cover appears is never built: on
+  Übersicht the path held the series page (logged 0 → 1) but its view never appeared, and pushing
+  without animation or when `playingVOD` turned nil (the cover still sliding out) did not help.
+  On Start it happened to work. Now the screen keeps the series (`seriesAfterPlayback`) and
+  pushes it when the cover is fully gone: `RootScreen`'s `fullScreenCover(onDismiss:)` counts
+  `TVModel.playerDismissals`, and Start and Übersicht push on its change. This is the rejected
+  alternative of decision 1, now with a reason: the push needs the screen on display.
+- `JFItem` has no public initializer, so the series of a Jellyfin episode not in the lists is
+  loaded (`loadSeries`) rather than built from `seriesId`; the menu offers "Zur Serie" for every
+  episode with a `seriesId` and loads on choice.
+- Recordings got `play(_:fromStart:)` so their menu offers "Von Anfang an" too.
+- Tests: the demo server serves the same 52 s clip for every film and episode, so the playback
+  tests start over from the menu ("Von Anfang an") instead of resuming minutes in.
+  `IPTV_TESTRESUME` takes an optional fourth field, the series id, so an IPTV episode is in
+  Weiterschauen without its series having been opened. Jellyfin keeps no resume position for
+  items under 5 minutes (`MinResumeDuration`) and marks the 2-minute fixture episodes watched on
+  stop, so the Jellyfin test sets the Weiterschauen position on the test server and resets it
+  afterwards.
+- Task 3.3 (2026-11-15): all Apple TV UI tests on the host, with the local test Jellyfin running
+  (so its tests ran too). Two failures, both also failing on `main`'s code:
+  `DetailPagesUITests.testFilmResumesAndStartsOver` ("Von vorn" on a Jellyfin film starts at the
+  old position, 203 s here and 299 s on main) and `JellyfinOverviewUITests.testNextPosterShowsAtTheEdge`
+  (no Recently Added poster on screen). Not this change's; worth their own look.
