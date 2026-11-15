@@ -58,30 +58,12 @@ struct PlayerScreen: View {
             VideoSurface(engine: engine, onKeyDown: handleKey, onMouseActivity: showControls, onDoubleClick: toggleFullScreen,
                          onClick: { if showsChannelList { closeChannelList() } })
 
-            if let text = engine.subtitleText {
-                VStack {
-                    Spacer()
-                    Text(text)
-                        .font(.system(size: 30, weight: .semibold))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.white)
-                        .shadow(color: .black, radius: 2)
-                        .shadow(color: .black.opacity(0.8), radius: 6)
-                        .padding(.horizontal, 60)
-                        .padding(.bottom, controlsVisible ? 150 : 60)
-                }
-                .allowsHitTesting(false)
-            }
+            SubtitleOverlay(engine: engine, fontSize: 30, bottomInset: controlsVisible ? 150 : 60, sideInset: 60)
 
             statusOverlay
 
             if engine.status == .ended, let playback = jellyfinPlayback {
                 NextEpisodeOverlay(playback: playback, bottomInset: controlsVisible ? 120 : 32) { next in app.play(jellyfin: next) }
-            }
-
-            if let bitmap = engine.subtitleBitmap {
-                BitmapSubtitleView(cue: bitmap, videoSize: engine.videoSize)
-                    .allowsHitTesting(false)
             }
 
             if let osd {

@@ -78,6 +78,11 @@ struct PlayerScreen: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
+            // Under the info overlay and the channel strip, which cover the lower half; beside
+            // the track panel, so a choice shows at once.
+            if mode == .hidden || isTracks {
+                SubtitleOverlay(engine: model.engine, fontSize: TVSubtitles.fontSize, bottomInset: TVSubtitles.bottomInset, sideInset: TVSubtitles.sideInset)
+            }
             if let channel = model.playing {
                 RecordingBadge(channel: channel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -349,6 +354,15 @@ private struct Timeline: View {
 }
 
 // MARK: Tracks
+
+/// Subtitle sizes on Apple TV, read from across the room (inside the TV's safe area).
+enum TVSubtitles {
+    static let fontSize: CGFloat = 48
+    static let sideInset: CGFloat = 120
+    static let bottomInset: CGFloat = 20
+    /// Above the film overlay's title and timeline while it shows.
+    static let raisedInset: CGFloat = 260
+}
 
 /// Subtitles or audio tracks of the playing item, to choose one (design: Untertitel, Ton); the
 /// live and the on-demand player share it. Long lists (Jellyfin films often have dozens of

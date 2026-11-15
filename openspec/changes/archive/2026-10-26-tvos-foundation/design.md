@@ -207,3 +207,8 @@ App Store jobs use the frameworks from the same cache.
 - [The design screens need data the model does not offer yet] → `TVModel` covers the live
   path; the design change extends it per screen, which is cheap because the data already
   comes from `FernsyCore`.
+
+## Later fixes
+
+- Subtitles: the Apple TV player drew none until 2026-11-15 (the Mac's overlay was not shared);
+  see the ios-app design, "Later fixes".

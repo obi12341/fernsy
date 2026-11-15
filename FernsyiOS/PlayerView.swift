@@ -15,6 +15,8 @@ struct PlayerView: View {
     @State private var showsChannels = false
     @State private var countdown: Int?
     @State private var dragOffset: CGFloat = 0
+    /// The track menu is open: the controls stay (hiding them closed the menu under the finger).
+    @State private var menuOpen = false
 
     var body: some View {
         ZStack {
@@ -28,12 +30,13 @@ struct PlayerView: View {
             Color.clear
                 .contentShape(.rect)
                 .ignoresSafeArea()
-                .onTapGesture { showsControls.toggle(); touch() }
+                .onTapGesture { showsControls.toggle(); menuOpen = false; touch() }
             if showsControls || countdown != nil {
                 LinearGradient(colors: [.black.opacity(0.6), .clear, .clear, .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
+            subtitles
             if let countdown, let next = model.nextAfterPlaying {
                 NextEpisodeCard(next: next, seconds: countdown, play: playNext, cancel: cancelNext)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -55,7 +58,7 @@ struct PlayerView: View {
             // IPTV_KEEPCONTROLS=1: the controls stay (screenshots without touch input).
             if ProcessInfo.processInfo.environment["IPTV_KEEPCONTROLS"] == "1" { return }
             #endif
-            if !showsChannels { withAnimation { showsControls = false } }
+            if !showsChannels && !menuOpen { withAnimation { showsControls = false } }
         }
         .onAppear {
             Orientation.landscapeOnPhone(true)
@@ -94,6 +97,14 @@ struct PlayerView: View {
         }
     }
 
+    /// The subtitles, at a caption size for the device, above the bottom bar while it shows.
+    private var subtitles: some View {
+        let phone = UIDevice.current.userInterfaceIdiom == .phone
+        let raised = showsControls && !showsChannels && countdown == nil
+        return SubtitleOverlay(engine: model.engine, fontSize: phone ? 20 : 28,
+                               bottomInset: raised ? (phone ? 84 : 110) : (phone ? 8 : 24), sideInset: phone ? 24 : 60)
+    }
+
     /// The shared status layer is drawn at the Apple TV's sizes; scaled for touch screens.
     @ViewBuilder private var status: some View {
         statusLayer.scaleEffect(UIDevice.current.userInterfaceIdiom == .phone ? 0.6 : 0.8)
@@ -113,7 +124,8 @@ struct PlayerView: View {
 
     private var controls: some View {
         VStack(spacing: 0) {
-            TopBar(pip: pip, close: { model.stop() }, channels: model.playing != nil ? { showsChannels = true; touch() } : nil)
+            TopBar(pip: pip, close: { model.stop() }, channels: model.playing != nil ? { showsChannels = true; touch() } : nil,
+                   menuOpen: { open in menuOpen = open; touch() })
             Spacer()
             // Under a failure card the buttons would show through it.
             if !isFailed { CenterButtons(engine: model.engine, touch: touch) }
@@ -174,6 +186,7 @@ private struct TopBar: View {
     @ObservedObject var pip: PictureInPicture
     let close: () -> Void
     let channels: (() -> Void)?
+    let menuOpen: (Bool) -> Void
 
     var body: some View {
         HStack(spacing: 14) {
@@ -182,7 +195,7 @@ private struct TopBar: View {
                 .accessibilityIdentifier("player.close")
             title
             Spacer()
-            TrackMenu(engine: model.engine)
+            TrackMenu(engine: model.engine, open: menuOpen)
             if pip.isPossible {
                 Button { pip.toggle() } label: { Image(systemName: "pip.enter").hitTarget() }
                     .accessibilityLabel(Text("Picture in Picture"))
@@ -329,35 +342,42 @@ private struct VODBottomBar: View {
 /// Audio and subtitle tracks of what plays, as a menu.
 private struct TrackMenu: View {
     @ObservedObject var engine: PlayerEngine
+    let open: (Bool) -> Void
 
     var body: some View {
         let media = engine.media
         Menu {
-            let audio = media?.audioTracks ?? []
-            if !audio.isEmpty {
-                Section("Audio") {
-                    ForEach(audio, id: \.id) { track in
-                        Button { engine.selectAudio(track) } label: {
-                            if media?.selectedAudio == track.id { Label(track.title, systemImage: "checkmark") } else { Text(verbatim: track.title) }
-                        }
-                    }
-                }
-            }
-            Section("Subtitles") {
-                Button { engine.selectSubtitle(nil) } label: {
-                    if media?.selectedSubtitle == nil { Label("Off", systemImage: "checkmark") } else { Text("Off") }
-                }
-                ForEach(media?.subtitleTracks ?? [], id: \.id) { track in
-                    Button { engine.selectSubtitle(track) } label: {
-                        if media?.selectedSubtitle == track.id { Label(track.title, systemImage: "checkmark") } else { Text(verbatim: track.title) }
-                    }
-                }
-            }
+            Group { content(media) }
+                .onAppear { open(true) }
+                .onDisappear { open(false) }
         } label: {
             Image(systemName: media?.selectedSubtitle != nil ? "captions.bubble.fill" : "captions.bubble").hitTarget()
         }
         .accessibilityLabel(Text("Audio and Subtitles"))
         .accessibilityIdentifier("player.tracks")
+    }
+
+    @ViewBuilder private func content(_ media: MediaInfo?) -> some View {
+        let audio = media?.audioTracks ?? []
+        if !audio.isEmpty {
+            Section("Audio") {
+                ForEach(audio, id: \.id) { track in
+                    Button { engine.selectAudio(track) } label: {
+                        if media?.selectedAudio == track.id { Label(track.title, systemImage: "checkmark") } else { Text(verbatim: track.title) }
+                    }
+                }
+            }
+        }
+        Section("Subtitles") {
+            Button { engine.selectSubtitle(nil) } label: {
+                if media?.selectedSubtitle == nil { Label("Off", systemImage: "checkmark") } else { Text("Off") }
+            }
+            ForEach(media?.subtitleTracks ?? [], id: \.id) { track in
+                Button { engine.selectSubtitle(track) } label: {
+                    if media?.selectedSubtitle == track.id { Label(track.title, systemImage: "checkmark") } else { Text(verbatim: track.title) }
+                }
+            }
+        }
     }
 }
 

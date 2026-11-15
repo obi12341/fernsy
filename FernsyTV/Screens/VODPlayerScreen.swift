@@ -47,6 +47,9 @@ struct VODPlayerScreen: View {
                         .frame(height: 440).frame(maxHeight: .infinity, alignment: .bottom).ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
+                SubtitleOverlay(engine: model.engine, fontSize: TVSubtitles.fontSize,
+                                bottomInset: showsOverlay && tracks == nil && countdown == nil ? TVSubtitles.raisedInset : TVSubtitles.bottomInset,
+                                sideInset: TVSubtitles.sideInset)
                 if let countdown, let next = model.nextAfterPlaying {
                     NextEpisodeCard(next: next, seconds: countdown) { playNext() } cancel: { cancelNext() }
                         .padding(.trailing, 90).padding(.bottom, 70)
@@ -75,6 +78,10 @@ struct VODPlayerScreen: View {
         .onChange(of: failed) { _, value in if !value { focused = true } }
         .onPlayPauseCommand { model.togglePause(); touch() }
         .onMoveCommand(perform: failed ? nil : { direction in
+            // The track panel and the countdown card sit inside the player and move focus
+            // themselves: their presses reach this handler too (Up in the subtitle panel opened
+            // the audio panel, Left and Right skipped).
+            guard tracks == nil, countdown == nil else { return }
             switch direction {
             case .left: model.skip(by: -10)
             case .right: model.skip(by: 10)
