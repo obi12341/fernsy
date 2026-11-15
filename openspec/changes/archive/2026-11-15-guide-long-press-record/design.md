@@ -114,3 +114,7 @@
   iPhone: the VM run fails only playback tests (run on the host: pass) and
   `StartClockUITests.testLiveCardMovesOnToTheNextShow`, which fails on the host too and also on
   `main`'s code at that hour, so it is not this change's.
+- After the archive the main specs failed `openspec validate --all --strict` (requirement text
+  over 500 characters): the menu was split from "Program guide on …" into its own requirement
+  "Long-press menu in the guide on …" in `ios-app` and `apple-tv`, with the menu's scenarios
+  (fix/guide-menu-spec-length). The deltas in this archive keep the merged form.
