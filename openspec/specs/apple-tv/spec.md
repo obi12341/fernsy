@@ -192,7 +192,12 @@ name, shows on a time axis with the time now marked, past shows dimmed, running 
 highlighted, recorded or scheduled ones marked. The category column SHALL narrow to a rail that
 opens it when clicked. A running show SHALL play the channel when clicked, a later one offer to
 record it. Rows without listings, loading, or with gaps SHALL show focusable bars there that
-play the channel.
+play the channel. A long press on any show SHALL open a menu with what can be done with it:
+watch the channel (running show) or play it from its start (past show of an archive channel);
+for a running show record it on the Apple TV, or stop its recording when one runs; for a later
+show record it or, when scheduled, not record it; with a paired Fernsy Server record it there or
+remove the server's order; and show its details. Recording from the menu SHALL follow the
+account's stream limit as recording from the channel list does.
 
 #### Scenario: Playing from the guide
 - **WHEN** the user clicks a show that is running now
@@ -201,6 +206,18 @@ play the channel.
 #### Scenario: Scheduling from the guide
 - **WHEN** the user clicks a show that starts later and chooses "Aufnehmen"
 - **THEN** the show is scheduled and marked in the grid and in Aufnahmen
+
+#### Scenario: Recording a running show from the guide
+- **WHEN** the user long-presses a show that began ten minutes ago and chooses "Aufnehmen"
+- **THEN** the show is recorded with the padding, marked in the grid, and Aufnahmen lists it as running
+
+#### Scenario: Stopping from the guide
+- **WHEN** the running show is being recorded and the user long-presses it
+- **THEN** the menu offers "Aufnahme beenden" instead of "Aufnehmen", and choosing it stops and keeps the recording
+
+#### Scenario: Running show on the server
+- **WHEN** a Fernsy Server is paired and the user long-presses a running show and chooses "Record on Fernsy Server"
+- **THEN** the server gets an order for the show, or the reason it was refused is shown when the account's streams are all in use
 
 #### Scenario: Changing the category in the guide
 - **WHEN** the user moves left to the rail, clicks it and clicks "Favoriten"
