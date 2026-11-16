@@ -15,11 +15,6 @@ struct VODPlayerScreen: View {
     @State private var tracks: TrackKind?
     /// An IPTV episode ended: when the next one starts.
     @State private var iptvNextAt: Date?
-    /// The Jellyfin playback's card, skip button and note (mirrored from the playback).
-    @State private var jfCard: NextCardState?
-    @State private var jfDeadline: Date?
-    @State private var skip: SegmentMarks.Skip?
-    @State private var skippedNotice: SegmentMarks.SkipKind?
     @FocusState private var focused: Bool
     /// The item failed: the status layer's card takes focus (tvos-player-status design 5).
     @State private var failed = false
@@ -68,7 +63,7 @@ struct VODPlayerScreen: View {
                 }
             }
             if !cardShows, tracks == nil {
-                SkipSegmentPill(skip: skip, notice: skippedNotice) { skipSegment() }
+                SkipSegmentPill(skip: jellyfinSkip?.activeSkip, notice: jellyfinSkip?.skippedNotice) { skipSegment() }
                     .padding(.trailing, 90).padding(.bottom, showsOverlay ? 250 : 70)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
@@ -106,7 +101,7 @@ struct VODPlayerScreen: View {
         .onTapGesture {
             guard !failed else { return }
             // While Skip Intro / Skip Recap shows, Select skips (it is no focus target).
-            if skip != nil { skipSegment() } else { showsOverlay.toggle() }
+            if jellyfinSkip?.activeSkip != nil { skipSegment() } else { showsOverlay.toggle() }
             touch()
         }
         .onExitCommand { back() }
@@ -121,11 +116,6 @@ struct VODPlayerScreen: View {
                 iptvNextAt = Date().addingTimeInterval(JellyfinPlayback.autoplayDelay)
             }
         }
-        // The Jellyfin countdown runs in the playback; the screen only shows it.
-        .onReceive(model.jellyfinPlayback?.$card.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { jfCard = $0 }
-        .onReceive(model.jellyfinPlayback?.$autoplayAt.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { jfDeadline = $0 }
-        .onReceive(model.jellyfinPlayback?.$activeSkip.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { skip = $0 }
-        .onReceive(model.jellyfinPlayback?.$skippedNotice.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { skippedNotice = $0 }
         .task(id: iptvNextAt) {
             guard let at = iptvNextAt else { return }
             guard (try? await Task.sleep(for: .seconds(max(0, at.timeIntervalSinceNow)))) != nil else { return }
@@ -133,11 +123,16 @@ struct VODPlayerScreen: View {
         }
     }
 
+    /// The Jellyfin playback while a Jellyfin item plays (its skip button and note).
+    private var jellyfinSkip: JellyfinPlayback? {
+        if case .jellyfin? = model.playingVOD { model.jellyfinPlayback } else { nil }
+    }
+
     /// The next-episode card: Jellyfin's from its playback, an IPTV episode's after its end.
     private var upNext: UpNextContent? {
         if case .jellyfin? = model.playingVOD {
-            guard let card = jfCard, let next = model.jellyfinPlayback?.nextEpisode else { return nil }
-            return UpNextContent(card: card, next: next, deadline: jfDeadline, store: model.jellyfin)
+            guard let playback = model.jellyfinPlayback, let card = playback.card, let next = playback.nextEpisode else { return nil }
+            return UpNextContent(card: card, next: next, deadline: playback.autoplayAt, store: model.jellyfin)
         }
         guard let at = iptvNextAt, let next = model.nextAfterPlaying else { return nil }
         return UpNextContent(line: next.subtitle ?? next.title, deadline: at)
