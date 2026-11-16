@@ -169,17 +169,23 @@ jobs:
             echo "::error::No tvOS 27 runtime after ejecting the duplicate runtime images"
             exit 1
           fi
-          if ! xcrun simctl list devices available | grep -q 'Apple TV 4K (3rd generation) ('; then
-            RUNTIME="$(xcrun simctl list runtimes | grep -oE 'com.apple.CoreSimulator.SimRuntime.tvOS-27[-0-9]*' | tail -1)"
-            xcrun simctl create "Apple TV 4K (3rd generation)" \
-              com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K "$RUNTIME"
-          fi
+          # The image's own "Apple TV 4K (3rd generation)" runs tvOS 27.0, whose classic disk image
+          # simdiskimaged mounted again after the eject above and then ejected mid-test ("Unable to
+          # boot device because we cannot determine the runtime bundle", fix/tv-ci-own-simulator).
+          # The tests run on a device of their own on the newest tvOS 27 runtime instead (27.2 on
+          # the current image, which exists only once).
+          RUNTIME="$(xcrun simctl list runtimes | grep -v unavailable \
+            | grep -oE 'com.apple.CoreSimulator.SimRuntime.tvOS-27[-0-9]*' | sort -V | tail -1)"
+          echo "Apple TV simulator on $RUNTIME"
+          xcrun simctl create "Fernsy CI Apple TV" \
+            com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K "$RUNTIME"
           xcrun simctl list devices available | grep 'Apple TV'
 
       - name: Apple TV app and UI test
         # FERNSY_CI in the test runner: tests skip judgments a GPU-less runner cannot meet.
         env:
           TEST_RUNNER_FERNSY_CI: '1'
+          DEVICE_NAME: Fernsy CI Apple TV
         run: scripts/tv-uitest.sh --shard ${{ matrix.shard }}/3
 
       # Every test's duration (faster-ui-tests): in the job summary, and kept as a small file to
