@@ -224,3 +224,14 @@ nothing is written to the server except the played mark.
   (card with countdown at 96 s, prefetch, S01E02 and S01E03 started by the countdown, played
   mark, `now_playing` "playing" with `next.starts_in_seconds`). Window screenshots failed that
   morning (the screen was locked), so the Mac card and skip button were not seen.
+
+## Later fixes
+
+- fix/player-jellyfin-observe (16 Nov): the Apple TV and iOS players first mirrored the card,
+  countdown and skip button into `@State` with `onReceive(model.jellyfinPlayback?.$card … ??
+  Just(nil))`. A `Just` (and an `@Published` publisher) sends at once on every subscription, and
+  SwiftUI subscribes again whenever the view is rebuilt, so every rebuild of the player (IPTV
+  films, recordings, live TV on iOS) set state once more. `TVModel` now passes the playback's
+  `objectWillChange` on as its own (the playback only publishes on rare changes), and the players
+  read `model.jellyfinPlayback` directly. Rejected: `Empty()` instead of `Just(nil)`, which would
+  leave stale skip state after a Jellyfin item when an IPTV film plays.
