@@ -1,0 +1,19 @@
+{
+ "Name": "Episode Three",
+ "ServerId": "00000000000000000000000000000001",
+ "Id": "0000000000000000000000000000000c",
+ "Type": "Episode",
+ "SeriesName": "Test Show",
+ "SeriesId": "00000000000000000000000000000010",
+ "IndexNumber": 3,
+ "ParentIndexNumber": 1,
+ "RunTimeTicks": 17810000000,
+ "Chapters": [
+  {"StartPositionTicks": 0, "Name": "Opening", "ImageDateModified": "0001-01-01T00:00:00.0000000Z"},
+  {"StartPositionTicks": 900000000, "Name": "Part A", "ImageDateModified": "0001-01-01T00:00:00.0000000Z"},
+  {"StartPositionTicks": 16610000000, "Name": "Ending", "ImageDateModified": "0001-01-01T00:00:00.0000000Z"},
+  {"StartPositionTicks": 17400000000, "Name": "Preview", "ImageDateModified": "0001-01-01T00:00:00.0000000Z"}
+ ],
+ "LocationType": "FileSystem",
+ "MediaType": "Video"
+}

@@ -292,6 +292,16 @@
         }
       }
     },
+    "%lld seconds": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sekunden"
+          }
+        }
+      }
+    },
     "%lld series": {
       "localizations": {
         "en": {
@@ -682,6 +692,16 @@
         }
       }
     },
+    "Are you still watching?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaust du noch?"
+          }
+        }
+      }
+    },
     "Area": {
       "localizations": {
         "de": {
@@ -828,6 +848,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tonspur und Untertitel"
+          }
+        }
+      }
+    },
+    "Automatically": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
           }
         }
       }
@@ -1542,6 +1572,16 @@
         }
       }
     },
+    "Intro skipped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intro übersprungen"
+          }
+        }
+      }
+    },
     "IPTV only with VPN": {
       "localizations": {
         "de": {
@@ -1792,6 +1832,16 @@
         }
       }
     },
+    "Never": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie"
+          }
+        }
+      }
+    },
     "New Conversation": {
       "localizations": {
         "de": {
@@ -1828,6 +1878,76 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nicht verbunden"
+          }
+        }
+      }
+    },
+    "Play Next Episode Automatically": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Episode automatisch abspielen"
+          }
+        }
+      }
+    },
+    "Play Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt abspielen"
+          }
+        }
+      }
+    },
+    "Recap skipped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückblick übersprungen"
+          }
+        }
+      }
+    },
+    "Show Button": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knopf zeigen"
+          }
+        }
+      }
+    },
+    "Skip Intro": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intro überspringen"
+          }
+        }
+      }
+    },
+    "Skip Intros and Recaps": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intros und Rückblicke überspringen"
+          }
+        }
+      }
+    },
+    "Skip Recap": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückblick überspringen"
           }
         }
       }
@@ -1938,6 +2058,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Assistent gehört zu Fernsy Cloud."
+          }
+        }
+      }
+    },
+    "Watch Credits": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abspann ansehen"
           }
         }
       }
@@ -2958,16 +3088,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erneut abspielen"
-          }
-        }
-      }
-    },
-    "Play Now (%lld)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jetzt abspielen (%lld)"
           }
         }
       }
@@ -5858,16 +5978,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fernsy Server nimmt sie auf, auch während dieser Mac aus ist"
-          }
-        }
-      }
-    },
-    "On Fernsy Server": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auf Fernsy Server"
           }
         }
       }

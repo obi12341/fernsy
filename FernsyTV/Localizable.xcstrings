@@ -453,6 +453,16 @@
         }
       }
     },
+    "Are you still watching?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schaust du noch?"
+          }
+        }
+      }
+    },
     "Ask": {
       "localizations": {
         "de": {
@@ -519,6 +529,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "TONSPUR"
+          }
+        }
+      }
+    },
+    "Automatically": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
           }
         }
       }
@@ -713,12 +733,32 @@
         }
       }
     },
+    "Intro skipped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intro übersprungen"
+          }
+        }
+      }
+    },
     "IPTV only with VPN": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "IPTV nur mit VPN"
+          }
+        }
+      }
+    },
+    "Jellyfin knows where intros, recaps and credits are when a plugin such as Intro Skipper is installed on the server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jellyfin kennt Intro, Rückblick und Abspann, wenn auf dem Server ein Plugin wie Intro Skipper installiert ist."
           }
         }
       }
@@ -753,12 +793,32 @@
         }
       }
     },
+    "Never": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie"
+          }
+        }
+      }
+    },
     "New Conversation": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Neues Gespräch"
+          }
+        }
+      }
+    },
+    "Next Episode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Episode"
           }
         }
       }
@@ -793,12 +853,82 @@
         }
       }
     },
+    "Play Next Episode Automatically": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Episode automatisch abspielen"
+          }
+        }
+      }
+    },
+    "Recap skipped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückblick übersprungen"
+          }
+        }
+      }
+    },
     "Remove": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Entfernen"
+          }
+        }
+      }
+    },
+    "Show Button": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knopf zeigen"
+          }
+        }
+      }
+    },
+    "Skip Intro": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intro überspringen"
+          }
+        }
+      }
+    },
+    "Skip Intros and Recaps": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intros und Rückblicke überspringen"
+          }
+        }
+      }
+    },
+    "SKIP INTROS AND RECAPS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "INTROS UND RÜCKBLICKE ÜBERSPRINGEN"
+          }
+        }
+      }
+    },
+    "Skip Recap": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückblick überspringen"
           }
         }
       }
@@ -869,6 +999,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "VPN auf diesem Gerät"
+          }
+        }
+      }
+    },
+    "Watch Credits": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abspann ansehen"
           }
         }
       }
@@ -1143,12 +1283,12 @@
         }
       }
     },
-    "Go to Series" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zur Serie"
+    "Go to Series": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zur Serie"
           }
         }
       }
@@ -1459,16 +1599,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Danach %1$@ %2$@"
-          }
-        }
-      }
-    },
-    "Next episode in %lld s": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nächste Episode in %lld s"
           }
         }
       }

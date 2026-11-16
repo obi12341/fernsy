@@ -6,13 +6,20 @@ import SwiftUI
 /// Films, episodes and Jellyfin items full screen: Left/Right 10 s, Play/Pause, a click shows
 /// the timeline, Up the audio and subtitle choice, Back closes the panel, the countdown or the
 /// timeline first and stops only with none showing (positions are kept or reported).
-/// When an episode ends and a next one exists, a countdown starts it, as on the Mac.
+/// When an episode ends and a next one exists, a countdown starts it, as on the Mac; Jellyfin
+/// episodes show it at their credits and offer to skip intros and recaps (Select skips).
 struct VODPlayerScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var showsOverlay = true
     @State private var lastInput = Date()
     @State private var tracks: TrackKind?
-    @State private var countdown: Int?
+    /// An IPTV episode ended: when the next one starts.
+    @State private var iptvNextAt: Date?
+    /// The Jellyfin playback's card, skip button and note (mirrored from the playback).
+    @State private var jfCard: NextCardState?
+    @State private var jfDeadline: Date?
+    @State private var skip: SegmentMarks.Skip?
+    @State private var skippedNotice: SegmentMarks.SkipKind?
     @FocusState private var focused: Bool
     /// The item failed: the status layer's card takes focus (tvos-player-status design 5).
     @State private var failed = false
@@ -32,7 +39,7 @@ struct VODPlayerScreen: View {
         if let item = model.playingVOD {
             // Pending: a Jellyfin item resolves its stream before the engine loads (design 2).
             PlayerStatusLayer(engine: model.engine, title: item.title, pending: true,
-                              canTakeFocus: tracks == nil && countdown == nil,
+                              canTakeFocus: tracks == nil && !cardShows,
                               retry: { model.retryPlayback() }, close: { model.stop() })
         }
     }
@@ -42,16 +49,16 @@ struct VODPlayerScreen: View {
             TVVideoSurface(engine: model.engine).ignoresSafeArea()
             StreamInfoPanel(engine: model.engine)
             if let item = model.playingVOD {
-                if showsOverlay || countdown != nil {
+                if showsOverlay || cardShows {
                     LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .bottom, endPoint: .top)
                         .frame(height: 440).frame(maxHeight: .infinity, alignment: .bottom).ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
                 SubtitleOverlay(engine: model.engine, fontSize: TVSubtitles.fontSize,
-                                bottomInset: showsOverlay && tracks == nil && countdown == nil ? TVSubtitles.raisedInset : TVSubtitles.bottomInset,
+                                bottomInset: showsOverlay && tracks == nil && !cardShows ? TVSubtitles.raisedInset : TVSubtitles.bottomInset,
                                 sideInset: TVSubtitles.sideInset)
-                if let countdown, let next = model.nextAfterPlaying {
-                    NextEpisodeCard(next: next, seconds: countdown) { playNext() } cancel: { cancelNext() }
+                if let content = upNext {
+                    UpNextCard(content: content) { playNext() } dismiss: { cancelNext() }
                         .padding(.trailing, 90).padding(.bottom, 70)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 } else if let tracks {
@@ -59,6 +66,11 @@ struct VODPlayerScreen: View {
                 } else if showsOverlay {
                     VODOverlay(item: item, progress: model.engine.progress)
                 }
+            }
+            if !cardShows, tracks == nil {
+                SkipSegmentPill(skip: skip, notice: skippedNotice) { skipSegment() }
+                    .padding(.trailing, 90).padding(.bottom, showsOverlay ? 250 : 70)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
             VODPlayerState(engine: model.engine)
         }
@@ -68,7 +80,7 @@ struct VODPlayerScreen: View {
         // not report the focus of this container to them, so its value does.
         .accessibilityIdentifier("player.surface")
         .accessibilityValue(focused ? "focused" : "unfocused")
-        .focusable(tracks == nil && countdown == nil && !failed)
+        .focusable(tracks == nil && !cardShows && !failed)
         .focused($focused)
         .onAppear { focused = true }
         .onReceive(model.engine.$status) { status in
@@ -81,7 +93,7 @@ struct VODPlayerScreen: View {
             // The track panel and the countdown card sit inside the player and move focus
             // themselves: their presses reach this handler too (Up in the subtitle panel opened
             // the audio panel, Left and Right skipped).
-            guard tracks == nil, countdown == nil else { return }
+            guard tracks == nil, !cardShows else { return }
             switch direction {
             case .left: model.skip(by: -10)
             case .right: model.skip(by: 10)
@@ -91,7 +103,12 @@ struct VODPlayerScreen: View {
             }
             touch()
         })
-        .onTapGesture { if !failed { showsOverlay.toggle(); touch() } }
+        .onTapGesture {
+            guard !failed else { return }
+            // While Skip Intro / Skip Recap shows, Select skips (it is no focus target).
+            if skip != nil { skipSegment() } else { showsOverlay.toggle() }
+            touch()
+        }
         .onExitCommand { back() }
         .task(id: lastInput) {
             guard (try? await Task.sleep(for: .seconds(6))) != nil else { return }
@@ -100,21 +117,42 @@ struct VODPlayerScreen: View {
         .onReceive(model.engine.$status) { status in
             // An IPTV episode at its end: count down to the next one. (onChange of
             // model.engine.status never fired: the screen observes the model, not its engine.)
-            if status == .ended, case .episode = model.playingVOD, model.nextAfterPlaying != nil, countdown == nil { countdown = 10 }
+            if status == .ended, case .episode = model.playingVOD, model.nextAfterPlaying != nil, iptvNextAt == nil {
+                iptvNextAt = Date().addingTimeInterval(JellyfinPlayback.autoplayDelay)
+            }
         }
-        .onReceive(model.jellyfinPlayback?.$autoplayAt.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { date in
-            countdown = date.map { max(0, Int($0.timeIntervalSinceNow.rounded())) }
-        }
-        .task(id: countdown) {
-            guard let value = countdown else { return }
-            guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
-            if value <= 1 { playNext() } else { countdown = value - 1 }
+        // The Jellyfin countdown runs in the playback; the screen only shows it.
+        .onReceive(model.jellyfinPlayback?.$card.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { jfCard = $0 }
+        .onReceive(model.jellyfinPlayback?.$autoplayAt.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { jfDeadline = $0 }
+        .onReceive(model.jellyfinPlayback?.$activeSkip.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { skip = $0 }
+        .onReceive(model.jellyfinPlayback?.$skippedNotice.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { skippedNotice = $0 }
+        .task(id: iptvNextAt) {
+            guard let at = iptvNextAt else { return }
+            guard (try? await Task.sleep(for: .seconds(max(0, at.timeIntervalSinceNow)))) != nil else { return }
+            playNext()
         }
     }
+
+    /// The next-episode card: Jellyfin's from its playback, an IPTV episode's after its end.
+    private var upNext: UpNextContent? {
+        if case .jellyfin? = model.playingVOD {
+            guard let card = jfCard, let next = model.jellyfinPlayback?.nextEpisode else { return nil }
+            return UpNextContent(card: card, next: next, deadline: jfDeadline, store: model.jellyfin)
+        }
+        guard let at = iptvNextAt, let next = model.nextAfterPlaying else { return nil }
+        return UpNextContent(line: next.subtitle ?? next.title, deadline: at)
+    }
+
+    private var cardShows: Bool { upNext != nil }
 
     private func touch() {
         showsOverlay = true
         lastInput = Date()
+        JellyfinPlayback.noteUserInput()
+    }
+
+    private func skipSegment() {
+        model.jellyfinPlayback?.skipSegment()
     }
 
     /// Back closes the topmost layer: the track panel, the next-episode countdown, the timeline;
@@ -125,8 +163,8 @@ struct VODPlayerScreen: View {
             AppLog.detail(.player, "remote back in the track panel")
             tracks = nil
             focused = true
-        } else if countdown != nil {
-            AppLog.detail(.player, "remote back in the countdown")
+        } else if cardShows {
+            AppLog.detail(.player, "remote back in the next-episode card")
             cancelNext()
         } else if showsOverlay {
             AppLog.detail(.player, "remote back in the overlay")
@@ -138,13 +176,17 @@ struct VODPlayerScreen: View {
     }
 
     private func playNext() {
-        guard let next = model.nextAfterPlaying else { countdown = nil; return }
-        countdown = nil
+        if case .jellyfin? = model.playingVOD, let playback = model.jellyfinPlayback {
+            playback.playNext()
+            return
+        }
+        guard let next = model.nextAfterPlaying else { iptvNextAt = nil; return }
+        iptvNextAt = nil
         model.play(next, fromStart: true)
     }
 
     private func cancelNext() {
-        countdown = nil
+        iptvNextAt = nil
         model.jellyfinPlayback?.cancelAutoplay()
         focused = true
     }
@@ -171,30 +213,6 @@ private struct VODOverlay: View {
         }
         .padding(.horizontal, 90)
         .padding(.bottom, 70)
-    }
-}
-
-/// "Next Episode in 7 s" with Play Now and Cancel.
-private struct NextEpisodeCard: View {
-    let next: VODItem
-    let seconds: Int
-    let play: () -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Next episode in \(seconds) s").font(.system(size: 22, weight: .semibold)).opacity(0.75)
-                .accessibilityIdentifier("vod.countdown")
-            Text(verbatim: next.subtitle ?? next.title).font(.system(size: 30, weight: .bold)).lineLimit(1)
-            HStack(spacing: 18) {
-                Button("Play Now", action: play).buttonStyle(TVPillStyle())
-                Button("Cancel", action: cancel).buttonStyle(TVPillStyle(prominent: false))
-            }
-            .focusSection()
-        }
-        .padding(30)
-        .frame(width: 640, alignment: .leading)
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 28))
     }
 }
 

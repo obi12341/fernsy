@@ -1,6 +1,7 @@
 #!/bin/bash
 # jellyfin-test-server.sh: a throwaway Jellyfin for tests on 127.0.0.1:8097 (container fernsy-jf-fixtures, user
-# fixture / fixture-pass) with an 8-minute film (English subtitle file beside it) and a series of three 2-minute episodes.
+# fixture / fixture-pass) with an 8-minute film (English subtitle file beside it) and a series of three 2-minute episodes
+# (with chapters, the last one "Credits" at 1:40).
 # --surround adds a library "Surround" with three one-minute films (AC-3 5.1, E-AC-3 5.1,
 # FLAC 7.1); the UI tests expect the library without it.
 # Remove it afterwards: docker rm -f fernsy-jf-fixtures
@@ -52,6 +53,18 @@ surround "surround/Surround EAC3 (2024)/Surround EAC3 (2024).mkv" eac3 "5.1(side
 # FFmpeg's AC-3/E-AC-3/TrueHD encoders stop at 5.1: 7.1 (decoded by Fernsy itself) comes as FLAC.
 surround "surround/Surround FLAC 7.1 (2024)/Surround FLAC 7.1 (2024).mkv" flac 7.1 8
 for e in 1 2 3; do clip "shows/Fixture Show/Season 01/Fixture Show S01E0$e.mkv" 120 "S01E0$e"; done
+# Chapters in the episodes (jellyfin-media-segments): "Opening" 0–10 s, "Episode" 10–100 s,
+# "Credits" 100–120 s, so the next-episode card comes at 100 s without any segment provider.
+chapters() { # file
+    local marker="$M/$1.chapters"
+    [ -f "$marker" ] && return
+    printf ';FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=10000\ntitle=Opening\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=10000\nEND=100000\ntitle=Episode\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=100000\nEND=120000\ntitle=Credits\n' > "$M/chapters.txt"
+    docker run --rm -v "$M:/media" --entrypoint /usr/lib/jellyfin-ffmpeg/ffmpeg $IMG -loglevel error -y \
+        -i "/media/$1" -i /media/chapters.txt -map 0 -map_chapters 1 -c copy "/media/$1.tmp.mkv"
+    mv "$M/$1.tmp.mkv" "$M/$1"
+    touch "$marker"
+}
+for e in 1 2 3; do chapters "shows/Fixture Show/Season 01/Fixture Show S01E0$e.mkv"; done
 
 docker rm -f fernsy-jf-fixtures >/dev/null 2>&1 || true
 docker run -d --name fernsy-jf-fixtures -p 127.0.0.1:8097:8096 -v "$M:/media:ro" $IMG >/dev/null
