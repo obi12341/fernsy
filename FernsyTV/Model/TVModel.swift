@@ -108,7 +108,8 @@ final class TVModel: ObservableObject {
     /// Downloaded cloud recordings (offline-recording-downloads), iPad and iPhone only.
     private(set) lazy var downloads: CloudDownloads? = CloudFeature.isEnabled ? CloudDownloads.live(client: cloud.client, keys: cloud.keys) : nil
     #endif
-    var jellyfinPlayback: JellyfinPlayback?
+    /// Published: the players follow its card and skip button.
+    @Published var jellyfinPlayback: JellyfinPlayback?
     var archivePlayback: ArchivePlayback?
     /// Resume positions and watched marks with the Mac's keys; test runs keep them in memory
     /// (IPTV_TESTSYNC: in a suite of their own, synced with a stand-in for iCloud).

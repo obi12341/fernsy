@@ -148,6 +148,24 @@ public struct JellyfinClient {
         try await get("Items/\(id)", ["userId": userId])
     }
 
+    /// The item's media segments; empty when the server has none or does not know the endpoint
+    /// (before Jellyfin 10.10: 404).
+    public func mediaSegments(itemId: String) async throws -> [JFMediaSegment] {
+        let answer: Result<Data, Error>
+        do { answer = .success(try await request("GET", "MediaSegments/\(itemId)")) } catch { answer = .failure(error) }
+        return try Self.segments(from: answer)
+    }
+
+    /// An HTTP error (404 on old servers) means no segments; a rejected token is still thrown, so
+    /// the store renews the session and asks again.
+    static func segments(from answer: Result<Data, Error>) throws -> [JFMediaSegment] {
+        do {
+            return try decoder.decode(JFMediaSegmentsPage.self, from: answer.get()).items
+        } catch JellyfinError.http {
+            return []
+        }
+    }
+
     public func seasons(userId: String, seriesId: String) async throws -> [JFItem] {
         let page: JFItemsPage = try await get("Shows/\(seriesId)/Seasons", ["userId": userId, "fields": "ChildCount,RecursiveItemCount"])
         return page.items

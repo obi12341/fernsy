@@ -281,6 +281,8 @@ private struct JellyfinAccountScreen: View {
     @EnvironmentObject private var model: TVModel
     @State private var confirm = false
     @AppStorage(DisplayModeController.jellyfinKey) private var matchDisplayMode = true
+    @AppStorage(SegmentPreferences.autoplayKey) private var autoplayNext = true
+    @AppStorage(SegmentPreferences.skippingKey) private var skipSegments = SegmentPreferences.Skipping.button.rawValue
 
     var body: some View {
         SettingsPage(title: "Jellyfin Server") {
@@ -290,6 +292,18 @@ private struct JellyfinAccountScreen: View {
                 SettingsRow(title: Text("User"), value: Text(verbatim: session.userName)).padding(.trailing, -40)
                 MatchDisplayModeRow(id: "settings.jellyfinMatchDisplayMode", on: $matchDisplayMode,
                                     note: Text("Switches the TV to the frame rate and HDR mode of what plays from this server. The TV only switches when “Match Content” is on in the Apple TV’s Settings › Video and Audio."))
+                ChoiceRow(title: Text("Play Next Episode Automatically"), chosen: autoplayNext) { autoplayNext.toggle() }
+                    .accessibilityIdentifier("settings.jellyfinAutoplay")
+                    .accessibilityValue(autoplayNext ? "on" : "off")
+                    .padding(.top, 24)
+                Text("SKIP INTROS AND RECAPS").font(.system(size: 20, weight: .bold)).tracking(1.4).opacity(0.5)
+                    .padding(.horizontal, 28).padding(.top, 24)
+                ForEach(SegmentPreferences.Skipping.allCases, id: \.self) { choice in
+                    ChoiceRow(title: Text(choice.title), chosen: skipSegments == choice.rawValue) { skipSegments = choice.rawValue }
+                        .accessibilityIdentifier("settings.jellyfinSkip.\(choice.rawValue)")
+                }
+                Text("Jellyfin knows where intros, recaps and credits are when a plugin such as Intro Skipper is installed on the server.")
+                    .font(.system(size: 22)).foregroundStyle(TVTheme.secondary).padding(.horizontal, 28).padding(.top, 20)
             }
             Button { confirm = true } label: {
                 Text("Sign Out").font(.system(size: 26, weight: .semibold)).foregroundStyle(TVTheme.live)

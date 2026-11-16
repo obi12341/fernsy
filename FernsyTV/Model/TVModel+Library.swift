@@ -253,7 +253,10 @@ extension TVModel {
             engine.load(url: url, isLive: false, startAt: fromStart ? 0 : resume.position(item.resumeKey ?? ""))
         case .jellyfin(let jfItem):
             PlaybackStart.jellyfin(itemId: jfItem.id, store: jellyfin, engine: engine, startAt: fromStart ? 0 : jfItem.positionSeconds,
-                                   stillWanted: { [weak self] in self?.playingVOD == item }, started: { [weak self] in self?.jellyfinPlayback = $0 })
+                                   stillWanted: { [weak self] in self?.playingVOD == item }, started: { [weak self] playback in
+                                       playback.playItem = { next in self?.play(.jellyfin(next), fromStart: true) }
+                                       self?.jellyfinPlayback = playback
+                                   })
         case .archive(let show, let channel):
             // Its own connection, counted against the account's limit (catch-up design 4).
             tuners.reserveArchive(channel.id)

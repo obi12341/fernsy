@@ -142,6 +142,8 @@ public struct JFItem: Codable, Identifiable, Hashable, Sendable {
     public var people: [JFPerson]?
     public var mediaSources: [JFMediaSource]?
     public var userData: JFUserData?
+    /// Embedded chapters (only in a single item's detail).
+    public var chapters: [JFChapter]?
 
     public var isSeries: Bool { type == "Series" }
     public var isFolder: Bool { type == "Series" || type == "Season" }
@@ -164,6 +166,36 @@ public struct JFItem: Codable, Identifiable, Hashable, Sendable {
     /// sort chronologically. Parsing them in a sort comparator stalled scrolling.
     public var addedKey: String { dateCreated ?? "" }
     public var releaseKey: String { premiereDate ?? "" }
+}
+
+/// A chapter of an item, as the detail lists it.
+public struct JFChapter: Codable, Hashable, Sendable {
+    public var startPositionTicks: Int64
+    public var name: String?
+
+    public init(startPositionTicks: Int64, name: String?) {
+        self.startPositionTicks = startPositionTicks
+        self.name = name
+    }
+}
+
+/// A part of an item the server knows of (Jellyfin ≥ 10.10, `/MediaSegments`): filled by
+/// providers such as the Intro Skipper plugin. Types: Intro, Recap, Outro, Preview, Commercial,
+/// Unknown.
+public struct JFMediaSegment: Codable, Hashable, Sendable {
+    public var type: String
+    public var startTicks: Int64
+    public var endTicks: Int64
+
+    public init(type: String, startTicks: Int64, endTicks: Int64) {
+        self.type = type
+        self.startTicks = startTicks
+        self.endTicks = endTicks
+    }
+}
+
+public struct JFMediaSegmentsPage: Decodable, Sendable {
+    public let items: [JFMediaSegment]
 }
 
 public struct JFItemsPage: Decodable, Sendable {

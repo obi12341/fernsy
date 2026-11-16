@@ -225,6 +225,16 @@ hardware decoders", otherwise the picture is green/pink in every client. Debug:
 `JF_AUTOPLAY=<item id>[:<start s>]`, `JF_BREAKDIRECT=1` (forces the transcode fallback),
 `IPTV_TESTSUB=<track id>`, `IPTV_TESTCUES=<srt in the app container>`.
 
+Intros, recaps and credits come from the server's media segments (`/MediaSegments/{id}`, filled
+by plugins such as Intro Skipper), else from a chapter named as credits
+(`FernsyCore/SegmentMarks.swift`, change `jellyfin-media-segments`). `JellyfinPlayback` follows
+the position with `SegmentTracker`, owns the next-episode card (`card`, `autoplayAt`), the skip
+button (`activeSkip`) and the still-watching count, and marks an episode played when it is left in
+its final credits. Debug: `JF_TESTSEGMENTS=intro:5-20,outro:96-120` replaces the server's segments
+(seconds; the test Jellyfin has no provider), `JF_TESTSTILLWATCHING=<n>` asks "Are you still
+watching?" after n auto-started episodes instead of 3. The test Jellyfin's Fixture Show episodes
+carry chapters with "Credits" at 1:40 (`scripts/jellyfin-test-server.sh`).
+
 Dolby Vision profile 5 and 8 in MKV/MP4 (any source) is decoded by `Fernsy/Player/DVDecoder.swift`:
 a VideoToolbox session created as `dvh1` from the stream's `hvcC` and DV configuration. Only
 such a session gives pixel buffers that the display layer shows as Dolby Vision; macOS does the

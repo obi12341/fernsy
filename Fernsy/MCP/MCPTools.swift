@@ -336,7 +336,8 @@ final class MCPTools {
             case .idle: "idle"
             case .failed(let message): "failed: \(message)"
             }
-            if engine.status == .ended, let playback = app.jellyfinPlayback, let next = playback.nextEpisode {
+            if let playback = app.jellyfinPlayback, let next = playback.nextEpisode,
+               engine.status == .ended || playback.card != nil || playback.autoplayCancelled {
                 var upcoming = AssistantTools.neighbourJSON(next, prefix: "next").reduce(into: [String: Any]()) { $0[String($1.key.dropFirst(5))] = $1.value }
                 if let at = playback.autoplayAt { upcoming["starts_in_seconds"] = max(0, Int(at.timeIntervalSinceNow.rounded(.up))) }
                 else if playback.autoplayCancelled { upcoming["autoplay_cancelled"] = true }

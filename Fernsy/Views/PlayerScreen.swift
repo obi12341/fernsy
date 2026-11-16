@@ -55,15 +55,16 @@ struct PlayerScreen: View {
         ZStack {
             Color.black
 
-            VideoSurface(engine: engine, onKeyDown: handleKey, onMouseActivity: showControls, onDoubleClick: toggleFullScreen,
+            VideoSurface(engine: engine, onKeyDown: handleKey, onMouseActivity: userActivity, onDoubleClick: toggleFullScreen,
                          onClick: { if showsChannelList { closeChannelList() } })
 
             SubtitleOverlay(engine: engine, fontSize: 30, bottomInset: controlsVisible ? 150 : 60, sideInset: 60)
 
             statusOverlay
 
-            if engine.status == .ended, let playback = jellyfinPlayback {
-                NextEpisodeOverlay(playback: playback, bottomInset: controlsVisible ? 120 : 32) { next in app.play(jellyfin: next) }
+            if let playback = jellyfinPlayback {
+                SkipSegmentOverlay(playback: playback, bottomInset: controlsVisible ? 120 : 32)
+                NextEpisodeOverlay(playback: playback, bottomInset: controlsVisible ? 120 : 32)
             }
 
             if let osd {
@@ -103,7 +104,7 @@ struct PlayerScreen: View {
                 PlayerControls(engine: engine, progress: engine.progress, item: item, entries: epg,
                                showInfo: $showInfo, isFullScreen: isFullScreen, showsTitle: osd == nil && !showsChannelList, onZap: zap, onFullScreen: toggleFullScreen,
                                onChannelList: toggleChannelList,
-                               onActivity: showControls,
+                               onActivity: userActivity,
                                recordingEnd: liveChannelID.flatMap { recorder.active(on: $0)?.recordEnd },
                                canRecord: liveChannelID != nil,
                                onRecord: toggleRecording, onPickAudio: { pick(audio: $0) }, onPickSubtitle: { pick(subtitle: $0) },
@@ -264,7 +265,8 @@ struct PlayerScreen: View {
 
     private func play(_ item: PlayItem) {
         if case .jellyfin = item.kind { stopJellyfin() }
-        let archive = app.startPlayback(item, on: engine, isCurrent: { loadedItem == item }) { playback in
+        let archive = app.startPlayback(item, on: engine, isCurrent: { loadedItem == item }) { [app] playback in
+            playback.playItem = { next in app.play(jellyfin: next) }
             jellyfinPlayback = playback
             app.jellyfinPlayback = playback
         }
@@ -367,6 +369,12 @@ struct PlayerScreen: View {
 
     func showControls() {
         showControls(autoHide: true)
+    }
+
+    /// The user moved the mouse, clicked or pressed a key: also the still-watching count starts again.
+    private func userActivity() {
+        JellyfinPlayback.noteUserInput()
+        showControls()
     }
 
     func showControls(autoHide: Bool) {
@@ -549,6 +557,12 @@ struct PlayerScreen: View {
     private func handleKey(_ event: NSEvent) -> Bool {
         let live = engine.isLive
         let shift = event.modifierFlags.contains(.shift)
+        JellyfinPlayback.noteUserInput()
+        if event.keyCode == 36, jellyfinPlayback?.activeSkip != nil { // return: Skip Intro / Recap
+            jellyfinPlayback?.skipSegment()
+            showControls()
+            return true
+        }
         if showsChannelList, handleChannelListKey(event.keyCode) {
             showControls()
             return true

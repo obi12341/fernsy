@@ -13,11 +13,25 @@ public final class JellyfinPlayback: ObservableObject {
 
     public let item: JFItem
     @Published public private(set) var nextEpisode: JFItem? {
-        didSet { startAutoplayIfDue() }
+        didSet { refreshCard() }
     }
-    /// When the next episode starts after the end (the countdown), nil while none runs.
+    /// The next-episode card (at the final credits or the end), nil while none shows.
+    @Published public private(set) var card: NextCardState?
+    /// When the next episode starts (the countdown), nil while none runs.
     @Published public private(set) var autoplayAt: Date?
+    /// The card was closed for this item (Watch Credits, Cancel, Back): no card again at the end.
     @Published public private(set) var autoplayCancelled = false
+    /// The intro or recap playing now, while its skip button shows.
+    @Published public private(set) var activeSkip: SegmentMarks.Skip?
+    /// Automatic skipping just jumped over this part (shown for a few seconds).
+    @Published public private(set) var skippedNotice: SegmentMarks.SkipKind?
+    /// Starts an episode in the app's player: Play Now, Continue Watching and the countdown.
+    public var playItem: ((JFItem) -> Void)?
+    /// Episodes the countdown started in a row without input, across playbacks (one player per app).
+    public static var streak = AutoplayStreak(limit: stillWatchingLimit)
+    private var tracker = SegmentTracker()
+    private var autoplayTask: Task<Void, Never>?
+    private var noticeTask: Task<Void, Never>?
     public private(set) var method: Method = .direct
     public static let autoplayDelay: TimeInterval = 10
 
@@ -51,9 +65,25 @@ public final class JellyfinPlayback: ObservableObject {
         self.engine = engine
     }
 
+    private static var stillWatchingLimit: Int {
+        #if DEBUG
+        // JF_TESTSTILLWATCHING=<n>: ask after n auto-started episodes.
+        if let n = ProcessInfo.processInfo.environment["JF_TESTSTILLWATCHING"].flatMap(Int.init) { return n }
+        #endif
+        return 3
+    }
+
+    /// Details (and segments) of the next episode loaded while its card showed, by item id.
+    private static var prefetched: [String: (at: Date, segments: [JFMediaSegment]?)] = [:]
+    private static let prefetchLifetime: TimeInterval = 120
+
     /// Loads the item's media information and prepares playback.
     public static func make(itemId: String, store: JellyfinStore, engine: PlayerEngine) async -> JellyfinPlayback? {
-        await store.loadDetail(itemId)
+        if let entry = prefetched[itemId], Date().timeIntervalSince(entry.at) < prefetchLifetime, store.details[itemId] != nil {
+            AppLog.detail(.jellyfin, "using the prefetched details of the next episode")
+        } else {
+            await store.loadDetail(itemId)
+        }
         guard let item = store.details[itemId], let source = item.mediaSources?.first else { return nil }
         return JellyfinPlayback(item: item, source: source, store: store, engine: engine)
     }
@@ -126,6 +156,150 @@ public final class JellyfinPlayback: ObservableObject {
             let store = store, itemId = item.id
             Task { nextEpisode = try? await store.call { client, userId in try await client.nextEpisode(userId: userId, seriesId: seriesId, after: itemId) } }
         }
+        if item.type == "Episode" { loadSegments() }
+    }
+
+    // MARK: Segments
+
+    /// The episode's segments (or the test list), turned into marks; never delays the stream.
+    private func loadSegments() {
+        tracker.skipping = SegmentPreferences.settings.skipping
+        let store = store, itemId = item.id, chapters = item.chapters ?? [], runtime = duration
+        let cached = Self.prefetched.removeValue(forKey: itemId)?.segments
+        Task {
+            var segments: [JFMediaSegment]
+            #if DEBUG
+            let test = ProcessInfo.processInfo.environment["JF_TESTSEGMENTS"]
+            #else
+            let test: String? = nil
+            #endif
+            if let test {
+                segments = JFMediaSegment.parseTestList(test)
+            } else if let cached {
+                segments = cached
+            } else {
+                segments = (try? await store.call { client, _ in try await client.mediaSegments(itemId: itemId) }) ?? []
+            }
+            guard !stopped else { return }
+            let marks = SegmentMarks.make(segments: segments, chapters: chapters, runtime: runtime)
+            AppLog.info(.jellyfin, "segments: \(segments.count), skips \(marks.skips.map { "\($0.kind.rawValue) \(Int($0.start))-\(Int($0.end))" }.joined(separator: " ")), "
+                        + "credits \(marks.credits.map { "\(Int($0.start)) s\($0.reachesEnd ? "" : " (more follows)")" } ?? "-")")
+            handle(tracker.setMarks(marks), at: engine.progress.position)
+            publishSkip()
+        }
+    }
+
+    private func positionChanged(_ position: Double) {
+        guard !stopped else { return }
+        handle(tracker.update(position: position), at: position)
+        publishSkip()
+    }
+
+    private func publishSkip() {
+        if activeSkip != tracker.activeSkip { activeSkip = tracker.activeSkip }
+    }
+
+    /// `position`: the new one (the progress still holds the old value while it publishes).
+    private func handle(_ events: [SegmentTracker.Event], at position: Double) {
+        for event in events {
+            switch event {
+            case .enteredCredits:
+                AppLog.info(.jellyfin, "credits at \(Int(position)) s")
+                refreshCard()
+            case .leftCredits:
+                if !endReported { autoplayCancelled = false }
+                refreshCard()
+            case .autoSkip(let kind, let end):
+                AppLog.info(.jellyfin, "skipped the \(kind.rawValue) automatically to \(Int(end)) s")
+                engine.seek(to: end)
+                showNotice(kind)
+            }
+        }
+    }
+
+    private func showNotice(_ kind: SegmentMarks.SkipKind) {
+        skippedNotice = kind
+        noticeTask?.cancel()
+        noticeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            self?.skippedNotice = nil
+        }
+    }
+
+    /// Skip Intro / Skip Recap: on to the end of the part.
+    public func skipSegment() {
+        guard let skip = activeSkip, !stopped else { return }
+        Self.streak.userInput()
+        AppLog.info(.jellyfin, "skip \(skip.kind.rawValue) to \(Int(skip.end)) s")
+        engine.seek(to: skip.end)
+    }
+
+    /// Any input in the player: the still-watching count starts again.
+    public static func noteUserInput() {
+        streak.userInput()
+    }
+
+    // MARK: Next episode
+
+    /// Decides the card and its countdown from the current state.
+    private func refreshCard() {
+        guard !stopped else { return }
+        let state = NextCardState.decide(hasNext: nextEpisode != nil, ended: endReported, inCredits: tracker.inCredits,
+                                         creditsReachEnd: tracker.marks.credits?.reachesEnd ?? true, dismissed: autoplayCancelled,
+                                         autoplay: SegmentPreferences.settings.autoplayNext, stillWatchingDue: Self.streak.isDue)
+        if card != state {
+            card = state
+            if let state {
+                AppLog.info(.jellyfin, "next-episode card (\(state.reason == .credits ? "credits" : "end"))"
+                            + (state.counts ? ", countdown" : state.asksStillWatching ? ", still watching?" : ", no countdown"))
+            }
+        }
+        if state?.counts == true {
+            if autoplayAt == nil { scheduleAutoplay() }
+        } else if autoplayAt != nil {
+            autoplayAt = nil
+            autoplayTask?.cancel()
+        }
+        if state != nil { prefetchNext() }
+    }
+
+    private func scheduleAutoplay() {
+        let at = Date().addingTimeInterval(Self.autoplayDelay)
+        autoplayAt = at
+        autoplayTask?.cancel()
+        autoplayTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.autoplayDelay))
+            guard !Task.isCancelled, let self, self.autoplayAt == at else { return }
+            self.startNext(automatic: true)
+        }
+    }
+
+    /// Play Now and Continue Watching.
+    public func playNext() {
+        startNext(automatic: false)
+    }
+
+    private func startNext(automatic: Bool) {
+        guard let next = nextEpisode, !stopped else { return }
+        if automatic { Self.streak.autoStarted() } else { Self.streak.userInput() }
+        autoplayAt = nil
+        autoplayTask?.cancel()
+        AppLog.info(.jellyfin, "next episode \(automatic ? "by the countdown" : "by the user") (\(Self.streak.count) in a row)")
+        playItem?(next)
+    }
+
+    /// While the card shows: the next episode's details and segments, so it starts at once.
+    private func prefetchNext() {
+        guard let next = nextEpisode, Self.prefetched[next.id] == nil else { return }
+        Self.prefetched[next.id] = (Date(), nil)
+        let store = store, id = next.id
+        Task {
+            await store.loadDetail(id)
+            let segments = try? await store.call { client, _ in try await client.mediaSegments(itemId: id) }
+            Self.prefetched[id] = (Date(), segments)
+            AppLog.detail(.jellyfin, "prefetched next episode")
+        }
     }
 
     public func stop() {
@@ -133,7 +307,19 @@ public final class JellyfinPlayback: ObservableObject {
         stopped = true
         timer?.invalidate()
         observers.removeAll()
-        if !endReported {
+        autoplayTask?.cancel()
+        noticeTask?.cancel()
+        let leavingInCredits = !endReported && tracker.inCredits && item.type == "Episode"
+        if leavingInCredits {
+            // Below the server's played threshold the stop alone leaves it partly watched.
+            let item = item, store = store, position = engine.progress.position
+            let send = sender(.stopped, position: position)
+            Task {
+                await send()
+                await store.setPlayed(item, true)
+                AppLog.info(.jellyfin, "left in the credits at \(Int(position)) s: marked as played")
+            }
+        } else if !endReported {
             let ended = engine.status == .ended
             report(.stopped, position: ended ? (duration ?? engine.progress.position) : engine.progress.position)
         }
@@ -347,14 +533,17 @@ public final class JellyfinPlayback: ObservableObject {
             } else if status == .playing && self.endReported {
                 // Played on after the end (seeked back): a new play session on the server.
                 self.endReported = false
-                self.autoplayAt = nil
                 self.autoplayCancelled = false
+                self.refreshCard()
                 self.report(.start)
                 AppLog.detail(.jellyfin, "playing again after the end")
             }
         }.store(in: &observers)
         engine.$isPaused.removeDuplicates().dropFirst().sink { [weak self] _ in
             self?.report(.progress)
+        }.store(in: &observers)
+        engine.progress.$position.removeDuplicates().sink { [weak self] position in
+            self?.positionChanged(position)
         }.store(in: &observers)
     }
 
@@ -365,7 +554,7 @@ public final class JellyfinPlayback: ObservableObject {
         endReported = true
         report(.stopped, position: duration ?? engine.progress.position)
         AppLog.info(.jellyfin, "ended: stop reported at the end")
-        startAutoplayIfDue()
+        refreshCard()
         #if DEBUG
         // JF_TESTCANCELNEXT=1: the user cancels the countdown right away.
         if ProcessInfo.processInfo.environment["JF_TESTCANCELNEXT"] == "1" { cancelAutoplay() }
@@ -377,14 +566,11 @@ public final class JellyfinPlayback: ObservableObject {
         }
     }
 
-    private func startAutoplayIfDue() {
-        guard endReported, nextEpisode != nil, autoplayAt == nil, !autoplayCancelled else { return }
-        autoplayAt = Date().addingTimeInterval(Self.autoplayDelay)
-    }
-
+    /// Watch Credits, Cancel, Back: the card closes and does not come back for this item.
     public func cancelAutoplay() {
+        Self.streak.userInput()
         autoplayCancelled = true
-        autoplayAt = nil
+        refreshCard()
     }
 
     private func startTimer() {
@@ -404,12 +590,18 @@ public final class JellyfinPlayback: ObservableObject {
     }
 
     private func report(_ event: JellyfinClient.ProgressEvent, position: Double? = nil) {
-        guard store.session != nil, reportedStart || event == .start else { return }
+        let send = sender(event, position: position)
+        Task { await send() }
+    }
+
+    /// The report with the state of now, to send later (in order with what follows it).
+    private func sender(_ event: JellyfinClient.ProgressEvent, position: Double? = nil) -> @MainActor () async -> Void {
+        guard store.session != nil, reportedStart || event == .start else { return {} }
         let position = position ?? engine.progress.position
         let item = item.id, source = mediaSourceId, paused = engine.isPaused, transcoding = method == .transcode
         let session = playSessionId, audio = audioIndex, subtitle = subtitleIndex, store = store
         // Through the store: a rejected token is renewed and the report sent again.
-        Task {
+        return {
             try? await store.call { client, _ in
                 try await client.report(event, itemId: item, mediaSourceId: source, positionSeconds: position, isPaused: paused,
                                         transcoding: transcoding, playSessionId: session, audioIndex: audio, subtitleIndex: subtitle)

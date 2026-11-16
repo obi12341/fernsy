@@ -164,6 +164,8 @@ private struct AccountView: View {
 private struct JellyfinAccountView: View {
     @EnvironmentObject private var model: TVModel
     @State private var confirm = false
+    @AppStorage(SegmentPreferences.autoplayKey) private var autoplayNext = true
+    @AppStorage(SegmentPreferences.skippingKey) private var skipSegments = SegmentPreferences.Skipping.button.rawValue
 
     var body: some View {
         Form {
@@ -172,6 +174,18 @@ private struct JellyfinAccountView: View {
                     LabeledContent("Server", value: "\(session.serverName) · \(session.version)")
                     LabeledContent("Address", value: session.server)
                     LabeledContent("User", value: session.userName)
+                }
+                Section {
+                    Toggle("Play Next Episode Automatically", isOn: $autoplayNext)
+                        .accessibilityIdentifier("settings.jellyfinAutoplay")
+                    Picker("Skip Intros and Recaps", selection: $skipSegments) {
+                        ForEach(SegmentPreferences.Skipping.allCases, id: \.self) { choice in
+                            Text(choice.title).tag(choice.rawValue)
+                        }
+                    }
+                    .accessibilityIdentifier("settings.jellyfinSkip")
+                } footer: {
+                    Text("Jellyfin knows where intros, recaps and credits are when a plugin such as Intro Skipper is installed on the server.")
                 }
             }
             Section {

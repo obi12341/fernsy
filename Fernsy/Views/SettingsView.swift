@@ -46,6 +46,8 @@ struct SettingsView: View {
 private struct AccountsSettings: View {
     @EnvironmentObject private var app: AppModel
     @EnvironmentObject private var jellyfin: JellyfinStore
+    @AppStorage(SegmentPreferences.autoplayKey) private var autoplayNext = true
+    @AppStorage(SegmentPreferences.skippingKey) private var skipSegments = SegmentPreferences.Skipping.button.rawValue
     @ObservedObject private var vpnGuard = VPNGuardState.shared
     @State private var addingAccount: AccountKind?
 
@@ -107,6 +109,12 @@ private struct AccountsSettings: View {
                     LabeledContent("User", value: session.userName)
                     if jellyfin.isExpired {
                         Text("The session has expired.").foregroundStyle(.orange)
+                    }
+                    Toggle("Play Next Episode Automatically", isOn: $autoplayNext)
+                    Picker("Skip Intros and Recaps", selection: $skipSegments) {
+                        Text("Show Button").tag(SegmentPreferences.Skipping.button.rawValue)
+                        Text("Automatically").tag(SegmentPreferences.Skipping.auto.rawValue)
+                        Text("Never").tag(SegmentPreferences.Skipping.never.rawValue)
                     }
                     HStack {
                         Button("Refresh Library") { Task { await jellyfin.loadLibrary(forceRefresh: true) } }

@@ -179,6 +179,7 @@ struct TVTools {
             var value: [String: Any] = ["playing": true, "title": item.title, "state": "\(model.engine.status)",
                                         "position_seconds": Int(progress.position), "duration_seconds": Int(progress.duration)]
             if let subtitle = item.subtitle { value["subtitle"] = subtitle }
+            if case .jellyfin(let jfItem) = item { value["item_id"] = "jellyfin:\(jfItem.id)" }
             if let next = model.nextAfterPlaying { value["next"] = next.subtitle ?? next.title }
             return value
         }

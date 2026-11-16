@@ -13,7 +13,13 @@ struct PlayerView: View {
     @State private var showsControls = true
     @State private var lastInput = Date()
     @State private var showsChannels = false
-    @State private var countdown: Int?
+    /// An IPTV episode ended: when the next one starts.
+    @State private var iptvNextAt: Date?
+    /// The Jellyfin playback's card, skip button and note (mirrored from the playback).
+    @State private var jfCard: NextCardState?
+    @State private var jfDeadline: Date?
+    @State private var skip: SegmentMarks.Skip?
+    @State private var skippedNotice: SegmentMarks.SkipKind?
     @State private var dragOffset: CGFloat = 0
     /// The track menu is open: the controls stay (hiding them closed the menu under the finger).
     @State private var menuOpen = false
@@ -31,18 +37,27 @@ struct PlayerView: View {
                 .contentShape(.rect)
                 .ignoresSafeArea()
                 .onTapGesture { showsControls.toggle(); menuOpen = false; touch() }
-            if showsControls || countdown != nil {
+            if showsControls || upNext != nil {
                 LinearGradient(colors: [.black.opacity(0.6), .clear, .clear, .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
             subtitles
-            if let countdown, let next = model.nextAfterPlaying {
-                NextEpisodeCard(next: next, seconds: countdown, play: playNext, cancel: cancelNext)
+            if let content = upNext {
+                UpNextCard(content: content, play: playNext, dismiss: cancelNext)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(24)
-            } else if showsControls && !showsChannels {
-                controls
+            } else {
+                if showsControls && !showsChannels {
+                    controls
+                }
+                // Also with the controls hidden (ios-app "On-demand playback").
+                if !showsChannels {
+                    SkipSegmentPill(skip: skip, notice: skippedNotice) { model.jellyfinPlayback?.skipSegment(); touch() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                        .padding(.trailing, 24)
+                        .padding(.bottom, showsControls ? (UIDevice.current.userInterfaceIdiom == .phone ? 96 : 130) : 28)
+                }
             }
             status
             PlayerState(engine: model.engine)
@@ -85,22 +100,36 @@ struct PlayerView: View {
         .animation(.easeOut(duration: 0.25), value: showsChannels)
         .onReceive(model.engine.$status) { status in
             // An IPTV episode at its end: count down to the next one (as on Apple TV).
-            if status == .ended, case .episode = model.playingVOD, model.nextAfterPlaying != nil, countdown == nil { countdown = 10 }
+            if status == .ended, case .episode = model.playingVOD, model.nextAfterPlaying != nil, iptvNextAt == nil {
+                iptvNextAt = Date().addingTimeInterval(JellyfinPlayback.autoplayDelay)
+            }
         }
-        .onReceive(model.jellyfinPlayback?.$autoplayAt.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()) { date in
-            countdown = date.map { max(0, Int($0.timeIntervalSinceNow.rounded())) }
+        // The Jellyfin countdown runs in the playback; the player only shows it.
+        .onReceive(model.jellyfinPlayback?.$card.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { jfCard = $0 }
+        .onReceive(model.jellyfinPlayback?.$autoplayAt.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { jfDeadline = $0 }
+        .onReceive(model.jellyfinPlayback?.$activeSkip.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { skip = $0 }
+        .onReceive(model.jellyfinPlayback?.$skippedNotice.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()) { skippedNotice = $0 }
+        .task(id: iptvNextAt) {
+            guard let at = iptvNextAt else { return }
+            guard (try? await Task.sleep(for: .seconds(max(0, at.timeIntervalSinceNow)))) != nil else { return }
+            playNext()
         }
-        .task(id: countdown) {
-            guard let value = countdown else { return }
-            guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
-            if value <= 1 { playNext() } else { countdown = value - 1 }
+    }
+
+    /// The next-episode card: Jellyfin's from its playback, an IPTV episode's after its end.
+    private var upNext: UpNextContent? {
+        if case .jellyfin? = model.playingVOD {
+            guard let card = jfCard, let next = model.jellyfinPlayback?.nextEpisode else { return nil }
+            return UpNextContent(card: card, next: next, deadline: jfDeadline, store: model.jellyfin)
         }
+        guard let at = iptvNextAt, let next = model.nextAfterPlaying else { return nil }
+        return UpNextContent(line: next.subtitle ?? next.title, deadline: at)
     }
 
     /// The subtitles, at a caption size for the device, above the bottom bar while it shows.
     private var subtitles: some View {
         let phone = UIDevice.current.userInterfaceIdiom == .phone
-        let raised = showsControls && !showsChannels && countdown == nil
+        let raised = showsControls && !showsChannels && upNext == nil
         return SubtitleOverlay(engine: model.engine, fontSize: phone ? 20 : 28,
                                bottomInset: raised ? (phone ? 84 : 110) : (phone ? 8 : 24), sideInset: phone ? 24 : 60)
     }
@@ -163,19 +192,27 @@ struct PlayerView: View {
             }
     }
 
-    private func touch() { lastInput = Date() }
+    private func touch() {
+        lastInput = Date()
+        JellyfinPlayback.noteUserInput()
+    }
 
     private var isFailed: Bool { if case .failed = model.engine.status { true } else { false } }
 
     private func playNext() {
-        guard let next = model.nextAfterPlaying else { countdown = nil; return }
-        countdown = nil
+        if case .jellyfin? = model.playingVOD, let playback = model.jellyfinPlayback {
+            playback.playNext()
+            return
+        }
+        guard let next = model.nextAfterPlaying else { iptvNextAt = nil; return }
+        iptvNextAt = nil
         model.play(next, fromStart: true)
     }
 
     private func cancelNext() {
-        countdown = nil
+        iptvNextAt = nil
         model.jellyfinPlayback?.cancelAutoplay()
+        touch()
     }
 }
 
@@ -392,29 +429,6 @@ private struct AirPlayButton: UIViewRepresentable {
     }
 
     func updateUIView(_ view: AVRoutePickerView, context: Context) {}
-}
-
-/// "Next Episode in 7 s" with Play Now and Cancel.
-private struct NextEpisodeCard: View {
-    let next: VODItem
-    let seconds: Int
-    let play: () -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Next episode in \(seconds) s").font(.subheadline.weight(.semibold)).opacity(0.75)
-                .accessibilityIdentifier("vod.countdown")
-            Text(verbatim: next.subtitle ?? next.title).font(.headline).lineLimit(1)
-            HStack(spacing: 12) {
-                Button("Play Now", action: play).buttonStyle(.borderedProminent)
-                Button("Cancel", action: cancel).buttonStyle(.bordered)
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: 360, alignment: .leading)
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 20))
-    }
 }
 
 /// The channels of the zap source with now and next; tapping tunes like zapping on the Mac.
