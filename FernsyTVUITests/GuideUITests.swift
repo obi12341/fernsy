@@ -45,14 +45,18 @@ final class GuideUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["player.state"].waitForExistence(timeout: 15), "the player did not open")
         remote.press(.menu)
 
-        // A later show: Right until the focused show starts in the future, then Record.
+        // A later show: Right until the focused show starts at least 30 minutes from now, then
+        // Record. A show starting sooner may already be recording because of the padding before
+        // it, and its dialog then offers Stop Recording instead of Don't Record (CI, 2026-11-26).
         XCTAssertTrue(focused.waitForExistence(timeout: 10), "focus did not return to the guide")
-        for _ in 0..<6 {
+        var later = false
+        for _ in 0..<10 {
             let start = Double(focused.identifier.split(separator: ".").last ?? "") ?? 0
-            if start > Date().timeIntervalSince1970 { break }
+            if start > Date().timeIntervalSince1970 + 30 * 60 { later = true; break }
             remote.press(.right)
             Thread.sleep(forTimeInterval: 0.6)
         }
+        XCTAssertTrue(later, "no show starting in 30 minutes or later:\n\(app.debugDescription)")
         let id = focused.identifier
         // Scheduled by an earlier run (recordings stay in the simulator's Caches): unschedule first.
         if app.buttons[id].value as? String == "scheduled" { choose("Don’t Record", app) }
