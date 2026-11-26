@@ -13,4 +13,4 @@
 
 ## 3. App Store
 
-- [ ] 3.1 iOS review notes: where the subscription is and how to see the expired state
+- [x] 3.1 iOS review notes: where the subscription is and how to see the expired state
