@@ -199,6 +199,29 @@ struct CloudModelTests {
         #expect(!cloud.hasSubscription)
     }
 
+    /// The offer shows without a subscription and again after it ended, while the grace period
+    /// keeps the recordings playable (subscription-offer-after-end); never while one is active.
+    @Test func offerShowsUntilActiveAndAgainAfterTheEnd() async throws {
+        Server.reset()
+        let store = FakeStore(), memory = Memory()
+        let cloud = model(store, memory)
+        await cloud.start()
+        #expect(cloud.offersSubscription)
+        #expect(await cloud.purchase())
+        #expect(!cloud.offersSubscription)
+        store.set(entitled: false)
+        Server.state = "grace"
+        await cloud.refreshSubscription()
+        await cloud.refresh()
+        #expect(cloud.account?.state == .grace)
+        #expect(cloud.canUseCloud, "the recordings stay playable")
+        #expect(cloud.offersSubscription)
+        // Bought on the website: active on the server without a StoreKit entitlement.
+        Server.state = "active"; Server.web = true
+        await cloud.refresh()
+        #expect(!cloud.offersSubscription)
+    }
+
     @Test func deletingCloudDataEmptiesTheList() async throws {
         Server.reset()
         Server.recordings = #"[{"id":"r1","dataBytes":10,"metaBytes":5,"completedAt":"2026-10-30T10:00:00Z"}]"#

@@ -183,6 +183,9 @@ public final class CloudModel {
     public var hasAccount: Bool { client.hasAccount }
     /// Cloud places beyond the offer show.
     public var canUseCloud: Bool { hasSubscription || (account?.canPlay ?? false) }
+    /// The offer (Subscribe, Restore) shows while no subscription is active: with none, and after
+    /// it ended, in the grace period too, where `canUseCloud` still holds for the recordings.
+    public var offersSubscription: Bool { !hasSubscription && account?.state != .active }
     public var canUpload: Bool { hasAccount && (account?.canUpload ?? false) }
     /// The DMG buys on fernsy.app (`WebCloudStore`), the App Store builds through StoreKit.
     public var isWebStore: Bool { store is WebCloudStore }

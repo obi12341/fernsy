@@ -455,7 +455,9 @@ private struct CloudSettingsScreen: View {
         SettingsPage(title: "Fernsy Cloud") {
             Text("Your Mac’s recordings in your own private storage, played here – end-to-end encrypted, so nobody else can see them, not even mobilistics.")
                 .font(.system(size: 24)).foregroundStyle(TVTheme.secondary).padding(.bottom, 10)
-            if !cloud.canUseCloud {
+            // Without an active subscription, also in the grace period after it ended
+            // (subscription-offer-after-end): the account rows follow below.
+            if cloud.offersSubscription {
                 ForEach(CloudModel.offerParts, id: \.self) { part in
                     Label { Text(verbatim: part) } icon: { Image(systemName: "checkmark") }
                         .font(.system(size: 22)).foregroundStyle(TVTheme.secondary)
@@ -466,7 +468,8 @@ private struct CloudSettingsScreen: View {
                     .accessibilityIdentifier("cloud.subscribe")
                 Button { Task { await cloud.restore() } } label: { SettingsRow(title: Text("Restore Purchases")) }
                 CloudTermsText(terms: cloud.terms)
-            } else {
+            }
+            if cloud.canUseCloud {
                 if let account = cloud.account, cloud.hasAccount {
                     SettingsRow(title: Text("Subscription"), value: Text(verbatim: CloudModel.stateText(account)))
                     SettingsRow(title: Text("Storage"), value: Text(verbatim: CloudModel.storageText(account)))
