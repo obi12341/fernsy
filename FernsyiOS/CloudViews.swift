@@ -227,7 +227,9 @@ struct CloudSettingsView: View {
             Section {
                 Text("Your Mac’s recordings in your own private storage, played here – end-to-end encrypted, so nobody else can see them, not even mobilistics.")
             }
-            if !cloud.canUseCloud {
+            // Without an active subscription, also in the grace period after it ended
+            // (subscription-offer-after-end): the account rows follow below.
+            if cloud.offersSubscription {
                 Section {
                     CloudOfferParts()
                     Text(verbatim: cloud.terms.offerLine(cloud.offer)).font(.headline)
@@ -239,7 +241,8 @@ struct CloudSettingsView: View {
                 } footer: {
                     CloudTermsFooter(terms: cloud.terms)
                 }
-            } else {
+            }
+            if cloud.canUseCloud {
                 if let account = cloud.account, cloud.hasAccount {
                     Section {
                         LabeledContent("Subscription", value: CloudModel.stateText(account))
